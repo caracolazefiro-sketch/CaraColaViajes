@@ -351,8 +351,8 @@ export default function Home() {
         {/* CABECERA */}
         <div className="text-center space-y-2">
             <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-teal-500 drop-shadow-sm">
-    CaraCola Viajes 🐌
-</h1>
+                Ruta Camper Pro 🚐
+            </h1>
             <p className="text-gray-500 text-lg">Planifica tu aventura kilómetro a kilómetro</p>
         </div>
         
