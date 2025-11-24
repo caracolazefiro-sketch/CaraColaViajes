@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 // --- CONFIGURACIÓN ---
 const CX_ID = "9022e72d0fcbd4093"; 
 const API_KEY = "AIzaSyDecT2WWIcWJd0mCQv5ONc3okQfwAmXIX0"; 
+const MIN_QUALITY = 3.8; // 🛑 NOTA DE CORTE: Menos de esto se descarta.
 
 interface Spot {
   title: string;
@@ -18,12 +19,9 @@ interface Spot {
 const SpotCard = ({ spot, rank }: { spot: Spot, rank: number }) => {
   const medals = ["🥇", "🥈", "🥉"];
   
-  // Colores según nota real
-  let color = "bg-gray-500";
-  if (spot.rating >= 4.5) color = "bg-green-600";
-  else if (spot.rating >= 4) color = "bg-green-500";
-  else if (spot.rating >= 3) color = "bg-yellow-500";
-  else color = "bg-red-500";
+  let color = "bg-green-600";
+  if (spot.rating < 4) color = "bg-yellow-500";
+  if (spot.rating < 3) color = "bg-red-500";
 
   return (
     <a href={spot.link} target="_blank" rel="noopener noreferrer" className="flex flex-col bg-white rounded-xl shadow-lg overflow-hidden hover:scale-[1.02] transition-transform h-full border border-gray-100 no-underline group">
@@ -49,14 +47,14 @@ const SpotCard = ({ spot, rank }: { spot: Spot, rank: number }) => {
         
         <div className="mt-auto pt-3 border-t border-gray-50 flex justify-between items-center">
              <span className="text-[10px] text-gray-400">park4night.com</span>
-             <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Nota Verificada</span>
+             <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Calidad Verificada</span>
         </div>
       </div>
     </a>
   );
 };
 
-// --- LÓGICA DE BÚSQUEDA ESTRICTA ---
+// --- LÓGICA DE BÚSQUEDA ---
 const SearchEngine = () => {
   const [city, setCity] = useState("Punta Umbria");
   const [spots, setSpots] = useState<Spot[]>([]);
@@ -70,7 +68,7 @@ const SearchEngine = () => {
     setStatus("Lanzando escáner doble (20 resultados)...");
 
     try {
-      // 1. PEDIMOS 20 RESULTADOS (Página 1 y 2)
+      // 1. CONSULTA A GOOGLE (2 PÁGINAS)
       const queries = [1, 11].map(start => 
         fetch(`https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX_ID}&q=site:park4night.com "${city}"&num=10&start=${start}`)
         .then(r => r.json())
@@ -88,11 +86,10 @@ const SearchEngine = () => {
 
       setStatus(`Filtrando ${allItems.length} candidatos...`);
 
-      // 2. PROCESAMIENTO ESTRICTO
+      // 2. PROCESADO
       const processed = allItems.map(item => {
         const text = (item.title + " " + item.snippet);
         
-        // Buscamos nota real
         const match = text.match(/(\d[\.,]\d+)\/5/);
         let rating = 0;
         if (match) rating = parseFloat(match[1].replace(',', '.'));
@@ -101,26 +98,25 @@ const SearchEngine = () => {
         }
 
         return {
-          title: item.title.replace(' - park4night', '').replace(' - Caramaps', '').replace(/\(\d+\)/, '').trim(),
+          title: item.title.replace(' - park4night', '').replace(/\(\d+\)/, '').trim(),
           link: item.link,
           snippet: item.snippet,
-          image: item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || null,
-          rating // Si es 0, se filtrará
+          image: item.pagemap?.cse_image?.[0]?.src || null,
+          rating
         };
       });
 
-      // 3. FILTRO "TOLERANCIA CERO"
-      // Solo pasan los sitios donde HEMOS ENCONTRADO una nota (> 0)
-      const verifiedSpots = processed
+      // 3. FILTRADO ESTRICTO (AHORA SÍ SE APLICA)
+      const bestOnes = processed
         .filter((v,i,a)=>a.findIndex(t=>(t.link === v.link))===i) // Quitar duplicados
-        .filter(spot => spot.rating > 0) // <--- AQUÍ ESTÁ EL FILTRO NUEVO
-        .sort((a, b) => b.rating - a.rating); // Ordenar de mejor a peor
+        .filter(s => s.rating >= MIN_QUALITY) // 🛑 AQUÍ ESTÁ EL FILTRO DE CALIDAD
+        .sort((a, b) => b.rating - a.rating);
 
-      if (verifiedSpots.length === 0) {
-          setStatus(`Se encontraron sitios, pero Google no mostraba sus notas en el resumen.`);
+      if (bestOnes.length === 0) {
+          setStatus(`Encontrados ${processed.length} sitios, pero NINGUNO supera el ${MIN_QUALITY}/5.`);
       } else {
-          setSpots(verifiedSpots.slice(0, 3));
-          setStatus(`¡Éxito! Mostrando los ${Math.min(3, verifiedSpots.length)} mejores con nota verificada.`);
+          setSpots(bestOnes.slice(0, 3));
+          setStatus(`¡Éxito! Mostrando los ${Math.min(3, bestOnes.length)} mejores (Nota > ${MIN_QUALITY}).`);
       }
 
     } catch (err) {
@@ -134,10 +130,9 @@ const SearchEngine = () => {
   return (
     <div className="w-full max-w-5xl mx-auto p-4">
         <div className="bg-white p-6 rounded-2xl shadow-lg mb-8 border border-gray-100">
-            <h1 className="text-3xl font-black text-gray-800 mb-2 text-center">🕵️‍♂️ Buscador Estricto</h1>
-            <p className="text-center text-gray-400 text-sm mb-6">Solo muestra sitios con puntuación detectada explícitamente.</p>
+            <h1 className="text-3xl font-black text-gray-800 mb-2 text-center">🕵️‍♂️ Buscador Estricto (&gt; {MIN_QUALITY})</h1>
             
-            <form onSubmit={searchBestSpots} className="flex gap-2 max-w-lg mx-auto">
+            <form onSubmit={searchBestSpots} className="flex gap-2 max-w-lg mx-auto mt-6">
                 <input 
                     type="text" 
                     value={city} 
@@ -157,10 +152,10 @@ const SearchEngine = () => {
                 {spots.map((s, i) => <SpotCard key={i} spot={s} rank={i} />)}
             </div>
         ) : (
-            !loading && status.includes("Se encontraron sitios") && (
+            !loading && status.includes("NINGUNO supera") && (
                 <div className="text-center p-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <p className="text-gray-400 mb-2">🙈 Google no nos ha chivado ninguna nota para esta búsqueda.</p>
-                    <a href={`https://park4night.com/es/search?q=${city}`} target="_blank" className="text-blue-600 underline font-bold">Buscar manualmente en Park4Night</a>
+                    <p className="text-gray-500 mb-2">Las opciones detectadas tienen baja puntuación.</p>
+                    <a href={`https://park4night.com/es/search?q=${city}`} target="_blank" className="text-blue-600 underline font-bold">Ver listado completo en Park4Night</a>
                 </div>
             )
         )}
