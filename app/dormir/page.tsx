@@ -22,7 +22,8 @@ interface SpotData {
 // --- 1. COMPONENTE VISUAL: LA TARJETA ---
 const SpotCard = ({ spot, rank, isFallback = false }: { spot: SpotData, rank: number, isFallback?: boolean }) => {
   const medals = ["🥇", "🥈", "🥉"];
-  // Si es fallback (tarjeta de búsqueda), usamos colores neutros/azules
+  
+  // Colores: Si es fallback, usamos azul neutro
   const borderColors = isFallback 
     ? ["border-blue-300"] 
     : ["border-yellow-500", "border-gray-400", "border-orange-400"];
@@ -78,7 +79,8 @@ const SpotCard = ({ spot, rank, isFallback = false }: { spot: SpotData, rank: nu
         
         <div className="mt-auto pt-3 border-t border-gray-100 flex justify-end items-center">
              <span className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${isFallback ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-blue-600 bg-blue-50 group-hover:bg-blue-100'}`}>
-                {isFallback ? 'Buscar en la Web Oficial ➜' : 'Ver Ficha ➜'}
+                {/* 🛑 CAMBIO DE TEXTO SOLICITADO */}
+                {isFallback ? 'Buscar en Park4Night ➜' : 'Ver Ficha ➜'}
              </span>
         </div>
       </div>
@@ -99,16 +101,45 @@ const TopSpotsList = ({ city }: { city: string }) => {
       setLoading(true);
       setError(null);
       try {
-        // 1. BÚSQUEDA EN GOOGLE (Mantenemos la lógica de búsqueda amplia)
+        // 0. PREPARAR URL DE RESPALDO (CON COORDENADAS)
+        // Intentamos obtener las coordenadas de la ciudad para que el enlace de "Buscar en Park4Night" funcione bien.
+        let fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}`;
+        
+        if (typeof google !== 'undefined' && google.maps) {
+            const geocoder = new google.maps.Geocoder();
+            try {
+                const geoRes = await geocoder.geocode({ address: city });
+                if (geoRes.results && geoRes.results[0]) {
+                    const loc = geoRes.results[0].geometry.location;
+                    // 🛑 CAMBIO TÉCNICO: Añadimos lat/lng/z para que Park4Night abra el mapa directo
+                    fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}&lat=${loc.lat()}&lng=${loc.lng()}&z=14`;
+                }
+            } catch (e) {
+                console.log("No se pudieron obtener coordenadas para el fallback");
+            }
+        }
+
+        // Función auxiliar para crear la tarjeta de búsqueda manual
+        const createFallbackSpot = (): SpotData[] => [{
+            title: `Ver mapa de sitios en ${city}`,
+            link: fallbackUrl, // Usamos la URL mejorada con coordenadas
+            snippet: `Explora todas las opciones disponibles en ${city} directamente en el mapa interactivo de Park4Night.`,
+            image: null,
+            rating: 0,
+            displayRating: "",
+            type: "Búsqueda Manual"
+        }];
+
+        // 1. BÚSQUEDA EN GOOGLE CSE
         const query = `site:park4night.com "${city}"`; 
         const url = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX_ID}&q=${encodeURIComponent(query)}&num=10`;
 
         const res = await fetch(url);
         const json = await res.json();
 
-        // Si Google falla o no trae nada, activamos el modo Fallback manual
+        // Si falla la búsqueda automática, mostramos la tarjeta manual
         if (!json.items || json.items.length === 0) {
-             setSpots(createFallbackSpot(city));
+             setSpots(createFallbackSpot());
              return;
         }
 
@@ -134,15 +165,14 @@ const TopSpotsList = ({ city }: { city: string }) => {
             const img = item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || null;
             const title = (item.title || "").replace(/ - park4night/i, '').replace(/ - Caramaps/i, '').replace(/\(\d+\)/, '').trim();
 
-            // 🛑 CAMBIO 1: FORZAR ENLACE EN ESPAÑOL
-            // Reemplazamos /en/, /fr/, /de/ por /es/
+            // Forzamos enlace en español
             let link = item.link || "";
             link = link.replace(/park4night\.com\/[a-z]{2}\//, "park4night.com/es/");
 
             return {
                 title,
                 link,
-                snippet: (item.snippet || "").replace(/(\d[\.,]\d+\/5)/g, ''), // Limpiamos la nota del texto
+                snippet: (item.snippet || "").replace(/(\d[\.,]\d+\/5)/g, ''),
                 image: img,
                 rating: ratingValue,
                 displayRating: ratingValue > 0 ? ratingValue.toFixed(1) : "?",
@@ -157,17 +187,22 @@ const TopSpotsList = ({ city }: { city: string }) => {
         const highQualitySpots = uniqueSpots.filter(spot => spot.rating >= MIN_QUALITY_SCORE);
         let finalSpots = highQualitySpots.sort((a, b) => b.rating - a.rating);
 
-        // Si no encontramos buenos candidatos, activamos el Fallback Visual
+        // Si no hay resultados buenos, mostramos la tarjeta manual
         if (finalSpots.length === 0) {
-            setSpots(createFallbackSpot(city));
+            setSpots(createFallbackSpot());
         } else {
             setSpots(finalSpots.slice(0, 3));
         }
 
       } catch (e: any) {
         console.error(e);
-        // En caso de error técnico, también mostramos la tarjeta manual
-        setSpots(createFallbackSpot(city));
+        // En caso de error, tarjeta manual por defecto (sin coordenadas si falló antes)
+        setSpots([{
+            title: `Buscar ${city} en Park4Night`,
+            link: `https://park4night.com/es/search?q=${encodeURIComponent(city)}`,
+            snippet: "Error de conexión. Pulsa para buscar manualmente.",
+            image: null, rating: 0, displayRating: "", type: "Búsqueda Manual"
+        }]);
       } finally {
         setLoading(false);
       }
@@ -175,20 +210,6 @@ const TopSpotsList = ({ city }: { city: string }) => {
 
     fetchData();
   }, [city]);
-
-  // 🛑 CAMBIO 2 y 3: FUNCIÓN PARA CREAR TARJETA FALLBACK "REAL"
-  const createFallbackSpot = (cityName: string): SpotData[] => {
-      return [{
-          title: `Ver todos los sitios en ${cityName}`,
-          // Enlace directo a la búsqueda en P4N con el nombre de la ciudad ya puesto
-          link: `https://park4night.com/es/search?q=${encodeURIComponent(cityName)}`,
-          snippet: `No hemos detectado destacados automáticos con alta puntuación, pero puedes explorar el mapa completo de ${cityName} en la web oficial.`,
-          image: null, // Usará el icono por defecto
-          rating: 0,
-          displayRating: "",
-          type: "Búsqueda Manual"
-      }];
-  };
 
   if (loading) return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -213,7 +234,6 @@ const TopSpotsList = ({ city }: { city: string }) => {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {spots.map((spot, index) => (
-                // Si el tipo es "Búsqueda Manual", activamos el estilo fallback
                 <SpotCard key={index} spot={spot} rank={index} isFallback={spot.type === "Búsqueda Manual"} />
             ))}
         </div>
@@ -238,7 +258,7 @@ export default function DormirLab() {
                 <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 drop-shadow-sm">
                     CaraCola 🐌 Lab
                 </h1>
-                <p className="text-gray-500 text-lg">Tarjetas inteligentes + Redirección en Español</p>
+                <p className="text-gray-500 text-lg">Tarjetas inteligentes + Redirección GPS</p>
             </div>
 
             <div className="bg-white p-3 pl-6 rounded-full shadow-xl border border-gray-200 w-full max-w-2xl flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-blue-100 transform hover:scale-105 duration-300">
