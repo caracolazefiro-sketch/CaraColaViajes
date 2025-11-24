@@ -171,7 +171,8 @@ export default function DormirLab() {
                     type="text" 
                     value={inputCity}
                     onChange={(e) => setInputCity(e.target.value)}
-                    className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    // 🛑 CAMBIO AQUÍ: Añadido 'bg-white' y 'text-gray-900' explícitamente
+                    className="flex-1 p-3 bg-white text-gray-900 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
                     placeholder="Escribe una ciudad (ej: Cuenca)"
                 />
                 <button 
