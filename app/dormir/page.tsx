@@ -8,63 +8,61 @@ declare const google: any;
 // ID de tu Buscador Personalizado (CSE)
 const CX_ID = "9022e72d0fcbd4093"; 
 
-// Coordenadas de Madrid por defecto
-const CENTER_POINT = { lat: 40.416775, lng: -3.703790 }; 
+const center = { lat: 40.416775, lng: -3.703790 }; // Madrid
 
-// Estilos para el contenedor del mapa (Altura forzada)
+// Estilos para el contenedor del mapa
 const containerStyle = {
   width: '100%',
   height: '100%',
   borderRadius: '1rem',
   minHeight: '500px',
-  backgroundColor: '#e5e7eb' // Fondo gris mientras carga
+  backgroundColor: '#f3f4f6' // Color de fondo mientras carga
+};
+
+// Función segura para obtener variables de entorno
+const getEnv = (key: string) => {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || '';
+  }
+  return '';
 };
 
 // --- 2. INTERFACES ---
 interface DailyPlan { day: number; date: string; from: string; to: string; distance: number; isDriving: boolean; }
 interface TripResult { totalDays: number | null; distanceKm: number | null; totalCost: number | null; dailyItinerary: DailyPlan[] | null; error: string | null; }
 
-// --- 3. ICONOS SVG (Simples y seguros) ---
-const IconCalendar = () => <span className="text-2xl">📅</span>;
-const IconMap = () => <span className="text-2xl">🗺️</span>;
-const IconFuel = () => <span className="text-2xl">⛽</span>;
-const IconWallet = () => <span className="text-2xl">💶</span>;
-const IconSpinner = () => (
-  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-  </svg>
-);
+// --- 3. ICONOS SVG (Sin dependencias) ---
+const IconCalendar = () => (<svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
+const IconMap = () => (<svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
+const IconFuel = () => (<svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
+const IconWallet = () => (<svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+const IconSpinner = () => (<svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>);
 
-// --- 4. HOOK: CARGA GOOGLE MAPS NATIVAMENTE ---
-// Este hook inyecta el script de Google Maps en el head del documento
+// --- 4. HOOK: CARGA GOOGLE MAPS MANUALMENTE ---
 const useGoogleMapsScript = (apiKey: string) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     if (!apiKey) return;
     
-    // Si ya está cargado en window
     if (typeof window !== 'undefined' && (window as any).google && (window as any).google.maps) {
       setIsLoaded(true);
       return;
     }
 
-    // Si el script ya existe en el DOM
     const existingScript = document.getElementById('google-maps-script');
     if (existingScript) {
-      setIsLoaded(true);
+      setIsLoaded(true); 
       return;
     }
 
-    // Inyectar script
     const script = document.createElement('script');
     script.id = 'google-maps-script';
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&loading=async`;
     script.async = true;
     script.defer = true;
     script.onload = () => setIsLoaded(true);
-    script.onerror = () => console.error("Error cargando Google Maps Script");
+    script.onerror = () => console.error("Error al cargar Google Maps SDK");
     document.body.appendChild(script);
   }, [apiKey]);
 
@@ -75,21 +73,14 @@ const useGoogleMapsScript = (apiKey: string) => {
 const Park4NightCard = ({ query }: { query: string }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!query) return;
       setLoading(true);
-      setError(false);
-      
       try {
-        // Obtenemos la API Key de manera segura
-        const apiKey = typeof window !== 'undefined' ? (window as any).__initial_auth_token || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY : '';
-        
-        if (!apiKey) {
-            throw new Error("API Key no encontrada");
-        }
+        const apiKey = getEnv('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY');
+        if (!apiKey) throw new Error("No API Key");
 
         const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${CX_ID}&q=${encodeURIComponent(query)}&num=1`;
         const res = await fetch(url);
@@ -102,7 +93,7 @@ const Park4NightCard = ({ query }: { query: string }) => {
         }
       } catch (e) {
         console.error("Error CSE:", e);
-        setError(true);
+        setData(null); // Aseguramos que data sea null en caso de error
       } finally {
         setLoading(false);
       }
@@ -110,42 +101,40 @@ const Park4NightCard = ({ query }: { query: string }) => {
     fetchData();
   }, [query]);
 
-  if (loading) return <div className="animate-pulse p-4 bg-gray-50 rounded-lg h-24 w-full mt-3 flex items-center justify-center text-gray-400 text-sm border border-gray-100">Buscando mejor opción...</div>;
+  if (loading) return <div className="animate-pulse p-4 bg-gray-100 rounded-lg h-24 w-full mt-3 flex items-center justify-center text-gray-400 text-sm">Buscando...</div>;
   
-  // Fallback si hay error o no hay datos
-  if (error || !data) {
+  if (!data) {
     const fallbackLink = `https://www.google.com/search?q=site:park4night.com ${query}`;
     return (
-      <a href={fallbackLink} target="_blank" rel="noopener noreferrer" className="block p-4 border-2 border-dashed border-gray-300 rounded-lg text-center hover:bg-gray-50 mt-3 transition-colors">
-        <span className="text-gray-500 font-medium">🔍 Buscar manualmente en Google</span>
+      <a href={fallbackLink} target="_blank" rel="noopener noreferrer" className="block p-4 border-2 border-dashed border-gray-300 rounded-lg text-center hover:bg-gray-50 mt-3">
+        <span className="text-gray-500 font-medium">🔍 Buscar en Google</span>
       </a>
     );
   }
 
-  // Extraemos la imagen de forma segura
   const image = data.pagemap?.cse_image?.[0]?.src || data.pagemap?.cse_thumbnail?.[0]?.src;
+  const title = data.title ? data.title.replace(' - park4night', '').replace(' - Caramaps', '') : 'Resultado Park4Night';
+  const snippet = data.snippet || 'Ver detalles en la web.';
 
   return (
-    <a href={data.link} target="_blank" rel="noopener noreferrer" className="block group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all transform hover:-translate-y-1 mt-3 no-underline">
+    <a href={data.link} target="_blank" rel="noopener noreferrer" className="block group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all transform hover:-translate-y-1 mt-3">
       <div className="flex h-32">
         {image ? (
           <div className="w-1/3 bg-gray-200 relative overflow-hidden">
-             {/* Usamos img estándar para evitar problemas de next/image en dominios externos dinámicos */}
-             <img src={image} alt="Vista previa" className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
+             <img src={image} alt={title} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
           </div>
         ) : (
-           <div className="w-1/3 bg-blue-50 flex items-center justify-center text-2xl">🚐</div>
+          <div className="w-1/3 bg-blue-100 flex items-center justify-center text-3xl">🚐</div>
         )}
-        
-        <div className={`p-3 flex flex-col justify-between ${image ? 'w-2/3' : 'w-full'}`}>
+        <div className={`p-4 flex flex-col justify-between ${image ? 'w-2/3' : 'w-full'}`}>
           <div>
             <h5 className="font-bold text-sm text-gray-900 line-clamp-2 leading-tight group-hover:text-orange-600 transition-colors">
-              {data.title?.replace(' - park4night', '').replace(' - Caramaps', '') || 'Resultado encontrado'}
+              {title}
             </h5>
-            <p className="text-xs text-gray-500 mt-2 line-clamp-2">{data.snippet || 'Sin descripción disponible.'}</p>
+            <p className="text-xs text-gray-500 mt-2 line-clamp-2">{snippet}</p>
           </div>
-          <div className="flex items-center justify-end mt-2">
-            <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded-md border border-orange-100">Ver Ficha ➜</span>
+          <div className="flex items-center text-xs font-bold text-orange-500 mt-2">
+            <span className="bg-orange-50 px-2 py-1 rounded-md border border-orange-100">Ver Ficha ➜</span>
           </div>
         </div>
       </div>
@@ -160,13 +149,13 @@ const DayDetailView: React.FC<{ day: any }> = ({ day }) => {
   return (
     <div className={`p-6 rounded-xl h-full border-l-4 shadow-sm transition-all ${day.isDriving ? 'bg-blue-50 border-blue-600' : 'bg-orange-50 border-orange-600'}`}>
       <div className="flex justify-between items-start mb-4">
-        <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-blue-800' : 'text-orange-800'}`}>
+        <h4 className={`text-2xl font-extrabold ${day.isDriving ? 'text-blue-800' : 'text-orange-800'}`}>
           {day.isDriving ? '🚙 Etapa de Ruta' : '🏖️ Día de Relax'}
         </h4>
         <span className="text-sm bg-white px-2 py-1 rounded border font-mono text-gray-600">{day.date}</span>
       </div>
       
-      <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-4">
+      <div className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4">
          <span className="truncate max-w-[40%]">{day.from}</span>
          <span className="text-gray-400">➝</span>
          <span className="truncate max-w-[40%]">{day.to}</span>
@@ -198,18 +187,14 @@ const DayDetailView: React.FC<{ day: any }> = ({ day }) => {
 
 // --- 7. APP PRINCIPAL ---
 export default function Home() {
-  // Obtenemos la API Key de forma segura (evita el error process is not defined)
-  const apiKey = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '' : '';
-  
+  const apiKey = getEnv('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY');
   const isLoaded = useGoogleMapsScript(apiKey);
   
-  // Referencias Mapa Nativo
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [directionsRenderer, setDirectionsRenderer] = useState<any>(null);
   const markersRef = useRef<any[]>([]);
 
-  // Estados
   const [directionsResponse, setDirectionsResponse] = useState<any>(null);
   const [mapBounds, setMapBounds] = useState<any>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
@@ -223,7 +208,6 @@ export default function Home() {
     etapas: 'Valencia', consumo: 9.0, precioGasoil: 1.75, kmMaximoDia: 400, evitarPeajes: false,
   });
 
-  // Persistencia
   useEffect(() => {
     if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('caracola_data');
@@ -237,11 +221,10 @@ export default function Home() {
     }
   }, [formData]);
 
-  // Inicializar Mapa (SOLO cuando el script esté cargado y el div exista)
   useEffect(() => {
     if (isLoaded && mapRef.current && !mapInstance && typeof google !== 'undefined') {
       const map = new google.maps.Map(mapRef.current, {
-        center: CENTER_POINT,
+        center: center,
         zoom: 6,
         mapTypeControl: false,
         streetViewControl: false,
@@ -251,7 +234,7 @@ export default function Home() {
       const renderer = new google.maps.DirectionsRenderer({
         map,
         suppressMarkers: false,
-        polylineOptions: { strokeColor: "#EA580C", strokeWeight: 6 } // Naranja CaraCola
+        polylineOptions: { strokeColor: "#2563EB", strokeWeight: 5 }
       });
 
       setMapInstance(map);
@@ -259,37 +242,33 @@ export default function Home() {
     }
   }, [isLoaded, mapInstance]);
 
-  // Actualizar Ruta
   useEffect(() => {
     if (directionsRenderer && directionsResponse) {
       directionsRenderer.setDirections(directionsResponse);
     }
   }, [directionsResponse, directionsRenderer]);
 
-  // Marcadores P
   useEffect(() => {
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
-    
-    if (mapInstance && tacticalMarkers.length > 0 && typeof google !== 'undefined') {
+
+    if (mapInstance && tacticalMarkers.length > 0) {
       tacticalMarkers.forEach(p => {
         const marker = new google.maps.Marker({
-          position: p, 
-          map: mapInstance, 
+          position: p,
+          map: mapInstance,
           title: p.title,
-          label: { text: "P", color: "white", fontWeight: "bold", fontSize: "12px" }
+          label: { text: "P", color: "white", fontWeight: "bold" }
         });
         markersRef.current.push(marker);
       });
     }
   }, [tacticalMarkers, mapInstance]);
 
-  // Zoom
   useEffect(() => {
       if (mapInstance && mapBounds) { setTimeout(() => mapInstance.fitBounds(mapBounds), 500); }
   }, [mapInstance, mapBounds]);
 
-  // Helpers Geocoding
   const geocodeCity = async (cityName: string) => {
     if (typeof google === 'undefined') return null;
     const geocoder = new google.maps.Geocoder();
@@ -396,18 +375,18 @@ export default function Home() {
 
       setTacticalMarkers(newMarkers);
       setResults({ totalDays: day, distanceKm: totalDist/1000, totalCost: (totalDist/100000)*formData.consumo*formData.precioGasoil, dailyItinerary: itinerary, error: null });
-    } catch (e) { setResults(p => ({...p, error: "No se pudo calcular la ruta. Verifica las ciudades."})); }
+    } catch (e) { setResults(p => ({...p, error: "No se pudo calcular. Revisa las ciudades."})); }
     finally { setLoading(false); }
   };
 
-  if (!isLoaded) return <div className="flex h-screen items-center justify-center text-blue-600 font-bold animate-pulse text-xl">Cargando Mapas...</div>;
+  if (!isLoaded) return <div className="flex h-screen items-center justify-center text-blue-600 font-bold animate-pulse">Cargando Mapas...</div>;
 
   return (
     <main className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4 font-sans text-gray-900">
       <div className="w-full max-w-6xl space-y-8">
         <div className="text-center space-y-2">
             <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-600 drop-shadow-sm">CaraCola 🐌 MODO TEST</h1>
-            <p className="text-gray-500 text-lg">Prueba de Integración: Custom Search & Park4Night</p>
+            <p className="text-gray-500 text-lg">Prueba de Integración: Custom Search & Park4Night (Versión Nativa)</p>
         </div>
         
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
@@ -458,6 +437,7 @@ export default function Home() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-2xl overflow-hidden border-4 border-white shadow-lg relative">
+                             {/* CONTENEDOR DEL MAPA NATIVO */}
                             <div ref={mapRef} style={containerStyle} />
                         </div>
                         <div className="lg:col-span-1 bg-white rounded-2xl shadow border h-[500px] overflow-y-auto p-4">
