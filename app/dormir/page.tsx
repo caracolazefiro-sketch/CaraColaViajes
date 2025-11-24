@@ -2,14 +2,24 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-// --- CONFIGURACIÓN ---
+// --- 1. CONFIGURACIÓN ---
 declare const google: any;
 const CX_ID = "9022e72d0fcbd4093"; 
-const API_KEY = "AIzaSyDecT2WWIcWJd0mCQv5ONc3okQfwAmXIX0"; // Clave para pruebas
-const MIN_QUALITY_SCORE = 3.75; 
+const MIN_QUALITY_SCORE = 3.8;
 
-// --- INTERFACES ---
-// 🆕 AÑADIDO: Campo 'coordinates' para guardar lat/lng exactos
+// Coordenadas por defecto (Madrid)
+const CENTER = { lat: 40.416775, lng: -3.703790 };
+
+// Estilos del contenedor
+const containerStyle = {
+  width: '100%',
+  height: '100%',
+  borderRadius: '1rem',
+  minHeight: '600px',
+  backgroundColor: '#e5e7eb'
+};
+
+// --- 2. INTERFACES ---
 interface DailyPlan { 
   day: number; 
   date: string; 
@@ -26,272 +36,378 @@ interface SpotData {
   snippet: string;
   image: string | null;
   rating: number; 
-  displayRating: string; 
+  displayRating: string;
   type: string;
 }
 
-interface TripResult { totalDays: number | null; distanceKm: number | null; totalCost: number | null; dailyItinerary: DailyPlan[] | null; error: string | null; }
+interface TripResult { 
+    totalDays: number | null; 
+    distanceKm: number | null; 
+    totalCost: number | null; 
+    dailyItinerary: DailyPlan[] | null; 
+    error: string | null; 
+}
 
-// --- 1. COMPONENTE VISUAL: LA TARJETA ---
-const SpotCard = ({ spot, rank, isFallback = false }: { spot: SpotData, rank: number, isFallback?: boolean }) => {
-  const medals = ["🥇", "🥈", "🥉"];
-  
-  const borderColors = isFallback 
-    ? ["border-blue-300"] 
-    : ["border-yellow-500", "border-gray-400", "border-orange-400"];
-  
-  const borderColor = borderColors[rank] || (isFallback ? "border-blue-300" : "border-gray-200");
-  const medal = isFallback ? "🔍" : (medals[rank] || `#${rank + 1}`);
-  
-  let badgeColor = "bg-gray-500";
-  if (spot.rating >= 4.5) badgeColor = "bg-green-600";
-  else if (spot.rating >= 4) badgeColor = "bg-green-500";
-  else if (spot.rating >= 3) badgeColor = "bg-yellow-500";
+// --- 3. HOOK DE CARGA (NATIVO) ---
+// Este hook inyecta el script de Google Maps sin necesitar librerías externas
+const useGoogleMapsScript = (apiKey: string) => {
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  return (
-    <a 
-      href={spot.link} 
-      target="_blank" 
-      rel="noopener noreferrer" 
-      className={`flex flex-col bg-white border-2 ${borderColor} rounded-xl overflow-hidden hover:shadow-2xl transition-all transform hover:-translate-y-1 group h-full no-underline relative`}
-    >
-      <div className={`relative h-40 ${isFallback ? 'bg-blue-50' : 'bg-gray-200'}`}>
-        {spot.image ? (
-          <img src={spot.image} alt={spot.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl opacity-50">
-              {isFallback ? '🌍' : '🌲'}
-          </div>
-        )}
-        
-        <div className="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded-md font-bold shadow text-sm backdrop-blur-sm">
-           {medal}
-        </div>
+  useEffect(() => {
+    if (!apiKey) return;
+    
+    if (typeof window !== 'undefined' && (window as any).google && (window as any).google.maps) {
+      setIsLoaded(true);
+      return;
+    }
 
-        {!isFallback && spot.rating > 0 && (
-            <div className={`absolute bottom-2 right-2 ${badgeColor} text-white text-xs font-bold px-2 py-1 rounded shadow`}>
-               ⭐ {spot.displayRating}
-            </div>
-        )}
-        
-        <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded uppercase backdrop-blur-sm">
-            {spot.type}
-        </div>
-      </div>
+    const existing = document.getElementById('google-maps-script');
+    if (existing) {
+      // Si ya existe, asumimos que cargará pronto
+      const check = setInterval(() => {
+          if((window as any).google) {
+              setIsLoaded(true);
+              clearInterval(check);
+          }
+      }, 500);
+      return;
+    }
 
-      <div className="p-4 flex flex-col flex-grow bg-white">
-        <h3 className={`font-bold text-sm leading-snug mb-2 line-clamp-2 transition-colors ${isFallback ? 'text-blue-700' : 'text-gray-900 group-hover:text-orange-600'}`}>
-            {spot.title}
-        </h3>
-        
-        <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed mb-4 flex-grow">
-            {spot.snippet}
-        </p>
-        
-        <div className="mt-auto pt-3 border-t border-gray-100 flex justify-end items-center">
-             <span className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${isFallback ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-blue-600 bg-blue-50 group-hover:bg-blue-100'}`}>
-                {/* 🛑 CAMBIO: Texto actualizado */}
-                {isFallback ? 'Buscar en Park4Night ➜' : 'Ver Ficha ➜'}
-             </span>
-        </div>
-      </div>
-    </a>
-  );
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&loading=async`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setIsLoaded(true);
+    document.body.appendChild(script);
+  }, [apiKey]);
+
+  return isLoaded;
 };
 
-// --- 2. LÓGICA: CEREBRO DEL BUSCADOR ---
-const TopSpotsList = ({ city, coordinates }: { city: string, coordinates?: {lat: number, lng: number} }) => {
-  const [spots, setSpots] = useState<SpotData[]>([]);
+// --- 4. COMPONENTE: TARJETA INTELIGENTE ---
+const SmartSpotCard = ({ city, coordinates }: { city: string, coordinates?: { lat: number, lng: number } }) => {
+  const [bestSpot, setBestSpot] = useState<SpotData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
 
   useEffect(() => {
     if (!city) return;
 
-    const fetchData = async () => {
+    const fetchBestSpot = async () => {
       setLoading(true);
-      setError(null);
+      setIsFallback(false);
       try {
-        // 0. PREPARAR URL DE RESPALDO CON COORDENADAS EXACTAS
-        // Si recibimos coordenadas del cálculo de ruta, las usamos directamente.
-        // Esto es mucho más preciso y evita errores de búsqueda.
-        let fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}`;
-        
-        if (coordinates) {
-            // 🛑 CAMBIO CLAVE: Construimos la URL con lat/lng/z
-            fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}&lat=${coordinates.lat}&lng=${coordinates.lng}&z=14`;
-        } else if (typeof google !== 'undefined' && google.maps) {
-             // Plan B: Si por lo que sea no llegan, geocodificamos (pero esto ya no debería hacer falta casi nunca)
-             const geocoder = new google.maps.Geocoder();
-             try {
-                 const geoRes = await geocoder.geocode({ address: city });
-                 if (geoRes.results && geoRes.results[0]) {
-                     const loc = geoRes.results[0].geometry.location;
-                     fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}&lat=${loc.lat()}&lng=${loc.lng()}&z=14`;
-                 }
-             } catch (e) {}
-        }
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) throw new Error("No API Key");
 
-        const createFallbackSpot = (): SpotData[] => [{
-            title: `Ver mapa de sitios en ${city}`,
-            link: fallbackUrl, 
-            snippet: `Explora todas las opciones disponibles en ${city} directamente en el mapa interactivo de Park4Night.`,
-            image: null, rating: 0, displayRating: "", type: "Búsqueda Manual"
-        }];
-
-        // 1. BÚSQUEDA EN GOOGLE CSE
         const query = `site:park4night.com "${city}"`; 
-        const url = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX_ID}&q=${encodeURIComponent(query)}&num=10`;
+        const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${CX_ID}&q=${encodeURIComponent(query)}&num=10`;
 
         const res = await fetch(url);
         const json = await res.json();
 
-        if (!json.items || json.items.length === 0) {
-             setSpots(createFallbackSpot());
-             return;
-        }
+        if (!json.items || json.items.length === 0) throw new Error("No results");
 
-        // 2. PROCESADO
-        const processedSpots: SpotData[] = json.items.map((item: any) => {
-            let ratingValue = 0;
-            const textToAnalyze = (item.snippet || "") + " " + (item.title || "");
-            
-            const ratingMatch = textToAnalyze.match(/(\d[\.,]?\d{0,2})\s?\/\s?5/);
-            if (ratingMatch) {
-                ratingValue = parseFloat(ratingMatch[1].replace(',', '.'));
-            } else if (item.pagemap?.aggregaterating?.[0]?.ratingvalue) {
-                ratingValue = parseFloat(item.pagemap.aggregaterating[0].ratingvalue);
-            }
+        const candidates: SpotData[] = json.items.map((item: any) => {
+             let rating = 0;
+             const text = item.title + " " + item.snippet;
+             const match = text.match(/(\d[\.,]?\d{0,2})\s?\/\s?5/);
+             if (match) rating = parseFloat(match[1].replace(',', '.'));
+             else if (item.pagemap?.aggregaterating?.[0]?.ratingvalue) rating = parseFloat(item.pagemap.aggregaterating[0].ratingvalue);
 
-            let type = "Spot";
-            const lowerText = textToAnalyze.toLowerCase();
-            if (lowerText.includes("área") || lowerText.includes("area")) type = "Área AC";
-            else if (lowerText.includes("parking") || lowerText.includes("aparcamiento")) type = "Parking";
-            else if (lowerText.includes("camping")) type = "Camping";
-            else if (lowerText.includes("nature") || lowerText.includes("naturaleza")) type = "Naturaleza";
+             let type = "Spot";
+             const lower = text.toLowerCase();
+             if (lower.includes("área") || lower.includes("area")) type = "Área AC";
+             else if (lower.includes("parking")) type = "Parking";
+             
+             const img = item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || null;
+             const title = item.title.replace(/ - park4night/i, '').replace(/\(\d+\)/, '').trim();
+             let link = item.link.replace(/park4night\.com\/[a-z]{2}\//, "park4night.com/es/");
 
-            const img = item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || null;
-            const title = (item.title || "").replace(/ - park4night/i, '').replace(/ - Caramaps/i, '').replace(/\(\d+\)/, '').trim();
-            
-            // Forzar enlace español
-            let link = item.link || "";
-            link = link.replace(/park4night\.com\/[a-z]{2}\//, "park4night.com/es/");
-
-            return { title, link, snippet: (item.snippet || "").replace(/(\d[\.,]\d+\/5)/g, ''), image: img, rating: ratingValue, displayRating: ratingValue > 0 ? ratingValue.toFixed(1) : "?", type };
+             return { title, link, snippet: item.snippet, image: img, rating, displayRating: rating.toFixed(1), type };
         });
 
-        // 3. FILTRADO
-        const uniqueSpots = processedSpots.filter((v,i,a)=>a.findIndex(t=>(t.link === v.link))===i);
-        const highQualitySpots = uniqueSpots.filter(spot => spot.rating >= MIN_QUALITY_SCORE);
-        let finalSpots = highQualitySpots.sort((a, b) => b.rating - a.rating);
+        const topPick = candidates
+            .filter(s => s.rating >= MIN_QUALITY_SCORE)
+            .sort((a, b) => b.rating - a.rating)[0];
 
-        if (finalSpots.length === 0) {
-            setSpots(createFallbackSpot());
-        } else {
-            setSpots(finalSpots.slice(0, 3));
-        }
+        if (topPick) setBestSpot(topPick);
+        else throw new Error("Low quality");
 
-      } catch (e: any) {
-        console.error(e);
-        // Fallback seguro
-        setSpots([{
-            title: `Buscar ${city} en Park4Night`,
-            link: `https://park4night.com/es/search?q=${encodeURIComponent(city)}`,
-            snippet: "Error de conexión. Pulsa para buscar manualmente.",
+      } catch (e) {
+        setIsFallback(true);
+        let fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}`;
+        if (coordinates) fallbackUrl += `&lat=${coordinates.lat}&lng=${coordinates.lng}&z=14`;
+        
+        setBestSpot({
+            title: `Ver mapa de ${city}`,
+            link: fallbackUrl,
+            snippet: "Explora todas las opciones en el mapa interactivo.",
             image: null, rating: 0, displayRating: "", type: "Búsqueda Manual"
-        }]);
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchBestSpot();
   }, [city, coordinates]);
 
-  if (loading) return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          {[1, 2, 3].map(i => (
-              <div key={i} className="h-72 bg-white rounded-xl border p-4 animate-pulse flex flex-col gap-3">
-                  <div className="w-full h-40 bg-gray-200 rounded-lg"></div>
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-              </div>
-          ))}
-      </div>
-  );
+  if (loading) return <div className="animate-pulse h-24 bg-gray-100 rounded-xl border flex items-center justify-center text-xs text-gray-400 mt-2">Buscando...</div>;
+  if (!bestSpot) return null;
+
+  const badgeColor = bestSpot.rating >= 4.5 ? "bg-green-600" : "bg-green-500";
+  const isManual = bestSpot.type === "Búsqueda Manual";
 
   return (
-    <div className="mt-8 w-full max-w-5xl">
-        <div className="flex flex-col items-center justify-center gap-2 mb-8">
-            <div className="flex items-center gap-3">
-                <span className="text-3xl">🏆</span>
-                <h3 className="font-extrabold text-2xl text-gray-800">Recomendaciones</h3>
-            </div>
+    <a href={bestSpot.link} target="_blank" rel="noopener noreferrer" className={`flex bg-white border-2 ${isManual ? 'border-blue-200' : 'border-gray-200'} rounded-xl overflow-hidden hover:shadow-lg transition-all mt-3 h-28 no-underline group`}>
+       <div className={`w-28 flex-shrink-0 relative ${isManual ? 'bg-blue-50' : 'bg-gray-200'}`}>
+          {bestSpot.image && !isManual ? (
+              <img src={bestSpot.image} alt="spot" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+          ) : (
+              <div className="w-full h-full flex items-center justify-center text-3xl">{isManual ? '🌍' : '🌲'}</div>
+          )}
+          {!isManual && bestSpot.rating > 0 && <div className={`absolute bottom-0 right-0 text-white text-[10px] font-bold px-2 py-0.5 rounded-tl-lg ${badgeColor}`}>⭐ {bestSpot.displayRating}</div>}
+       </div>
+       <div className="p-3 flex flex-col justify-between w-full overflow-hidden">
+           <div>
+               <h5 className={`font-bold text-sm line-clamp-1 ${isManual ? 'text-blue-700' : 'text-gray-800'}`}>{bestSpot.title}</h5>
+               <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-tight">{bestSpot.snippet.replace(/(\d[\.,]\d+\/5)/g, '')}</p>
+           </div>
+           <div className="flex justify-end">
+               <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${isManual ? 'bg-blue-600 text-white border-blue-600' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                   {isManual ? 'Ver Mapa P4N ➜' : 'Ver Ficha ➜'}
+               </span>
+           </div>
+       </div>
+    </a>
+  );
+};
+
+// --- 5. DETALLE DÍA ---
+const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
+  const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
+  return (
+    <div className={`p-5 rounded-xl h-full border-l-4 shadow-sm transition-all ${day.isDriving ? 'bg-blue-50 border-blue-600' : 'bg-orange-50 border-orange-600'}`}>
+      <div className="flex justify-between items-start mb-3">
+        <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-blue-800' : 'text-orange-800'}`}>{day.isDriving ? '🚙 Etapa' : '🏖️ Relax'}</h4>
+        <span className="text-xs bg-white px-2 py-1 rounded border font-mono text-gray-600">{day.date}</span>
+      </div>
+      <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+         <span className="truncate max-w-[45%]">{day.from.split(',')[0]}</span><span className="text-gray-400">➝</span><span className="truncate max-w-[45%]">{day.to.split(',')[0]}</span>
+      </div>
+      {day.isDriving && <p className="text-2xl font-extrabold text-gray-700 mb-4">{day.distance.toFixed(0)} <span className="text-xs font-normal text-gray-500">km</span></p>}
+      {day.isDriving && day.distance > 0 && (
+        <div className="pt-3 border-t border-dashed border-gray-300">
+          <h5 className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-2"><span>🌙</span> Recomendado en {rawCityName}:</h5>
+          <SmartSpotCard city={rawCityName} coordinates={day.coordinates} />
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {spots.map((spot, index) => (
-                <SpotCard key={index} spot={spot} rank={index} isFallback={spot.type === "Búsqueda Manual"} />
-            ))}
-        </div>
+      )}
     </div>
   );
 };
 
-// --- 3. PÁGINA PRINCIPAL DEL LABORATORIO ---
-export default function DormirLab() {
-  const [inputCity, setInputCity] = useState('Punta Umbria');
-  const [searchCity, setSearchCity] = useState('Punta Umbria');
+// --- 6. APP PRINCIPAL (NATIVA) ---
+export default function Home() {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+  const isLoaded = useGoogleMapsScript(apiKey);
   
-  // Estado para coordenadas manuales (simulando el cálculo de ruta)
-  const [coords, setCoords] = useState<{lat: number, lng: number} | undefined>(undefined);
+  // Referencias Nativas
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<any>(null);
+  const markersRef = useRef<any[]>([]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchCity(inputCity);
-    
-    // SIMULACIÓN: Al buscar, geocodificamos para pasar coordenadas "reales" al componente
-    if (typeof google !== 'undefined' && google.maps) {
-         const geocoder = new google.maps.Geocoder();
-         try {
-             const res = await geocoder.geocode({ address: inputCity });
-             if (res.results[0]) {
-                 const loc = res.results[0].geometry.location;
-                 setCoords({ lat: loc.lat(), lng: loc.lng() });
-             }
-         } catch(e) {}
+  const [results, setResults] = useState<TripResult>({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
+  const [loading, setLoading] = useState(false);
+  const [showWaypoints, setShowWaypoints] = useState(true);
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+
+  const [formData, setFormData] = useState({
+    fechaInicio: '', origen: 'Salamanca', fechaRegreso: '', destino: 'Punta Umbria',
+    etapas: 'Valencia', consumo: 9.0, precioGasoil: 1.75, kmMaximoDia: 400, evitarPeajes: false,
+  });
+
+  // Persistencia
+  useEffect(() => { const s = localStorage.getItem('caracola_data'); if (s) try { setFormData(JSON.parse(s)); } catch(e){} }, []);
+  useEffect(() => { localStorage.setItem('caracola_data', JSON.stringify(formData)); }, [formData]);
+
+  // MAPA (Inicialización)
+  useEffect(() => {
+    if (isLoaded && mapRef.current && !mapInstance && typeof google !== 'undefined') {
+      const map = new google.maps.Map(mapRef.current, { center: CENTER, zoom: 6 });
+      const renderer = new google.maps.DirectionsRenderer({ map, suppressMarkers: false, polylineOptions: { strokeColor: "#2563EB", strokeWeight: 5 } });
+      setMapInstance(map);
+      setDirectionsRenderer(renderer);
     }
+  }, [isLoaded, mapInstance]);
+
+  // HELPERS
+  const geocodeCity = async (city: string) => {
+    if (!mapInstance) return null;
+    const geocoder = new google.maps.Geocoder();
+    try { const res = await geocoder.geocode({ address: city }); if(res.results[0]) return res.results[0].geometry.location.toJSON(); } catch(e){} return null;
   };
 
+  const getStopInfo = async (lat: number, lng: number) => {
+    if (!mapInstance) return { name: "Parada", coords: { lat, lng } };
+    const geocoder = new google.maps.Geocoder();
+    try { 
+        const res = await geocoder.geocode({ location: { lat, lng } }); 
+        if (res.results[0]) { 
+            const c = res.results[0].address_components.find((x:any)=>x.types.includes("locality"));
+            return { name: c ? c.long_name : "Punto", coords: { lat, lng } }; 
+        } 
+    } catch(e) {} 
+    return { name: "Parada", coords: { lat, lng } };
+  };
+
+  const focusMapOnStage = async (idx: number) => {
+    if (!results.dailyItinerary || !mapInstance) return;
+    const plan = results.dailyItinerary[idx];
+    let start = plan.coordinates; 
+    let end = results.dailyItinerary[idx+1]?.coordinates;
+
+    if(!start) start = await geocodeCity(plan.from);
+    if(!end) end = await geocodeCity(plan.to);
+
+    if (start && end) { const b = new google.maps.LatLngBounds(); b.extend(start); b.extend(end); mapInstance.fitBounds(b); }
+    setSelectedDayIndex(idx);
+  };
+
+  const calculateRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+    setLoading(true); setResults({totalDays:null, distanceKm:null, totalCost:null, dailyItinerary:null, error:null}); setSelectedDayIndex(null);
+
+    const ds = new google.maps.DirectionsService();
+    const wps = formData.etapas.split(',').filter(s=>s.trim()).map(l => ({ location: l, stopover: true }));
+
+    try {
+      const res = await ds.route({
+        origin: formData.origen, destination: formData.destino, waypoints: wps,
+        travelMode: 'DRIVING', avoidTolls: formData.evitarPeajes
+      });
+      
+      if (directionsRenderer) directionsRenderer.setDirections(res);
+
+      const route = res.routes[0];
+      const itinerary: DailyPlan[] = [];
+      const newMarkers: any[] = [];
+      let day = 1;
+      let date = formData.fechaInicio ? new Date(formData.fechaInicio) : new Date();
+      const maxM = formData.kmMaximoDia * 1000;
+      const fmt = (d: Date) => d.toLocaleDateString('es-ES');
+      const nextDay = (d: Date) => { const n = new Date(d); n.setDate(n.getDate()+1); return n; };
+
+      let legStart = formData.origen;
+      let totalDist = 0;
+
+      // Borrar marcadores viejos
+      markersRef.current.forEach(m => m.setMap(null));
+      markersRef.current = [];
+
+      for (let i=0; i<route.legs.length; i++) {
+        const leg = route.legs[i];
+        let legAcc = 0; let segStart = legStart;
+        let pts = [];
+        leg.steps.forEach((s:any) => { if(s.path) pts = pts.concat(s.path); });
+
+        for (let j=0; j<pts.length-1; j++) {
+          const d = google.maps.geometry.spherical.computeDistanceBetween(pts[j], pts[j+1]);
+          if (legAcc + d > maxM) {
+            const lat = pts[j].lat(); const lng = pts[j+1].lng();
+            const info = await getStopInfo(lat, lng);
+            const title = `📍 Parada Táctica: ${info.name}`;
+            itinerary.push({ 
+                day: day++, date: fmt(date), from: segStart, to: title, 
+                distance: (legAcc+d)/1000, isDriving: true, coordinates: info.coords 
+            });
+            
+            // Marcador Nativo
+            const m = new google.maps.Marker({ position: info.coords, map: mapInstance, title, label: {text:"P", color:"white"} });
+            markersRef.current.push(m);
+
+            date = nextDay(date); legAcc = 0; segStart = title;
+          } else { legAcc += d; }
+        }
+        
+        let endName = i === route.legs.length-1 ? formData.destino : "Punto Intermedio";
+        if(leg.end_address) endName = leg.end_address.split(',')[0].replace(/\d{5}/, '').trim();
+        const endCoords = { lat: leg.end_location.lat(), lng: leg.end_location.lng() };
+
+        if (legAcc > 0 || segStart !== endName) {
+          itinerary.push({ day, date: fmt(date), from: segStart, to: endName, distance: legAcc/1000, isDriving: true, coordinates: endCoords });
+          legStart = endName;
+          if (i < route.legs.length-1) { day++; date = nextDay(date); }
+        }
+        totalDist += leg.distance.value;
+      }
+
+      const ret = formData.fechaRegreso ? new Date(formData.fechaRegreso) : null;
+      if (ret) {
+        const stay = Math.ceil((ret.getTime() - date.getTime())/(1000*3600*24));
+        for(let k=0; k<stay; k++) { day++; date = nextDay(date); itinerary.push({ day, date: fmt(date), from: formData.destino, to: formData.destino, distance: 0, isDriving: false }); }
+      }
+
+      setResults({ totalDays: day, distanceKm: totalDist/1000, totalCost: (totalDist/100000)*formData.consumo*formData.precioGasoil, dailyItinerary: itinerary, error: null });
+
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  const handleInput = (e: any) => { const {id, value, type, checked} = e.target; setFormData(p => ({...p, [id]: type==='checkbox'?checked:value})); };
+  const handleSlider = (e: any) => { setFormData(p => ({...p, [e.target.id]: parseFloat(e.target.value)})); };
+
+  if (!isLoaded) return <div className="flex h-screen justify-center items-center text-blue-600 animate-pulse font-bold">Cargando Mapas...</div>;
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-20 px-4 font-sans text-gray-900">
-        <div className="w-full max-w-6xl flex flex-col items-center">
-            <div className="text-center space-y-4 mb-12">
-                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 drop-shadow-sm">
-                    CaraCola 🐌 Lab
-                </h1>
-                <p className="text-gray-500 text-lg">Enlace GPS Preciso + Filtro Calidad</p>
-            </div>
-
-            <div className="bg-white p-3 pl-6 rounded-full shadow-xl border border-gray-200 w-full max-w-2xl flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-blue-100 transform hover:scale-105 duration-300">
-                <span className="text-2xl">🔎</span>
-                <input 
-                    type="text" 
-                    value={inputCity}
-                    onChange={(e) => setInputCity(e.target.value)}
-                    className="flex-1 py-4 bg-transparent outline-none text-xl text-gray-800 placeholder-gray-400 font-medium"
-                    placeholder="Ciudad..."
-                />
-                <button 
-                    onClick={handleSearch}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-10 py-4 rounded-full font-bold text-lg hover:shadow-lg transition-all active:scale-95"
-                >
-                    Buscar
-                </button>
-            </div>
-
-            <TopSpotsList city={searchCity} coordinates={coords} />
+    <main className="min-h-screen bg-gray-100 p-4 flex flex-col items-center">
+      <div className="w-full max-w-6xl space-y-6">
+        <h1 className="text-4xl font-extrabold text-center text-blue-600">CaraCola 🐌 MODO TEST</h1>
+        
+        <div className="bg-white rounded-xl shadow p-6">
+            <form onSubmit={calculateRoute} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input type="date" id="fechaInicio" value={formData.fechaInicio} onChange={handleInput} className="p-2 border rounded"/>
+                <input type="text" id="origen" value={formData.origen} onChange={handleInput} className="p-2 border rounded" placeholder="Origen" required/>
+                <input type="text" id="destino" value={formData.destino} onChange={handleInput} className="p-2 border rounded" placeholder="Destino" required/>
+                <button type="submit" disabled={loading} className="bg-blue-600 text-white font-bold rounded hover:bg-blue-700">{loading ? '...' : 'Calcular'}</button>
+                
+                <div className="md:col-span-4 flex flex-wrap gap-4 bg-blue-50 p-3 rounded items-center">
+                    <label className="text-sm font-bold w-32">Ritmo: {formData.kmMaximoDia} km</label>
+                    <input type="range" id="kmMaximoDia" min="100" max="1000" step="50" value={formData.kmMaximoDia} onChange={handleSlider} className="flex-grow"/>
+                    <label className="flex items-center gap-2 text-sm font-bold text-blue-800 cursor-pointer"><input type="checkbox" checked={showWaypoints} onChange={()=>setShowWaypoints(!showWaypoints)}/> +Paradas</label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="evitarPeajes" checked={formData.evitarPeajes} onChange={handleInput}/> Sin Peajes</label>
+                </div>
+                {showWaypoints && <input type="text" id="etapas" value={formData.etapas} onChange={handleInput} className="md:col-span-4 p-2 border rounded" placeholder="Paradas intermedias (ej: Valencia)"/>}
+            </form>
         </div>
-    </div>
+
+        {results.dailyItinerary && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 h-[600px] bg-gray-300 rounded-xl overflow-hidden shadow relative border-4 border-white">
+                    <div ref={mapRef} style={containerStyle} />
+                </div>
+                <div className="lg:col-span-1 h-[600px] overflow-y-auto space-y-3 pr-2">
+                    <div className="sticky top-0 bg-gray-100 py-2 z-10 flex justify-between items-center">
+                        <h3 className="font-bold text-xl text-gray-700">Itinerario</h3>
+                        <button onClick={()=>{setSelectedDayIndex(null); if(mapInstance) mapInstance.fitBounds(new google.maps.LatLngBounds());}} className="text-xs bg-white border px-2 py-1 rounded shadow">Ver Todo</button>
+                    </div>
+                    {selectedDayIndex === null ? (
+                        results.dailyItinerary.map((day, i) => (
+                            <div key={i} onClick={() => focusMapOnStage(i)} className="p-3 bg-white border rounded cursor-pointer hover:shadow-md transition-all">
+                                <p className="font-bold text-blue-700">Día {day.day} <span className="font-normal text-gray-500 text-xs ml-2">{day.date}</span></p>
+                                <p className="text-sm text-gray-600">{day.from.split(',')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split(',')[0]}</p>
+                                {day.isDriving && <p className="text-xs text-gray-400 text-right mt-1">{day.distance.toFixed(0)} km</p>}
+                            </div>
+                        ))
+                    ) : (
+                        <DayDetailView day={results.dailyItinerary[selectedDayIndex]} />
+                    )}
+                </div>
+            </div>
+        )}
+      </div>
+    </main>
   );
 }
