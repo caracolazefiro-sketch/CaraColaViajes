@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // --- CONFIGURACIÓN ---
 declare const google: any;
@@ -9,6 +9,17 @@ const API_KEY = "AIzaSyDecT2WWIcWJd0mCQv5ONc3okQfwAmXIX0"; // Clave para pruebas
 const MIN_QUALITY_SCORE = 3.75; 
 
 // --- INTERFACES ---
+// 🆕 AÑADIDO: Campo 'coordinates' para guardar lat/lng exactos
+interface DailyPlan { 
+  day: number; 
+  date: string; 
+  from: string; 
+  to: string; 
+  distance: number; 
+  isDriving: boolean;
+  coordinates?: { lat: number, lng: number }; 
+}
+
 interface SpotData {
   title: string;
   link: string;
@@ -19,11 +30,12 @@ interface SpotData {
   type: string;
 }
 
+interface TripResult { totalDays: number | null; distanceKm: number | null; totalCost: number | null; dailyItinerary: DailyPlan[] | null; error: string | null; }
+
 // --- 1. COMPONENTE VISUAL: LA TARJETA ---
 const SpotCard = ({ spot, rank, isFallback = false }: { spot: SpotData, rank: number, isFallback?: boolean }) => {
   const medals = ["🥇", "🥈", "🥉"];
   
-  // Colores: Si es fallback, usamos azul neutro
   const borderColors = isFallback 
     ? ["border-blue-300"] 
     : ["border-yellow-500", "border-gray-400", "border-orange-400"];
@@ -31,7 +43,6 @@ const SpotCard = ({ spot, rank, isFallback = false }: { spot: SpotData, rank: nu
   const borderColor = borderColors[rank] || (isFallback ? "border-blue-300" : "border-gray-200");
   const medal = isFallback ? "🔍" : (medals[rank] || `#${rank + 1}`);
   
-  // Color nota
   let badgeColor = "bg-gray-500";
   if (spot.rating >= 4.5) badgeColor = "bg-green-600";
   else if (spot.rating >= 4) badgeColor = "bg-green-500";
@@ -79,7 +90,7 @@ const SpotCard = ({ spot, rank, isFallback = false }: { spot: SpotData, rank: nu
         
         <div className="mt-auto pt-3 border-t border-gray-100 flex justify-end items-center">
              <span className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${isFallback ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-blue-600 bg-blue-50 group-hover:bg-blue-100'}`}>
-                {/* 🛑 CAMBIO DE TEXTO SOLICITADO */}
+                {/* 🛑 CAMBIO: Texto actualizado */}
                 {isFallback ? 'Buscar en Park4Night ➜' : 'Ver Ficha ➜'}
              </span>
         </div>
@@ -89,7 +100,7 @@ const SpotCard = ({ spot, rank, isFallback = false }: { spot: SpotData, rank: nu
 };
 
 // --- 2. LÓGICA: CEREBRO DEL BUSCADOR ---
-const TopSpotsList = ({ city }: { city: string }) => {
+const TopSpotsList = ({ city, coordinates }: { city: string, coordinates?: {lat: number, lng: number} }) => {
   const [spots, setSpots] = useState<SpotData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,33 +112,31 @@ const TopSpotsList = ({ city }: { city: string }) => {
       setLoading(true);
       setError(null);
       try {
-        // 0. PREPARAR URL DE RESPALDO (CON COORDENADAS)
-        // Intentamos obtener las coordenadas de la ciudad para que el enlace de "Buscar en Park4Night" funcione bien.
+        // 0. PREPARAR URL DE RESPALDO CON COORDENADAS EXACTAS
+        // Si recibimos coordenadas del cálculo de ruta, las usamos directamente.
+        // Esto es mucho más preciso y evita errores de búsqueda.
         let fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}`;
         
-        if (typeof google !== 'undefined' && google.maps) {
-            const geocoder = new google.maps.Geocoder();
-            try {
-                const geoRes = await geocoder.geocode({ address: city });
-                if (geoRes.results && geoRes.results[0]) {
-                    const loc = geoRes.results[0].geometry.location;
-                    // 🛑 CAMBIO TÉCNICO: Añadimos lat/lng/z para que Park4Night abra el mapa directo
-                    fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}&lat=${loc.lat()}&lng=${loc.lng()}&z=14`;
-                }
-            } catch (e) {
-                console.log("No se pudieron obtener coordenadas para el fallback");
-            }
+        if (coordinates) {
+            // 🛑 CAMBIO CLAVE: Construimos la URL con lat/lng/z
+            fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}&lat=${coordinates.lat}&lng=${coordinates.lng}&z=14`;
+        } else if (typeof google !== 'undefined' && google.maps) {
+             // Plan B: Si por lo que sea no llegan, geocodificamos (pero esto ya no debería hacer falta casi nunca)
+             const geocoder = new google.maps.Geocoder();
+             try {
+                 const geoRes = await geocoder.geocode({ address: city });
+                 if (geoRes.results && geoRes.results[0]) {
+                     const loc = geoRes.results[0].geometry.location;
+                     fallbackUrl = `https://park4night.com/es/search?q=${encodeURIComponent(city)}&lat=${loc.lat()}&lng=${loc.lng()}&z=14`;
+                 }
+             } catch (e) {}
         }
 
-        // Función auxiliar para crear la tarjeta de búsqueda manual
         const createFallbackSpot = (): SpotData[] => [{
             title: `Ver mapa de sitios en ${city}`,
-            link: fallbackUrl, // Usamos la URL mejorada con coordenadas
+            link: fallbackUrl, 
             snippet: `Explora todas las opciones disponibles en ${city} directamente en el mapa interactivo de Park4Night.`,
-            image: null,
-            rating: 0,
-            displayRating: "",
-            type: "Búsqueda Manual"
+            image: null, rating: 0, displayRating: "", type: "Búsqueda Manual"
         }];
 
         // 1. BÚSQUEDA EN GOOGLE CSE
@@ -137,13 +146,12 @@ const TopSpotsList = ({ city }: { city: string }) => {
         const res = await fetch(url);
         const json = await res.json();
 
-        // Si falla la búsqueda automática, mostramos la tarjeta manual
         if (!json.items || json.items.length === 0) {
              setSpots(createFallbackSpot());
              return;
         }
 
-        // 2. PROCESADO DE RESULTADOS
+        // 2. PROCESADO
         const processedSpots: SpotData[] = json.items.map((item: any) => {
             let ratingValue = 0;
             const textToAnalyze = (item.snippet || "") + " " + (item.title || "");
@@ -164,30 +172,19 @@ const TopSpotsList = ({ city }: { city: string }) => {
 
             const img = item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || null;
             const title = (item.title || "").replace(/ - park4night/i, '').replace(/ - Caramaps/i, '').replace(/\(\d+\)/, '').trim();
-
-            // Forzamos enlace en español
+            
+            // Forzar enlace español
             let link = item.link || "";
             link = link.replace(/park4night\.com\/[a-z]{2}\//, "park4night.com/es/");
 
-            return {
-                title,
-                link,
-                snippet: (item.snippet || "").replace(/(\d[\.,]\d+\/5)/g, ''),
-                image: img,
-                rating: ratingValue,
-                displayRating: ratingValue > 0 ? ratingValue.toFixed(1) : "?",
-                type
-            };
+            return { title, link, snippet: (item.snippet || "").replace(/(\d[\.,]\d+\/5)/g, ''), image: img, rating: ratingValue, displayRating: ratingValue > 0 ? ratingValue.toFixed(1) : "?", type };
         });
 
-        // 3. FILTRADO Y ORDENACIÓN
+        // 3. FILTRADO
         const uniqueSpots = processedSpots.filter((v,i,a)=>a.findIndex(t=>(t.link === v.link))===i);
-        
-        // Filtro de Calidad
         const highQualitySpots = uniqueSpots.filter(spot => spot.rating >= MIN_QUALITY_SCORE);
         let finalSpots = highQualitySpots.sort((a, b) => b.rating - a.rating);
 
-        // Si no hay resultados buenos, mostramos la tarjeta manual
         if (finalSpots.length === 0) {
             setSpots(createFallbackSpot());
         } else {
@@ -196,7 +193,7 @@ const TopSpotsList = ({ city }: { city: string }) => {
 
       } catch (e: any) {
         console.error(e);
-        // En caso de error, tarjeta manual por defecto (sin coordenadas si falló antes)
+        // Fallback seguro
         setSpots([{
             title: `Buscar ${city} en Park4Night`,
             link: `https://park4night.com/es/search?q=${encodeURIComponent(city)}`,
@@ -209,7 +206,7 @@ const TopSpotsList = ({ city }: { city: string }) => {
     };
 
     fetchData();
-  }, [city]);
+  }, [city, coordinates]);
 
   if (loading) return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -245,10 +242,25 @@ const TopSpotsList = ({ city }: { city: string }) => {
 export default function DormirLab() {
   const [inputCity, setInputCity] = useState('Punta Umbria');
   const [searchCity, setSearchCity] = useState('Punta Umbria');
+  
+  // Estado para coordenadas manuales (simulando el cálculo de ruta)
+  const [coords, setCoords] = useState<{lat: number, lng: number} | undefined>(undefined);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setSearchCity(inputCity);
+    
+    // SIMULACIÓN: Al buscar, geocodificamos para pasar coordenadas "reales" al componente
+    if (typeof google !== 'undefined' && google.maps) {
+         const geocoder = new google.maps.Geocoder();
+         try {
+             const res = await geocoder.geocode({ address: inputCity });
+             if (res.results[0]) {
+                 const loc = res.results[0].geometry.location;
+                 setCoords({ lat: loc.lat(), lng: loc.lng() });
+             }
+         } catch(e) {}
+    }
   };
 
   return (
@@ -258,7 +270,7 @@ export default function DormirLab() {
                 <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 drop-shadow-sm">
                     CaraCola 🐌 Lab
                 </h1>
-                <p className="text-gray-500 text-lg">Tarjetas inteligentes + Redirección GPS</p>
+                <p className="text-gray-500 text-lg">Enlace GPS Preciso + Filtro Calidad</p>
             </div>
 
             <div className="bg-white p-3 pl-6 rounded-full shadow-xl border border-gray-200 w-full max-w-2xl flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-blue-100 transform hover:scale-105 duration-300">
@@ -278,7 +290,7 @@ export default function DormirLab() {
                 </button>
             </div>
 
-            <TopSpotsList city={searchCity} />
+            <TopSpotsList city={searchCity} coordinates={coords} />
         </div>
     </div>
   );
