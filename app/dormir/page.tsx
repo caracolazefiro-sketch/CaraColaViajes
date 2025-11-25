@@ -1,4 +1,3 @@
-// app/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -17,16 +16,7 @@ const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 // --- INTERFACES ---
 interface DailyPlan { day: number; date: string; from: string; to: string; distance: number; isDriving: boolean; }
 interface TripResult { totalDays: number | null; distanceKm: number | null; totalCost: number | null; dailyItinerary: DailyPlan[] | null; error: string | null; }
-
-// Nueva interfaz para los resultados de búsqueda
-interface SearchResult {
-    title: string;
-    link: string;
-    snippet: string;
-    pagemap?: {
-        cse_image?: { src: string }[];
-    };
-}
+interface SearchResult { title: string; link: string; snippet: string; pagemap?: { cse_image?: { src: string }[]; }; }
 
 // --- ICONOS ---
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
@@ -34,51 +24,41 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (CON CSE INTEGRADO) ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (CON BÚSQUEDA AUTOMÁTICA) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    // Limpiamos el nombre de la ciudad para la búsqueda
+    
+    // Limpiamos el nombre de la ciudad
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
 
-    // Efecto para buscar automáticamente al cargar el componente
     useEffect(() => {
-        if (!day.isDriving) return; // Si no es día de conducción, no buscamos parkings
+        if (!day.isDriving) return; 
 
         const fetchSpots = async () => {
             setLoading(true);
-            setError(null);
-
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // QUERY CSE: Ampliamos búsqueda a camper, caravana, spot en los sitios específicos
+            // QUERY: Buscar en park4night/caramaps
             const query = `site:park4night.com OR site:caramaps.com ("área autocaravana" OR "camper" OR "caravana" OR "spot") ${rawCityName}`;
             
             try {
-                if (!apiKey || !cx) {
-                    // Si no hay keys configuradas, lanzamos error silencioso para mostrar el botón manual
-                    throw new Error("Faltan claves API"); 
-                }
+                if (!apiKey || !cx) throw new Error("Faltan claves");
 
                 const res = await fetch(
                     `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=4`
                 );
                 
-                if (!res.ok) throw new Error("Error en la respuesta de Google");
-
                 const data = await res.json();
-
                 if (data.items) {
                     setSearchResults(data.items);
                 } else {
                     setSearchResults([]);
                 }
             } catch (err) {
-                console.error("No se pudo realizar la búsqueda automática:", err);
-                setError("true"); // Marcamos error para mostrar fallback
+                console.error("Error en búsqueda:", err);
+                setSearchResults([]); 
             } finally {
                 setLoading(false);
             }
@@ -96,27 +76,22 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             <p className="text-lg font-semibold text-gray-800">
                 {day.from} <span className="text-gray-400">➝</span> {day.to}
             </p>
-            {day.isDriving && (
-                <p className="text-xl font-extrabold text-green-700">
-                    {day.distance.toFixed(0)} km
-                </p>
-            )}
 
-            {day.isDriving && day.distance > 0 && (
+            {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-gray-300">
                     <h5 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-1">
                         <span className="text-lg">🏕️</span> Pernocta Recomendada en {rawCityName}:
                     </h5>
 
-                    {/* ESTADO CARGANDO */}
+                    {/* SPINNER CARGANDO */}
                     {loading && (
                         <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-xs text-blue-600 font-medium">Buscando spots...</p>
+                            <p className="text-xs text-blue-600 font-medium">Buscando los mejores spots...</p>
                         </div>
                     )}
 
-                    {/* RESULTADOS DEL CSE */}
+                    {/* LISTA DE RESULTADOS (FICHAS) */}
                     {!loading && searchResults.length > 0 && (
                         <div className="space-y-3">
                             {searchResults.map((result, idx) => (
@@ -128,15 +103,14 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                                     className="block group bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left"
                                 >
                                     <div className="flex gap-3">
-                                        <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl overflow-hidden">
+                                        <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
                                             {result.pagemap?.cse_image?.[0]?.src ? (
                                                 <img 
                                                     src={result.pagemap.cse_image[0].src} 
-                                                    alt="spot" 
+                                                    alt="img" 
                                                     className="w-full h-full object-cover"
-                                                    onError={(e) => (e.currentTarget.style.display = 'none')} 
                                                 />
-                                            ) : '🚐'}
+                                            ) : <span className="text-xl">🚐</span>}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h6 className="text-sm font-bold text-blue-700 truncate group-hover:text-blue-500">
@@ -152,25 +126,25 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                         </div>
                     )}
 
-                    {/* FALLBACK MANUAL (Si falla la API o no hay resultados) */}
-                    {(!loading && (searchResults.length === 0 || error)) && (
-                        <div className="mt-2">
+                    {/* FALLBACK: BOTÓN MANUAL */}
+                    {!loading && searchResults.length === 0 && (
+                        <div className="mt-2 text-center">
                              <a 
                                 href={`https://www.google.com/search?q=site:park4night.com OR site:caramaps.com ("área autocaravana" OR "camper" OR "caravana" OR "spot") ${rawCityName}`}
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="block w-full text-center bg-white border border-orange-200 px-4 py-3 rounded-lg text-sm font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition"
+                                className="inline-block bg-white border border-orange-200 px-4 py-2 rounded-full text-sm font-bold text-orange-600 hover:bg-orange-50 transition shadow-sm"
                             >
-                                🔍 Ver resultados en Google
+                                🔍 Buscar manualmente en Google
                             </a>
-                            <p className="text-xs text-gray-400 mt-1 text-center">No se cargaron resultados automáticos.</p>
+                            <p className="text-xs text-gray-400 mt-2">No encontramos destacados directos.</p>
                         </div>
                     )}
                 </div>
             )}
             
             {!day.isDriving && (
-                 <p className="text-lg text-gray-700">Día dedicado a la relajación y actividades en la zona de {day.to}.</p>
+                 <p className="text-lg text-gray-700">Día dedicado a la relajación en {day.to}.</p>
             )}
         </div>
     );
@@ -186,8 +160,6 @@ export default function Home() {
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
-  
-  // ESTADOS AVANZADOS
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
   
@@ -211,104 +183,47 @@ export default function Home() {
   const [showWaypoints, setShowWaypoints] = useState(true);
   const [tacticalMarkers, setTacticalMarkers] = useState<{lat: number, lng: number, title: string}[]>([]);
 
-  // --- EFECTO: CENTRAR EL MAPA DINÁMICAMENTE ---
   useEffect(() => {
       if (map && mapBounds) {
           setTimeout(() => map.fitBounds(mapBounds), 500); 
       }
   }, [map, mapBounds]);
   
-
-  // --- FUNCIÓN ASÍNCRONA PARA OBTENER COORDENADAS (BLINDADA) ---
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
     if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
-    
     const geocoder = new google.maps.Geocoder();
     try {
       const response = await geocoder.geocode({ address: cityName });
-      if (response.results.length > 0) {
-        return response.results[0].geometry.location.toJSON();
-      }
-    } catch (e) {
-      // Ignorar errores de geocoding
-    }
+      if (response.results.length > 0) return response.results[0].geometry.location.toJSON();
+    } catch (e) { }
     return null;
   };
 
-
-  // --- FUNCIÓN CLAVE: ENFOCAR MAPA EN UNA ETAPA ---
   const focusMapOnStage = async (dayIndex: number) => {
     if (typeof google === 'undefined' || !results.dailyItinerary || typeof google.maps.LatLngBounds === 'undefined') return; 
-
     const dailyPlan = results.dailyItinerary![dayIndex];
     if (!dailyPlan) return;
 
-    // 1. Obtener coordenadas de inicio y fin de la etapa
-    const [startCoord, endCoord] = await Promise.all([
-      geocodeCity(dailyPlan.from), 
-      geocodeCity(dailyPlan.to)
-    ]);
-
+    const [startCoord, endCoord] = await Promise.all([geocodeCity(dailyPlan.from), geocodeCity(dailyPlan.to)]);
     if (startCoord && endCoord) {
-      // 2. Crear el objeto Bounds para englobar ambas ciudades y hacer zoom
       const bounds = new google.maps.LatLngBounds();
       bounds.extend(startCoord);
       bounds.extend(endCoord);
-      
       setMapBounds(bounds); 
     }
-    
-    // 3. Activar la pestaña
     setSelectedDayIndex(dayIndex); 
   };
   
-  // HANDLER UNIFICADO
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value, type, checked } = e.target;
-    
-    let finalValue: string | number | boolean;
-    
-    if (type === 'checkbox') {
-        finalValue = checked;
-    } else if (id === 'precioGasoil' || id === 'consumo' || id === 'kmMaximoDia') {
-        finalValue = parseFloat(value);
-    } else {
-        finalValue = value;
-    }
-    
-    setFormData(prev => ({ 
-        ...prev, 
-        [id]: finalValue
-    }));
-  };
-
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.id]: parseFloat(e.target.value) }));
-  };
-  
-  // --- LÓGICA GEOCODING Y CÁLCULO ---
-  const getCityNameForStop = async (lat: number, lng: number): Promise<string> => {
-    if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return "Parada en Ruta"; 
-    
-    const geocoder = new google.maps.Geocoder();
-    try {
-      const response = await geocoder.geocode({ location: { lat, lng } });
-      if (response.results[0]) {
-        const addressComp = response.results[0].address_components;
-        const city = addressComp.find(c => c.types.includes("locality"))?.long_name 
-                  || addressComp.find(c => c.types.includes("administrative_area_level_2"))?.long_name
-                  || addressComp.find(c => c.types.includes("sublocality"))?.long_name;
-        return city ? city.replace(/\d{5}/, '').trim() : "Punto en Ruta";
-      }
-    } catch (e) { console.error("Error geocoding", e); }
-    return "Parada en Ruta";
+    let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil','consumo','kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+    setFormData(prev => ({ ...prev, [id]: finalValue }));
   };
 
   const calculateRoute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded) return;
     setLoading(true);
-    
     setDirectionsResponse(null); 
     setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null }); 
     setTacticalMarkers([]); 
@@ -317,13 +232,12 @@ export default function Home() {
 
     if (typeof google === 'undefined' || typeof google.maps.DirectionsService === 'undefined') {
         setLoading(false);
-        setResults(prev => ({...prev, error: "El script de Google Maps no se cargó correctamente."}));
+        setResults(prev => ({...prev, error: "Error carga Google Maps"}));
         return;
     }
     
     const directionsService = new google.maps.DirectionsService();
-    const waypoints = formData.etapas.split(',').map(s => s.trim()).filter(s => s.length > 0)
-      .map(location => ({ location, stopover: true }));
+    const waypoints = formData.etapas.split(',').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
 
     try {
       const result = await directionsService.route({
@@ -335,8 +249,6 @@ export default function Home() {
       });
 
       setDirectionsResponse(result);
-
-      // --- ALGORITMO CORE ---
       const route = result.routes[0];
       const itinerary: DailyPlan[] = [];
       const newTacticalMarkers: {lat: number, lng: number, title: string}[] = [];
@@ -354,9 +266,21 @@ export default function Home() {
         const leg = route.legs[i];
         let legPoints: google.maps.LatLng[] = [];
         leg.steps.forEach(step => { if(step.path) legPoints = legPoints.concat(step.path); });
-
         let legAccumulator = 0;
         let segmentStartName = currentLegStartName;
+
+        const getCityNameForStop = async (lat: number, lng: number): Promise<string> => {
+            const geocoder = new google.maps.Geocoder();
+            try {
+              const response = await geocoder.geocode({ location: { lat, lng } });
+              if (response.results[0]) {
+                const addressComp = response.results[0].address_components;
+                const city = addressComp.find(c => c.types.includes("locality"))?.long_name || addressComp.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
+                return city ? city.replace(/\d{5}/, '').trim() : "Punto Ruta";
+              }
+            } catch (e) { }
+            return "Parada Ruta";
+        };
 
         for (let j = 0; j < legPoints.length - 1; j++) {
             const point1 = legPoints[j];
@@ -369,15 +293,7 @@ export default function Home() {
                 const cityName = await getCityNameForStop(lat, lng);
                 const stopTitle = `📍 Parada Táctica: ${cityName}`;
 
-                itinerary.push({
-                    day: dayCounter,
-                    date: formatDate(currentDate),
-                    from: segmentStartName,
-                    to: stopTitle,
-                    distance: (legAccumulator + segmentDist) / 1000,
-                    isDriving: true
-                });
-
+                itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: segmentStartName, to: stopTitle, distance: (legAccumulator + segmentDist) / 1000, isDriving: true });
                 newTacticalMarkers.push({ lat, lng, title: stopTitle });
                 dayCounter++;
                 currentDate = addDay(currentDate);
@@ -388,8 +304,7 @@ export default function Home() {
             }
         }
 
-        let endLegName = "Destino Intermedio";
-        if (leg.end_address) endLegName = leg.end_address.split(',')[0];
+        let endLegName = leg.end_address.split(',')[0];
         if (i === route.legs.length - 1) endLegName = formData.destino;
         else {
              const parts = leg.end_address.split(',');
@@ -398,20 +313,9 @@ export default function Home() {
         }
 
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
-            itinerary.push({
-                day: dayCounter,
-                date: formatDate(currentDate),
-                from: segmentStartName,
-                to: endLegName,
-                distance: legAccumulator / 1000,
-                isDriving: true
-            });
+            itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: segmentStartName, to: endLegName, distance: legAccumulator / 1000, isDriving: true });
             currentLegStartName = endLegName;
-            
-            if (i < route.legs.length - 1) { 
-               dayCounter++; 
-               currentDate = addDay(currentDate); 
-            }
+            if (i < route.legs.length - 1) { dayCounter++; currentDate = addDay(currentDate); }
         }
         totalDistMeters += leg.distance?.value || 0;
       }
@@ -429,16 +333,12 @@ export default function Home() {
         }
       }
 
-      const totalKm = totalDistMeters / 1000;
-      const liters = (totalKm / 100) * formData.consumo;
-      const cost = liters * formData.precioGasoil;
-
       setTacticalMarkers(newTacticalMarkers);
-      setResults({ totalDays: dayCounter, distanceKm: totalKm, totalCost: cost, dailyItinerary: itinerary, error: null });
+      setResults({ totalDays: dayCounter, distanceKm: totalDistMeters / 1000, totalCost: (totalDistMeters / 1000 / 100) * formData.consumo * formData.precioGasoil, dailyItinerary: itinerary, error: null });
 
     } catch (error: any) {
       console.error("Error:", error);
-      setResults(prev => ({...prev, error: "Error al calcular. Verifica las ciudades."}));
+      setResults(prev => ({...prev, error: "Error al calcular. Revisa las ciudades."}));
     } finally {
       setLoading(false);
     }
@@ -450,241 +350,117 @@ export default function Home() {
     <main className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4 font-sans text-gray-900">
       <div className="w-full max-w-6xl space-y-8">
         
-        {/* CABECERA */}
         <div className="text-center space-y-2">
-            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-teal-500 drop-shadow-sm">
-                Ruta Camper Pro 🚐
-            </h1>
+            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-teal-500 drop-shadow-sm">Ruta Camper Pro 🚐</h1>
             <p className="text-gray-500 text-lg">Planifica tu aventura kilómetro a kilómetro</p>
         </div>
         
-        {/* TARJETA DEL FORMULARIO */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
             <div className="bg-blue-600 px-6 py-4">
-                <h2 className="text-white font-bold text-lg flex items-center gap-2">
-                    ⚙️ Configuración del Viaje
-                </h2>
+                <h2 className="text-white font-bold text-lg flex items-center gap-2">⚙️ Configuración del Viaje</h2>
             </div>
             
             <form onSubmit={calculateRoute} className="p-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {/* Fechas */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Inicio</label>
-                        <input type="date" id="fechaInicio" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition" required/>
+                        <input type="date" id="fechaInicio" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" required/>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Regreso</label>
-                        <input type="date" id="fechaRegreso" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition" required/>
+                        <input type="date" id="fechaRegreso" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" required/>
                     </div>
-                    
-                    {/* Ruta */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Origen</label>
-                        <input type="text" id="origen" value={formData.origen} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition placeholder-gray-400" required/>
+                        <input type="text" id="origen" value={formData.origen} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" required/>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Destino</label>
-                        <input type="text" id="destino" value={formData.destino} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition placeholder-gray-400" required/>
+                        <input type="text" id="destino" value={formData.destino} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg" required/>
                     </div>
                     
-                    {/* Waypoints */}
                     <div className="md:col-span-2 lg:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <label className="flex items-center gap-3 cursor-pointer text-blue-800 font-bold text-sm mb-2 select-none">
-                            <input type="checkbox" className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" checked={showWaypoints} onChange={() => setShowWaypoints(!showWaypoints)} /> 
+                            <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={showWaypoints} onChange={() => setShowWaypoints(!showWaypoints)} /> 
                             ➕ Añadir Paradas Intermedias
                         </label>
                         {showWaypoints && (
-                            <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid (separadas por comas)" className="w-full p-3 bg-white border border-blue-200 rounded-lg mt-1 text-gray-900 focus:ring-2 focus:ring-blue-500 transition"/>
+                            <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full p-3 bg-white border border-blue-200 rounded-lg mt-1"/>
                         )}
                     </div>
 
-                    {/* Sliders de Control */}
                     <div className="md:col-span-2 space-y-3">
-                        <div className="flex justify-between items-center">
-                            <label className="text-sm font-bold text-gray-700">🛣️ Ritmo de Viaje</label>
-                            <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{formData.kmMaximoDia} km/día</span>
-                        </div>
-                        <input type="range" id="kmMaximoDia" min="100" max="1000" step="50" defaultValue={formData.kmMaximoDia} onChange={handleSliderChange} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"/>
-                        <div className="flex justify-between text-xs text-gray-400 font-medium"><span>Relax (100)</span><span>Express (1000)</span></div>
+                        <div className="flex justify-between items-center"><label className="text-sm font-bold text-gray-700">🛣️ Ritmo de Viaje</label><span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{formData.kmMaximoDia} km/día</span></div>
+                        <input type="range" id="kmMaximoDia" min="100" max="1000" step="50" defaultValue={formData.kmMaximoDia} onChange={handleChange} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"/>
                     </div>
 
                     <div className="md:col-span-2 space-y-3">
-                        <div className="flex justify-between items-center">
-                            <label className="text-sm font-bold text-gray-700">⛽ Consumo Vehículo</label>
-                            <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded">{formData.consumo} L/100</span>
-                        </div>
-                        <input type="range" id="consumo" min="5" max="25" step="0.5" defaultValue={formData.consumo} onChange={handleSliderChange} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"/>
-                         <div className="flex justify-between text-xs text-gray-400 font-medium"><span>Eficiente (5)</span><span>Pesado (25)</span></div>
+                        <div className="flex justify-between items-center"><label className="text-sm font-bold text-gray-700">⛽ Consumo Vehículo</label><span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded">{formData.consumo} L/100</span></div>
+                        <input type="range" id="consumo" min="5" max="25" step="0.5" defaultValue={formData.consumo} onChange={handleChange} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"/>
                     </div>
                     
-                    {/* Precio Gasoil */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Precio Gasoil (€)</label>
-                        <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">€</span>
-                            <input type="number" id="precioGasoil" value={formData.precioGasoil} onChange={handleChange} className="w-full pl-8 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-green-500 focus:bg-white transition" step="0.01"/>
-                        </div>
+                        <div className="relative"><span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">€</span><input type="number" id="precioGasoil" value={formData.precioGasoil} onChange={handleChange} className="w-full pl-8 p-3 bg-gray-50 border border-gray-200 rounded-lg" step="0.01"/></div>
                     </div>
                     
-                    {/* Evitar Peajes */}
                     <div className="md:col-span-1 flex items-end">
                         <label className="flex items-center gap-3 cursor-pointer text-gray-700 font-bold select-none text-sm p-3 bg-gray-50 border border-gray-200 rounded-lg w-full h-full">
-                            <input 
-                                type="checkbox" 
-                                id="evitarPeajes" 
-                                checked={formData.evitarPeajes} 
-                                onChange={handleChange} 
-                                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" 
-                            />
+                            <input type="checkbox" id="evitarPeajes" checked={formData.evitarPeajes} onChange={handleChange} className="w-5 h-5 text-blue-600 rounded" />
                             Evitar Peajes 🚫
                         </label>
                     </div>
 
-                    {/* Botón Calcular */}
                      <div className="md:col-span-2 lg:col-span-2 flex items-end">
-                        <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-blue-700 to-blue-600 text-white py-3.5 rounded-xl font-bold text-lg hover:from-blue-800 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-                            {loading ? 'Calculando Ruta Óptima...' : '🚀 Calcular Itinerario'}
+                        <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-blue-700 to-blue-600 text-white py-3.5 rounded-xl font-bold text-lg hover:from-blue-800 transition-all shadow-lg hover:shadow-xl">
+                            {loading ? 'Calculando...' : '🚀 Calcular Itinerario'}
                         </button>
                     </div>
                 </div>
             </form>
         </div>
 
-        {/* SECCIÓN DE RESULTADOS */}
         {results.totalCost !== null && (
             <div className="space-y-8">
-                
-                {/* DASHBOARD DE DATOS */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition hover:shadow-md">
-                        <div className="p-3 bg-blue-50 rounded-full"><IconCalendar /></div>
-                        <div>
-                            <p className="text-2xl font-extrabold text-gray-800">{results.totalDays}</p>
-                            <p className="text-xs text-gray-500 font-bold uppercase">Días</p>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition hover:shadow-md">
-                        <div className="p-3 bg-blue-50 rounded-full"><IconMap /></div>
-                        <div>
-                            <p className="text-2xl font-extrabold text-gray-800">{results.distanceKm?.toFixed(0)}</p>
-                            <p className="text-xs text-gray-500 font-bold uppercase">Km Total</p>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition hover:shadow-md">
-                        <div className="p-3 bg-purple-50 rounded-full"><IconFuel /></div>
-                        <div>
-                            <p className="text-2xl font-extrabold text-gray-800">{(results.distanceKm! / 100 * formData.consumo).toFixed(0)}</p>
-                            <p className="text-xs text-gray-500 font-bold uppercase">Litros</p>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition hover:shadow-md">
-                        <div className="p-3 bg-green-50 rounded-full"><IconWallet /></div>
-                        <div>
-                            <p className="text-2xl font-extrabold text-green-600">{results.totalCost?.toFixed(0)} €</p>
-                            <p className="text-xs text-gray-500 font-bold uppercase">Coste Aprox.</p>
-                        </div>
-                    </div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm flex items-center gap-4"><div className="p-3 bg-blue-50 rounded-full"><IconCalendar /></div><div><p className="text-2xl font-extrabold">{results.totalDays}</p><p className="text-xs text-gray-500 font-bold">Días</p></div></div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm flex items-center gap-4"><div className="p-3 bg-blue-50 rounded-full"><IconMap /></div><div><p className="text-2xl font-extrabold">{results.distanceKm?.toFixed(0)}</p><p className="text-xs text-gray-500 font-bold">Km Total</p></div></div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm flex items-center gap-4"><div className="p-3 bg-purple-50 rounded-full"><IconFuel /></div><div><p className="text-2xl font-extrabold">{(results.distanceKm! / 100 * formData.consumo).toFixed(0)}</p><p className="text-xs text-gray-500 font-bold">Litros</p></div></div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm flex items-center gap-4"><div className="p-3 bg-green-50 rounded-full"><IconWallet /></div><div><p className="text-2xl font-extrabold text-green-600">{results.totalCost?.toFixed(0)} €</p><p className="text-xs text-gray-500 font-bold">Coste</p></div></div>
                 </div>
 
-                {/* CONTENEDOR DE LA RUTA Y PESTAÑAS */}
                 <div className="space-y-6">
-    
-                    {/* 1. NAVEGADOR DE ETAPAS (PESTAÑAS) */}
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 overflow-x-auto">
-                        <h3 className="font-bold text-gray-700 mb-3">Selecciona una Etapa para Verla en Detalle:</h3>
+                        <h3 className="font-bold text-gray-700 mb-3">Selecciona una Etapa:</h3>
                         <div className="flex space-x-2 pb-2">
-                            
-                            {/* Opción 'Vista General' */}
-                            <button
-                                onClick={() => {
-                                    setSelectedDayIndex(null);
-                                    setMapBounds(null); 
-                                }}
-                                className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                                    selectedDayIndex === null 
-                                    ? 'bg-blue-600 text-white shadow-md' 
-                                    : 'bg-gray-100 text-gray-700 hover:bg-blue-50'
-                                }`}
-                            >
-                                🌎 Vista General
-                            </button>
-
-                            {/* Iteración de las Pestañas (Días) */}
+                            <button onClick={() => { setSelectedDayIndex(null); setMapBounds(null); }} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>🌎 Vista General</button>
                             {results.dailyItinerary?.map((day, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => focusMapOnStage(index)} 
-                                    className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                                        selectedDayIndex === index 
-                                        ? (day.isDriving ? 'bg-blue-600 text-white shadow-md' : 'bg-orange-600 text-white shadow-md') 
-                                        : (day.isDriving ? 'bg-gray-100 text-gray-700 hover:bg-blue-50' : 'bg-orange-100 text-orange-700 hover:bg-orange-200')
-                                    }`}
-                                >
-                                    <span className="mr-1">{day.isDriving ? '🚗' : '🏖️'}</span> Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split(',')[0]}
+                                <button key={index} onClick={() => focusMapOnStage(index)} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === index ? 'bg-blue-600 text-white' : (day.isDriving ? 'bg-gray-100' : 'bg-orange-100 text-orange-700')}`}>
+                                    <span className="mr-1">{day.isDriving ? '🚗' : '🏖️'}</span> Día {day.day}
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* 2. CONTENIDO DETALLADO (MAPA Y RESUMEN) */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        
-                        {/* MAPA */}
                         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-2xl shadow-lg overflow-hidden border-4 border-white relative">
-                            <GoogleMap 
-                                mapContainerStyle={containerStyle} 
-                                center={center} 
-                                zoom={6} 
-                                onLoad={map => {
-                                    setMap(map);
-                                    if (mapBounds) map.fitBounds(mapBounds);
-                                }}
-                            >
-                                {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ 
-                                    strokeColor: "#2563EB", 
-                                    strokeWeight: 5 
-                                }} />}
-                                {tacticalMarkers.map((marker, i) => (
-                                    <Marker 
-                                        key={i} 
-                                        position={marker} 
-                                        label={{text: "P", color: "white", fontWeight: "bold"}} 
-                                        title={marker.title} 
-                                    />
-                                ))}
+                            <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
+                                {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#2563EB", strokeWeight: 5 }} />}
+                                {tacticalMarkers.map((marker, i) => <Marker key={i} position={marker} label={{text: "P", color: "white", fontWeight: "bold"}} title={marker.title} />)}
                             </GoogleMap>
                         </div>
 
-                        {/* RESUMEN DEL DÍA SELECCIONADO / GENERAL */}
                         <div className="lg:col-span-1 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px]">
                             <div className='p-6 h-full overflow-hidden'>
                                 {selectedDayIndex === null ? (
-                                    // --- VISTA GENERAL (RESUMEN) ---
                                     <div className="text-center pt-8 overflow-y-auto h-full">
                                         <h4 className="text-2xl font-extrabold text-blue-700 mb-2">Itinerario Completo</h4>
-                                        <p className="text-gray-500 mb-6">
-                                            Haz clic en la pestaña de un **Día** para ver recomendaciones de pernocta.
-                                        </p>
-                                        
+                                        <p className="text-gray-500 mb-6">Haz clic en una pestaña de **Día** para ver parkings.</p>
                                         <div className="border rounded-lg overflow-hidden">
-                                            <table className="min-w-full text-sm text-left">
-                                                <thead className="bg-gray-50 text-xs font-bold uppercase text-gray-600">
-                                                    <tr><th className="px-4 py-2">Día</th><th className="px-4 py-2 text-right">Km</th></tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-100">
-                                                    {results.dailyItinerary?.filter(d => d.isDriving).map((day, i) => (
-                                                        <tr key={i} className="hover:bg-blue-50">
-                                                            <td className="px-4 py-2 font-medium">Día {day.day}</td>
-                                                            <td className="px-4 py-2 text-right font-mono">{day.distance.toFixed(0)}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                            <table className="min-w-full text-sm text-left"><thead className="bg-gray-50 text-xs font-bold uppercase text-gray-600"><tr><th className="px-4 py-2">Día</th><th className="px-4 py-2 text-right">Km</th></tr></thead><tbody className="divide-y divide-gray-100">{results.dailyItinerary?.filter(d => d.isDriving).map((day, i) => (<tr key={i} className="hover:bg-blue-50"><td className="px-4 py-2 font-medium">Día {day.day}</td><td className="px-4 py-2 text-right font-mono">{day.distance.toFixed(0)}</td></tr>))}</tbody></table>
                                         </div>
                                     </div>
                                 ) : (
-                                    // --- VISTA DE DÍA DETALLADA (Llama al componente actualizado) ---
                                     <DayDetailView day={results.dailyItinerary![selectedDayIndex]} />
                                 )}
                             </div>
@@ -693,12 +469,7 @@ export default function Home() {
                 </div>
             </div>
         )}
-        
-        {results.error && (
-            <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-center justify-center font-bold">
-                ⚠️ {results.error}
-            </div>
-        )}
+        {results.error && <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-center justify-center font-bold">⚠️ {results.error}</div>}
       </div>
     </main>
   );
