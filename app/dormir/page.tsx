@@ -24,17 +24,17 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- HELPER: NORMALIZAR TEXTO (QUITAR ACENTOS Y MAYÚSCULAS) ---
+// --- HELPER: NORMALIZAR TEXTO ---
 const normalizeText = (text: string) => {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 };
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (FILTRADO ROBUSTO) ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (BÚSQUEDA HUMANA) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // Extraemos la ciudad. Ej: "Tébar"
+    // Extraemos la ciudad
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
 
     useEffect(() => {
@@ -45,39 +45,31 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // 1. QUERY AMPLIA: Quitamos comillas para que Google traiga TODO lo que encuentre
-            const query = `site:park4night.com OR site:caramaps.com ${rawCityName}`;
+            // CAMBIO CLAVE: Búsqueda "humana" en lugar de "técnica" con site:
+            // Esto suele dar mejores resultados en la API gratuita.
+            const query = `park4night "${rawCityName}"`;
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
 
                 const res = await fetch(
-                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&gl=es&lr=lang_es&safe=active`
+                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=10`
                 );
                 
                 const data = await res.json();
 
                 if (data.items) {
-                    console.log("Resultados crudos para", rawCityName, data.items); // DEBUG EN CONSOLA
+                    console.log("Resultados Google API:", data.items);
 
-                    // 2. FILTRO NORMALIZADO:
-                    // Comparamos "tebar" con "tebar" (ignorando que uno sea Tébar y otro Tebar)
                     const normalizedCity = normalizeText(rawCityName);
 
                     const validResults = data.items.filter((item: SearchResult) => {
                         const normalizedTitle = normalizeText(item.title);
-                        // El título debe contener el nombre de la ciudad
+                        // Filtro: El título debe contener la ciudad o el snippet debe contener "park4night"
                         return normalizedTitle.includes(normalizedCity);
                     });
 
-                    // Si después de filtrar no queda nada, pero Google trajo cosas, 
-                    // mostramos los 2 primeros crudos como "Plan B" para no dejarlo vacío.
-                    if (validResults.length === 0 && data.items.length > 0) {
-                         console.log("Filtro estricto falló, mostrando crudos");
-                         setSearchResults(data.items.slice(0, 3));
-                    } else {
-                         setSearchResults(validResults.slice(0, 4));
-                    }
+                    setSearchResults(validResults.slice(0, 4));
                 } else {
                     setSearchResults([]);
                 }
@@ -92,7 +84,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         fetchSpots();
     }, [rawCityName, day.isDriving]);
 
-    const manualSearchUrl = `https://www.google.com/search?q=site:park4night.com OR site:caramaps.com "${rawCityName}"`;
+    const googleSearchUrl = `https://www.google.com/search?q=park4night+${rawCityName}`;
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
@@ -113,7 +105,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {loading && (
                         <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-xs text-blue-600 font-medium">Localizando spots...</p>
+                            <p className="text-xs text-blue-600 font-medium">Consultando spots...</p>
                         </div>
                     )}
 
@@ -153,18 +145,18 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
 
                     {!loading && searchResults.length === 0 && (
                         <p className="text-xs text-gray-400 mt-2 mb-2 italic">
-                            No se encontraron fichas automáticas.
+                            No se encontraron resultados automáticos exactos.
                         </p>
                     )}
 
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                        <a 
-                            href={manualSearchUrl}
+                    <div className="mt-4 pt-3 border-t border-gray-200 space-y-2">
+                         <a 
+                            href={googleSearchUrl}
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="flex items-center justify-center w-full gap-2 bg-white border border-blue-200 px-4 py-3 rounded-xl text-sm font-bold text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition shadow-sm"
                         >
-                            🔍 Ver todos los resultados en Google
+                            🔍 Ver resultados en Google
                         </a>
                     </div>
                 </div>
