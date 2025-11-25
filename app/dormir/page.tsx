@@ -24,15 +24,20 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- COMPONENTE DE VISTA DETALLADA (Busqueda por Ciudad + Provincia) ---
+// --- HELPER: NORMALIZAR TEXTO ---
+const normalizeText = (text: string) => {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+};
+
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (Busqueda Contextual) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // 1. Desempaquetamos la info: "Tébar|Cuenca" -> Ciudad: Tébar, Provincia: Cuenca
-    const rawLocation = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '');
+    // Desempaquetamos: "La Campana|Sevilla"
+    const rawLocation = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').trim();
     const [city, province] = rawLocation.split('|').map(s => s.trim());
-    // Si no hay barra (ej: destino final), usamos el string tal cual
+    
     const finalCity = city || rawLocation; 
     const finalProvince = province || '';
 
@@ -44,26 +49,34 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // 2. QUERY DE DOBLE LLAVE: Obligamos a encontrar la Ciudad Y la Provincia
-            // Ejemplo: site:park4night.com "La Campana" "Sevilla"
+            // CAMBIO CLAVE: 
+            // 1. Ciudad con comillas ("La Campana") -> OBLIGATORIO
+            // 2. Provincia SIN comillas (Sevilla) -> PREFERENTE (Contexto)
+            // Esto permite encontrar fichas que son de Sevilla pero no lo dicen explícitamente en el título.
             let query = `site:park4night.com OR site:caramaps.com "${finalCity}"`;
             if (finalProvince) {
-                query += ` "${finalProvince}"`;
+                query += ` ${finalProvince}`; // Sin comillas aquí
             }
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
 
                 const res = await fetch(
-                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=6`
+                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=10`
                 );
                 
                 const data = await res.json();
 
                 if (data.items) {
-                    // Ya no filtramos por título estricto con JS, confiamos en que
-                    // la query "Ciudad" + "Provincia" ha hecho su trabajo de limpieza.
-                    setSearchResults(data.items.slice(0, 4));
+                    // FILTRO DE SEGURIDAD (Javascript):
+                    // Solo nos aseguramos de que el título tenga la CIUDAD.
+                    // No exigimos la provincia en el título (porque la query ya la usó de contexto).
+                    const normalizedCity = normalizeText(finalCity);
+                    const validResults = data.items.filter((item: SearchResult) => {
+                        return normalizeText(item.title).includes(normalizedCity);
+                    });
+
+                    setSearchResults(validResults.slice(0, 4));
                 } else {
                     setSearchResults([]);
                 }
@@ -78,11 +91,11 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         fetchSpots();
     }, [finalCity, finalProvince, day.isDriving]);
 
-    // URLs de rescate usando el nombre completo
+    // Enlaces de rescate (usamos el nombre completo para que Google Maps sí acierte)
     const fullName = finalProvince ? `${finalCity}, ${finalProvince}` : finalCity;
     const p4nLink = `https://park4night.com/es/search?q=${fullName}`;
     const caramapsLink = `https://www.caramaps.com/search?name=${fullName}`;
-    const gmapsLink = `http://googleusercontent.com/maps.google.com/4{fullName}`;
+    const gmapsLink = `https://www.google.com/maps/search/areas+autocaravanas+${encodeURIComponent(fullName)}`;
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
@@ -136,20 +149,22 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     )}
 
                     {!loading && searchResults.length === 0 && (
-                        <p className="text-xs text-orange-600 mb-2 italic">
-                            No hay resultados exactos para {fullName} en la API.
-                        </p>
+                        <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 mb-3 text-center">
+                            <p className="text-xs text-orange-800 italic">
+                                Sin resultados directos en la API para <strong>{finalCity}</strong>.
+                            </p>
+                        </div>
                     )}
                     
-                    <div className="grid grid-cols-1 gap-2 mt-2">
-                        <a href={p4nLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-700 transition shadow-sm">
+                    <div className="flex flex-col gap-2 mt-2">
+                        <a href={p4nLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-green-700 transition shadow-sm">
                             🚐 Ver en Park4Night
                         </a>
-                        <a href={caramapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-teal-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-teal-700 transition shadow-sm">
+                        <a href={caramapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-teal-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-teal-700 transition shadow-sm">
                             🗺️ Ver en CaraMaps
                         </a>
-                        <a href={gmapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm">
-                            📍 Buscar áreas cercanas (G.Maps)
+                        <a href={gmapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm">
+                            📍 Buscar en Google Maps
                         </a>
                     </div>
 
@@ -217,8 +232,6 @@ export default function Home() {
     const dailyPlan = results.dailyItinerary![dayIndex];
     if (!dailyPlan) return;
 
-    // OJO: Ahora 'day.from' y 'day.to' pueden tener formato "Ciudad|Provincia"
-    // Limpiamos para el geocoding del mapa
     const cleanFrom = dailyPlan.from.split('|')[0];
     const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
 
@@ -287,7 +300,7 @@ export default function Home() {
         let legAccumulator = 0;
         let segmentStartName = currentLegStartName;
 
-        // --- FUNCIÓN CLAVE: EXTRAER CIUDAD Y PROVINCIA ---
+        // --- FUNCIÓN DE GEOCODING AVANZADO (EXTRÁE PROVINCIA) ---
         const getCityAndProvince = async (lat: number, lng: number): Promise<string> => {
             const geocoder = new google.maps.Geocoder();
             try {
@@ -300,7 +313,6 @@ export default function Home() {
                 
                 const province = comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
                 
-                // Devolvemos formato "Ciudad|Provincia"
                 if (province && city !== province) {
                     return `${city}|${province}`;
                 }
@@ -319,11 +331,11 @@ export default function Home() {
                 const lat = point1.lat();
                 const lng = point2.lng(); 
                 
-                // Obtenemos "Tébar|Cuenca"
+                // Obtenemos "Ciudad|Provincia"
                 const locationString = await getCityAndProvince(lat, lng);
-                const cityNameDisplay = locationString.split('|')[0]; // Solo para el marcador del mapa
+                const cityNameDisplay = locationString.split('|')[0];
                 
-                const stopTitle = `📍 Parada Táctica: ${locationString}`; // Guardamos todo "Tébar|Cuenca"
+                const stopTitle = `📍 Parada Táctica: ${locationString}`;
 
                 itinerary.push({ 
                     day: dayCounter, 
@@ -338,19 +350,20 @@ export default function Home() {
                 dayCounter++;
                 currentDate = addDay(currentDate);
                 legAccumulator = 0;
-                segmentStartName = locationString; // El inicio del siguiente tramo también lleva la info completa
+                segmentStartName = locationString;
             } else {
                 legAccumulator += segmentDist;
             }
         }
 
-        // Final de etapa (Waypoint o Destino)
-        let endLegName = leg.end_address.split(',')[0]; // Por defecto la dirección
+        let endLegName = leg.end_address.split(',')[0];
         if (i === route.legs.length - 1) endLegName = formData.destino;
-        
-        // Aquí podríamos refinar el nombre del destino intermedio también, pero 
-        // normalmente el usuario mete "Valencia" y ya sabemos qué es.
-        
+        else {
+             const parts = leg.end_address.split(',');
+             endLegName = parts.length > 1 ? parts[parts.length - 2].trim() : parts[0];
+             endLegName = endLegName.replace(/\d{5}/, '').trim();
+        }
+
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
             itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: segmentStartName, to: endLegName, distance: legAccumulator / 1000, isDriving: true });
             currentLegStartName = endLegName;
