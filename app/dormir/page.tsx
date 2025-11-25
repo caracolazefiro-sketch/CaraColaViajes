@@ -29,17 +29,19 @@ const normalizeText = (text: string) => {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 };
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (Busqueda Contextual) ---
+// --- COMPONENTE DE VISTA DETALLADA (Con CP y PAÍS) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // Desempaquetamos: "La Campana|Sevilla"
+    // Desempaquetamos: "Ciudad | Provincia | CP | País"
     const rawLocation = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').trim();
-    const [city, province] = rawLocation.split('|').map(s => s.trim());
+    const parts = rawLocation.split('|').map(s => s.trim());
     
-    const finalCity = city || rawLocation; 
-    const finalProvince = province || '';
+    const finalCity = parts[0] || rawLocation; 
+    const finalProvince = parts[1] || '';
+    const finalZip = parts[2] || ''; 
+    const finalCountry = parts[3] || ''; // Nuevo dato: País
 
     useEffect(() => {
         if (!day.isDriving) return; 
@@ -49,14 +51,16 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // CAMBIO CLAVE: 
-            // 1. Ciudad con comillas ("La Campana") -> OBLIGATORIO
-            // 2. Provincia SIN comillas (Sevilla) -> PREFERENTE (Contexto)
-            // Esto permite encontrar fichas que son de Sevilla pero no lo dicen explícitamente en el título.
+            // ESTRATEGIA FINAL BLINDADA:
+            // Buscamos en Park4Night/Caramaps:
+            // 1. La Ciudad (obligatoria)
+            // 2. El Código Postal (obligatorio si existe, para evitar colisiones)
+            // 3. El País (para evitar que un CP francés coincida con uno español)
+            
             let query = `site:park4night.com OR site:caramaps.com "${finalCity}"`;
-            if (finalProvince) {
-                query += ` ${finalProvince}`; // Sin comillas aquí
-            }
+            
+            if (finalZip) query += ` "${finalZip}"`; 
+            if (finalCountry) query += ` "${finalCountry}"`;
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
@@ -68,12 +72,13 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                 const data = await res.json();
 
                 if (data.items) {
-                    // FILTRO DE SEGURIDAD (Javascript):
-                    // Solo nos aseguramos de que el título tenga la CIUDAD.
-                    // No exigimos la provincia en el título (porque la query ya la usó de contexto).
+                    // Filtro relajado: Si el título tiene la ciudad o el CP, nos vale.
+                    // Ya hemos filtrado por País en la propia query de Google.
                     const normalizedCity = normalizeText(finalCity);
                     const validResults = data.items.filter((item: SearchResult) => {
-                        return normalizeText(item.title).includes(normalizedCity);
+                        const title = normalizeText(item.title);
+                        const snippet = normalizeText(item.snippet);
+                        return title.includes(normalizedCity) || (finalZip && (title.includes(finalZip) || snippet.includes(finalZip)));
                     });
 
                     setSearchResults(validResults.slice(0, 4));
@@ -89,13 +94,13 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         };
 
         fetchSpots();
-    }, [finalCity, finalProvince, day.isDriving]);
+    }, [finalCity, finalProvince, finalZip, finalCountry, day.isDriving]);
 
-    // Enlaces de rescate (usamos el nombre completo para que Google Maps sí acierte)
-    const fullName = finalProvince ? `${finalCity}, ${finalProvince}` : finalCity;
+    // URLs de rescate completas
+    const fullName = [finalCity, finalProvince, finalCountry].filter(Boolean).join(', ');
     const p4nLink = `https://park4night.com/es/search?q=${fullName}`;
     const caramapsLink = `https://www.caramaps.com/search?name=${fullName}`;
-    const gmapsLink = `https://www.google.com/maps/search/areas+autocaravanas+${encodeURIComponent(fullName)}`;
+    const gmapsLink = `http://googleusercontent.com/maps.google.com/4{encodeURIComponent(fullName)}`;
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
@@ -116,7 +121,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {loading && (
                         <div className="flex items-center gap-2 text-blue-600 text-xs font-bold py-4">
                             <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            Buscando en {fullName}...
+                            Buscando en {finalCity} ({finalZip})...
                         </div>
                     )}
 
@@ -151,19 +156,19 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {!loading && searchResults.length === 0 && (
                         <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 mb-3 text-center">
                             <p className="text-xs text-orange-800 italic">
-                                Sin resultados directos en la API para <strong>{finalCity}</strong>.
+                                Sin resultados directos para <strong>{finalCity} {finalZip ? `(${finalZip})` : ''}</strong>.
                             </p>
                         </div>
                     )}
                     
-                    <div className="flex flex-col gap-2 mt-2">
-                        <a href={p4nLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-green-700 transition shadow-sm">
+                    <div className="grid grid-cols-1 gap-2 mt-2">
+                        <a href={p4nLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-700 transition shadow-sm">
                             🚐 Ver en Park4Night
                         </a>
-                        <a href={caramapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-teal-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-teal-700 transition shadow-sm">
+                        <a href={caramapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-teal-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-teal-700 transition shadow-sm">
                             🗺️ Ver en CaraMaps
                         </a>
-                        <a href={gmapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm">
+                        <a href={gmapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm">
                             📍 Buscar en Google Maps
                         </a>
                     </div>
@@ -300,26 +305,27 @@ export default function Home() {
         let legAccumulator = 0;
         let segmentStartName = currentLegStartName;
 
-        // --- FUNCIÓN DE GEOCODING AVANZADO (EXTRÁE PROVINCIA) ---
-        const getCityAndProvince = async (lat: number, lng: number): Promise<string> => {
+        // --- FUNCIÓN MAESTRA (GEOCODING CON PAÍS) ---
+        const getLocationDetails = async (lat: number, lng: number): Promise<string> => {
             const geocoder = new google.maps.Geocoder();
             try {
               const response = await geocoder.geocode({ location: { lat, lng } });
               if (response.results[0]) {
                 const comps = response.results[0].address_components;
+                
                 const city = comps.find(c => c.types.includes("locality"))?.long_name 
                           || comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name
                           || "Punto Ruta";
                 
-                const province = comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
+                const province = comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || "";
+                const zip = comps.find(c => c.types.includes("postal_code"))?.long_name || "";
+                const country = comps.find(c => c.types.includes("country"))?.long_name || ""; // País
                 
-                if (province && city !== province) {
-                    return `${city}|${province}`;
-                }
-                return city;
+                // Empaquetamos: "Ciudad|Provincia|CP|País"
+                return `${city}|${province}|${zip}|${country}`;
               }
             } catch (e) { }
-            return "Parada Ruta";
+            return "Parada Ruta|||";
         };
 
         for (let j = 0; j < legPoints.length - 1; j++) {
@@ -331,8 +337,8 @@ export default function Home() {
                 const lat = point1.lat();
                 const lng = point2.lng(); 
                 
-                // Obtenemos "Ciudad|Provincia"
-                const locationString = await getCityAndProvince(lat, lng);
+                // Extraemos todo
+                const locationString = await getLocationDetails(lat, lng);
                 const cityNameDisplay = locationString.split('|')[0];
                 
                 const stopTitle = `📍 Parada Táctica: ${locationString}`;
