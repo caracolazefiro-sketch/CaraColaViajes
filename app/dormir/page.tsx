@@ -24,17 +24,16 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- HELPER: NORMALIZAR TEXTO (QUITAR ACENTOS Y MAYÚSCULAS) ---
+// --- HELPER: NORMALIZAR TEXTO ---
 const normalizeText = (text: string) => {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 };
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (FILTRADO ROBUSTO) ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // Extraemos la ciudad. Ej: "Tébar"
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
 
     useEffect(() => {
@@ -45,7 +44,6 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // 1. QUERY AMPLIA: Quitamos comillas para que Google traiga TODO lo que encuentre
             const query = `site:park4night.com OR site:caramaps.com ${rawCityName}`;
             
             try {
@@ -58,22 +56,13 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                 const data = await res.json();
 
                 if (data.items) {
-                    console.log("Resultados crudos para", rawCityName, data.items); // DEBUG EN CONSOLA
-
-                    // 2. FILTRO NORMALIZADO:
-                    // Comparamos "tebar" con "tebar" (ignorando que uno sea Tébar y otro Tebar)
                     const normalizedCity = normalizeText(rawCityName);
-
                     const validResults = data.items.filter((item: SearchResult) => {
                         const normalizedTitle = normalizeText(item.title);
-                        // El título debe contener el nombre de la ciudad
                         return normalizedTitle.includes(normalizedCity);
                     });
 
-                    // Si después de filtrar no queda nada, pero Google trajo cosas, 
-                    // mostramos los 2 primeros crudos como "Plan B" para no dejarlo vacío.
                     if (validResults.length === 0 && data.items.length > 0) {
-                         console.log("Filtro estricto falló, mostrando crudos");
                          setSearchResults(data.items.slice(0, 3));
                     } else {
                          setSearchResults(validResults.slice(0, 4));
@@ -457,9 +446,9 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-6">
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 overflow-x-auto">
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
                         <h3 className="font-bold text-gray-700 mb-3">Selecciona una Etapa:</h3>
-                        <div className="flex space-x-2 pb-2">
+                        <div className="flex flex-wrap gap-2">
                             <button onClick={() => { setSelectedDayIndex(null); setMapBounds(null); }} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>🌎 Vista General</button>
                             {results.dailyItinerary?.map((day, index) => (
                                 <button key={index} onClick={() => focusMapOnStage(index)} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === index ? 'bg-blue-600 text-white' : (day.isDriving ? 'bg-gray-100' : 'bg-orange-100 text-orange-700')}`}>
