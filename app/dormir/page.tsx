@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
 
-// --- CONFIGURACIÓN VISUAL DEL MAPA ---
+// --- CONFIGURACIÓN VISUAL ---
 const containerStyle = {
   width: '100%',
   height: '100%',
@@ -13,8 +13,17 @@ const containerStyle = {
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
+// --- ICONOS DE MAPA (URLs de Google) ---
+const ICONS = {
+    startEnd: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",   // Origen/Destino
+    overnight: "http://maps.google.com/mapfiles/ms/icons/green-dot.png", // Pernocta (Día)
+    tactical: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",   // Parada Táctica
+    spot: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png"      // Spot encontrado (Naranja para contraste)
+};
+
 // --- INTERFACES ---
-// AÑADIDO: coordinates opcional para guardar la ubicación exacta de la parada
+interface Coordinates { lat: number; lng: number; }
+
 interface DailyPlan { 
     day: number; 
     date: string; 
@@ -22,87 +31,32 @@ interface DailyPlan {
     to: string; 
     distance: number; 
     isDriving: boolean; 
-    coordinates?: { lat: number; lng: number }; 
+    coordinates?: Coordinates; 
+    type: 'overnight' | 'tactical' | 'start' | 'end'; // Para saber qué color pintar
 }
 
-interface TripResult { totalDays: number | null; distanceKm: number | null; totalCost: number | null; dailyItinerary: DailyPlan[] | null; error: string | null; }
-interface SearchResult { title: string; link: string; snippet: string; pagemap?: { cse_image?: { src: string }[]; }; }
+interface TripResult { 
+    totalDays: number | null; 
+    distanceKm: number | null; 
+    totalCost: number | null; 
+    dailyItinerary: DailyPlan[] | null; 
+    error: string | null; 
+}
 
-// --- ICONOS ---
+// --- ICONOS SVG UI ---
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- HELPER: NORMALIZAR TEXTO ---
-const normalizeText = (text: string) => {
-    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-};
-
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA ---
-const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
-    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-    const [loading, setLoading] = useState(false);
+// --- COMPONENTE: LISTA DE SPOTS ---
+const DaySpotsList: React.FC<{ 
+    day: DailyPlan, 
+    spots: google.maps.places.PlaceResult[], 
+    isLoading: boolean 
+}> = ({ day, spots, isLoading }) => {
     
-    // Nombre limpio de la ciudad para el título
-    const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
-
-    useEffect(() => {
-        if (!day.isDriving) return; 
-
-        const fetchSpots = async () => {
-            setLoading(true);
-            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
-            const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
-
-            // Buscamos por nombre porque la API de texto no entiende bien coordenadas numéricas
-            const query = `site:park4night.com OR site:caramaps.com "${rawCityName}"`;
-            
-            try {
-                if (!apiKey || !cx) throw new Error("Faltan claves");
-
-                const res = await fetch(
-                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=10`
-                );
-                
-                const data = await res.json();
-
-                if (data.items) {
-                    const normalizedCity = normalizeText(rawCityName);
-                    const validResults = data.items.filter((item: SearchResult) => {
-                        // Filtro: Si el título contiene el nombre de la ciudad, pasa.
-                        return normalizeText(item.title).includes(normalizedCity);
-                    });
-                    setSearchResults(validResults.slice(0, 4));
-                } else {
-                    setSearchResults([]);
-                }
-            } catch (err) {
-                console.error("Error buscando:", err);
-                setSearchResults([]); 
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchSpots();
-    }, [rawCityName, day.isDriving]);
-
-    // --- GENERACIÓN DE ENLACES INFALIBLES ---
-    
-    // 1. Google Maps: Usamos las COORDENADAS exactas si las tenemos.
-    // Esto busca "camping" o sitios similares alrededor del punto exacto de parada.
-    let gmapsLink = "";
-    if (day.coordinates) {
-        gmapsLink = `https://www.google.com/maps/search/autocaravana+camping/@${day.coordinates.lat},${day.coordinates.lng},13z`;
-    } else {
-        // Fallback por nombre si no hay coordenadas (raro)
-        gmapsLink = `https://www.google.com/maps/search/autocaravana+near+${rawCityName}`;
-    }
-
-    // 2. Park4Night y CaraMaps: Usamos el nombre (Web search estándar)
-    const p4nLink = `https://park4night.com/es/search?q=${encodeURIComponent(rawCityName)}`;
-    const caramapsLink = `https://www.caramaps.com/search?name=${encodeURIComponent(rawCityName)}`;
+    const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
@@ -111,75 +65,77 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             </h4>
             
             <p className="text-lg font-semibold text-gray-800">
-                {day.from} <span className="text-gray-400">➝</span> {day.to}
+                {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
             </p>
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-gray-300">
-                    <h5 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-1">
-                        <span className="text-lg">🏕️</span> Pernocta en {rawCityName}:
-                    </h5>
+                    <div className="flex items-center justify-between mb-3">
+                        <h5 className="text-sm font-bold text-gray-600 flex items-center gap-1">
+                            <span className="text-lg">🏕️</span> Spots Cercanos (20km):
+                        </h5>
+                        <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full font-bold">
+                            {spots.length} encontrados
+                        </span>
+                    </div>
 
-                    {loading && (
-                        <div className="flex items-center gap-2 text-blue-600 text-xs font-bold py-4">
-                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            Buscando spots destacados...
+                    {isLoading && (
+                        <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
+                            <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-xs text-orange-600 font-medium">Escaneando mapa...</p>
                         </div>
                     )}
 
-                    {!loading && searchResults.length > 0 && (
-                        <div className="space-y-3 mb-4">
-                            {searchResults.map((result, idx) => (
-                                <a 
+                    {!isLoading && spots.length > 0 && (
+                        <div className="space-y-3">
+                            {spots.map((spot, idx) => (
+                                <div 
                                     key={idx} 
-                                    href={result.link} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block group bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left"
+                                    className="group bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all cursor-pointer"
+                                    onClick={() => {
+                                        if (spot.place_id) {
+                                            window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
+                                        }
+                                    }}
                                 >
-                                    <div className="flex gap-3">
-                                        <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-lg">
-                                            {result.link.includes('caramaps') ? '🗺️' : '🚐'}
+                                    <div className="flex gap-3 items-start">
+                                        <div className="flex-shrink-0 mt-1">
+                                            <span className="text-xl">🟠</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h6 className="text-sm font-bold text-blue-700 truncate group-hover:text-blue-600">
-                                                {result.title.replace(' - Park4night', '').replace(' - CaraMaps', '')}
+                                            <h6 className="text-sm font-bold text-gray-800 truncate group-hover:text-orange-600">
+                                                {spot.name}
                                             </h6>
-                                            <p className="text-[10px] text-gray-500 line-clamp-1">
-                                                {result.snippet}
+                                            <div className="flex items-center gap-2 mt-1">
+                                                {spot.rating && (
+                                                    <span className="text-xs font-bold text-orange-500">★ {spot.rating}</span>
+                                                )}
+                                                <span className="text-[10px] text-gray-400 truncate">
+                                                    {spot.vicinity || "Dirección no disponible"}
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-blue-500 mt-2 font-medium hover:underline">
+                                                Ver en Google Maps ➜
                                             </p>
                                         </div>
                                     </div>
-                                </a>
+                                </div>
                             ))}
                         </div>
                     )}
 
-                    {!loading && searchResults.length === 0 && (
-                        <p className="text-xs text-orange-600 mb-2 italic">
-                            No hay destacados automáticos. Usa los botones de mapa:
-                        </p>
-                    )}
-                    
-                    <div className="flex flex-col gap-2 mt-2">
-                        <a href={gmapsLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm">
-                            📍 Ver áreas cercanas en Google Maps
-                        </a>
-                        <div className="grid grid-cols-2 gap-2">
-                            <a href={p4nLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-green-700 transition shadow-sm">
-                                🚐 Park4Night
-                            </a>
-                            <a href={caramapsLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-teal-600 text-white px-3 py-2.5 rounded-lg text-xs font-bold hover:bg-teal-700 transition shadow-sm">
-                                🗺️ CaraMaps
-                            </a>
+                    {!isLoading && spots.length === 0 && (
+                        <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 text-center">
+                            <p className="text-xs text-orange-800 italic">
+                                No hemos encontrado campings o áreas en el radar de 20km.
+                            </p>
                         </div>
-                    </div>
-
+                    )}
                 </div>
             )}
             
             {!day.isDriving && (
-                 <p className="text-lg text-gray-700">Día dedicado a la relajación en {day.to}.</p>
+                 <p className="text-lg text-gray-700">Día dedicado a la relajación en {rawCityName}.</p>
             )}
         </div>
     );
@@ -198,16 +154,13 @@ export default function Home() {
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
   
+  // --- ESTADOS PARA LA BÚSQUEDA POR RADIO ---
+  const [nearbySpots, setNearbySpots] = useState<google.maps.places.PlaceResult[]>([]);
+  const [loadingSpots, setLoadingSpots] = useState(false);
+
   const [formData, setFormData] = useState({
-    fechaInicio: '',
-    origen: 'Salamanca',
-    fechaRegreso: '',
-    destino: 'Punta Umbria',
-    etapas: 'Valencia',
-    consumo: 9.0,
-    precioGasoil: 1.75,
-    kmMaximoDia: 400,
-    evitarPeajes: false,
+    fechaInicio: '', origen: 'Salamanca', fechaRegreso: '', destino: 'Punta Umbria',
+    etapas: 'Valencia', consumo: 9.0, precioGasoil: 1.75, kmMaximoDia: 400, evitarPeajes: false,
   });
 
   const [results, setResults] = useState<TripResult>({
@@ -216,12 +169,10 @@ export default function Home() {
 
   const [loading, setLoading] = useState(false);
   const [showWaypoints, setShowWaypoints] = useState(true);
-  const [tacticalMarkers, setTacticalMarkers] = useState<{lat: number, lng: number, title: string}[]>([]);
+  // Ya no usamos tacticalMarkers sueltos, usamos los del itinerary con 'type'
 
   useEffect(() => {
-      if (map && mapBounds) {
-          setTimeout(() => map.fitBounds(mapBounds), 500); 
-      }
+      if (map && mapBounds) setTimeout(() => map.fitBounds(mapBounds), 500); 
   }, [map, mapBounds]);
   
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
@@ -234,29 +185,60 @@ export default function Home() {
     return null;
   };
 
+  const searchNearbySpots = useCallback((location: Coordinates) => {
+      if (!map) return;
+      setLoadingSpots(true);
+      setNearbySpots([]); 
+
+      const service = new google.maps.places.PlacesService(map);
+      
+      const request: google.maps.places.PlaceSearchRequest = {
+          location: new google.maps.LatLng(location.lat, location.lng),
+          radius: 20000, // 20 Kilómetros
+          keyword: 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"' 
+      };
+
+      service.nearbySearch(request, (results, status) => {
+          setLoadingSpots(false);
+          if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+              console.log("📍 Spots encontrados:", results.length);
+              setNearbySpots(results);
+          } else {
+              setNearbySpots([]);
+          }
+      });
+  }, [map]);
+
   const focusMapOnStage = async (dayIndex: number) => {
-    if (typeof google === 'undefined' || !results.dailyItinerary || typeof google.maps.LatLngBounds === 'undefined') return; 
-    const dailyPlan = results.dailyItinerary![dayIndex];
+    if (typeof google === 'undefined' || !results.dailyItinerary) return;
+    
+    const dailyPlan = results.dailyItinerary[dayIndex];
     if (!dailyPlan) return;
 
-    // Usamos las coordenadas guardadas si existen, si no, geocodificamos el nombre
+    setSelectedDayIndex(dayIndex); 
+
     if (dailyPlan.coordinates) {
         const bounds = new google.maps.LatLngBounds();
-        // Hacemos un pequeño bound alrededor del punto para centrar
-        bounds.extend({ lat: dailyPlan.coordinates.lat - 0.1, lng: dailyPlan.coordinates.lng - 0.1 });
-        bounds.extend({ lat: dailyPlan.coordinates.lat + 0.1, lng: dailyPlan.coordinates.lng + 0.1 });
+        // ZOOM AMPLIADO: Usamos +/- 0.4 grados para que se vean unos 40-50km alrededor
+        bounds.extend({ lat: dailyPlan.coordinates.lat + 0.4, lng: dailyPlan.coordinates.lng + 0.4 });
+        bounds.extend({ lat: dailyPlan.coordinates.lat - 0.4, lng: dailyPlan.coordinates.lng - 0.4 });
         setMapBounds(bounds);
+
+        // Búsqueda de spots
+        searchNearbySpots(dailyPlan.coordinates);
+
     } else {
-        // Fallback antiguo por si es destino final sin coords exactas
-        const [startCoord, endCoord] = await Promise.all([geocodeCity(dailyPlan.from), geocodeCity(dailyPlan.to)]);
-        if (startCoord && endCoord) {
-            const bounds = new google.maps.LatLngBounds();
-            bounds.extend(startCoord);
-            bounds.extend(endCoord);
-            setMapBounds(bounds); 
+        setNearbySpots([]); 
+        const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
+        const coord = await geocodeCity(cleanTo);
+        if (coord) {
+             const bounds = new google.maps.LatLngBounds();
+             bounds.extend({ lat: coord.lat + 0.4, lng: coord.lng + 0.4 });
+             bounds.extend({ lat: coord.lat - 0.4, lng: coord.lng - 0.4 });
+             setMapBounds(bounds);
+             searchNearbySpots(coord); 
         }
     }
-    setSelectedDayIndex(dayIndex); 
   };
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,9 +253,8 @@ export default function Home() {
     setLoading(true);
     setDirectionsResponse(null); 
     setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null }); 
-    setTacticalMarkers([]); 
     setSelectedDayIndex(null); 
-    setMapBounds(null); 
+    setNearbySpots([]); 
 
     if (typeof google === 'undefined' || typeof google.maps.DirectionsService === 'undefined') {
         setLoading(false);
@@ -296,7 +277,6 @@ export default function Home() {
       setDirectionsResponse(result);
       const route = result.routes[0];
       const itinerary: DailyPlan[] = [];
-      const newTacticalMarkers: {lat: number, lng: number, title: string}[] = [];
       
       let dayCounter = 1;
       let currentDate = new Date(formData.fechaInicio);
@@ -314,15 +294,15 @@ export default function Home() {
         let legAccumulator = 0;
         let segmentStartName = currentLegStartName;
 
-        const getCityNameForStop = async (lat: number, lng: number): Promise<string> => {
+        const getCityAndProvince = async (lat: number, lng: number): Promise<string> => {
             const geocoder = new google.maps.Geocoder();
             try {
               const response = await geocoder.geocode({ location: { lat, lng } });
               if (response.results[0]) {
                 const comps = response.results[0].address_components;
-                const city = comps.find(c => c.types.includes("locality"))?.long_name 
-                          || comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
-                return city ? city.replace(/\d{5}/, '').trim() : "Punto Ruta";
+                const city = comps.find(c => c.types.includes("locality"))?.long_name || comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || "Punto Ruta";
+                const province = comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
+                return (province && city !== province) ? `${city}|${province}` : city;
               }
             } catch (e) { }
             return "Parada Ruta";
@@ -336,10 +316,9 @@ export default function Home() {
             if (legAccumulator + segmentDist > maxMeters) {
                 const lat = point1.lat();
                 const lng = point2.lng(); 
-                const cityName = await getCityNameForStop(lat, lng);
-                const stopTitle = `📍 Parada Táctica: ${cityName}`;
+                const locationString = await getCityAndProvince(lat, lng);
+                const stopTitle = `📍 Parada Táctica: ${locationString}`;
 
-                // AÑADIDO: Guardamos lat/lng en el objeto del día
                 itinerary.push({ 
                     day: dayCounter, 
                     date: formatDate(currentDate), 
@@ -347,14 +326,14 @@ export default function Home() {
                     to: stopTitle, 
                     distance: (legAccumulator + segmentDist) / 1000, 
                     isDriving: true,
-                    coordinates: { lat, lng } // <--- ¡LA CLAVE!
+                    coordinates: { lat, lng },
+                    type: 'tactical' // AZUL
                 });
                 
-                newTacticalMarkers.push({ lat, lng, title: stopTitle });
                 dayCounter++;
                 currentDate = addDay(currentDate);
                 legAccumulator = 0;
-                segmentStartName = stopTitle;
+                segmentStartName = locationString;
             } else {
                 legAccumulator += segmentDist;
             }
@@ -362,14 +341,26 @@ export default function Home() {
 
         let endLegName = leg.end_address.split(',')[0];
         if (i === route.legs.length - 1) endLegName = formData.destino;
-        else {
-             const parts = leg.end_address.split(',');
-             endLegName = parts.length > 1 ? parts[parts.length - 2].trim() : parts[0];
-             endLegName = endLegName.replace(/\d{5}/, '').trim();
-        }
-
+        
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
-            itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: segmentStartName, to: endLegName, distance: legAccumulator / 1000, isDriving: true });
+            // Determinamos si es una parada intermedia (Pernocta) o el Destino Final
+            const isFinalDest = i === route.legs.length - 1;
+            
+            // Necesitamos las coords del final del leg para pintar la chincheta verde/roja
+            const endLat = leg.end_location.lat();
+            const endLng = leg.end_location.lng();
+
+            itinerary.push({ 
+                day: dayCounter, 
+                date: formatDate(currentDate), 
+                from: segmentStartName, 
+                to: endLegName, 
+                distance: legAccumulator / 1000, 
+                isDriving: true,
+                coordinates: { lat: endLat, lng: endLng },
+                type: isFinalDest ? 'end' : 'overnight' // ROJO o VERDE
+            });
+
             currentLegStartName = endLegName;
             if (i < route.legs.length - 1) { dayCounter++; currentDate = addDay(currentDate); }
         }
@@ -385,11 +376,18 @@ export default function Home() {
         for(let i=0; i < stayDays; i++) {
              dayCounter++;
              currentDate = addDay(currentDate);
-             itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: formData.destino, to: formData.destino, distance: 0, isDriving: false });
+             itinerary.push({ 
+                 day: dayCounter, 
+                 date: formatDate(currentDate), 
+                 from: formData.destino, 
+                 to: formData.destino, 
+                 distance: 0, 
+                 isDriving: false,
+                 type: 'end'
+             });
         }
       }
 
-      setTacticalMarkers(newTacticalMarkers);
       setResults({ totalDays: dayCounter, distanceKm: totalDistMeters / 1000, totalCost: (totalDistMeters / 1000 / 100) * formData.consumo * formData.precioGasoil, dailyItinerary: itinerary, error: null });
 
     } catch (error: any) {
@@ -489,10 +487,10 @@ export default function Home() {
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
                         <h3 className="font-bold text-gray-700 mb-3">Selecciona una Etapa:</h3>
                         <div className="flex flex-wrap gap-2">
-                            <button onClick={() => { setSelectedDayIndex(null); setMapBounds(null); }} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>🌎 Vista General</button>
+                            <button onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setNearbySpots([]); }} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>🌎 Vista General</button>
                             {results.dailyItinerary?.map((day, index) => (
                                 <button key={index} onClick={() => focusMapOnStage(index)} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === index ? 'bg-blue-600 text-white' : (day.isDriving ? 'bg-gray-100' : 'bg-orange-100 text-orange-700')}`}>
-                                    <span className="mr-1">{day.isDriving ? '🚗' : '🏖️'}</span> Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split(',')[0]}
+                                    <span className="mr-1">{day.isDriving ? '🚗' : '🏖️'}</span> Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                 </button>
                             ))}
                         </div>
@@ -502,7 +500,35 @@ export default function Home() {
                         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-2xl shadow-lg overflow-hidden border-4 border-white relative">
                             <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
                                 {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#2563EB", strokeWeight: 5 }} />}
-                                {tacticalMarkers.map((marker, i) => <Marker key={i} position={marker} label={{text: "P", color: "white", fontWeight: "bold"}} title={marker.title} />)}
+                                
+                                {/* MARCADORES DEL ITINERARIO (COLORES SEGÚN TIPO) */}
+                                {results.dailyItinerary?.map((day, i) => day.coordinates && (
+                                    <Marker 
+                                        key={`itinerary-${i}`}
+                                        position={day.coordinates}
+                                        icon={
+                                            day.type === 'tactical' ? ICONS.tactical :
+                                            day.type === 'overnight' ? ICONS.overnight :
+                                            ICONS.startEnd
+                                        }
+                                        title={day.to}
+                                    />
+                                ))}
+
+                                {/* MARCADORES DE SPOTS ENCONTRADOS (NARANJAS E INTERACTIVOS) */}
+                                {nearbySpots.map((spot, i) => spot.geometry?.location && (
+                                    <Marker 
+                                        key={`spot-${i}`} 
+                                        position={spot.geometry.location} 
+                                        icon={ICONS.spot}
+                                        title={spot.name}
+                                        onClick={() => {
+                                            if (spot.place_id) {
+                                                window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
+                                            }
+                                        }}
+                                    />
+                                ))}
                             </GoogleMap>
                         </div>
 
@@ -511,13 +537,13 @@ export default function Home() {
                                 {selectedDayIndex === null ? (
                                     <div className="text-center pt-8 overflow-y-auto h-full">
                                         <h4 className="text-2xl font-extrabold text-blue-700 mb-2">Itinerario Completo</h4>
-                                        <p className="text-gray-500 mb-6">Haz clic en una pestaña de **Día** para ver parkings.</p>
+                                        <p className="text-gray-500 mb-6">Haz clic en una pestaña de **Día** para ver parkings en el mapa.</p>
                                         <div className="border rounded-lg overflow-hidden">
                                             <table className="min-w-full text-sm text-left"><thead className="bg-gray-50 text-xs font-bold uppercase text-gray-600"><tr><th className="px-4 py-2">Día</th><th className="px-4 py-2 text-right">Km</th></tr></thead><tbody className="divide-y divide-gray-100">{results.dailyItinerary?.filter(d => d.isDriving).map((day, i) => (<tr key={i} className="hover:bg-blue-50"><td className="px-4 py-2 font-medium">Día {day.day}</td><td className="px-4 py-2 text-right font-mono">{day.distance.toFixed(0)}</td></tr>))}</tbody></table>
                                         </div>
                                     </div>
                                 ) : (
-                                    <DayDetailView day={results.dailyItinerary![selectedDayIndex]} />
+                                    <DaySpotsList day={results.dailyItinerary![selectedDayIndex]} spots={nearbySpots} isLoading={loadingSpots} />
                                 )}
                             </div>
                         </div>
