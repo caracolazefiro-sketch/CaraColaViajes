@@ -24,17 +24,12 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- HELPER: NORMALIZAR TEXTO ---
-const normalizeText = (text: string) => {
-    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-};
-
-// --- COMPONENTE DE VISTA DETALLADA (MODO CAJA NEGRA) ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA ("PUERTAS ABIERTAS") ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
-    const [debugTitles, setDebugTitles] = useState<string[]>([]); // Para ver qué devuelve Google
-    
+    const [debugInfo, setDebugInfo] = useState<string | null>(null);
+
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
 
     useEffect(() => {
@@ -42,42 +37,46 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
 
         const fetchSpots = async () => {
             setLoading(true);
-            setDebugTitles([]); // Limpiar debug
+            setDebugInfo(null);
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // 1. QUERY NUEVA: Sin 'site:', buscamos palabras clave a lo bruto
-            const query = `park4night caramaps ${rawCityName}`;
+            // 1. QUERY SIN "SITE:": Dejamos que Google use su inteligencia total.
+            // Buscamos: park4night "NombreCiudad" (con comillas para forzar la ciudad)
+            const query = `park4night "${rawCityName}"`;
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
 
                 const res = await fetch(
-                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=10`
+                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=5`
                 );
                 
                 const data = await res.json();
 
                 if (data.items) {
-                    // Guardamos los títulos crudos para mostrarlos si fallamos
-                    setDebugTitles(data.items.map((i: any) => i.title));
-
-                    const normalizedCity = normalizeText(rawCityName);
-
-                    const validResults = data.items.filter((item: SearchResult) => {
-                        // Filtro: Debe ser de park4night/caramaps Y contener el nombre de la ciudad
-                        const isTargetSite = item.link.includes('park4night.com') || item.link.includes('caramaps.com');
-                        const hasCityName = normalizeText(item.title).includes(normalizedCity);
-                        
-                        return isTargetSite && hasCityName;
+                    console.log("Resultados API:", data.items);
+                    
+                    // 2. SIN FILTROS ESTRICTOS: 
+                    // Simplemente quitamos resultados que NO sean de park4night o caramaps
+                    // (para evitar blogs random), pero aceptamos cualquier título.
+                    const cleanResults = data.items.filter((item: SearchResult) => {
+                        return item.link.includes('park4night.com') || item.link.includes('caramaps.com');
                     });
 
-                    setSearchResults(validResults.slice(0, 4));
+                    if (cleanResults.length > 0) {
+                        setSearchResults(cleanResults);
+                    } else {
+                        // Si no hay de p4n, mostramos lo que haya (fallback total)
+                        setSearchResults(data.items.slice(0, 3));
+                    }
                 } else {
                     setSearchResults([]);
+                    setDebugInfo("La API de Google devolvió 0 resultados.");
                 }
-            } catch (err) {
-                console.error("Error en búsqueda:", err);
+            } catch (err: any) {
+                console.error("Error:", err);
+                setDebugInfo(`Error técnico: ${err.message}`);
                 setSearchResults([]); 
             } finally {
                 setLoading(false);
@@ -87,7 +86,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         fetchSpots();
     }, [rawCityName, day.isDriving]);
 
-    const manualSearchUrl = `https://www.google.com/search?q=park4night+${rawCityName}`;
+    const googleSearchUrl = `https://www.google.com/search?q=park4night+"${rawCityName}"`;
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
@@ -108,7 +107,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {loading && (
                         <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-xs text-blue-600 font-medium">Escaneando resultados...</p>
+                            <p className="text-xs text-blue-600 font-medium">Consultando spots...</p>
                         </div>
                     )}
 
@@ -146,24 +145,23 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                         </div>
                     )}
 
-                    {/* CAJA NEGRA: VISIBLE SOLO SI FALLA */}
                     {!loading && searchResults.length === 0 && (
-                        <div className="bg-gray-100 p-3 rounded text-xs text-gray-500 font-mono mb-2">
-                            <p className="font-bold mb-1">Diagnóstico (Lo que vio el robot):</p>
-                            {debugTitles.length > 0 ? (
-                                <ul className="list-disc pl-4 space-y-1">
-                                    {debugTitles.slice(0, 3).map((t, i) => <li key={i}>{t}</li>)}
-                                </ul>
-                            ) : (
-                                <p>El robot devolvió 0 resultados totales.</p>
+                        <div className="space-y-2">
+                             <p className="text-xs text-gray-400 italic">
+                                No hay resultados automáticos.
+                            </p>
+                            {/* DIAGNÓSTICO EN PANTALLA */}
+                            {debugInfo && (
+                                <div className="bg-gray-200 p-2 text-[10px] text-gray-600 font-mono rounded">
+                                    DEBUG: {debugInfo}
+                                </div>
                             )}
-                            <p className="mt-2 text-orange-600">Ninguno superó el filtro de nombre.</p>
                         </div>
                     )}
 
                     <div className="mt-4 pt-3 border-t border-gray-200 space-y-2">
                          <a 
-                            href={manualSearchUrl}
+                            href={googleSearchUrl}
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="flex items-center justify-center w-full gap-2 bg-white border border-blue-200 px-4 py-3 rounded-xl text-sm font-bold text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition shadow-sm"
