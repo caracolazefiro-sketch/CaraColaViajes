@@ -24,7 +24,7 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (CON BÚSQUEDA EXACTA) ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (BÚSQUEDA OPTIMIZADA ESPAÑA) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
@@ -40,14 +40,15 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // QUERY CORREGIDA: AÑADIMOS COMILLAS A LA CIUDAD PARA QUE SEA EXACTA
-            const query = `site:park4night.com OR site:caramaps.com ("área autocaravana" OR "camper" OR "caravana" OR "spot") "${rawCityName}"`;
+            // QUERY OPTIMIZADA: Sin comillas para flexibilidad, sin keywords redundantes.
+            const query = `site:park4night.com OR site:caramaps.com ${rawCityName}`;
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
 
+                // PARÁMETROS CLAVE AÑADIDOS: &gl=es (Geolocalización España) &lr=lang_es (Idioma Español)
                 const res = await fetch(
-                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=4`
+                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=4&gl=es&lr=lang_es&safe=active`
                 );
                 
                 const data = await res.json();
@@ -127,14 +128,14 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {!loading && searchResults.length === 0 && (
                         <div className="mt-2 text-center">
                              <a 
-                                href={`https://www.google.com/search?q=site:park4night.com OR site:caramaps.com ("área autocaravana" OR "camper" OR "caravana" OR "spot") "${rawCityName}"`}
+                                href={`https://www.google.com/search?q=site:park4night.com OR site:caramaps.com ${rawCityName}`}
                                 target="_blank" 
                                 rel="noopener noreferrer" 
                                 className="inline-block bg-white border border-orange-200 px-4 py-2 rounded-full text-sm font-bold text-orange-600 hover:bg-orange-50 transition shadow-sm"
                             >
                                 🔍 Buscar manualmente en Google
                             </a>
-                            <p className="text-xs text-gray-400 mt-2">No hay destacados exactos en {rawCityName}.</p>
+                            <p className="text-xs text-gray-400 mt-2">No se encontraron destacados automáticos.</p>
                         </div>
                     )}
                 </div>
@@ -431,7 +432,6 @@ export default function Home() {
                         <h3 className="font-bold text-gray-700 mb-3">Selecciona una Etapa:</h3>
                         <div className="flex space-x-2 pb-2">
                             <button onClick={() => { setSelectedDayIndex(null); setMapBounds(null); }} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>🌎 Vista General</button>
-                            {/* --- AQUÍ ESTÁ EL ARREGLO DE LAS TABS --- */}
                             {results.dailyItinerary?.map((day, index) => (
                                 <button key={index} onClick={() => focusMapOnStage(index)} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === index ? 'bg-blue-600 text-white' : (day.isDriving ? 'bg-gray-100' : 'bg-orange-100 text-orange-700')}`}>
                                     <span className="mr-1">{day.isDriving ? '🚗' : '🏖️'}</span> Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split(',')[0]}
