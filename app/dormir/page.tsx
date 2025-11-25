@@ -1,7 +1,7 @@
-// app/page.tsx (VERSIÓN FINAL Y COMPLETA: BÚSQUEDA SITE: Y URL ABSOLUTA)
+// app/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
 
 // --- CONFIGURACIÓN VISUAL DEL MAPA ---
@@ -14,24 +14,81 @@ const containerStyle = {
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
-// --- INTERFACES y ICONOS (Omitidas para la plantilla, pero presentes en el código) ---
+// --- INTERFACES ---
 interface DailyPlan { day: number; date: string; from: string; to: string; distance: number; isDriving: boolean; }
 interface TripResult { totalDays: number | null; distanceKm: number | null; totalCost: number | null; dailyItinerary: DailyPlan[] | null; error: string | null; }
 
+// Nueva interfaz para los resultados de búsqueda
+interface SearchResult {
+    title: string;
+    link: string;
+    snippet: string;
+    pagemap?: {
+        cse_image?: { src: string }[];
+    };
+}
+
+// --- ICONOS ---
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (CON CSE INTEGRADO) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Limpiamos el nombre de la ciudad para la búsqueda
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
-    
-    // 🛑 FIX DEFINITIVO: Búsqueda forzada con SITE: y URL ABSOLUTA
-    const link = `https://www.google.com/search?q=site:park4night.com OR site:caramaps.com "área autocaravana & camper & caravana & spot" ${rawCityName}`;
+
+    // Efecto para buscar automáticamente al cargar el componente
+    useEffect(() => {
+        if (!day.isDriving) return; // Si no es día de conducción, no buscamos parkings
+
+        const fetchSpots = async () => {
+            setLoading(true);
+            setError(null);
+
+            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
+            const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
+
+            // QUERY CSE: Ampliamos búsqueda a camper, caravana, spot en los sitios específicos
+            const query = `site:park4night.com OR site:caramaps.com ("área autocaravana" OR "camper" OR "caravana" OR "spot") ${rawCityName}`;
+            
+            try {
+                if (!apiKey || !cx) {
+                    // Si no hay keys configuradas, lanzamos error silencioso para mostrar el botón manual
+                    throw new Error("Faltan claves API"); 
+                }
+
+                const res = await fetch(
+                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=4`
+                );
+                
+                if (!res.ok) throw new Error("Error en la respuesta de Google");
+
+                const data = await res.json();
+
+                if (data.items) {
+                    setSearchResults(data.items);
+                } else {
+                    setSearchResults([]);
+                }
+            } catch (err) {
+                console.error("No se pudo realizar la búsqueda automática:", err);
+                setError("true"); // Marcamos error para mostrar fallback
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSpots();
+    }, [rawCityName, day.isDriving]);
 
     return (
-        <div className={`p-4 rounded-xl space-y-4 h-full transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
+        <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
             <h4 className={`text-2xl font-extrabold ${day.isDriving ? 'text-blue-800' : 'text-orange-800'}`}>
                 {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
             </h4>
@@ -47,19 +104,68 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
 
             {day.isDriving && day.distance > 0 && (
                 <div className="pt-3 border-t border-dashed border-gray-300">
-                    <h5 className="text-sm font-bold text-gray-600 mb-2 flex items-center gap-1">
-                        <span className="text-lg">🏕️</span> Pernocta Sugerida en:
+                    <h5 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-1">
+                        <span className="text-lg">🏕️</span> Pernocta Recomendada en {rawCityName}:
                     </h5>
-                    <a 
-                        href={link} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-xl font-bold text-orange-600 hover:text-red-700 underline transition-colors flex items-center"
-                    >
-                        {rawCityName}
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
-                    <p className="text-xs text-gray-500 mt-1">Clic para buscar parkings/áreas de AC cerca.</p>
+
+                    {/* ESTADO CARGANDO */}
+                    {loading && (
+                        <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
+                            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-xs text-blue-600 font-medium">Buscando spots...</p>
+                        </div>
+                    )}
+
+                    {/* RESULTADOS DEL CSE */}
+                    {!loading && searchResults.length > 0 && (
+                        <div className="space-y-3">
+                            {searchResults.map((result, idx) => (
+                                <a 
+                                    key={idx} 
+                                    href={result.link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block group bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left"
+                                >
+                                    <div className="flex gap-3">
+                                        <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl overflow-hidden">
+                                            {result.pagemap?.cse_image?.[0]?.src ? (
+                                                <img 
+                                                    src={result.pagemap.cse_image[0].src} 
+                                                    alt="spot" 
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => (e.currentTarget.style.display = 'none')} 
+                                                />
+                                            ) : '🚐'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h6 className="text-sm font-bold text-blue-700 truncate group-hover:text-blue-500">
+                                                {result.title.replace(' - Park4night', '').replace(' - CaraMaps', '')}
+                                            </h6>
+                                            <p className="text-xs text-gray-500 line-clamp-2 mt-1">
+                                                {result.snippet}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* FALLBACK MANUAL (Si falla la API o no hay resultados) */}
+                    {(!loading && (searchResults.length === 0 || error)) && (
+                        <div className="mt-2">
+                             <a 
+                                href={`https://www.google.com/search?q=site:park4night.com OR site:caramaps.com ("área autocaravana" OR "camper" OR "caravana" OR "spot") ${rawCityName}`}
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="block w-full text-center bg-white border border-orange-200 px-4 py-3 rounded-lg text-sm font-bold text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition"
+                            >
+                                🔍 Ver resultados en Google
+                            </a>
+                            <p className="text-xs text-gray-400 mt-1 text-center">No se cargaron resultados automáticos.</p>
+                        </div>
+                    )}
                 </div>
             )}
             
@@ -94,7 +200,7 @@ export default function Home() {
     consumo: 9.0,
     precioGasoil: 1.75,
     kmMaximoDia: 400,
-    evitarPeajes: false, // 🛑 ESTADO PARA PEAJES
+    evitarPeajes: false,
   });
 
   const [results, setResults] = useState<TripResult>({
@@ -106,14 +212,14 @@ export default function Home() {
   const [tacticalMarkers, setTacticalMarkers] = useState<{lat: number, lng: number, title: string}[]>([]);
 
   // --- EFECTO: CENTRAR EL MAPA DINÁMICAMENTE ---
-  React.useEffect(() => {
+  useEffect(() => {
       if (map && mapBounds) {
           setTimeout(() => map.fitBounds(mapBounds), 500); 
       }
   }, [map, mapBounds]);
   
 
-  // --- FUNCIÓN ASÍNCRONA PARA OBTENER COORDENADAS DE UNA CIUDAD (BLINDADA) ---
+  // --- FUNCIÓN ASÍNCRONA PARA OBTENER COORDENADAS (BLINDADA) ---
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
     if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
     
@@ -130,7 +236,7 @@ export default function Home() {
   };
 
 
-  // --- FUNCIÓN CLAVE: ENFOCAR MAPA EN UNA ETAPA (BLINDADA) ---
+  // --- FUNCIÓN CLAVE: ENFOCAR MAPA EN UNA ETAPA ---
   const focusMapOnStage = async (dayIndex: number) => {
     if (typeof google === 'undefined' || !results.dailyItinerary || typeof google.maps.LatLngBounds === 'undefined') return; 
 
@@ -149,14 +255,14 @@ export default function Home() {
       bounds.extend(startCoord);
       bounds.extend(endCoord);
       
-      setMapBounds(bounds); // Activar el useEffect para que centre el mapa
+      setMapBounds(bounds); 
     }
     
     // 3. Activar la pestaña
     setSelectedDayIndex(dayIndex); 
   };
   
-  // 🛑 HANDLER UNIFICADO
+  // HANDLER UNIFICADO
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value, type, checked } = e.target;
     
@@ -165,10 +271,8 @@ export default function Home() {
     if (type === 'checkbox') {
         finalValue = checked;
     } else if (id === 'precioGasoil' || id === 'consumo' || id === 'kmMaximoDia') {
-        // Manejamos inputs numéricos que no son sliders
         finalValue = parseFloat(value);
     } else {
-        // Valores de texto
         finalValue = value;
     }
     
@@ -205,7 +309,6 @@ export default function Home() {
     if (!isLoaded) return;
     setLoading(true);
     
-    // FIX ESTADO CRÍTICO: Limpiar todo antes de la nueva solicitud
     setDirectionsResponse(null); 
     setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null }); 
     setTacticalMarkers([]); 
@@ -228,12 +331,12 @@ export default function Home() {
         destination: formData.destino,
         waypoints: waypoints,
         travelMode: google.maps.TravelMode.DRIVING,
-        avoidTolls: formData.evitarPeajes, // 🛑 NUEVA OPCIÓN DE EVITAR PEAJES
+        avoidTolls: formData.evitarPeajes,
       });
 
       setDirectionsResponse(result);
 
-      // --- ALGORITMO CORE: TRAMO A TRAMO CON FIX DE DÍAS ---
+      // --- ALGORITMO CORE ---
       const route = result.routes[0];
       const itinerary: DailyPlan[] = [];
       const newTacticalMarkers: {lat: number, lng: number, title: string}[] = [];
@@ -305,7 +408,6 @@ export default function Home() {
             });
             currentLegStartName = endLegName;
             
-            // FIX CRÍTICO: Forzar salto de día al llegar a un Waypoint definido por el usuario (fin de Leg)
             if (i < route.legs.length - 1) { 
                dayCounter++; 
                currentDate = addDay(currentDate); 
@@ -416,7 +518,7 @@ export default function Home() {
                          <div className="flex justify-between text-xs text-gray-400 font-medium"><span>Eficiente (5)</span><span>Pesado (25)</span></div>
                     </div>
                     
-                    {/* Precio Gasoil (1 Columna) */}
+                    {/* Precio Gasoil */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Precio Gasoil (€)</label>
                         <div className="relative">
@@ -425,21 +527,21 @@ export default function Home() {
                         </div>
                     </div>
                     
-                    {/* Evitar Peajes (1 Columna, alineado con el precio) */}
+                    {/* Evitar Peajes */}
                     <div className="md:col-span-1 flex items-end">
                         <label className="flex items-center gap-3 cursor-pointer text-gray-700 font-bold select-none text-sm p-3 bg-gray-50 border border-gray-200 rounded-lg w-full h-full">
                             <input 
                                 type="checkbox" 
                                 id="evitarPeajes" 
                                 checked={formData.evitarPeajes} 
-                                onChange={handleChange} // 🛑 USAMOS EL HANDLER UNIFICADO
+                                onChange={handleChange} 
                                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" 
                             />
                             Evitar Peajes 🚫
                         </label>
                     </div>
 
-                    {/* Botón Calcular (2 Columnas restantes) */}
+                    {/* Botón Calcular */}
                      <div className="md:col-span-2 lg:col-span-2 flex items-end">
                         <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-blue-700 to-blue-600 text-white py-3.5 rounded-xl font-bold text-lg hover:from-blue-800 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                             {loading ? 'Calculando Ruta Óptima...' : '🚀 Calcular Itinerario'}
@@ -449,7 +551,7 @@ export default function Home() {
             </form>
         </div>
 
-        {/* SECCIÓN DE RESULTADOS (Resto sin cambios) */}
+        {/* SECCIÓN DE RESULTADOS */}
         {results.totalCost !== null && (
             <div className="space-y-8">
                 
@@ -528,7 +630,7 @@ export default function Home() {
                     {/* 2. CONTENIDO DETALLADO (MAPA Y RESUMEN) */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         
-                        {/* MAPA (Ocupa 2 columnas en pantallas grandes) */}
+                        {/* MAPA */}
                         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-2xl shadow-lg overflow-hidden border-4 border-white relative">
                             <GoogleMap 
                                 mapContainerStyle={containerStyle} 
@@ -556,17 +658,16 @@ export default function Home() {
 
                         {/* RESUMEN DEL DÍA SELECCIONADO / GENERAL */}
                         <div className="lg:col-span-1 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px]">
-                            <div className='p-6 h-full'>
+                            <div className='p-6 h-full overflow-hidden'>
                                 {selectedDayIndex === null ? (
                                     // --- VISTA GENERAL (RESUMEN) ---
-                                    <div className="text-center pt-8">
+                                    <div className="text-center pt-8 overflow-y-auto h-full">
                                         <h4 className="text-2xl font-extrabold text-blue-700 mb-2">Itinerario Completo</h4>
-                                        <p className="text-gray-500">
-                                            Haz clic en la pestaña de un **Día** (ej: Día 2) para enfocar el mapa y ver la parada de pernocta.
+                                        <p className="text-gray-500 mb-6">
+                                            Haz clic en la pestaña de un **Día** para ver recomendaciones de pernocta.
                                         </p>
                                         
-                                        {/* TABLA DE RESUMEN RÁPIDO */}
-                                        <div className="mt-6 border rounded-lg overflow-hidden">
+                                        <div className="border rounded-lg overflow-hidden">
                                             <table className="min-w-full text-sm text-left">
                                                 <thead className="bg-gray-50 text-xs font-bold uppercase text-gray-600">
                                                     <tr><th className="px-4 py-2">Día</th><th className="px-4 py-2 text-right">Km</th></tr>
@@ -583,7 +684,7 @@ export default function Home() {
                                         </div>
                                     </div>
                                 ) : (
-                                    // --- VISTA DE DÍA DETALLADA (Llama al componente) ---
+                                    // --- VISTA DE DÍA DETALLADA (Llama al componente actualizado) ---
                                     <DayDetailView day={results.dailyItinerary![selectedDayIndex]} />
                                 )}
                             </div>
