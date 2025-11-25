@@ -28,7 +28,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
     
     // 🛑 FIX DEFINITIVO: Búsqueda forzada con SITE: y URL ABSOLUTA
-    const link = `https://www.google.com/search?q=site:park4night.com OR site:caramaps.com "área autocaravana autocaravana camper caravana spot" ${rawCityName}`;
+    const link = `https://www.google.com/search?q=site:park4night.com OR site:caramaps.com "área autocaravana & camper & caravana & spot" ${rawCityName}`;
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
