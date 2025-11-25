@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // --- 1. CONFIGURACIÓN Y CLAVES ---
-// ⚠️ IMPORTANTE: Usamos las claves directamente para evitar errores de entorno en Vercel
-const API_KEY = "AIzaSyDecT2WWIcWJd0mCQv5ONc3okQfwAmXIX0";
-const CX_ID = "9022e72d0fcbd4093"; 
+// ⚠️ IMPORTANTE: En producción, usa variables de entorno como process.env.NEXT_PUBLIC_API_KEY para evitar exponer claves
+const API_KEY = "AIzaSyDecT2WWIcWJd0mCQv5ONc3okQfwAmXIX0"; // Reemplaza con process.env.NEXT_PUBLIC_API_KEY
+const CX_ID = "9022e72d0fcbd4093"; // Reemplaza con process.env.NEXT_PUBLIC_CX_ID
 const MIN_QUALITY_SCORE = 3.75;
 const CENTER_POINT = { lat: 40.416775, lng: -3.703790 };
 
@@ -118,12 +118,13 @@ const SmartSpotCard = ({ city, coordinates }: { city: string, coordinates?: { la
              let rating = 0;
              const text = (item.title || "") + " " + (item.snippet || "");
              
-             // Intentamos leer la nota del texto (ej: 4.5/5)
-             const match = text.match(/(\d[\.,]?\d{0,2})\s?\/\s?5/);
+             // Intentamos leer la nota del texto (ej: 4.5/5) - Mejora: más patrones
+             const match = text.match(/(\d[\.,]?\d{0,2})\s?\/\s?5/) || text.match(/(\d[\.,]?\d{0,2})(?:\s?estrellas?|\s?de\s?5)/);
              if (match) rating = parseFloat(match[1].replace(',', '.'));
              else if (item.pagemap?.aggregaterating?.[0]?.ratingvalue) {
                  rating = parseFloat(item.pagemap.aggregaterating[0].ratingvalue);
              }
+             if (isNaN(rating)) rating = 0; // Fallback si parsing falla
 
              const img = item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || null;
              const title = (item.title || "").replace(/ - park4night/i, '').replace(/\(\d+\)/, '').trim();
@@ -305,7 +306,8 @@ export default function Home() {
     if (mapInstance && tacticalMarkers.length > 0) {
       tacticalMarkers.forEach(p => {
         const marker = new google.maps.Marker({
-          position: p, map: mapInstance, title: p.title,
+          position: { lat: p.lat, lng: p.lng },
+          map: mapInstance, title: p.title,
           label: { text: "P", color: "white", fontWeight: "bold" }
         });
         markersRef.current.push(marker);
@@ -323,7 +325,12 @@ export default function Home() {
     if (typeof google === 'undefined') return null;
     const geocoder = new google.maps.Geocoder();
     try {
-      const res = await geocoder.geocode({ address: cityName });
+      const res = await new Promise((resolve, reject) => {
+        geocoder.geocode({ address: cityName }, (results: any, status: any) => {
+          if (status === google.maps.GeocoderStatus.OK) resolve({ results });
+          else reject(status);
+        });
+      }) as any;
       if (res.results.length > 0) return res.results[0].geometry.location.toJSON();
     } catch (e) {} return null;
   };
@@ -333,7 +340,12 @@ export default function Home() {
     if (typeof google === 'undefined') return { name: "Parada", coords: { lat, lng } };
     const geocoder = new google.maps.Geocoder();
     try {
-      const res = await geocoder.geocode({ location: { lat, lng } });
+      const res = await new Promise((resolve, reject) => {
+        geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+          if (status === google.maps.GeocoderStatus.OK) resolve({ results });
+          else reject(status);
+        });
+      }) as any;
       if (res.results.length > 0) {
         const c = res.results[0].address_components.find((x:any)=>x.types.includes("locality")) || res.results[0].address_components.find((x:any)=>x.types.includes("administrative_area_level_2"));
         return { name: c ? c.long_name : "Punto", coords: { lat, lng } };
@@ -360,7 +372,7 @@ export default function Home() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [id]: type === 'checkbox' ? checked : value }));
+    setFormData(prev => ({ ...prev, [id]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value) }));
   };
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.id]: parseFloat(e.target.value) }));
@@ -369,21 +381,33 @@ export default function Home() {
   // --- CALCULO DE RUTA PRINCIPAL ---
   const calculateRoute = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || typeof google === 'undefined') {
+      setResults(prev => ({...prev, error: "Mapas no cargados aún."}));
+      return;
+    }
+    if (!API_KEY) {
+      setResults(prev => ({...prev, error: "Clave API faltante."}));
+      return;
+    }
     setLoading(true); setDirectionsResponse(null); setResults({totalDays:null, distanceKm:null, totalCost:null, dailyItinerary:null, error:null}); setTacticalMarkers([]); setSelectedDayIndex(null);
 
     const ds = new google.maps.DirectionsService();
-    const wps = formData.etapas.split(',').filter(s=>s.trim().length>0).map(l => ({ location: l, stopover: true }));
+    const wps = formData.etapas.split(',').filter(s=>s.trim().length>0).map(l => ({ location: l.trim(), stopover: true }));
 
     try {
-      const res = await ds.route({
-        origin: formData.origen, destination: formData.destino, waypoints: wps,
-        travelMode: google.maps.TravelMode.DRIVING, avoidTolls: formData.evitarPeajes,
+      const res = await new Promise((resolve, reject) => {
+        ds.route({
+          origin: formData.origen, destination: formData.destino, waypoints: wps,
+          travelMode: google.maps.TravelMode.DRIVING, avoidTolls: formData.evitarPeajes,
+        }, (result: any, status: any) => {
+          if (status === google.maps.DirectionsStatus.OK) resolve(result);
+          else reject(status);
+        });
       });
       
       setDirectionsResponse(res); // Guardamos la ruta para pintarla
 
-      const route = res.routes[0];
+      const route = (res as any).routes[0];
       const itinerary: DailyPlan[] = [];
       const newTacticalMarkers: any[] = [];
       let day = 1;
@@ -404,18 +428,22 @@ export default function Home() {
         for (let j=0; j<pts.length-1; j++) {
             const d = google.maps.geometry.spherical.computeDistanceBetween(pts[j], pts[j+1]);
             if (legAcc + d > maxM) {
-                const lat = pts[j].lat(); const lng = pts[j+1].lng();
+                const remaining = maxM - legAcc;
+                const fraction = remaining / d;
+                const stopPoint = google.maps.geometry.spherical.interpolate(pts[j], pts[j+1], fraction);
+                const lat = stopPoint.lat();
+                const lng = stopPoint.lng();
                 // Obtenemos info precisa de la parada
                 const info = await getStopInfo(lat, lng);
                 const title = `📍 Parada Táctica: ${info.name}`;
                 
                 itinerary.push({
                     day: day++, date: fmt(date), from: segStart, to: title,
-                    distance: (legAcc+d)/1000, isDriving: true,
+                    distance: (legAcc + remaining)/1000, isDriving: true,
                     coordinates: info.coords // 🎯 Guardamos coords para P4N
                 });
                 newTacticalMarkers.push({ lat, lng, title });
-                date = nextDay(date); legAcc = 0; segStart = title;
+                date = nextDay(date); legAcc = d - remaining; segStart = title;
             } else { legAcc += d; }
         }
         
@@ -437,6 +465,9 @@ export default function Home() {
 
       const ret = formData.fechaRegreso ? new Date(formData.fechaRegreso) : null;
       if (ret) {
+          if (ret < date) {
+            throw new Error("Fecha de regreso anterior a la llegada.");
+          }
           const stay = Math.ceil((ret.getTime() - date.getTime())/(1000*3600*24));
           for(let k=0; k<stay; k++) { 
               day++; date = nextDay(date); 
@@ -448,7 +479,7 @@ export default function Home() {
       setTacticalMarkers(newTacticalMarkers);
       setResults({ totalDays: day, distanceKm: totalDist/1000, totalCost: (totalDist/100000)*formData.consumo*formData.precioGasoil, dailyItinerary: itinerary, error: null });
 
-    } catch (error: any) { console.error(error); setResults(prev => ({...prev, error: "Error al calcular ruta."})); } finally { setLoading(false); }
+    } catch (error: any) { console.error(error); setResults(prev => ({...prev, error: error.message || "Error al calcular ruta."})); } finally { setLoading(false); }
   };
 
   if (!isLoaded) return <div className="flex h-screen justify-center items-center text-blue-600 font-bold text-xl animate-pulse">Cargando Mapas...</div>;
@@ -462,8 +493,12 @@ export default function Home() {
             <form onSubmit={calculateRoute} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1"><label className="text-xs font-bold text-gray-500">ORIGEN</label><input type="text" id="origen" value={formData.origen} onChange={handleChange} className="w-full p-2 border rounded" required/></div>
                 <div className="space-y-1"><label className="text-xs font-bold text-gray-500">DESTINO</label><input type="text" id="destino" value={formData.destino} onChange={handleChange} className="w-full p-2 border rounded" required/></div>
-                <div className="space-y-1"><label className="text-xs font-bold text-gray-500">FECHA INICIO</label><input type="date" id="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className="w-full p-2 border rounded"/></div>
-                <div className="flex items-end"><button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition shadow-md">{loading ? '...' : '🚀 CALCULAR'}</button></div>
+                <div className="space-y-1"><label className="text-xs font-bold text-gray-500">FECHA INICIO</label><input type="date" id="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className="w-full p-2 border rounded" min={new Date().toISOString().split('T')[0]} required/></div>
+                <div className="space-y-1"><label className="text-xs font-bold text-gray-500">FECHA REGRESO</label><input type="date" id="fechaRegreso" value={formData.fechaRegreso} onChange={handleChange} className="w-full p-2 border rounded" min={formData.fechaInicio || new Date().toISOString().split('T')[0]}/></div>
+                
+                <div className="space-y-1"><label className="text-xs font-bold text-gray-500">CONSUMO (L/100km)</label><input type="number" id="consumo" value={formData.consumo} onChange={handleChange} className="w-full p-2 border rounded" step="0.1" min="1" required/></div>
+                <div className="space-y-1"><label className="text-xs font-bold text-gray-500">PRECIO GASOIL (€/L)</label><input type="number" id="precioGasoil" value={formData.precioGasoil} onChange={handleChange} className="w-full p-2 border rounded" step="0.01" min="0.1" required/></div>
+                <div className="flex items-end md:col-span-2"><button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition shadow-md">{loading ? '...' : '🚀 CALCULAR'}</button></div>
                 
                 <div className="md:col-span-4 bg-blue-50 p-3 rounded-lg flex flex-wrap gap-4 items-center">
                     <label className="text-sm font-bold w-32 text-blue-800">Ritmo: {formData.kmMaximoDia} km</label>
@@ -486,7 +521,7 @@ export default function Home() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 h-[600px] bg-gray-300 rounded-xl overflow-hidden shadow-lg relative border-4 border-white">
-                        <div ref={mapRef} style={containerStyle} />
+                        <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
                     </div>
 
                     <div className="lg:col-span-1 h-[600px] overflow-y-auto pr-2 space-y-3">
