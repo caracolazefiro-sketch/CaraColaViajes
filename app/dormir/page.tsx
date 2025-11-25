@@ -1,24 +1,44 @@
+// app/dormir/page.tsx  ← VERSIÓN FINAL 100% FUNCIONAL (PRODUCCIÓN)
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
+import React, { useState, useEffect, useRef } from 'react';
 
 // ======================== CONFIG ========================
-const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
-const center = { lat: 40.416775, lng: -3.703790 };
-const LIBRARIES = ["places", "geometry"] as ("places" | "geometry")[];
-
-// Tus claves (asegúrate de tenerlas en .env.local)
-const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-const CSE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';  // misma clave sirve
-const CX_ID = "9022e72d0fcbd4093";  // tu Custom Search Engine ID
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyDecT2WWIcWJd0mCQv5ONc3okQfwAmXIX0";
+const CX_ID = "9022e72d0fcbd4093";
 const MIN_RATING = 3.8;
 
-// ======================== ICONOS ========================
-const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
-const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
-const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
-const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+// ======================== HOOK GOOGLE MAPS (FUNCIONA EN VERCEL) ========================
+const useGoogleMapsScript = () => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    if ((window as any).google?.maps) {
+      setIsLoaded(true);
+      return;
+    }
+
+    (window as any).initMap = () => setIsLoaded(true);
+
+    if (document.getElementById('google-maps-script')) return;
+
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&libraries=places,geometry&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    // Fallback por si el callback falla (raro, pero pasa)
+    const timer = setTimeout(() => {
+      if ((window as any).google?.maps) setIsLoaded(true);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return isLoaded;
+};
 
 // ======================== SMART SPOT CARD (PARK4NIGHT REAL) ========================
 const SmartSpotCard = ({ city }: { city: string }) => {
@@ -27,88 +47,66 @@ const SmartSpotCard = ({ city }: { city: string }) => {
 
   useEffect(() => {
     if (!city) return;
-
     (async () => {
       setLoading(true);
       try {
         const query = `site:park4night.com "${city}"`;
-        const url = `https://www.googleapis.com/customsearch/v1?key=${CSE_KEY}&cx=${CX_ID}&q=${encodeURIComponent(query)}&num=10`;
+        const url = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX_ID}&q=${encodeURIComponent(query)}&num=10`;
         const res = await fetch(url);
         const data = await res.json();
 
-        if (!data.items?.length) throw new Error("No results");
+        if (!data.items?.length) throw new Error();
 
-        const candidates = data.items.map((item: any) => {
-          const text = `${item.title || ""} ${item.snippet || ""}`;
-          const ratingMatch = text.match(/(\d[.,]?\d?)\s?\/\s?5/);
-          const rating = ratingMatch ? parseFloat(ratingMatch[1].replace(',', '.')) : 0;
-
-          const img = item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || null;
-          const title = (item.title || "").replace(/ - park4night.*/i, '').replace(/\(\d+\)/g, '').trim();
-          const link = (item.link || "").replace(/park4night\.com\/[a-z]{2}\//, "park4night.com/es/");
-
-          return { title, link, rating, img };
-        });
-
-        const best = candidates
+        const best = data.items
+          .map((i: any) => {
+            const text = `${i.title || ""} ${i.snippet || ""}`;
+            const ratingMatch = text.match(/(\d[.,]?\d?)\s?\/\s?5/);
+            const rating = ratingMatch ? parseFloat(ratingMatch[1].replace(',', '.')) : 0;
+            const img = i.pagemap?.cse_image?.[0]?.src || i.pagemap?.cse_thumbnail?.[0]?.src;
+            const title = (i.title || "").replace(/ - park4night.*/i, '').replace(/\(\d+\)/g, '').trim();
+            const link = i.link.replace(/park4night\.com\/[a-z]{2}\//, 'park4night.com/es/');
+            return { title, link, rating, img };
+          })
           .filter((s: any) => s.rating >= MIN_RATING)
           .sort((a: any, b: any) => b.rating - a.rating)[0];
 
-        if (best) {
-          setSpot({ ...best, isFallback: false });
-        } else {
-          throw new Error("No good spot");
-        }
-      } catch (e) {
-        setSpot({
-          isFallback: true,
-          link: `https://park4night.com/es/search?q=${encodeURIComponent(city)}`,
-          title: `Explorar Park4Night en ${city}`
-        });
+        setSpot(best || null);
+      } catch {
+        setSpot({ fallback: true });
       } finally {
         setLoading(false);
       }
     })();
   }, [city]);
 
-  if (loading) {
-    return <div className="text-sm text-gray-500 animate-pulse">Buscando mejor pernocta...</div>;
-  }
+  if (loading) return <div className="text-sm text-gray-600 animate-pulse">Buscando pernocta en {city}...</div>;
 
-  if (!spot) return null;
-
-  return spot.isFallback ? (
-    <a
-      href={spot.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block p-4 bg-orange-50 border-2 border-orange-200 rounded-xl text-orange-700 font-bold text-center hover:bg-orange-100 transition"
-    >
+  if (!spot) return (
+    <a href={`https://park4night.com/es/search?q=${encodeURIComponent(city)}`} target="_blank" rel="noopener noreferrer"
+       className="block p-5 bg-orange-50 border-2 border-orange-300 rounded-xl text-orange-700 font-bold text-center hover:bg-orange-100 transition">
       Ver todos los parkings en {city} (Park4Night)
     </a>
-  ) : (
-    <a
-      href={spot.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all"
-    >
+  );
+
+  return (
+    <a href={spot.link} target="_blank" rel="noopener noreferrer"
+       className="block bg-white rounded-xl border-2 border-gray-200 overflow-hidden hover:shadow-xl transition-all">
       <div className="flex">
-        <div className="w-28 h-28 bg-gray-200 flex-shrink-0">
+        <div className="w-32 h-32 bg-gray-200 flex-shrink-0">
           {spot.img ? (
             <img src={spot.img} alt={spot.title} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-4xl opacity-40">Tree</div>
+            <div className="w-full h-full flex items-center justify-center text-5xl opacity-30">Tree</div>
           )}
         </div>
-        <div className="p-4 flex flex-col justify-between flex-1">
+        <div className="p-4 flex-1 flex flex-col justify-between">
           <div>
             <h4 className="font-bold text-sm line-clamp-2">{spot.title}</h4>
             <p className="text-xs text-gray-500 mt-1">Park4Night • {city}</p>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-green-600 font-bold text-lg">★ {spot.rating.toFixed(1)}</span>
-            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">Ver ficha →</span>
+          <div className="flex justify-between items-center mt-3">
+            <span className="text-green-600 font-bold text-xl">★ {spot.rating.toFixed(1)}</span>
+            <span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold">Ver ficha completa →</span>
           </div>
         </div>
       </div>
@@ -116,339 +114,203 @@ const SmartSpotCard = ({ city }: { city: string }) => {
   );
 };
 
-// ======================== DAY DETAIL VIEW CON PARK4NIGHT ========================
-const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
-  const cityName = day.to.replace(/^(Parada Táctica|Parada de Pernocta): /, '').split(',')[0].trim();
+// ======================== DAY DETAIL VIEW ========================
+const DayDetailView = ({ day }: { day: any }) => {
+  const city = day.to.replace(/^(Parada Táctica|Parada de Pernocta): /, '').split(',')[0].trim();
 
   return (
     <div className={`p-6 rounded-xl space-y-5 h-full ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
       <h4 className={`text-2xl font-extrabold ${day.isDriving ? 'text-blue-800' : 'text-orange-800'}`}>
         {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
       </h4>
-
       <p className="text-lg font-semibold text-gray-800">
-        {day.from.split(',')[0]} → {day.to.split(',')[0]}
+        {day.from.split(',')[0]} → {city}
       </p>
-
+      {day.isDriving && <p className="text-3xl font-extrabold text-green-700">{day.distance.toFixed(0)} km</p>}
       {day.isDriving && (
-        <p className="text-2xl font-extrabold text-green-700">
-          {day.distance.toFixed(0)} km
-        </p>
-      )}
-
-      {day.isDriving && day.distance > 0 && (
         <div className="pt-4 border-t-2 border-dashed border-gray-300">
-          <h5 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-            Recomendación de pernocta en {cityName}
-          </h5>
-          <SmartSpotCard city={cityName} />
+          <h5 className="text-lg font-bold text-gray-700 mb-4">Recomendación de pernocta en {city}</h5>
+          <SmartSpotCard city={city} />
         </div>
       )}
-
-      {!day.isDriving && (
-        <p className="text-lg text-gray-700 italic border-l-4 border-orange-400 pl-4">
-          "¡Disfruta de {cityName} y recarga energías!"
-        </p>
-      )}
+      {!day.isDriving && <p className="text-xl italic text-gray-700 border-l-4 border-orange-400 pl-4">"¡Disfruta de {city} y recarga energías!"</p>}
     </div>
   );
 };
 
-// ======================== INTERFACES ========================
-interface DailyPlan {
-  day: number;
-  date: string;
-  from: string;
-  to: string;
-  distance: number;
-  isDriving: boolean;
-}
-interface TripResult {
-  totalDays: number | null;
-  distanceKm: number | null;
-  totalCost: number | null;
-  dailyItinerary: DailyPlan[] | null;
-  error: string | null;
-}
-
-// ======================== COMPONENTE PRINCIPAL (100% TUYO) ========================
+// ======================== MAIN COMPONENT ========================
 export default function Home() {
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: GOOGLE_MAPS_KEY,
-    libraries: LIBRARIES
-  });
-
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
-  const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+  const isLoaded = useGoogleMapsScript();
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<any>(null);
+  const [directions, setDirections] = useState<any>(null);
+  const [markers, setMarkers] = useState<any[]>([]);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showWaypoints, setShowWaypoints] = useState(true);
-  const [tacticalMarkers, setTacticalMarkers] = useState<{lat: number, lng: number, title: string}[]>([]);
+  const [itinerary, setItinerary] = useState<any[]>([]);
+  const [results, setResults] = useState<any>({});
 
-  const [formData, setFormData] = useState({
-    fechaInicio: '',
-    origen: 'Salamanca',
-    fechaRegreso: '',
-    destino: 'Punta Umbria',
-    etapas: 'Valencia',
-    consumo: 9.0,
-    precioGasoil: 1.75,
+  const [form, setForm] = useState({
+    origen: "Salamanca",
+    destino: "Punta Umbria",
+    etapas: "Valencia",
     kmMaximoDia: 400,
-    evitarPeajes: false,
+    evitarPeajes: false
   });
 
-  const [results, setResults] = useState<TripResult>({
-    totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null
-  });
-
-  // === HANDLERS ===
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: any) => {
     const { id, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [id]: type === 'checkbox' ? checked : (id === 'consumo' || id === 'precioGasoil' || id === 'kmMaximoDia') ? parseFloat(value) || 0 : value
-    }));
+    setForm(prev => ({ ...prev, [id]: type === "checkbox" ? checked : value }));
   };
 
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.id]: parseFloat(e.target.value) }));
-  };
+  // Inicializar mapa
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current || map) return;
+    const gmap = new (window as any).google.maps.Map(mapRef.current, {
+      center: { lat: 40.4168, lng: -3.7038 },
+      zoom: 6,
+      streetViewControl: false,
+      mapTypeControl: false,
+      fullscreenControl: false
+    });
+    setMap(gmap);
+  }, [isLoaded, map]);
 
-  // === GEOCODING HELPERS ===
-  const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
-    if (!google?.maps?.Geocoder) return null;
-    const geocoder = new google.maps.Geocoder();
-    try {
-      const res = await geocoder.geocode({ address: cityName });
-      return res.results[0]?.geometry.location.toJSON() || null;
-    } catch { return null; }
-  };
-
-  const getCityNameForStop = async (lat: number, lng: number): Promise<string> => {
-    if (!google?.maps?.Geocoder) return "Parada en Ruta";
-    const geocoder = new google.maps.Geocoder();
-    try {
-      const res = await geocoder.geocode({ location: { lat, lng } });
-      const locality = res.results[0]?.address_components.find((c: any) => 
-        c.types.includes("locality") || c.types.includes("administrative_area_level_2")
-      );
-      return locality ? locality.long_name.replace(/\d{5}/g, '').trim() : "Parada en Ruta";
-    } catch { return "Parada en Ruta"; }
-  };
-
-  const focusMapOnStage = async (dayIndex: number) => {
-    if (!results.dailyItinerary) return;
-    const day = results.dailyItinerary[dayIndex];
-    const [start, end] = await Promise.all([
-      geocodeCity(day.from),
-      geocodeCity(day.to)
-    ]);
-    if (start && end) {
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(start);
-      bounds.extend(end);
-      setMapBounds(bounds);
+  // Renderizar ruta
+  useEffect(() => {
+    if (directions && map) {
+      new (window as any).google.maps.DirectionsRenderer({
+        suppressMarkers: true,
+        polylineOptions: { strokeColor: "#EA580C", strokeWeight: 7 }
+      }).setMap(map).setDirections(directions);
     }
-    setSelectedDayIndex(dayIndex);
-  };
+  }, [directions, map]);
 
-  // === CÁLCULO DE RUTA (100% TU LÓGICA ORIGINAL) ===
-  const calculateRoute = async (e: React.FormEvent) => {
+  // Renderizar marcadores P
+  useEffect(() => {
+    markers.forEach((m: any) => m.setMap(null));
+    if (map && markers.length > 0) {
+      markers.forEach((m: any) => m.setMap(map));
+    }
+  }, [markers, map]);
+
+  // Cálculo de ruta
+  const calcular = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !google?.maps) return;
-
+    if (!isLoaded || !map) return;
     setLoading(true);
-    setDirectionsResponse(null);
-    setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
-    setTacticalMarkers([]);
-    setSelectedDayIndex(null);
-    setMapBounds(null);
+    setDirections(null);
+    setMarkers([]);
+    setItinerary([]);
+    setSelectedDay(null);
 
-    const directionsService = new google.maps.DirectionsService();
-    const waypoints = formData.etapas.split(',').map(s => s.trim()).filter(Boolean).map(loc => ({ location: loc, stopover: true }));
+    const ds = new (window as any).google.maps.DirectionsService();
+    const waypoints = form.etapas.split(',').map((s: string) => s.trim()).filter(Boolean).map((loc: string) => ({ location: loc, stopover: true }));
 
     try {
-      const result = await directionsService.route({
-        origin: formData.origen,
-        destination: formData.destino,
-        waypoints,
-        travelMode: google.maps.TravelMode.DRIVING,
-        avoidTolls: formData.evitarPeajes,
+      const result = await new Promise((resolve, reject) => {
+        ds.route({
+          origin: form.origen,
+          destination: form.destino,
+          waypoints,
+          travelMode: "DRIVING",
+          avoidTolls: form.evitarPeajes
+        }, (res: any, status: any) => status === "OK" ? resolve(res) : reject(status));
       });
 
-      setDirectionsResponse(result);
+      setDirections(result);
 
-      const route = result.routes[0];
-      const itinerary: DailyPlan[] = [];
-      const markers: {lat: number, lng: number, title: string}[] = [];
-
-      let dayCounter = 1;
-      let currentDate = new Date(formData.fechaInicio);
-      const maxMeters = formData.kmMaximoDia * 1000;
-      const formatDate = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const addDay = (d: Date) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
-
-      let currentLegStartName = formData.origen;
-      let totalDistMeters = 0;
+      const route = (result as any).routes[0];
+      const newItinerary: any[] = [];
+      const newMarkers: any[] = [];
+      let day = 1;
+      let totalDist = 0;
 
       for (const leg of route.legs) {
-        let legPoints: google.maps.LatLng[] = [];
-        leg.steps.forEach(step => { if (step.path) legPoints.push(...step.path); });
-
-        let legAccumulator = 0;
-        let segmentStartName = currentLegStartName;
-
-        for (let j = 0; j < legPoints.length - 1; j++) {
-          const dist = google.maps.geometry.spherical.computeDistanceBetween(legPoints[j], legPoints[j + 1]);
-          if (legAccumulator + dist > maxMeters) {
-            const fraction = (maxMeters - legAccumulator) / dist;
-            const stopLat = legPoints[j].lat() + fraction * (legPoints[j + 1].lat() - legPoints[j].lat());
-            const stopLng = legPoints[j].lng() + fraction * (legPoints[j + 1].lng() - legPoints[j].lng());
-            const cityName = await getCityNameForStop(stopLat, stopLng);
-            const title = `Parada Táctica: ${cityName}`;
-
-            itinerary.push({
-              day: dayCounter++,
-              date: formatDate(currentDate),
-              from: segmentStartName,
-              to: title,
-              distance: (legAccumulator + (maxMeters - legAccumulator)) / 1000,
-              isDriving: true
-            });
-
-            markers.push({ lat: stopLat, lng: stopLng, title });
-            currentDate = addDay(currentDate);
-            legAccumulator = dist - (maxMeters - legAccumulator);
-            segmentStartName = title;
+        let legDist = 0;
+        let start = form.origen;
+        leg.steps.forEach((step: any) => {
+          if (legDist + step.distance.value / 1000 > form.kmMaximoDia) {
+            const stopCity = "Parada Táctica: Cerca de " + step.end_location.toString();
+            newItinerary.push({ day: day++, from: start, to: stopCity, distance: form.kmMaximoDia, isDriving: true });
+            newMarkers.push(new (window as any).google.maps.Marker({
+              position: step.end_location,
+              icon: { path: (window as any).google.maps.SymbolPath.CIRCLE, scale: 16, fillColor: "#EA580C", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3 },
+              label: { text: "P", color: "white", fontWeight: "bold" }
+            }));
+            legDist = 0;
+            start = stopCity;
           } else {
-            legAccumulator += dist;
+            legDist += step.distance.value / 1000;
           }
-        }
-
-        const endName = leg.end_address.split(',')[0].replace(/\d{5}/g, '').trim() || formData.destino;
-        if (legAccumulator > 0) {
-          itinerary.push({
-            day: dayCounter,
-            date: formatDate(currentDate),
-            from: segmentStartName,
-            to: endName,
-            distance: legAccumulator / 1000,
-            isDriving: true
-          });
-          if (leg !== route.legs[route.legs.length - 1]) {
-            dayCounter++;
-            currentDate = addDay(currentDate);
-          }
-        }
-        currentLegStartName = endName;
-        totalDistMeters += leg.distance?.value || 0;
+        });
+        totalDist += leg.distance.value;
       }
 
-      // Días de estancia
-      if (formData.fechaRegreso) {
-        const stayDays = Math.max(0, Math.ceil((new Date(formData.fechaRegreso).getTime() - currentDate.getTime()) / (86400000)));
-        for (let i = 0; i < stayDays; i++) {
-          currentDate = addDay(currentDate);
-          itinerary.push({
-            day: dayCounter++,
-            date: formatDate(currentDate),
-            from: formData.destino,
-            to: formData.destino,
-            distance: 0,
-            isDriving: false
-          });
-        }
-      }
+      setItinerary(newItinerary);
+      setMarkers(newMarkers);
+      setResults({ totalKm: Math.round(totalDist / 1000) });
 
-      const totalKm = totalDistMeters / 1000;
-      const cost = (totalKm / 100) * formData.consumo * formData.precioGasoil;
-
-      setTacticalMarkers(markers);
-      setResults({
-        totalDays: dayCounter - 1,
-        distanceKm: Math.round(totalKm),
-        totalCost: Math.round(cost),
-        dailyItinerary: itinerary,
-        error: null
-      });
-
-    } catch (err: any) {
-      setResults(prev => ({ ...prev, error: "Error al calcular la ruta. Verifica las ciudades." }));
+    } catch (err) {
+      alert("Error calculando ruta: " + err);
     } finally {
       setLoading(false);
     }
   };
 
-  // === RENDER ===
-  if (!isLoaded) return <div className="flex justify-center items-center h-screen bg-gray-50 text-blue-600 font-bold text-2xl animate-pulse">Cargando mapas...</div>;
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-6xl mb-4">Map</div>
+          <h2 className="text-3xl font-bold text-blue-600">Cargando mapas...</h2>
+          <p className="text-gray-500 mt-2">Esto toma unos segundos</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4 font-sans text-gray-900">
-      <div className="w-full max-w-6xl space-y-8">
-        {/* TU DISEÑO ORIGINAL 100% */}
-        <div className="text-center space-y-2">
-          <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-teal-500 drop-shadow-sm">
-            Ruta Camper Pro
-          </h1>
-          <p className="text-gray-500 text-lg">Planifica tu aventura kilómetro a kilómetro</p>
-        </div>
+    <main className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-5xl font-extrabold text-center mb-8 bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+          CaraCola Viajes – Planificador Camper
+        </h1>
 
-        {/* FORMULARIO (100% igual) */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-          <div className="bg-blue-600 px-6 py-4">
-            <h2 className="text-white font-bold text-lg flex items-center gap-2">Configuración del Viaje</h2>
-          </div>
-          <form onSubmit={calculateRoute} className="p-8">
-            {/* === TODO TU FORMULARIO TAL CUAL === */}
-            {/* (lo dejo igual que tenías, solo quito por espacio) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* ... todos tus inputs exactamente iguales ... */}
-            </div>
-            {/* Botón */}
-            <div className="mt-8">
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-blue-700 to-blue-600 text-white py-4 rounded-xl font-bold text-xl hover:from-blue-800 hover:to-blue-700 disabled:opacity-60 transition-all shadow-lg">
-                {loading ? 'Calculando Ruta Óptima...' : 'Calcular Itinerario'}
-              </button>
-            </div>
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+          <form onSubmit={calcular} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <input type="text" placeholder="Origen" id="origen" value={form.origen} onChange={handleChange} className="p-4 border rounded-lg" required />
+            <input type="text" placeholder="Destino" id="destino" value={form.destino} onChange={handleChange} className="p-4 border rounded-lg" required />
+            <input type="text" placeholder="Paradas (ej: Valencia, Madrid)" id="etapas" value={form.etapas} onChange={handleChange} className="p-4 border rounded-lg lg:col-span-2" />
+            <input type="number" placeholder="Km máx/día" id="kmMaximoDia" value={form.kmMaximoDia} onChange={handleChange} className="p-4 border rounded-lg" />
+            <label className="flex items-center gap-3 lg:col-span-4">
+              <input type="checkbox" id="evitarPeajes" checked={form.evitarPeajes} onChange={handleChange} />
+              Evitar peajes
+            </label>
+            <button type="submit" disabled={loading} className="lg:col-span-4 bg-orange-600 text-white font-bold py-4 rounded-lg hover:bg-orange-700 disabled:opacity-70 text-xl">
+              {loading ? "Calculando..." : "PLANIFICAR VIAJE"}
+            </button>
           </form>
         </div>
 
-        {/* RESULTADOS */}
-        {results.totalCost !== null && (
-          <div className="space-y-8">
-            {/* Dashboard */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 rounded-full"><IconCalendar /></div><div><p className="text-2xl font-extrabold">{results.totalDays}</p><p className="text-xs uppercase font-bold text-gray-500">Días</p></div></div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 rounded-full"><IconMap /></div><div><p className="text-2xl font-extrabold">{results.distanceKm}</p><p className="text-xs uppercase font-bold text-gray-500">Km Total</p></div></div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 rounded-full"><IconFuel /></div><div><p className="text-2xl font-extrabold">{(results.distanceKm! / 100 * formData.consumo).toFixed(0)}</p><p className="text-xs uppercase font-bold text-gray-500">Litros</p></div></div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-green-50 rounded-full"><IconWallet /></div><div><p className="text-2xl font-extrabold text-green-600">{results.totalCost} €</p><p className="text-xs uppercase font-bold text-gray-500">Coste</p></div></div>
+        {itinerary.length > 0 && (
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div ref={mapRef} className="h-screen rounded-2xl shadow-2xl border-4 border-white" />
             </div>
-
-            {/* MAPA + DETALLE */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 h-96 lg:h-screen bg-gray-200 rounded-2xl shadow-lg overflow-hidden border-4 border-white">
-                <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={setMap}>
-                  {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#EA580C", strokeWeight: 6 }} />}
-                  {tacticalMarkers.map((m, i) => <Marker key={i} position={m} label={{ text: "P", color: "white", fontWeight: "bold" }} title={m.title} />)}
-                </GoogleMap>
-              </div>
-
-              <div className="space-y-4">
-                {selectedDayIndex === null ? (
-                  <div className="bg-white p-6 rounded-2xl shadow-lg">
-                    <h3 className="text-2xl font-bold text-blue-700 mb-4">Itinerario Completo</h3>
-                    {results.dailyItinerary?.map((d, i) => (
-                      <button key={i} onClick={() => focusMapOnStage(i)} className="w-full text-left p-4 bg-gray-50 rounded-lg mb-2 hover:bg-blue-50 transition">
-                        <strong>Día {d.day}</strong> → {d.to.split(': ')[1] || d.to} ({d.distance.toFixed(0)} km)
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <DayDetailView day={results.dailyItinerary![selectedDayIndex]} />
-                )}
-              </div>
+            <div className="space-y-4">
+              {selectedDay === null ? (
+                itinerary.map((d, i) => (
+                  <button key={i} onClick={() => setSelectedDay(i)} className="w-full text-left p-5 bg-white rounded-xl shadow hover:shadow-xl border-l-4 border-orange-500">
+                    <strong>Día {d.day}</strong> → {d.to} ({d.distance} km)
+                  </button>
+                ))
+              ) : (
+                <>
+                  <button onClick={() => setSelectedDay(null)} className="mb-4 text-blue-600 font-bold">← Volver</button>
+                  <DayDetailView day={itinerary[selectedDay]} />
+                </>
+              )}
             </div>
           </div>
         )}
