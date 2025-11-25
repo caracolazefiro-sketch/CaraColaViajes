@@ -24,12 +24,11 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (CORREGIDO: INTITLE + BOTÓN SIEMPRE VISIBLE) ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (FILTRADO INTELIGENTE JS) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // Limpiamos el nombre de la ciudad
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
 
     useEffect(() => {
@@ -40,21 +39,32 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // QUERY QUIRÚRGICA: Usamos 'intitle:'
-            // Esto obliga a que el nombre de la ciudad esté EN EL TÍTULO de la página.
-            // Evita que salga "Vinaròs" solo porque un usuario se apellida "Tébar".
-            const query = `site:park4night.com OR site:caramaps.com intitle:"${rawCityName}"`;
+            // 1. QUERY: Pedimos a Google que busque la ciudad con comillas (importante) en los sitios deseados.
+            const query = `site:park4night.com OR site:caramaps.com "${rawCityName}"`;
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
 
+                // 2. FETCH: Pedimos 10 resultados (num=10) para tener margen de maniobra
                 const res = await fetch(
-                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=4&gl=es&lr=lang_es&safe=active`
+                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&gl=es&lr=lang_es&safe=active`
                 );
                 
                 const data = await res.json();
+
                 if (data.items) {
-                    setSearchResults(data.items);
+                    // 3. FILTRO INTELIGENTE (LA CLAVE):
+                    // Solo aceptamos resultados cuyo TÍTULO contenga el nombre de la ciudad.
+                    // Esto elimina el caso "Vinaròs" (donde Tébar es un apellido en un comentario).
+                    // Normalizamos a minúsculas para evitar problemas de mayúsculas/minúsculas.
+                    const validResults = data.items.filter((item: SearchResult) => {
+                        const titleLower = item.title.toLowerCase();
+                        const cityLower = rawCityName.toLowerCase();
+                        return titleLower.includes(cityLower);
+                    });
+
+                    // Nos quedamos con los 4 primeros que pasen el filtro
+                    setSearchResults(validResults.slice(0, 4));
                 } else {
                     setSearchResults([]);
                 }
@@ -69,7 +79,6 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         fetchSpots();
     }, [rawCityName, day.isDriving]);
 
-    // URL para el botón manual (fallback robusto)
     const manualSearchUrl = `https://www.google.com/search?q=site:park4night.com OR site:caramaps.com "${rawCityName}"`;
 
     return (
@@ -91,7 +100,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {loading && (
                         <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-xs text-blue-600 font-medium">Buscando spots...</p>
+                            <p className="text-xs text-blue-600 font-medium">Analizando mejores opciones...</p>
                         </div>
                     )}
 
@@ -130,10 +139,12 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     )}
 
                     {!loading && searchResults.length === 0 && (
-                        <p className="text-xs text-gray-400 mt-2 mb-2 italic">No se encontraron destacados automáticos exactos.</p>
+                        <p className="text-xs text-gray-400 mt-2 mb-2 italic">
+                            No encontramos una ficha directa exacta, prueba la búsqueda manual.
+                        </p>
                     )}
 
-                    {/* BOTÓN MANUAL: SIEMPRE VISIBLE AL FINAL */}
+                    {/* BOTÓN MANUAL: SIEMPRE VISIBLE */}
                     <div className="mt-4 pt-3 border-t border-gray-200">
                         <a 
                             href={manualSearchUrl}
@@ -141,7 +152,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                             rel="noopener noreferrer" 
                             className="flex items-center justify-center w-full gap-2 bg-white border border-blue-200 px-4 py-3 rounded-xl text-sm font-bold text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition shadow-sm"
                         >
-                            🔍 Ver más resultados en Google
+                            🔍 Ver todos los resultados en Google
                         </a>
                     </div>
                 </div>
