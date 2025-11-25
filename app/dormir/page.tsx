@@ -24,17 +24,17 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- HELPER: NORMALIZAR TEXTO ---
-const normalizeText = (text: string) => {
-    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-};
-
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA ---
+// --- COMPONENTE DE VISTA DETALLADA (Busqueda por Ciudad + Provincia) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     
-    const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
+    // 1. Desempaquetamos la info: "Tébar|Cuenca" -> Ciudad: Tébar, Provincia: Cuenca
+    const rawLocation = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '');
+    const [city, province] = rawLocation.split('|').map(s => s.trim());
+    // Si no hay barra (ej: destino final), usamos el string tal cual
+    const finalCity = city || rawLocation; 
+    const finalProvince = province || '';
 
     useEffect(() => {
         if (!day.isDriving) return; 
@@ -44,34 +44,31 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            const query = `site:park4night.com OR site:caramaps.com ${rawCityName}`;
+            // 2. QUERY DE DOBLE LLAVE: Obligamos a encontrar la Ciudad Y la Provincia
+            // Ejemplo: site:park4night.com "La Campana" "Sevilla"
+            let query = `site:park4night.com OR site:caramaps.com "${finalCity}"`;
+            if (finalProvince) {
+                query += ` "${finalProvince}"`;
+            }
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
 
                 const res = await fetch(
-                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&gl=es&lr=lang_es&safe=active`
+                    `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=6`
                 );
                 
                 const data = await res.json();
 
                 if (data.items) {
-                    const normalizedCity = normalizeText(rawCityName);
-                    const validResults = data.items.filter((item: SearchResult) => {
-                        const normalizedTitle = normalizeText(item.title);
-                        return normalizedTitle.includes(normalizedCity);
-                    });
-
-                    if (validResults.length === 0 && data.items.length > 0) {
-                         setSearchResults(data.items.slice(0, 3));
-                    } else {
-                         setSearchResults(validResults.slice(0, 4));
-                    }
+                    // Ya no filtramos por título estricto con JS, confiamos en que
+                    // la query "Ciudad" + "Provincia" ha hecho su trabajo de limpieza.
+                    setSearchResults(data.items.slice(0, 4));
                 } else {
                     setSearchResults([]);
                 }
             } catch (err) {
-                console.error("Error en búsqueda:", err);
+                console.error("Error API:", err);
                 setSearchResults([]); 
             } finally {
                 setLoading(false);
@@ -79,9 +76,13 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         };
 
         fetchSpots();
-    }, [rawCityName, day.isDriving]);
+    }, [finalCity, finalProvince, day.isDriving]);
 
-    const manualSearchUrl = `https://www.google.com/search?q=site:park4night.com OR site:caramaps.com "${rawCityName}"`;
+    // URLs de rescate usando el nombre completo
+    const fullName = finalProvince ? `${finalCity}, ${finalProvince}` : finalCity;
+    const p4nLink = `https://park4night.com/es/search?q=${fullName}`;
+    const caramapsLink = `https://www.caramaps.com/search?name=${fullName}`;
+    const gmapsLink = `http://googleusercontent.com/maps.google.com/4{fullName}`;
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
@@ -90,24 +91,24 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             </h4>
             
             <p className="text-lg font-semibold text-gray-800">
-                {day.from} <span className="text-gray-400">➝</span> {day.to}
+                {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {finalCity}
             </p>
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-gray-300">
                     <h5 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-1">
-                        <span className="text-lg">🏕️</span> Pernocta Recomendada en {rawCityName}:
+                        <span className="text-lg">🏕️</span> Pernocta en {finalCity}:
                     </h5>
 
                     {loading && (
-                        <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
-                            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-xs text-blue-600 font-medium">Localizando spots...</p>
+                        <div className="flex items-center gap-2 text-blue-600 text-xs font-bold py-4">
+                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            Buscando en {fullName}...
                         </div>
                     )}
 
                     {!loading && searchResults.length > 0 && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 mb-4">
                             {searchResults.map((result, idx) => (
                                 <a 
                                     key={idx} 
@@ -117,20 +118,14 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                                     className="block group bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all text-left"
                                 >
                                     <div className="flex gap-3">
-                                        <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                                            {result.pagemap?.cse_image?.[0]?.src ? (
-                                                <img 
-                                                    src={result.pagemap.cse_image[0].src} 
-                                                    alt="img" 
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            ) : <span className="text-xl">🚐</span>}
+                                        <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-lg">
+                                            {result.link.includes('caramaps') ? '🗺️' : '🚐'}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h6 className="text-sm font-bold text-blue-700 truncate group-hover:text-blue-500">
+                                            <h6 className="text-sm font-bold text-blue-700 truncate group-hover:text-blue-600">
                                                 {result.title.replace(' - Park4night', '').replace(' - CaraMaps', '')}
                                             </h6>
-                                            <p className="text-xs text-gray-500 line-clamp-2 mt-1">
+                                            <p className="text-[10px] text-gray-500 line-clamp-1">
                                                 {result.snippet}
                                             </p>
                                         </div>
@@ -141,26 +136,28 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     )}
 
                     {!loading && searchResults.length === 0 && (
-                        <p className="text-xs text-gray-400 mt-2 mb-2 italic">
-                            No se encontraron fichas automáticas.
+                        <p className="text-xs text-orange-600 mb-2 italic">
+                            No hay resultados exactos para {fullName} en la API.
                         </p>
                     )}
-
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                        <a 
-                            href={manualSearchUrl}
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="flex items-center justify-center w-full gap-2 bg-white border border-blue-200 px-4 py-3 rounded-xl text-sm font-bold text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition shadow-sm"
-                        >
-                            🔍 Ver todos los resultados en Google
+                    
+                    <div className="grid grid-cols-1 gap-2 mt-2">
+                        <a href={p4nLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-700 transition shadow-sm">
+                            🚐 Ver en Park4Night
+                        </a>
+                        <a href={caramapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-teal-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-teal-700 transition shadow-sm">
+                            🗺️ Ver en CaraMaps
+                        </a>
+                        <a href={gmapsLink} target="_blank" rel="noopener" className="flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm">
+                            📍 Buscar áreas cercanas (G.Maps)
                         </a>
                     </div>
+
                 </div>
             )}
             
             {!day.isDriving && (
-                 <p className="text-lg text-gray-700">Día dedicado a la relajación en {day.to}.</p>
+                 <p className="text-lg text-gray-700">Día dedicado a la relajación en {finalCity}.</p>
             )}
         </div>
     );
@@ -220,7 +217,12 @@ export default function Home() {
     const dailyPlan = results.dailyItinerary![dayIndex];
     if (!dailyPlan) return;
 
-    const [startCoord, endCoord] = await Promise.all([geocodeCity(dailyPlan.from), geocodeCity(dailyPlan.to)]);
+    // OJO: Ahora 'day.from' y 'day.to' pueden tener formato "Ciudad|Provincia"
+    // Limpiamos para el geocoding del mapa
+    const cleanFrom = dailyPlan.from.split('|')[0];
+    const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
+
+    const [startCoord, endCoord] = await Promise.all([geocodeCity(cleanFrom), geocodeCity(cleanTo)]);
     if (startCoord && endCoord) {
       const bounds = new google.maps.LatLngBounds();
       bounds.extend(startCoord);
@@ -285,14 +287,24 @@ export default function Home() {
         let legAccumulator = 0;
         let segmentStartName = currentLegStartName;
 
-        const getCityNameForStop = async (lat: number, lng: number): Promise<string> => {
+        // --- FUNCIÓN CLAVE: EXTRAER CIUDAD Y PROVINCIA ---
+        const getCityAndProvince = async (lat: number, lng: number): Promise<string> => {
             const geocoder = new google.maps.Geocoder();
             try {
               const response = await geocoder.geocode({ location: { lat, lng } });
               if (response.results[0]) {
-                const addressComp = response.results[0].address_components;
-                const city = addressComp.find(c => c.types.includes("locality"))?.long_name || addressComp.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
-                return city ? city.replace(/\d{5}/, '').trim() : "Punto Ruta";
+                const comps = response.results[0].address_components;
+                const city = comps.find(c => c.types.includes("locality"))?.long_name 
+                          || comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name
+                          || "Punto Ruta";
+                
+                const province = comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
+                
+                // Devolvemos formato "Ciudad|Provincia"
+                if (province && city !== province) {
+                    return `${city}|${province}`;
+                }
+                return city;
               }
             } catch (e) { }
             return "Parada Ruta";
@@ -306,28 +318,39 @@ export default function Home() {
             if (legAccumulator + segmentDist > maxMeters) {
                 const lat = point1.lat();
                 const lng = point2.lng(); 
-                const cityName = await getCityNameForStop(lat, lng);
-                const stopTitle = `📍 Parada Táctica: ${cityName}`;
+                
+                // Obtenemos "Tébar|Cuenca"
+                const locationString = await getCityAndProvince(lat, lng);
+                const cityNameDisplay = locationString.split('|')[0]; // Solo para el marcador del mapa
+                
+                const stopTitle = `📍 Parada Táctica: ${locationString}`; // Guardamos todo "Tébar|Cuenca"
 
-                itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: segmentStartName, to: stopTitle, distance: (legAccumulator + segmentDist) / 1000, isDriving: true });
-                newTacticalMarkers.push({ lat, lng, title: stopTitle });
+                itinerary.push({ 
+                    day: dayCounter, 
+                    date: formatDate(currentDate), 
+                    from: segmentStartName, 
+                    to: stopTitle, 
+                    distance: (legAccumulator + segmentDist) / 1000, 
+                    isDriving: true 
+                });
+                
+                newTacticalMarkers.push({ lat, lng, title: cityNameDisplay });
                 dayCounter++;
                 currentDate = addDay(currentDate);
                 legAccumulator = 0;
-                segmentStartName = stopTitle;
+                segmentStartName = locationString; // El inicio del siguiente tramo también lleva la info completa
             } else {
                 legAccumulator += segmentDist;
             }
         }
 
-        let endLegName = leg.end_address.split(',')[0];
+        // Final de etapa (Waypoint o Destino)
+        let endLegName = leg.end_address.split(',')[0]; // Por defecto la dirección
         if (i === route.legs.length - 1) endLegName = formData.destino;
-        else {
-             const parts = leg.end_address.split(',');
-             endLegName = parts.length > 1 ? parts[parts.length - 2].trim() : parts[0];
-             endLegName = endLegName.replace(/\d{5}/, '').trim();
-        }
-
+        
+        // Aquí podríamos refinar el nombre del destino intermedio también, pero 
+        // normalmente el usuario mete "Valencia" y ya sabemos qué es.
+        
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
             itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: segmentStartName, to: endLegName, distance: legAccumulator / 1000, isDriving: true });
             currentLegStartName = endLegName;
@@ -452,7 +475,7 @@ export default function Home() {
                             <button onClick={() => { setSelectedDayIndex(null); setMapBounds(null); }} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>🌎 Vista General</button>
                             {results.dailyItinerary?.map((day, index) => (
                                 <button key={index} onClick={() => focusMapOnStage(index)} className={`flex-shrink-0 px-4 py-2 rounded-lg font-bold text-sm transition-all ${selectedDayIndex === index ? 'bg-blue-600 text-white' : (day.isDriving ? 'bg-gray-100' : 'bg-orange-100 text-orange-700')}`}>
-                                    <span className="mr-1">{day.isDriving ? '🚗' : '🏖️'}</span> Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split(',')[0]}
+                                    <span className="mr-1">{day.isDriving ? '🚗' : '🏖️'}</span> Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                 </button>
                             ))}
                         </div>
