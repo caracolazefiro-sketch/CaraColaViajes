@@ -24,7 +24,7 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (BÚSQUEDA OPTIMIZADA ESPAÑA) ---
+// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (CORREGIDO: INTITLE + BOTÓN SIEMPRE VISIBLE) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
@@ -40,13 +40,14 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // QUERY OPTIMIZADA: Sin comillas para flexibilidad, sin keywords redundantes.
-            const query = `site:park4night.com OR site:caramaps.com ${rawCityName}`;
+            // QUERY QUIRÚRGICA: Usamos 'intitle:'
+            // Esto obliga a que el nombre de la ciudad esté EN EL TÍTULO de la página.
+            // Evita que salga "Vinaròs" solo porque un usuario se apellida "Tébar".
+            const query = `site:park4night.com OR site:caramaps.com intitle:"${rawCityName}"`;
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
 
-                // PARÁMETROS CLAVE AÑADIDOS: &gl=es (Geolocalización España) &lr=lang_es (Idioma Español)
                 const res = await fetch(
                     `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=4&gl=es&lr=lang_es&safe=active`
                 );
@@ -68,6 +69,9 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         fetchSpots();
     }, [rawCityName, day.isDriving]);
 
+    // URL para el botón manual (fallback robusto)
+    const manualSearchUrl = `https://www.google.com/search?q=site:park4night.com OR site:caramaps.com "${rawCityName}"`;
+
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
             <h4 className={`text-2xl font-extrabold ${day.isDriving ? 'text-blue-800' : 'text-orange-800'}`}>
@@ -87,7 +91,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {loading && (
                         <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-xs text-blue-600 font-medium">Buscando los mejores spots...</p>
+                            <p className="text-xs text-blue-600 font-medium">Buscando spots...</p>
                         </div>
                     )}
 
@@ -126,18 +130,20 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     )}
 
                     {!loading && searchResults.length === 0 && (
-                        <div className="mt-2 text-center">
-                             <a 
-                                href={`https://www.google.com/search?q=site:park4night.com OR site:caramaps.com ${rawCityName}`}
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="inline-block bg-white border border-orange-200 px-4 py-2 rounded-full text-sm font-bold text-orange-600 hover:bg-orange-50 transition shadow-sm"
-                            >
-                                🔍 Buscar manualmente en Google
-                            </a>
-                            <p className="text-xs text-gray-400 mt-2">No se encontraron destacados automáticos.</p>
-                        </div>
+                        <p className="text-xs text-gray-400 mt-2 mb-2 italic">No se encontraron destacados automáticos exactos.</p>
                     )}
+
+                    {/* BOTÓN MANUAL: SIEMPRE VISIBLE AL FINAL */}
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                        <a 
+                            href={manualSearchUrl}
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="flex items-center justify-center w-full gap-2 bg-white border border-blue-200 px-4 py-3 rounded-xl text-sm font-bold text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition shadow-sm"
+                        >
+                            🔍 Ver más resultados en Google
+                        </a>
+                    </div>
                 </div>
             )}
             
