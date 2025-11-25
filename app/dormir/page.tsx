@@ -29,12 +29,12 @@ const normalizeText = (text: string) => {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 };
 
-// --- COMPONENTE DE VISTA DETALLADA DEL DÍA (BÚSQUEDA HUMANA) ---
+// --- COMPONENTE DE VISTA DETALLADA (MODO CAJA NEGRA) ---
 const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
+    const [debugTitles, setDebugTitles] = useState<string[]>([]); // Para ver qué devuelve Google
     
-    // Extraemos la ciudad
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split(',')[0].trim();
 
     useEffect(() => {
@@ -42,12 +42,12 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
 
         const fetchSpots = async () => {
             setLoading(true);
+            setDebugTitles([]); // Limpiar debug
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY;
             const cx = process.env.NEXT_PUBLIC_GOOGLE_SEARCH_CX;
 
-            // CAMBIO CLAVE: Búsqueda "humana" en lugar de "técnica" con site:
-            // Esto suele dar mejores resultados en la API gratuita.
-            const query = `park4night "${rawCityName}"`;
+            // 1. QUERY NUEVA: Sin 'site:', buscamos palabras clave a lo bruto
+            const query = `park4night caramaps ${rawCityName}`;
             
             try {
                 if (!apiKey || !cx) throw new Error("Faltan claves");
@@ -59,14 +59,17 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                 const data = await res.json();
 
                 if (data.items) {
-                    console.log("Resultados Google API:", data.items);
+                    // Guardamos los títulos crudos para mostrarlos si fallamos
+                    setDebugTitles(data.items.map((i: any) => i.title));
 
                     const normalizedCity = normalizeText(rawCityName);
 
                     const validResults = data.items.filter((item: SearchResult) => {
-                        const normalizedTitle = normalizeText(item.title);
-                        // Filtro: El título debe contener la ciudad o el snippet debe contener "park4night"
-                        return normalizedTitle.includes(normalizedCity);
+                        // Filtro: Debe ser de park4night/caramaps Y contener el nombre de la ciudad
+                        const isTargetSite = item.link.includes('park4night.com') || item.link.includes('caramaps.com');
+                        const hasCityName = normalizeText(item.title).includes(normalizedCity);
+                        
+                        return isTargetSite && hasCityName;
                     });
 
                     setSearchResults(validResults.slice(0, 4));
@@ -84,7 +87,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
         fetchSpots();
     }, [rawCityName, day.isDriving]);
 
-    const googleSearchUrl = `https://www.google.com/search?q=park4night+${rawCityName}`;
+    const manualSearchUrl = `https://www.google.com/search?q=park4night+${rawCityName}`;
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-orange-50 border-l-4 border-orange-600'}`}>
@@ -105,7 +108,7 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                     {loading && (
                         <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-70">
                             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-xs text-blue-600 font-medium">Consultando spots...</p>
+                            <p className="text-xs text-blue-600 font-medium">Escaneando resultados...</p>
                         </div>
                     )}
 
@@ -143,15 +146,24 @@ const DayDetailView: React.FC<{ day: DailyPlan }> = ({ day }) => {
                         </div>
                     )}
 
+                    {/* CAJA NEGRA: VISIBLE SOLO SI FALLA */}
                     {!loading && searchResults.length === 0 && (
-                        <p className="text-xs text-gray-400 mt-2 mb-2 italic">
-                            No se encontraron resultados automáticos exactos.
-                        </p>
+                        <div className="bg-gray-100 p-3 rounded text-xs text-gray-500 font-mono mb-2">
+                            <p className="font-bold mb-1">Diagnóstico (Lo que vio el robot):</p>
+                            {debugTitles.length > 0 ? (
+                                <ul className="list-disc pl-4 space-y-1">
+                                    {debugTitles.slice(0, 3).map((t, i) => <li key={i}>{t}</li>)}
+                                </ul>
+                            ) : (
+                                <p>El robot devolvió 0 resultados totales.</p>
+                            )}
+                            <p className="mt-2 text-orange-600">Ninguno superó el filtro de nombre.</p>
+                        </div>
                     )}
 
                     <div className="mt-4 pt-3 border-t border-gray-200 space-y-2">
                          <a 
-                            href={googleSearchUrl}
+                            href={manualSearchUrl}
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="flex items-center justify-center w-full gap-2 bg-white border border-blue-200 px-4 py-3 rounded-xl text-sm font-bold text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition shadow-sm"
