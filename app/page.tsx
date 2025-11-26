@@ -51,7 +51,7 @@ interface PlaceWithDistance {
     distanceFromCenter?: number;
     type?: ServiceType;
     photoUrl?: string;
-    types?: string[]; // AÑADIDO PARA AUDITORÍA: Las etiquetas de Google
+    types?: string[]; // MODO AUDITOR
 }
 
 interface DailyPlan {
@@ -91,10 +91,8 @@ const getWeatherIcon = (code: number) => {
     if (code >= 80 && code <= 82) return '🌦️'; if (code >= 95) return '⛈️'; return '🌡️';
 };
 
-// --- HELPER NORMALIZAR ---
 const normalizeText = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-// --- COMPONENTE: GRÁFICA DE ELEVACIÓN ---
 const ElevationChart: React.FC<{ data: { distance: number, elevation: number }[] }> = ({ data }) => {
     if (!data || data.length === 0) return null;
 
@@ -127,13 +125,13 @@ const ElevationChart: React.FC<{ data: { distance: number, elevation: number }[]
     );
 };
 
-// --- COMPONENTE: LISTA DE SPOTS Y SERVICIOS ---
+// --- COMPONENTE: LISTA DE SPOTS ---
 const DaySpotsList: React.FC<{
     day: DailyPlan,
     places: Record<ServiceType, PlaceWithDistance[]>,
     loading: Record<ServiceType, boolean>,
     toggles: Record<ServiceType, boolean>,
-    auditMode: boolean, // MODO AUDITOR
+    auditMode: boolean,
     onToggle: (type: ServiceType) => void,
     onAddPlace: (place: PlaceWithDistance) => void,
     onRemovePlace: (placeId: string) => void,
@@ -150,7 +148,9 @@ const DaySpotsList: React.FC<{
     const [loadingElevation, setLoadingElevation] = useState(false);
 
     useEffect(() => {
-        if (!day.coordinates || !day.isoDate) return;
+        const coords = day.coordinates;
+        if (!coords || !day.isoDate) return;
+
         const fetchWeather = async () => {
             setWeatherStatus('loading');
             const today = new Date();
@@ -158,9 +158,9 @@ const DaySpotsList: React.FC<{
             const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays < 0 || diffDays > 14) { setWeatherStatus('far_future'); return; }
             try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${day.coordinates.lat}&longitude=${day.coordinates.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
                 const data = await res.json();
-                if (data.daily) {
+                if (data.daily && data.daily.time.length > 0) {
                     setWeather({ code: data.daily.weather_code[0], maxTemp: data.daily.temperature_2m_max[0], minTemp: data.daily.temperature_2m_min[0], rainProb: data.daily.precipitation_probability_max[0] });
                     setWeatherStatus('success');
                 } else setWeatherStatus('error');
@@ -233,7 +233,6 @@ const DaySpotsList: React.FC<{
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
                                     <div className="flex items-center gap-2">{spot.rating && <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span>}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
 
-                                    {/* DATOS DE AUDITORÍA (SOLO SI MODO ACTIVO) */}
                                     {auditMode && (
                                         <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded">
                                             <p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p>
@@ -278,7 +277,6 @@ const DaySpotsList: React.FC<{
                 </div>
             </div>
 
-            {/* ALTIMETRÍA */}
             {day.isDriving && (
                 <div className="mt-2">
                     {!elevationData && !loadingElevation && (
@@ -291,12 +289,8 @@ const DaySpotsList: React.FC<{
                 </div>
             )}
 
-            {/* BOTÓN COPIAR INFORME AUDITORÍA (Solo visible en modo auditor) */}
             {auditMode && (
-                <button
-                    onClick={handleCopyAudit}
-                    className="w-full text-xs font-mono bg-gray-800 text-white py-1 rounded mb-2 hover:bg-black"
-                >
+                <button onClick={handleCopyAudit} className="w-full text-xs font-mono bg-gray-800 text-white py-1 rounded mb-2 mt-2 hover:bg-black">
                     📋 Copiar Datos Técnicos del Día
                 </button>
             )}
@@ -367,7 +361,7 @@ export default function Home() {
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
-    const [auditMode, setAuditMode] = useState(false); // ESTADO MODO AUDITOR
+    const [auditMode, setAuditMode] = useState(false);
 
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
@@ -424,6 +418,7 @@ export default function Home() {
             window.location.reload();
         }
     };
+    // --- FIN PERSISTENCIA ---
 
     useEffect(() => { if (!showWaypoints) setFormData(prev => ({ ...prev, etapas: '' })); }, [showWaypoints]);
 
@@ -435,6 +430,7 @@ export default function Home() {
         }
     }, [formData.consumo, formData.precioGasoil, results.distanceKm]);
 
+    // ZOOM GENERAL
     useEffect(() => {
         if (map) {
             if (mapBounds) {
@@ -488,13 +484,14 @@ export default function Home() {
                         dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
                     }
                     const photoUrl = spot.photos && spot.photos.length > 0 ? spot.photos[0].getUrl({ maxWidth: 200 }) : undefined;
+
                     return {
                         name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id,
                         geometry: spot.geometry, distanceFromCenter: dist, type,
                         opening_hours: spot.opening_hours as any,
                         user_ratings_total: spot.user_ratings_total,
                         photoUrl,
-                        types: spot.types // AÑADIDO PARA AUDITORÍA
+                        types: spot.types // AUDITORIA
                     };
                 });
                 spotsWithDistance.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
@@ -723,15 +720,9 @@ export default function Home() {
                     <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
 
                     <div className="flex items-center gap-2 absolute right-0 top-0">
-                        {/* BOTÓN MODO AUDITOR */}
-                        <button
-                            onClick={() => setAuditMode(!auditMode)}
-                            className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white border-gray-900' : 'bg-gray-100 text-gray-500 border-gray-200'}`}
-                            title="Ver datos técnicos de los sitios"
-                        >
+                        <button onClick={() => setAuditMode(!auditMode)} className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`} title="Modo Auditor">
                             <IconAudit /> {auditMode ? 'Auditor ON' : 'Auditor'}
                         </button>
-
                         {results.dailyItinerary && (
                             <button onClick={handleResetTrip} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1">
                                 <IconReset /> Borrar
@@ -884,7 +875,12 @@ export default function Home() {
                                                         key={`${type}-${i}`}
                                                         position={spot.geometry.location}
                                                         icon={MARKER_ICONS[type]}
-                                                        label={{ text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
+                                                        label={{
+                                                            text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
+                                                            color: "white",
+                                                            fontWeight: "bold",
+                                                            fontSize: "10px"
+                                                        }}
                                                         title={spot.name}
                                                         onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                         onMouseOver={() => setHoveredPlace(spot)}
@@ -993,7 +989,7 @@ export default function Home() {
                                                 places={places}
                                                 loading={loadingPlaces}
                                                 toggles={toggles}
-                                                auditMode={auditMode} // PASAMOS EL MODO AUDITOR
+                                                auditMode={auditMode}
                                                 onToggle={handleToggle}
                                                 onAddPlace={handleAddPlace}
                                                 onRemovePlace={handleRemovePlace}
