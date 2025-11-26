@@ -9,7 +9,7 @@ const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
 // --- ICONOS MAPA (COLORES POR CATEGORÍA) ---
-const MARKER_ICONS = {
+const MARKER_ICONS: Record<string, string> = {
     camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",      // Rojo
     restaurant: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",   // Azul
     water: "http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png",        // Azul claro
@@ -84,21 +84,22 @@ const DaySpotsList: React.FC<{
         </button>
     );
 
-    // Helper Lista Resultados (CON EXCEPCIÓN PARA TURISMO)
+    // Helper Lista Resultados
     const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
-        // Si no está activo el toggle y no es camping, fuera.
         if (!toggles[type] && type !== 'camping') return null;
 
-        // **MODO FOCO**: 
-        // Si ya he guardado un sitio de este tipo...
+        // MODO FOCO: Si hay guardado y NO es turismo, ocultamos la lista de búsqueda para no duplicar
         const savedOfType = saved.find(s => s.type === type);
-        let list = places[type];
-
-        // ... Y NO es turismo (porque en turismo queremos ver muchos), ocultamos el resto.
         if (savedOfType && type !== 'tourism') {
-            list = [savedOfType];
+            return (
+                <div className="mt-4 animate-fadeIn">
+                    <h5 className={`text-xs font-bold ${colorClass} mb-1 flex items-center gap-1`}><span>{icon}</span> {title}</h5>
+                    <p className="text-[10px] text-green-600 italic">Ya has seleccionado un sitio. (Ver arriba en "Mi Plan")</p>
+                </div>
+            );
         }
 
+        const list = places[type];
         const isLoading = loading[type];
 
         return (
@@ -117,7 +118,6 @@ const DaySpotsList: React.FC<{
                                 key={`${type}-${idx}`}
                                 className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`}
                             >
-                                {/* ICONO DE COLOR COINCIDENTE CON EL MAPA */}
                                 <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>
                                     {idx + 1}
                                 </div>
@@ -128,7 +128,6 @@ const DaySpotsList: React.FC<{
                                         <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
                                     </div>
                                 </div>
-                                {/* Botón Acción */}
                                 <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>
                                     {isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}
                                 </button>
@@ -138,13 +137,6 @@ const DaySpotsList: React.FC<{
                 )}
 
                 {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
-
-                {/* Mensaje informativo si estamos en Modo Foco (No Turismo) */}
-                {savedOfType && type !== 'tourism' && (
-                    <p className="text-[9px] text-green-600 mt-1 italic text-center">
-                        Has elegido este sitio. Borra para ver más opciones.
-                    </p>
-                )}
             </div>
         );
     };
@@ -169,14 +161,20 @@ const DaySpotsList: React.FC<{
                     <div className="space-y-1">
                         {saved.map((place, i) => (
                             <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded">
-                                <div className="truncate flex-1 mr-2">
-                                    <span className="mr-1 font-bold">
+                                <div className="truncate flex-1 mr-2 flex items-center gap-2">
+                                    {/* Icono de tipo si lo tenemos, sino genérico */}
+                                    <span className="font-bold text-lg">
                                         {place.type === 'camping' ? '🚐' :
                                             place.type === 'restaurant' ? '🍳' :
-                                                place.type === 'tourism' ? '📷' : '📍'}
+                                                place.type === 'water' ? '💧' :
+                                                    place.type === 'gas' ? '⛽' :
+                                                        place.type === 'supermarket' ? '🛒' :
+                                                            place.type === 'laundry' ? '🧺' :
+                                                                place.type === 'tourism' ? '📷' : '📍'}
                                     </span>
-                                    <span className="font-medium text-green-900">{place.name}</span>
+                                    <span className="font-medium text-green-900 truncate">{place.name}</span>
                                 </div>
+                                <button onClick={() => place.place_id && onRemovePlace(place.place_id)} className="text-red-400 hover:text-red-600"><IconTrash /></button>
                             </div>
                         ))}
                     </div>
@@ -379,7 +377,6 @@ export default function Home() {
         if (!dailyPlan) return;
         setSelectedDayIndex(dayIndex);
 
-        // Resetear toggles al cambiar de día (menos camping)
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -419,7 +416,6 @@ export default function Home() {
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
         setSelectedDayIndex(null);
-        // Resetear
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -545,16 +541,9 @@ export default function Home() {
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
             <div className="w-full max-w-6xl space-y-6">
 
-                {/* --- HEADER CARACOLA CON LOGO --- */}
                 <div className="text-center space-y-4 mb-6 flex flex-col items-center">
-                    <img
-                        src="/logo.jpg"
-                        alt="CaraCola Viajes"
-                        className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
-                    />
-                    <p className="text-gray-500 text-sm md:text-base font-medium">
-                        Tu ruta en autocaravana, paso a paso.
-                    </p>
+                    <img src="/logo.jpg" alt="CaraCola Viajes" className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" />
+                    <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100">
@@ -668,26 +657,45 @@ export default function Home() {
                                             />
                                         ))}
 
+                                        {/* --- AQUI ESTÁ LA SOLUCIÓN DE FASE 7: RENDERIZADO HÍBRIDO --- */}
                                         {Object.keys(places).map((key) => {
                                             const type = key as ServiceType;
-                                            if (!toggles[type] && type !== 'camping') return null;
 
+                                            // 1. SIEMPRE pintamos los que están GUARDADOS (SAVED)
                                             const savedDay = results.dailyItinerary![selectedDayIndex!];
-                                            const savedOfType = savedDay?.savedPlaces?.find(s => s.type === type);
+                                            const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
 
-                                            // MODO FOCO: Si es Turismo, mostramos todos. Si no, solo el guardado.
-                                            let listToRender = places[type];
-                                            if (savedOfType && type !== 'tourism') {
-                                                listToRender = [savedOfType];
+                                            // 2. SI está activo el botón, pintamos los de búsqueda,
+                                            // PERO evitamos duplicar si ya está guardado (Modo Foco)
+                                            // Excepción: Turismo (pintamos todo)
+                                            let searchList: PlaceWithDistance[] = [];
+                                            if (toggles[type] || type === 'camping') {
+                                                if (savedOfType.length > 0 && type !== 'tourism') {
+                                                    searchList = []; // Modo foco: ocultar búsqueda si ya elegí
+                                                } else {
+                                                    searchList = places[type];
+                                                }
                                             }
 
-                                            return listToRender.map((spot, i) => (
+                                            // Combinamos ambas listas para pintar
+                                            const toRender = [...savedOfType, ...searchList];
+
+                                            // Eliminamos duplicados por ID por si acaso
+                                            const uniqueRender = toRender.filter((v, i, a) => a.findIndex(t => (t.place_id === v.place_id)) === i);
+
+                                            return uniqueRender.map((spot, i) => (
                                                 spot.geometry?.location && (
                                                     <Marker
                                                         key={`${type}-${i}`}
                                                         position={spot.geometry.location}
                                                         icon={MARKER_ICONS[type]}
-                                                        label={{ text: (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
+                                                        // Si es guardado, le ponemos un label especial '✓'
+                                                        label={{
+                                                            text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
+                                                            color: "white",
+                                                            fontWeight: "bold",
+                                                            fontSize: "10px"
+                                                        }}
                                                         title={spot.name}
                                                         onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                     />
@@ -726,7 +734,6 @@ export default function Home() {
                                                                 {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                             </div>
 
-                                                            {/* RESUMEN DE LO GUARDADO (NUEVO) */}
                                                             {day.savedPlaces && day.savedPlaces.length > 0 && (
                                                                 <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
                                                                     {day.savedPlaces.map((place, i) => (
