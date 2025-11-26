@@ -31,13 +31,14 @@ type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 
 interface PlaceWithDistance {
     name?: string;
     rating?: number;
-    user_ratings_total?: number; // Número de votos
+    user_ratings_total?: number;
     vicinity?: string;
     place_id?: string;
-    opening_hours?: { isOpen?: () => boolean; open_now?: boolean }; // Google a veces lo manda así o asá
+    opening_hours?: { isOpen?: () => boolean; open_now?: boolean };
     geometry?: { location?: any; };
     distanceFromCenter?: number;
     type?: ServiceType;
+    photoUrl?: string; // NUEVO: URL de la foto
 }
 
 interface DailyPlan {
@@ -67,7 +68,7 @@ const DaySpotsList: React.FC<{
     onToggle: (type: ServiceType) => void,
     onAddPlace: (place: PlaceWithDistance) => void,
     onRemovePlace: (placeId: string) => void,
-    onHover: (place: PlaceWithDistance | null) => void // NUEVO: Prop para el hover
+    onHover: (place: PlaceWithDistance | null) => void
 }> = ({ day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover }) => {
 
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
@@ -90,6 +91,7 @@ const DaySpotsList: React.FC<{
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
 
+        // Modo foco (excepto turismo)
         if (savedOfType && type !== 'tourism') {
             list = [savedOfType];
         }
@@ -111,8 +113,8 @@ const DaySpotsList: React.FC<{
                             <div
                                 key={`${type}-${idx}`}
                                 className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`}
-                                onMouseEnter={() => onHover(spot)} // 🖱️ HOVER ENTRA
-                                onMouseLeave={() => onHover(null)} // 🖱️ HOVER SALE
+                                onMouseEnter={() => onHover(spot)}
+                                onMouseLeave={() => onHover(null)}
                             >
                                 <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>
                                     {idx + 1}
@@ -131,9 +133,10 @@ const DaySpotsList: React.FC<{
                         ))}
                     </div>
                 )}
+
                 {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
                 {savedOfType && type !== 'tourism' && (
-                    <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio. Borra para ver más.</p>
+                    <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio.</p>
                 )}
             </div>
         );
@@ -214,7 +217,6 @@ export default function Home() {
     const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
     const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
-    // NUEVO ESTADO: HOVERED PLACE
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
 
     // ESTADO UNIFICADO
@@ -309,11 +311,15 @@ export default function Home() {
                     if (spot.geometry?.location) {
                         dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
                     }
+                    // EXTRAER FOTO (Si existe)
+                    const photoUrl = spot.photos && spot.photos.length > 0 ? spot.photos[0].getUrl({ maxWidth: 200 }) : undefined;
+
                     return {
                         name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id,
                         geometry: spot.geometry, distanceFromCenter: dist, type,
-                        opening_hours: spot.opening_hours as any, // Cast rapido
-                        user_ratings_total: spot.user_ratings_total
+                        opening_hours: spot.opening_hours as any,
+                        user_ratings_total: spot.user_ratings_total,
+                        photoUrl // Guardamos la URL de la foto
                     };
                 });
                 spotsWithDistance.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
@@ -651,65 +657,85 @@ export default function Home() {
                                             />
                                         ))}
 
+                                        {/* --- RENDERIZADO HÍBRIDO (GUARDADOS + BÚSQUEDA) --- */}
                                         {Object.keys(places).map((key) => {
                                             const type = key as ServiceType;
-                                            if (!toggles[type] && type !== 'camping') return null;
 
                                             const savedDay = results.dailyItinerary![selectedDayIndex!];
                                             const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
 
-                                            let searchList: PlaceWithDistance[] = [];
+                                            // LÓGICA VISIBILIDAD MAPA:
+                                            // 1. Si el botón está activo -> Mostramos búsqueda Y guardados.
+                                            // 2. Si el botón está APAGADO -> Mostramos SOLO los guardados (¡CORRECCIÓN CLAVE!)
+                                            let listToRender: PlaceWithDistance[] = [];
+
                                             if (toggles[type] || type === 'camping') {
+                                                // Si el botón está encendido
                                                 if (savedOfType.length > 0 && type !== 'tourism') {
-                                                    searchList = [];
+                                                    listToRender = savedOfType; // Modo foco
                                                 } else {
-                                                    searchList = places[type];
+                                                    listToRender = [...savedOfType, ...places[type]]; // Mezcla
                                                 }
+                                            } else {
+                                                // Si el botón está APAGADO -> Solo mostramos lo que ya has guardado (Permanencia)
+                                                listToRender = savedOfType;
                                             }
 
-                                            const toRender = [...savedOfType, ...searchList];
-                                            const uniqueRender = toRender.filter((v, i, a) => a.findIndex(t => (t.place_id === v.place_id)) === i);
+                                            // Limpieza duplicados
+                                            const uniqueRender = listToRender.filter((v, i, a) => a.findIndex(t => (t.place_id === v.place_id)) === i);
 
                                             return uniqueRender.map((spot, i) => (
                                                 spot.geometry?.location && (
-                                                    <Marker
-                                                        key={`${type}-${i}`}
-                                                        position={spot.geometry.location}
-                                                        icon={MARKER_ICONS[type]}
-                                                        label={{
-                                                            text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
-                                                            color: "white",
-                                                            fontWeight: "bold",
-                                                            fontSize: "10px"
-                                                        }}
-                                                        title={spot.name}
-                                                        onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
-                                                        onMouseOver={() => setHoveredPlace(spot)}
-                                                        onMouseOut={() => setHoveredPlace(null)}
-                                                    />
+                                                    <div key={`${type}-${i}`}>
+                                                        <Marker
+                                                            position={spot.geometry.location}
+                                                            icon={MARKER_ICONS[type]}
+                                                            label={{
+                                                                text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
+                                                                color: "white",
+                                                                fontWeight: "bold",
+                                                                fontSize: "10px"
+                                                            }}
+                                                            title={spot.name}
+                                                            onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
+                                                            onMouseOver={() => setHoveredPlace(spot)}
+                                                            onMouseOut={() => setHoveredPlace(null)}
+                                                        />
+                                                    </div>
                                                 )
                                             ));
                                         })}
 
-                                        {/* --- INFO WINDOW (BOCADILLO) AL HACER HOVER --- */}
+                                        {/* --- INFO WINDOW CON FOTO 📸 --- */}
                                         {hoveredPlace && hoveredPlace.geometry?.location && (
                                             <InfoWindow
                                                 position={hoveredPlace.geometry.location}
                                                 onCloseClick={() => setHoveredPlace(null)}
-                                                options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -30) }}
+                                                options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -35) }}
                                             >
-                                                <div className="p-1 min-w-[150px]">
-                                                    <h6 className="font-bold text-sm text-gray-800 mb-1">{hoveredPlace.name}</h6>
-                                                    <div className="flex items-center gap-1 text-xs text-orange-500 font-bold mb-1">
-                                                        {hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}
-                                                        {hoveredPlace.user_ratings_total && <span className="text-gray-400 font-normal">({hoveredPlace.user_ratings_total})</span>}
-                                                    </div>
-                                                    <p className="text-[10px] text-gray-500 mb-1">{hoveredPlace.vicinity}</p>
-                                                    {hoveredPlace.opening_hours?.open_now !== undefined && (
-                                                        <p className={`text-[10px] font-bold ${hoveredPlace.opening_hours.open_now ? 'text-green-600' : 'text-red-500'}`}>
-                                                            {hoveredPlace.opening_hours.open_now ? '● Abierto ahora' : '● Cerrado'}
-                                                        </p>
+                                                <div className="p-0 w-[200px] overflow-hidden">
+                                                    {/* FOTO CABECERA */}
+                                                    {hoveredPlace.photoUrl ? (
+                                                        <img src={hoveredPlace.photoUrl} alt={hoveredPlace.name} className="w-full h-24 object-cover rounded-t-lg" />
+                                                    ) : (
+                                                        <div className="w-full h-16 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">Sin foto</div>
                                                     )}
+
+                                                    <div className="p-2 bg-white">
+                                                        <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight">{hoveredPlace.name}</h6>
+                                                        <div className="flex items-center gap-1 text-xs text-orange-500 font-bold mb-1">
+                                                            {hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}
+                                                            {hoveredPlace.user_ratings_total && <span className="text-gray-400 font-normal">({hoveredPlace.user_ratings_total})</span>}
+                                                        </div>
+                                                        <p className="text-[10px] text-gray-500 line-clamp-2">{hoveredPlace.vicinity}</p>
+
+                                                        {/* ESTADO ABIERTO/CERRADO */}
+                                                        {hoveredPlace.opening_hours?.open_now !== undefined && (
+                                                            <p className={`text-[10px] font-bold mt-1 ${hoveredPlace.opening_hours.open_now ? 'text-green-600' : 'text-red-500'}`}>
+                                                                {hoveredPlace.opening_hours.open_now ? '● Abierto' : '● Cerrado'}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </InfoWindow>
                                         )}
@@ -727,36 +753,32 @@ export default function Home() {
                                                 </div>
                                                 <p className="text-xs text-gray-400 mb-4">Haz clic en una fila para ver detalles 👇</p>
 
-                                                <div className="space-y-3 text-left">
-                                                    {results.dailyItinerary?.map((day, index) => (
-                                                        <div
-                                                            key={index}
-                                                            onClick={() => focusMapOnStage(index)}
-                                                            className="border border-gray-200 rounded-lg p-3 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white"
-                                                        >
-                                                            <div className="flex justify-between items-center mb-1">
-                                                                <span className="font-bold text-red-700 text-sm flex items-center gap-1">
-                                                                    {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
-                                                                </span>
-                                                                <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                                    {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="text-xs text-gray-600">
-                                                                {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
-                                                            </div>
-
-                                                            {day.savedPlaces && day.savedPlaces.length > 0 && (
-                                                                <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
-                                                                    {day.savedPlaces.map((place, i) => (
-                                                                        <div key={i} className="text-[10px] text-green-700 flex items-center gap-1">
-                                                                            <span>✅</span> {place.name}
+                                                <div className="border border-gray-100 rounded-lg overflow-hidden">
+                                                    <table className="min-w-full text-xs text-left">
+                                                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase"><tr><th className="px-3 py-2 text-center">Icon</th><th className="px-1 py-2">Etapa</th><th className="px-3 py-2 text-right">Km</th></tr></thead>
+                                                        <tbody className="divide-y divide-gray-100">
+                                                            {results.dailyItinerary?.map((day, index) => (
+                                                                <tr
+                                                                    key={index}
+                                                                    onClick={() => focusMapOnStage(index)}
+                                                                    className="hover:bg-red-50 transition cursor-pointer"
+                                                                >
+                                                                    <td className="pl-3 py-2 w-10 text-center text-xl align-middle">
+                                                                        {day.isDriving ? '🚐' : '🏖️'}
+                                                                    </td>
+                                                                    <td className="px-1 py-2 align-middle">
+                                                                        <div className="font-bold text-gray-800 text-sm">Día {day.day}</div>
+                                                                        <div className="text-[10px] text-gray-400 mt-0.5">
+                                                                            {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                                         </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
+                                                                    </td>
+                                                                    <td className="pr-3 py-2 text-right font-mono text-xs text-gray-500 align-middle">
+                                                                        {day.isDriving ? `${day.distance.toFixed(0)} km` : '-'}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
                                         ) : (
@@ -768,7 +790,7 @@ export default function Home() {
                                                 onToggle={handleToggle}
                                                 onAddPlace={handleAddPlace}
                                                 onRemovePlace={handleRemovePlace}
-                                                onHover={setHoveredPlace} // Pasamos la función de hover
+                                                onHover={setHoveredPlace}
                                             />
                                         )}
                                     </div>
