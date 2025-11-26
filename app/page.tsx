@@ -62,7 +62,8 @@ interface DailyPlan {
     to: string;
     distance: number;
     isDriving: boolean;
-    coordinates?: Coordinates; type: 'overnight' | 'tactical' | 'start' | 'end';
+    coordinates?: Coordinates;
+    type: 'overnight' | 'tactical' | 'start' | 'end';
     savedPlaces?: PlaceWithDistance[];
 }
 
@@ -126,7 +127,7 @@ const ElevationChart: React.FC<{ data: { distance: number, elevation: number }[]
     );
 };
 
-// --- COMPONENTE: LISTA DE SPOTS Y SERVICIOS ---
+// --- COMPONENTE: LISTA DE SPOTS ---
 const DaySpotsList: React.FC<{
     day: DailyPlan,
     places: Record<ServiceType, PlaceWithDistance[]>,
@@ -149,7 +150,10 @@ const DaySpotsList: React.FC<{
     const [loadingElevation, setLoadingElevation] = useState(false);
 
     useEffect(() => {
-        if (!day.coordinates || !day.isoDate) return;
+        // CORRECCIÓN 1: Check de seguridad
+        const coords = day.coordinates;
+        if (!coords || !day.isoDate) return;
+
         const fetchWeather = async () => {
             setWeatherStatus('loading');
             const today = new Date();
@@ -157,7 +161,7 @@ const DaySpotsList: React.FC<{
             const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays < 0 || diffDays > 14) { setWeatherStatus('far_future'); return; }
             try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${day.coordinates.lat}&longitude=${day.coordinates.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
                 const data = await res.json();
                 if (data.daily) {
                     setWeather({ code: data.daily.weather_code[0], maxTemp: data.daily.temperature_2m_max[0], minTemp: data.daily.temperature_2m_min[0], rainProb: data.daily.precipitation_probability_max[0] });
@@ -174,9 +178,14 @@ const DaySpotsList: React.FC<{
         setLoadingElevation(true);
         const cleanFrom = day.from.split('|')[0];
         const ds = new google.maps.DirectionsService();
+
+        // Asegurar coordenadas
+        if (!day.coordinates) return;
+        const dest = new google.maps.LatLng(day.coordinates.lat, day.coordinates.lng);
+
         ds.route({
             origin: cleanFrom,
-            destination: new google.maps.LatLng(day.coordinates.lat, day.coordinates.lng),
+            destination: dest,
             travelMode: google.maps.TravelMode.DRIVING
         }, (result, status) => {
             if (status === 'OK' && result) {
@@ -193,32 +202,19 @@ const DaySpotsList: React.FC<{
         });
     };
 
-    // --- FUNCIÓN EXPORTAR A CSV PARA EXCEL ---
     const handleDownloadExcel = () => {
-        // Cabeceras del CSV
         let csvContent = "data:text/csv;charset=utf-8,";
         csvContent += "Día,Ciudad,Tipo Servicio,Nombre,Rating,Distancia (m),Dirección,Google Maps Link,Tags de Google\n";
-
-        // Recorremos todos los tipos de servicios cargados
         (Object.keys(places) as ServiceType[]).forEach(type => {
             places[type].forEach(p => {
-                // Preparamos cada fila. Ojo con las comas en los nombres, las escapamos entre comillas.
                 const row = [
-                    `Día ${day.day}`,
-                    `"${rawCityName}"`,
-                    type.toUpperCase(),
-                    `"${p.name?.replace(/"/g, '""')}"`, // Escapar comillas dobles
-                    p.rating || "",
-                    Math.round(p.distanceFromCenter || 0),
-                    `"${p.vicinity?.replace(/"/g, '""')}"`,
-                    `https://www.google.com/maps/place/?q=place_id:${p.place_id}`,
-                    `"${p.types?.join(', ')}"`
+                    `Día ${day.day}`, `"${rawCityName}"`, type.toUpperCase(), `"${p.name?.replace(/"/g, '""')}"`,
+                    p.rating || "", Math.round(p.distanceFromCenter || 0), `"${p.vicinity?.replace(/"/g, '""')}"`,
+                    `https://www.google.com/maps/place/?q=place_id:${p.place_id}`, `"${p.types?.join(', ')}"`
                 ].join(",");
                 csvContent += row + "\n";
             });
         });
-
-        // Crear enlace de descarga y clicarlo automáticamente
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -267,7 +263,6 @@ const DaySpotsList: React.FC<{
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
                                     <div className="flex items-center gap-2">{spot.rating && <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span>}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
 
-                                    {/* DATOS DE AUDITORÍA (SOLO SI MODO ACTIVO) */}
                                     {auditMode && (
                                         <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded">
                                             <p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p>
@@ -405,6 +400,7 @@ export default function Home() {
     const [isInitialized, setIsInitialized] = useState(false);
     const [auditMode, setAuditMode] = useState(false);
 
+    // ESTADO UNIFICADO
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
     });
@@ -494,6 +490,7 @@ export default function Home() {
         return null;
     };
 
+    // --- BÚSQUEDA CON FILTRO ESTRICTO ---
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
         if (!map || typeof google === 'undefined') return;
 
@@ -520,7 +517,7 @@ export default function Home() {
         service.nearbySearch(request, (results, status) => {
             setLoadingPlaces(prev => ({ ...prev, [type]: false }));
             if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-                const spotsWithDistance: PlaceWithDistance[] = results.map(spot => {
+                let spotsWithDistance: PlaceWithDistance[] = results.map(spot => {
                     let dist = 999999;
                     if (spot.geometry?.location) {
                         dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
@@ -533,9 +530,33 @@ export default function Home() {
                         opening_hours: spot.opening_hours as any,
                         user_ratings_total: spot.user_ratings_total,
                         photoUrl,
-                        types: spot.types // AUDITORIA
+                        types: spot.types
                     };
                 });
+
+                // --- EL PORTERO DE DISCOTECA (FILTRO DE CALIDAD) ---
+                spotsWithDistance = spotsWithDistance.filter(spot => {
+                    const tags = spot.types || [];
+
+                    if (type === 'camping') {
+                        const nameLower = spot.name?.toLowerCase() || "";
+                        const isCampingName = nameLower.includes("camping") || nameLower.includes("area") || nameLower.includes("autocaravana") || nameLower.includes("camper");
+                        if (tags.includes('campground') || tags.includes('rv_park')) return true;
+                        if (tags.includes('parking') && isCampingName) return true;
+                        return false;
+                    }
+                    if (type === 'gas') {
+                        return tags.includes('gas_station');
+                    }
+                    if (type === 'supermarket') {
+                        return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
+                    }
+                    if (type === 'laundry') {
+                        return tags.includes('laundry');
+                    }
+                    return true;
+                });
+
                 spotsWithDistance.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
                 setPlaces(prev => ({ ...prev, [type]: spotsWithDistance }));
             } else {
@@ -624,6 +645,7 @@ export default function Home() {
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
         setSelectedDayIndex(null);
+        // Resetear
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -713,7 +735,9 @@ export default function Home() {
                     itinerary.push({
                         day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
                         from: segmentStartName, to: endLegName, distance: legAccumulator / 1000, isDriving: true,
-                        coordinates: { lat: leg.end_location.lat(), lng: leg.end_location.lng() }, type: isFinalDest ? 'end' : 'overnight', savedPlaces: []
+                        coordinates: { lat: leg.end_location.lat(), lng: leg.end_location.lng() },
+                        type: isFinalDest ? 'end' : 'overnight',
+                        savedPlaces: []
                     });
                     currentLegStartName = endLegName;
                     if (i < route.legs.length - 1) { dayCounter++; currentDate = addDay(currentDate); }
@@ -730,7 +754,10 @@ export default function Home() {
                     for (let i = 0; i < stayDays; i++) {
                         dayCounter++;
                         currentDate = addDay(currentDate);
-                        itinerary.push({ day: dayCounter, date: formatDate(currentDate), from: formData.destino, to: formData.destino, distance: 0, isDriving: false, type: 'end', savedPlaces: [] });
+                        itinerary.push({
+                            day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
+                            from: formData.destino, to: formData.destino, distance: 0, isDriving: false, type: 'end', savedPlaces: []
+                        });
                     }
                 }
             }
@@ -880,7 +907,7 @@ export default function Home() {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print">
                                     <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
-                                        {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#DC2626", strokeWeight: 4 }} />}
+                                        {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 } }} />}
 
                                         {results.dailyItinerary?.map((day, i) => day.coordinates && (
                                             <Marker
