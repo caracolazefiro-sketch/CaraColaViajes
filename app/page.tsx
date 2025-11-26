@@ -117,15 +117,16 @@ const DaySpotsList: React.FC<{
                             {!loadingCampings && campings.length === 0 && <p className="text-xs text-gray-400 italic">No hay campings cercanos.</p>}
                         </div>
 
-                        {/* LISTA 2: RESTAURANTES (CONTADOR FORZADO) */}
+                        {/* LISTA 2: RESTAURANTES (CON CONTADOR ARREGLADO) */}
                         {showRestaurants && (
                             <div className="animate-fadeIn">
                                 <div className="flex items-center justify-between mb-2 border-b border-blue-100 pb-1">
                                     <h5 className="text-xs font-bold text-blue-800">Restaurantes Cercanos</h5>
-                                    {/* El contador se muestra SIEMPRE si el panel está abierto */}
-                                    <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                        {loadingRestaurants ? '...' : restaurants.length}
-                                    </span>
+                                    {!loadingRestaurants && (
+                                        <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                            {restaurants.length}
+                                        </span>
+                                    )}
                                 </div>
 
                                 {loadingRestaurants && <p className="text-xs text-blue-500 animate-pulse">Buscando comida...</p>}
@@ -472,11 +473,16 @@ export default function Home() {
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
             <div className="w-full max-w-6xl space-y-6">
 
-                <div className="text-center space-y-2">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-red-600 drop-shadow-sm tracking-tight">
-                        CaraCola Viajes 🐌 V5
-                    </h1>
-                    <p className="text-gray-500 text-sm md:text-base">Tu ruta en autocaravana, paso a paso.</p>
+                {/* --- HEADER CARACOLA CON LOGO --- */}
+                <div className="text-center space-y-4 mb-6 flex flex-col items-center">
+                    <img
+                        src="/logo.jpg"
+                        alt="CaraCola Viajes"
+                        className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
+                    />
+                    <p className="text-gray-500 text-sm md:text-base font-medium">
+                        Tu ruta en autocaravana, paso a paso.
+                    </p>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100">
@@ -624,7 +630,6 @@ export default function Home() {
                                                 </div>
                                                 <p className="text-xs text-gray-400 mb-4">Haz clic en una fila para ver detalles 👇</p>
 
-                                                {/* TABLA REDISEÑADA (FASE 4.1) */}
                                                 <div className="border border-gray-100 rounded-lg overflow-hidden">
                                                     <table className="min-w-full text-xs text-left">
                                                         <thead className="bg-gray-50 text-gray-500 font-bold uppercase"><tr><th className="px-3 py-2 text-center">Icon</th><th className="px-1 py-2">Etapa</th><th className="px-3 py-2 text-right">Km</th></tr></thead>
@@ -635,18 +640,15 @@ export default function Home() {
                                                                     onClick={() => focusMapOnStage(index)}
                                                                     className="hover:bg-red-50 transition cursor-pointer"
                                                                 >
-                                                                    {/* COLUMNA ICONO */}
                                                                     <td className="pl-3 py-2 w-10 text-center text-xl align-middle">
                                                                         {day.isDriving ? '🚐' : '🏖️'}
                                                                     </td>
-                                                                    {/* COLUMNA INFO */}
                                                                     <td className="px-1 py-2 align-middle">
                                                                         <div className="font-bold text-gray-800 text-sm">Día {day.day}</div>
                                                                         <div className="text-[10px] text-gray-400 mt-0.5">
                                                                             {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                                         </div>
                                                                     </td>
-                                                                    {/* COLUMNA KM */}
                                                                     <td className="pr-3 py-2 text-right font-mono text-xs text-gray-500 align-middle">
                                                                         {day.isDriving ? `${day.distance.toFixed(0)}` : '-'}
                                                                     </td>
