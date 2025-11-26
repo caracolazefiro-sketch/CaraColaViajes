@@ -58,6 +58,7 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
+const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 
 // --- COMPONENTE: LISTA DE SPOTS Y SERVICIOS ---
 const DaySpotsList: React.FC<{
@@ -217,6 +218,9 @@ export default function Home() {
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
 
+    // --- ESTADO DE INICIALIZACIÓN (Para localStorage) ---
+    const [isInitialized, setIsInitialized] = useState(false);
+
     // ESTADO UNIFICADO
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
@@ -246,6 +250,38 @@ export default function Home() {
 
     const [loading, setLoading] = useState(false);
     const [showWaypoints, setShowWaypoints] = useState(true);
+
+    // --- 1. CARGAR DATOS AL INICIO (PERSISTENCIA) ---
+    useEffect(() => {
+        const savedData = localStorage.getItem('caracola_trip_v1');
+        if (savedData) {
+            try {
+                const parsed = JSON.parse(savedData);
+                if (parsed.formData) setFormData(parsed.formData);
+                if (parsed.results) setResults(parsed.results);
+                console.log("💾 Viaje cargado de la memoria.");
+            } catch (e) {
+                console.error("Error cargando localStorage", e);
+            }
+        }
+        setIsInitialized(true); // Marcamos como inicializado para empezar a guardar
+    }, []);
+
+    // --- 2. GUARDAR DATOS AUTOMÁTICAMENTE ---
+    useEffect(() => {
+        if (isInitialized) {
+            const dataToSave = { formData, results };
+            localStorage.setItem('caracola_trip_v1', JSON.stringify(dataToSave));
+        }
+    }, [formData, results, isInitialized]);
+
+    // --- RESETEAR VIAJE (NUEVO BOTÓN) ---
+    const handleResetTrip = () => {
+        if (confirm("¿Seguro que quieres borrar este viaje y empezar de cero?")) {
+            localStorage.removeItem('caracola_trip_v1');
+            window.location.reload(); // Recarga rápida para limpiar estados
+        }
+    };
 
     useEffect(() => { if (!showWaypoints) setFormData(prev => ({ ...prev, etapas: '' })); }, [showWaypoints]);
 
@@ -369,6 +405,7 @@ export default function Home() {
         const dailyPlan = results.dailyItinerary[dayIndex];
         if (!dailyPlan) return;
         setSelectedDayIndex(dayIndex);
+
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -408,6 +445,7 @@ export default function Home() {
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
         setSelectedDayIndex(null);
+        // Resetear
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -533,8 +571,8 @@ export default function Home() {
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
             <div className="w-full max-w-6xl space-y-6">
 
-                {/* --- HEADER CARACOLA CON LOGO --- */}
-                <div className="text-center space-y-4 mb-6 flex flex-col items-center">
+                {/* --- HEADER CARACOLA CON LOGO Y RESET --- */}
+                <div className="relative text-center space-y-4 mb-6 flex flex-col items-center">
                     <img
                         src="/logo.jpg"
                         alt="CaraCola Viajes"
@@ -543,6 +581,16 @@ export default function Home() {
                     <p className="text-gray-500 text-sm md:text-base font-medium">
                         Tu ruta en autocaravana, paso a paso.
                     </p>
+                    {/* Botón Reset Flotante o al lado del título */}
+                    {results.dailyItinerary && (
+                        <button
+                            onClick={handleResetTrip}
+                            className="absolute top-0 right-0 md:right-10 text-gray-400 hover:text-red-500 text-xs flex items-center gap-1 transition"
+                            title="Borrar viaje y empezar de cero"
+                        >
+                            <IconReset /> Borrar Viaje
+                        </button>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100">
@@ -658,23 +706,20 @@ export default function Home() {
 
                                         {Object.keys(places).map((key) => {
                                             const type = key as ServiceType;
+                                            if (!toggles[type] && type !== 'camping') return null;
 
-                                            // 1. Recuperar el día seleccionado y sus guardados
                                             const savedDay = results.dailyItinerary![selectedDayIndex!];
                                             const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
 
-                                            // 2. LÓGICA MAESTRA DE VISIBILIDAD:
                                             let listToRender: PlaceWithDistance[] = [];
 
                                             if (toggles[type] || type === 'camping') {
-                                                // Si el botón está ENCENDIDO -> Mostramos búsqueda + guardados
                                                 if (savedOfType.length > 0 && type !== 'tourism') {
-                                                    listToRender = savedOfType; // Modo foco
+                                                    listToRender = savedOfType;
                                                 } else {
-                                                    listToRender = [...savedOfType, ...places[type]]; // Mezcla
+                                                    listToRender = [...savedOfType, ...places[type]];
                                                 }
                                             } else {
-                                                // Si el botón está APAGADO -> SOLO mostramos lo guardado (Permanencia)
                                                 listToRender = savedOfType;
                                             }
 
@@ -743,7 +788,7 @@ export default function Home() {
                                                 </div>
                                                 <p className="text-xs text-gray-400 mb-4">Haz clic en una fila para ver detalles 👇</p>
 
-                                                {/* --- TARJETAS RESUMEN (FASE 8.1) --- */}
+                                                {/* LISTA DE TARJETAS DEL ITINERARIO */}
                                                 <div className="space-y-3 text-left">
                                                     {results.dailyItinerary?.map((day, index) => (
                                                         <div
@@ -763,7 +808,6 @@ export default function Home() {
                                                                 {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                             </div>
 
-                                                            {/* LISTA DE SITIOS GUARDADOS EN EL RESUMEN */}
                                                             {day.savedPlaces && day.savedPlaces.length > 0 && (
                                                                 <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
                                                                     {day.savedPlaces.map((place, i) => (
