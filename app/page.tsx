@@ -9,9 +9,8 @@ const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
 // --- ICONOS MAPA (URLs de Google para diferenciar) ---
-// Usaremos marcadores estándar de Google: Rojo (Default) para Campings, Azul para Restaurantes.
-const ICON_URL_CAMPING = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
-const ICON_URL_RESTAURANT = "http://maps.google.com/mapfiles/ms/icons/blue-dot.png";
+const ICON_URL_CAMPING = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";   // Rojo
+const ICON_URL_RESTAURANT = "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"; // Azul
 const ICONS_ITINERARY = {
     startEnd: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
     tactical: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
@@ -27,7 +26,6 @@ interface TripResult {
     totalDays: number | null; distanceKm: number | null; totalCost: number | null;
     dailyItinerary: DailyPlan[] | null; error: string | null;
 }
-// Interfaz manual para evitar errores de compilación
 interface PlaceWithDistance {
     name?: string;
     rating?: number;
@@ -35,7 +33,7 @@ interface PlaceWithDistance {
     place_id?: string;
     geometry?: { location?: any; };
     distanceFromCenter?: number;
-    type?: 'camping' | 'restaurant'; // Para saber de qué color pintarlo
+    type?: 'camping' | 'restaurant';
 }
 
 // --- ICONOS SVG ---
@@ -70,84 +68,94 @@ const DaySpotsList: React.FC<{
             </div>
 
             {day.isDriving && (
-                <div className="pt-3 border-t border-dashed border-red-200 space-y-4">
+                <div className="pt-3 border-t border-dashed border-red-200">
 
-                    {/* SECCIÓN 1: SPOTS (PERNOCTA) - SIEMPRE VISIBLES */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <h5 className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                                <span className="text-lg">🚐</span> Pernocta (Spots):
-                            </h5>
-                            <span className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">
-                                {campings.length}
-                            </span>
+                    {/* --- BARRA DE HERRAMIENTAS (SERVICIOS) SIEMPRE ARRIBA --- */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {/* Etiqueta Pernocta (Siempre activa) */}
+                        <div className="px-3 py-1.5 rounded-lg bg-red-100 text-red-800 text-xs font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm">
+                            <span>🚐</span> Pernocta ({campings.length})
                         </div>
 
-                        {loadingCampings && <p className="text-xs text-red-500 animate-pulse">Buscando áreas...</p>}
-
-                        {!loadingCampings && campings.length > 0 && (
-                            <div className="space-y-2">
-                                {campings.map((spot, idx) => (
-                                    <div
-                                        key={`camp-${idx}`}
-                                        className="group bg-white p-2 rounded border border-red-200 hover:border-red-400 cursor-pointer transition-all flex gap-2 items-center"
-                                        onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
-                                    >
-                                        {/* NÚMERO ROJO */}
-                                        <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-600">
-                                            {idx + 1}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
-                                            <span className="text-[10px] text-gray-400 truncate block">{spot.vicinity?.split(',')[0]}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {!loadingCampings && campings.length === 0 && <p className="text-xs text-gray-400 italic">No hay campings cercanos.</p>}
+                        {/* Botón Restaurantes (Toggle) */}
+                        <button
+                            onClick={onToggleRestaurants}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1 shadow-sm
+                            ${showRestaurants
+                                    ? 'bg-blue-600 text-white border-blue-700'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                        >
+                            <span>🍳</span> Restaurantes
+                        </button>
                     </div>
 
-                    {/* BOTÓN TOGGLE RESTAURANTES */}
-                    <button
-                        onClick={onToggleRestaurants}
-                        className={`w-full py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${showRestaurants ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'}`}
-                    >
-                        {showRestaurants ? '🍳 Ocultar Restaurantes' : '🍳 Mostrar Restaurantes Cercanos'}
-                    </button>
+                    <div className="space-y-6">
+                        {/* LISTA 1: SPOTS (PERNOCTA) */}
+                        <div>
+                            <h5 className="text-xs font-bold text-red-800 mb-2 border-b border-red-100 pb-1">
+                                Áreas y Campings Cercanos
+                            </h5>
 
-                    {/* SECCIÓN 2: RESTAURANTES (CONDICIONAL) */}
-                    {showRestaurants && (
-                        <div className="animate-fadeIn">
-                            {loadingRestaurants && <p className="text-xs text-blue-500 animate-pulse mt-2">Buscando comida...</p>}
+                            {loadingCampings && <p className="text-xs text-red-500 animate-pulse">Buscando áreas...</p>}
 
-                            {!loadingRestaurants && restaurants.length > 0 && (
-                                <div className="space-y-2 mt-2">
-                                    {restaurants.map((spot, idx) => (
+                            {!loadingCampings && campings.length > 0 && (
+                                <div className="space-y-2">
+                                    {campings.map((spot, idx) => (
                                         <div
-                                            key={`rest-${idx}`}
-                                            className="group bg-white p-2 rounded border border-blue-200 hover:border-blue-400 cursor-pointer transition-all flex gap-2 items-center"
+                                            key={`camp-${idx}`}
+                                            className="group bg-white p-2 rounded border border-red-200 hover:border-red-400 cursor-pointer transition-all flex gap-2 items-center shadow-sm"
                                             onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                         >
-                                            {/* NÚMERO AZUL */}
-                                            <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-blue-600">
+                                            <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-600">
                                                 {idx + 1}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
-                                                <div className="flex items-center gap-2">
-                                                    {spot.rating && <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span>}
-                                                    <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
-                                                </div>
+                                                <h6 className="text-xs font-bold text-gray-800 truncate group-hover:text-red-600">{spot.name}</h6>
+                                                <span className="text-[10px] text-gray-400 truncate block">{spot.vicinity?.split(',')[0]}</span>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                            {!loadingRestaurants && restaurants.length === 0 && <p className="text-xs text-gray-400 italic mt-2">No hay restaurantes cerca.</p>}
+                            {!loadingCampings && campings.length === 0 && <p className="text-xs text-gray-400 italic">No hay campings cercanos.</p>}
                         </div>
-                    )}
 
+                        {/* LISTA 2: RESTAURANTES (Solo si activo) */}
+                        {showRestaurants && (
+                            <div className="animate-fadeIn">
+                                <h5 className="text-xs font-bold text-blue-800 mb-2 border-b border-blue-100 pb-1 flex justify-between">
+                                    <span>Restaurantes Cercanos</span>
+                                    <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 rounded">{restaurants.length}</span>
+                                </h5>
+
+                                {loadingRestaurants && <p className="text-xs text-blue-500 animate-pulse">Buscando comida...</p>}
+
+                                {!loadingRestaurants && restaurants.length > 0 && (
+                                    <div className="space-y-2">
+                                        {restaurants.map((spot, idx) => (
+                                            <div
+                                                key={`rest-${idx}`}
+                                                className="group bg-white p-2 rounded border border-blue-200 hover:border-blue-400 cursor-pointer transition-all flex gap-2 items-center shadow-sm"
+                                                onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
+                                            >
+                                                <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-blue-600">
+                                                    {idx + 1}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h6 className="text-xs font-bold text-gray-800 truncate group-hover:text-blue-600">{spot.name}</h6>
+                                                    <div className="flex items-center gap-2">
+                                                        {spot.rating && <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span>}
+                                                        <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {!loadingRestaurants && restaurants.length === 0 && <p className="text-xs text-gray-400 italic">No hay restaurantes cerca.</p>}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
             {!day.isDriving && <p className="text-sm text-gray-700">Día de relax en {rawCityName}.</p>}
@@ -174,7 +182,7 @@ export default function Home() {
     const [restaurants, setRestaurants] = useState<PlaceWithDistance[]>([]);
     const [loadingCampings, setLoadingCampings] = useState(false);
     const [loadingRestaurants, setLoadingRestaurants] = useState(false);
-    const [showRestaurants, setShowRestaurants] = useState(false); // Toggle
+    const [showRestaurants, setShowRestaurants] = useState(false);
 
     const [formData, setFormData] = useState({
         fechaInicio: new Date().toISOString().split('T')[0],
@@ -217,7 +225,6 @@ export default function Home() {
         return null;
     };
 
-    // --- FUNCIÓN BÚSQUEDA GENÉRICA (Reutilizable) ---
     const searchPlaces = useCallback((location: Coordinates, type: 'camping' | 'restaurant') => {
         if (!map || typeof google === 'undefined') return;
 
@@ -256,7 +263,7 @@ export default function Home() {
                         place_id: spot.place_id,
                         geometry: spot.geometry,
                         distanceFromCenter: dist,
-                        type: type // Guardamos el tipo para saber el color
+                        type: type
                     };
                 });
                 spotsWithDistance.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
@@ -270,12 +277,9 @@ export default function Home() {
         });
     }, [map]);
 
-    // Handler para activar/desactivar restaurantes
     const handleToggleRestaurants = () => {
         const newState = !showRestaurants;
         setShowRestaurants(newState);
-
-        // Si activamos y no tenemos datos, buscamos
         if (newState && selectedDayIndex !== null && results.dailyItinerary) {
             const day = results.dailyItinerary[selectedDayIndex];
             if (day.coordinates) {
@@ -294,15 +298,15 @@ export default function Home() {
         if (!dailyPlan) return;
 
         setSelectedDayIndex(dayIndex);
-        setShowRestaurants(false); // Resetear restaurantes al cambiar día
-        setRestaurants([]); // Limpiar datos antiguos
+        setShowRestaurants(false);
+        setRestaurants([]);
 
         if (dailyPlan.coordinates) {
             const bounds = new google.maps.LatLngBounds();
             bounds.extend({ lat: dailyPlan.coordinates.lat + 0.4, lng: dailyPlan.coordinates.lng + 0.4 });
             bounds.extend({ lat: dailyPlan.coordinates.lat - 0.4, lng: dailyPlan.coordinates.lng - 0.4 });
             setMapBounds(bounds);
-            searchPlaces(dailyPlan.coordinates, 'camping'); // Buscar solo campings de inicio
+            searchPlaces(dailyPlan.coordinates, 'camping');
         } else {
             setCampings([]);
             const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
@@ -498,7 +502,7 @@ export default function Home() {
                                     ➕ Añadir Paradas Intermedias
                                 </label>
                                 {showWaypoints && (
-                                    <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full px-3 py-2 bg-white border border-blue-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" />
+                                    <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full px-3 py-2 bg-white border border-red-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" />
                                 )}
                             </div>
 
@@ -563,7 +567,6 @@ export default function Home() {
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* MAPA */}
                                 <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative">
                                     <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
                                         {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#DC2626", strokeWeight: 4 }} />}
@@ -577,24 +580,22 @@ export default function Home() {
                                             />
                                         ))}
 
-                                        {/* PINTAMOS CAMPINGS (ROJO) */}
                                         {campings.map((spot, i) => spot.geometry?.location && (
                                             <Marker
                                                 key={`camp-${i}`}
                                                 position={spot.geometry.location}
-                                                icon={ICON_URL_CAMPING} // Icono Rojo
+                                                icon={ICON_URL_CAMPING}
                                                 label={{ text: (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
                                                 title={spot.name}
                                                 onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                             />
                                         ))}
 
-                                        {/* PINTAMOS RESTAURANTES (AZUL) - SOLO SI ESTÁN ACTIVOS */}
                                         {showRestaurants && restaurants.map((spot, i) => spot.geometry?.location && (
                                             <Marker
                                                 key={`rest-${i}`}
                                                 position={spot.geometry.location}
-                                                icon={ICON_URL_RESTAURANT} // Icono Azul
+                                                icon={ICON_URL_RESTAURANT}
                                                 label={{ text: (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
                                                 title={spot.name}
                                                 onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
@@ -603,7 +604,6 @@ export default function Home() {
                                     </GoogleMap>
                                 </div>
 
-                                {/* PANEL LATERAL */}
                                 <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px]">
                                     <div className='p-0 h-full overflow-hidden'>
                                         {selectedDayIndex === null ? (
