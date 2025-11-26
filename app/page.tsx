@@ -8,22 +8,21 @@ const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
-// --- ICONOS MAPA (URLs de Google) ---
-// Definimos los iconos para los servicios encontrados
+// --- ICONOS MAPA (COHERENCIA DE COLOR) ---
+// Usamos marcadores de colores específicos para coincidir con la UI
 const MARKER_ICONS = {
     camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",      // Rojo
     restaurant: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",   // Azul
-    water: "http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png",        // Azul claro
-    gas: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png",          // Naranja
-    supermarket: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",  // Verde
-    laundry: "http://maps.google.com/mapfiles/ms/icons/purple-dot.png",      // Morado
-    tourism: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"       // Amarillo
+    water: "http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png",      // Azul Claro
+    gas: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png",        // Naranja
+    supermarket: "http://maps.google.com/mapfiles/ms/icons/green-dot.png", // Verde
+    laundry: "http://maps.google.com/mapfiles/ms/icons/purple-dot.png",    // Morado
+    tourism: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"     // Amarillo
 };
 
-// Definimos los iconos para LA RUTA (Origen, Destino, Paradas)
 const ICONS_ITINERARY = {
-    startEnd: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",     // Rojo
-    tactical: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",     // Azul
+    startEnd: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+    tactical: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
 };
 
 // --- INTERFACES ---
@@ -86,11 +85,20 @@ const DaySpotsList: React.FC<{
         </button>
     );
 
-    // Helper Lista Resultados
-    const ServiceList = ({ type, title, colorClass, icon }: { type: ServiceType, title: string, colorClass: string, icon: string }) => {
-        if (!toggles[type] && type !== 'camping') return null; // Camping siempre visible
+    // Helper Lista Resultados (CON FILTRO DE "MODO FOCO")
+    const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
+        // Si no está activo el toggle y no es camping, fuera.
+        if (!toggles[type] && type !== 'camping') return null;
 
-        const list = places[type];
+        // **MODO FOCO**: Si ya he guardado un sitio de este tipo, SOLO muestro ese.
+        const savedOfType = saved.find(s => s.type === type);
+        let list = places[type];
+
+        if (savedOfType) {
+            // Si hay uno guardado, la lista es SOLO ese
+            list = [savedOfType];
+        }
+
         const isLoading = loading[type];
 
         return (
@@ -105,8 +113,12 @@ const DaySpotsList: React.FC<{
                 {!isLoading && list.length > 0 && (
                     <div className="space-y-2">
                         {list.map((spot, idx) => (
-                            <div key={`${type}-${idx}`} className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-400 bg-green-50' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`}>
-                                <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${type === 'camping' ? 'bg-red-600' : 'bg-blue-500'}`}>
+                            <div
+                                key={`${type}-${idx}`}
+                                className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`}
+                            >
+                                {/* ICONO DE COLOR COINCIDENTE CON EL MAPA */}
+                                <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>
                                     {idx + 1}
                                 </div>
                                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}>
@@ -116,14 +128,23 @@ const DaySpotsList: React.FC<{
                                         <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
                                     </div>
                                 </div>
-                                <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-blue-50 hover:text-blue-600'}`}>
-                                    {isSaved(spot.place_id) ? '✔' : '+'}
+                                {/* Botón Acción */}
+                                <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>
+                                    {isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}
                                 </button>
                             </div>
                         ))}
                     </div>
                 )}
+
                 {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
+
+                {/* Mensaje informativo si estamos en Modo Foco */}
+                {savedOfType && (
+                    <p className="text-[9px] text-green-600 mt-1 italic text-center">
+                        Has elegido este sitio. Borra para ver más opciones.
+                    </p>
+                )}
             </div>
         );
     };
@@ -139,14 +160,19 @@ const DaySpotsList: React.FC<{
                 </p>
             </div>
 
+            {/* --- PANEL RESUMEN DEL DÍA (PLAN) --- */}
             {saved.length > 0 && (
-                <div className="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
-                    <h5 className="text-xs font-bold text-green-700 mb-2 flex items-center gap-1">✅ Mi Plan</h5>
+                <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn">
+                    <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1">
+                        <span>✅</span> MI PLAN PARA HOY:
+                    </h5>
                     <div className="space-y-1">
                         {saved.map((place, i) => (
-                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded border border-green-100">
-                                <div className="truncate flex-1 mr-2"><span className="font-medium text-green-900">{place.name}</span></div>
-                                <button onClick={() => place.place_id && onRemovePlace(place.place_id)} className="text-red-400 hover:text-red-600"><IconTrash /></button>
+                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded">
+                                <div className="truncate flex-1 mr-2">
+                                    <span className="mr-1 font-bold">{place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : '📍'}</span>
+                                    <span className="font-medium text-green-900">{place.name}</span>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -155,9 +181,11 @@ const DaySpotsList: React.FC<{
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200">
+
+                    {/* SUPER BOTONERA */}
                     <div className="flex flex-wrap gap-2 mb-2">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm flex-grow justify-center">
-                            <span>🚐</span> Spots ({places.camping.length})
+                            <span>🚐</span> Spots
                         </div>
                         <ServiceButton type="water" icon="💧" label="Aguas" />
                         <ServiceButton type="gas" icon="⛽" label="Gasolineras" />
@@ -170,13 +198,13 @@ const DaySpotsList: React.FC<{
                     </div>
 
                     <div className="space-y-2">
-                        <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" />
-                        <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" icon="💧" />
-                        <ServiceList type="gas" title="Gasolineras" colorClass="text-orange-600" icon="⛽" />
-                        <ServiceList type="restaurant" title="Restaurantes" colorClass="text-blue-800" icon="🍳" />
-                        <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" />
-                        <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" />
-                        <ServiceList type="tourism" title="Turismo" colorClass="text-yellow-600" icon="📷" />
+                        <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
+                        <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" />
+                        <ServiceList type="gas" title="Gasolineras" colorClass="text-orange-600" icon="⛽" markerColor="bg-orange-500" />
+                        <ServiceList type="restaurant" title="Restaurantes" colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" />
+                        <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
+                        <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
+                        <ServiceList type="tourism" title="Turismo" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
                     </div>
                 </div>
             )}
@@ -199,7 +227,7 @@ export default function Home() {
     const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
 
-    // --- ESTADO UNIFICADO ---
+    // ESTADO UNIFICADO
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
     });
@@ -345,6 +373,8 @@ export default function Home() {
         const dailyPlan = results.dailyItinerary[dayIndex];
         if (!dailyPlan) return;
         setSelectedDayIndex(dayIndex);
+
+        // Resetear toggles al cambiar de día
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -384,6 +414,7 @@ export default function Home() {
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
         setSelectedDayIndex(null);
+        // Resetear
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -509,16 +540,10 @@ export default function Home() {
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
             <div className="w-full max-w-6xl space-y-6">
 
-                {/* --- HEADER CON LOGO (asegúrate de que sea .jpg) --- */}
+                {/* HEADER */}
                 <div className="text-center space-y-4 mb-6 flex flex-col items-center">
-                    <img
-                        src="/logo.jpg"
-                        alt="CaraCola Viajes"
-                        className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
-                    />
-                    <p className="text-gray-500 text-sm md:text-base font-medium">
-                        Tu ruta en autocaravana, paso a paso.
-                    </p>
+                    <img src="/logo.jpg" alt="CaraCola Viajes" className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" />
+                    <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100">
@@ -600,7 +625,7 @@ export default function Home() {
                                 <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                                 <div className="flex flex-wrap gap-2">
                                     <button
-                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setCampings([]); setRestaurants([]); }}
+                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false }); setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] }); }}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}
                                     >
                                         🌎 General
@@ -619,6 +644,7 @@ export default function Home() {
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* MAPA CON MARCADORES */}
                                 <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative">
                                     <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
                                         {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#DC2626", strokeWeight: 4 }} />}
@@ -632,16 +658,24 @@ export default function Home() {
                                             />
                                         ))}
 
+                                        {/* RENDERIZADO DE MARCADORES CON "MODO FOCO" */}
                                         {Object.keys(places).map((key) => {
                                             const type = key as ServiceType;
                                             if (!toggles[type] && type !== 'camping') return null;
 
-                                            return places[type].map((spot, i) => (
+                                            const savedDay = results.dailyItinerary![selectedDayIndex!];
+                                            const savedOfType = savedDay?.savedPlaces?.find(s => s.type === type);
+
+                                            // Si hay uno guardado, solo pintamos ese
+                                            const listToRender = savedOfType ? [savedOfType] : places[type];
+
+                                            return listToRender.map((spot, i) => (
                                                 spot.geometry?.location && (
                                                     <Marker
                                                         key={`${type}-${i}`}
                                                         position={spot.geometry.location}
                                                         icon={MARKER_ICONS[type]}
+                                                        label={{ text: (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
                                                         title={spot.name}
                                                         onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                     />
