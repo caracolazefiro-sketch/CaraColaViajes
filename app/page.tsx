@@ -62,8 +62,7 @@ interface DailyPlan {
     to: string;
     distance: number;
     isDriving: boolean;
-    coordinates?: Coordinates;
-    type: 'overnight' | 'tactical' | 'start' | 'end';
+    coordinates?: Coordinates; type: 'overnight' | 'tactical' | 'start' | 'end';
     savedPlaces?: PlaceWithDistance[];
 }
 
@@ -150,10 +149,7 @@ const DaySpotsList: React.FC<{
     const [loadingElevation, setLoadingElevation] = useState(false);
 
     useEffect(() => {
-        // CORRECCIÓN 1: Check de seguridad
-        const coords = day.coordinates;
-        if (!coords || !day.isoDate) return;
-
+        if (!day.coordinates || !day.isoDate) return;
         const fetchWeather = async () => {
             setWeatherStatus('loading');
             const today = new Date();
@@ -161,7 +157,7 @@ const DaySpotsList: React.FC<{
             const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays < 0 || diffDays > 14) { setWeatherStatus('far_future'); return; }
             try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${day.coordinates.lat}&longitude=${day.coordinates.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
                 const data = await res.json();
                 if (data.daily) {
                     setWeather({ code: data.daily.weather_code[0], maxTemp: data.daily.temperature_2m_max[0], minTemp: data.daily.temperature_2m_min[0], rainProb: data.daily.precipitation_probability_max[0] });
@@ -179,7 +175,6 @@ const DaySpotsList: React.FC<{
         const cleanFrom = day.from.split('|')[0];
         const ds = new google.maps.DirectionsService();
 
-        // Asegurar coordenadas
         if (!day.coordinates) return;
         const dest = new google.maps.LatLng(day.coordinates.lat, day.coordinates.lng);
 
@@ -541,6 +536,7 @@ export default function Home() {
                     if (type === 'camping') {
                         const nameLower = spot.name?.toLowerCase() || "";
                         const isCampingName = nameLower.includes("camping") || nameLower.includes("area") || nameLower.includes("autocaravana") || nameLower.includes("camper");
+
                         if (tags.includes('campground') || tags.includes('rv_park')) return true;
                         if (tags.includes('parking') && isCampingName) return true;
                         return false;
@@ -552,6 +548,8 @@ export default function Home() {
                         return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
                     }
                     if (type === 'laundry') {
+                        // Exclusión de hoteles
+                        if (tags.includes('lodging') && !tags.includes('laundry')) return false;
                         return tags.includes('laundry');
                     }
                     return true;
