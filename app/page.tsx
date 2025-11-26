@@ -83,6 +83,7 @@ const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 const IconMountain = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
+const IconExcel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>);
 
 // --- HELPER TIEMPO ---
 const getWeatherIcon = (code: number) => {
@@ -125,7 +126,7 @@ const ElevationChart: React.FC<{ data: { distance: number, elevation: number }[]
     );
 };
 
-// --- COMPONENTE: LISTA DE SPOTS ---
+// --- COMPONENTE: LISTA DE SPOTS Y SERVICIOS ---
 const DaySpotsList: React.FC<{
     day: DailyPlan,
     places: Record<ServiceType, PlaceWithDistance[]>,
@@ -148,9 +149,7 @@ const DaySpotsList: React.FC<{
     const [loadingElevation, setLoadingElevation] = useState(false);
 
     useEffect(() => {
-        const coords = day.coordinates;
-        if (!coords || !day.isoDate) return;
-
+        if (!day.coordinates || !day.isoDate) return;
         const fetchWeather = async () => {
             setWeatherStatus('loading');
             const today = new Date();
@@ -158,9 +157,9 @@ const DaySpotsList: React.FC<{
             const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays < 0 || diffDays > 14) { setWeatherStatus('far_future'); return; }
             try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${day.coordinates.lat}&longitude=${day.coordinates.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
                 const data = await res.json();
-                if (data.daily && data.daily.time.length > 0) {
+                if (data.daily) {
                     setWeather({ code: data.daily.weather_code[0], maxTemp: data.daily.temperature_2m_max[0], minTemp: data.daily.temperature_2m_min[0], rainProb: data.daily.precipitation_probability_max[0] });
                     setWeatherStatus('success');
                 } else setWeatherStatus('error');
@@ -192,6 +191,41 @@ const DaySpotsList: React.FC<{
                 });
             } else { setLoadingElevation(false); }
         });
+    };
+
+    // --- FUNCIÓN EXPORTAR A CSV PARA EXCEL ---
+    const handleDownloadExcel = () => {
+        // Cabeceras del CSV
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Día,Ciudad,Tipo Servicio,Nombre,Rating,Distancia (m),Dirección,Google Maps Link,Tags de Google\n";
+
+        // Recorremos todos los tipos de servicios cargados
+        (Object.keys(places) as ServiceType[]).forEach(type => {
+            places[type].forEach(p => {
+                // Preparamos cada fila. Ojo con las comas en los nombres, las escapamos entre comillas.
+                const row = [
+                    `Día ${day.day}`,
+                    `"${rawCityName}"`,
+                    type.toUpperCase(),
+                    `"${p.name?.replace(/"/g, '""')}"`, // Escapar comillas dobles
+                    p.rating || "",
+                    Math.round(p.distanceFromCenter || 0),
+                    `"${p.vicinity?.replace(/"/g, '""')}"`,
+                    `https://www.google.com/maps/place/?q=place_id:${p.place_id}`,
+                    `"${p.types?.join(', ')}"`
+                ].join(",");
+                csvContent += row + "\n";
+            });
+        });
+
+        // Crear enlace de descarga y clicarlo automáticamente
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `auditoria_${rawCityName.replace(/\s/g, '_')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleCopyAudit = () => {
@@ -233,6 +267,7 @@ const DaySpotsList: React.FC<{
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
                                     <div className="flex items-center gap-2">{spot.rating && <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span>}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
 
+                                    {/* DATOS DE AUDITORÍA (SOLO SI MODO ACTIVO) */}
                                     {auditMode && (
                                         <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded">
                                             <p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p>
@@ -277,6 +312,7 @@ const DaySpotsList: React.FC<{
                 </div>
             </div>
 
+            {/* ALTIMETRÍA */}
             {day.isDriving && (
                 <div className="mt-2">
                     {!elevationData && !loadingElevation && (
@@ -289,10 +325,16 @@ const DaySpotsList: React.FC<{
                 </div>
             )}
 
+            {/* BOTONES MODO AUDITOR */}
             {auditMode && (
-                <button onClick={handleCopyAudit} className="w-full text-xs font-mono bg-gray-800 text-white py-1 rounded mb-2 mt-2 hover:bg-black">
-                    📋 Copiar Datos Técnicos del Día
-                </button>
+                <div className="grid grid-cols-2 gap-2 mb-2 mt-2">
+                    <button onClick={handleCopyAudit} className="text-xs font-mono bg-gray-800 text-white py-1 rounded hover:bg-black">
+                        📋 Copiar Texto
+                    </button>
+                    <button onClick={handleDownloadExcel} className="text-xs font-mono bg-green-700 text-white py-1 rounded hover:bg-green-800 flex items-center justify-center gap-1">
+                        <IconExcel /> Descargar Excel
+                    </button>
+                </div>
             )}
 
             {saved.length > 0 && (
@@ -875,12 +917,7 @@ export default function Home() {
                                                         key={`${type}-${i}`}
                                                         position={spot.geometry.location}
                                                         icon={MARKER_ICONS[type]}
-                                                        label={{
-                                                            text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
-                                                            color: "white",
-                                                            fontWeight: "bold",
-                                                            fontSize: "10px"
-                                                        }}
+                                                        label={{ text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
                                                         title={spot.name}
                                                         onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                         onMouseOver={() => setHoveredPlace(spot)}
