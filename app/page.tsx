@@ -1,4 +1,4 @@
-'use client';
+'use client'; // Versión Fase 4
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
