@@ -117,16 +117,15 @@ const DaySpotsList: React.FC<{
                             {!loadingCampings && campings.length === 0 && <p className="text-xs text-gray-400 italic">No hay campings cercanos.</p>}
                         </div>
 
-                        {/* LISTA 2: RESTAURANTES (CON CONTADOR ARREGLADO) */}
+                        {/* LISTA 2: RESTAURANTES (CONTADOR FORZADO) */}
                         {showRestaurants && (
                             <div className="animate-fadeIn">
                                 <div className="flex items-center justify-between mb-2 border-b border-blue-100 pb-1">
                                     <h5 className="text-xs font-bold text-blue-800">Restaurantes Cercanos</h5>
-                                    {!loadingRestaurants && (
-                                        <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                            {restaurants.length}
-                                        </span>
-                                    )}
+                                    {/* El contador se muestra SIEMPRE si el panel está abierto */}
+                                    <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                        {loadingRestaurants ? '...' : restaurants.length}
+                                    </span>
                                 </div>
 
                                 {loadingRestaurants && <p className="text-xs text-blue-500 animate-pulse">Buscando comida...</p>}
@@ -220,7 +219,6 @@ export default function Home() {
             if (mapBounds) {
                 setTimeout(() => map.fitBounds(mapBounds), 500);
             } else if (directionsResponse && selectedDayIndex === null) {
-                // Si estamos en VISTA GENERAL, hacemos zoom a toda la ruta
                 const routeBounds = directionsResponse.routes[0].bounds;
                 setTimeout(() => map.fitBounds(routeBounds), 500);
             }
@@ -476,7 +474,7 @@ export default function Home() {
 
                 <div className="text-center space-y-2">
                     <h1 className="text-4xl md:text-5xl font-extrabold text-red-600 drop-shadow-sm tracking-tight">
-                        CaraCola Viajes 🐌 V4
+                        CaraCola Viajes 🐌 V5
                     </h1>
                     <p className="text-gray-500 text-sm md:text-base">Tu ruta en autocaravana, paso a paso.</p>
                 </div>
@@ -571,7 +569,7 @@ export default function Home() {
                                             onClick={() => focusMapOnStage(index)}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
                                         >
-                                            <span className="text-base">{day.isDriving ? '🚐' : '🏖️'}</span>
+                                            <span>{day.isDriving ? '🚐' : '🏖️'}</span>
                                             Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                         </button>
                                     ))}
@@ -626,9 +624,10 @@ export default function Home() {
                                                 </div>
                                                 <p className="text-xs text-gray-400 mb-4">Haz clic en una fila para ver detalles 👇</p>
 
+                                                {/* TABLA REDISEÑADA (FASE 4.1) */}
                                                 <div className="border border-gray-100 rounded-lg overflow-hidden">
                                                     <table className="min-w-full text-xs text-left">
-                                                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase"><tr><th className="px-3 py-2">Día</th><th className="px-3 py-2 text-right">Km</th></tr></thead>
+                                                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase"><tr><th className="px-3 py-2 text-center">Icon</th><th className="px-1 py-2">Etapa</th><th className="px-3 py-2 text-right">Km</th></tr></thead>
                                                         <tbody className="divide-y divide-gray-100">
                                                             {results.dailyItinerary?.map((day, index) => (
                                                                 <tr
@@ -636,17 +635,20 @@ export default function Home() {
                                                                     onClick={() => focusMapOnStage(index)}
                                                                     className="hover:bg-red-50 transition cursor-pointer"
                                                                 >
-                                                                    <td className="px-3 py-2">
-                                                                        <div className="font-medium text-gray-700 flex items-center gap-2">
-                                                                            <span className="text-lg">{day.isDriving ? '🚐' : '🏖️'}</span>
-                                                                            <span>Día {day.day}</span>
-                                                                        </div>
-                                                                        <div className="text-[10px] text-gray-400 mt-0.5 ml-7">
+                                                                    {/* COLUMNA ICONO */}
+                                                                    <td className="pl-3 py-2 w-10 text-center text-xl align-middle">
+                                                                        {day.isDriving ? '🚐' : '🏖️'}
+                                                                    </td>
+                                                                    {/* COLUMNA INFO */}
+                                                                    <td className="px-1 py-2 align-middle">
+                                                                        <div className="font-bold text-gray-800 text-sm">Día {day.day}</div>
+                                                                        <div className="text-[10px] text-gray-400 mt-0.5">
                                                                             {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-3 py-2 text-right font-mono text-gray-500 text-xs align-top pt-3">
-                                                                        {day.isDriving ? `${day.distance.toFixed(0)} km` : '-'}
+                                                                    {/* COLUMNA KM */}
+                                                                    <td className="pr-3 py-2 text-right font-mono text-xs text-gray-500 align-middle">
+                                                                        {day.isDriving ? `${day.distance.toFixed(0)}` : '-'}
                                                                     </td>
                                                                 </tr>
                                                             ))}
