@@ -1,4 +1,4 @@
-'use client'; // Versión Fase 4
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
@@ -117,7 +117,7 @@ const DaySpotsList: React.FC<{
                             {!loadingCampings && campings.length === 0 && <p className="text-xs text-gray-400 italic">No hay campings cercanos.</p>}
                         </div>
 
-                        {/* LISTA 2: RESTAURANTES (CON CONTADOR VISIBLE) */}
+                        {/* LISTA 2: RESTAURANTES (CON CONTADOR ARREGLADO) */}
                         {showRestaurants && (
                             <div className="animate-fadeIn">
                                 <div className="flex items-center justify-between mb-2 border-b border-blue-100 pb-1">
@@ -214,7 +214,7 @@ export default function Home() {
         }
     }, [formData.consumo, formData.precioGasoil, results.distanceKm]);
 
-    // --- ARREGLO CLAVE: ZOOM GENERAL ---
+    // --- ZOOM GENERAL ---
     useEffect(() => {
         if (map) {
             if (mapBounds) {
@@ -476,7 +476,7 @@ export default function Home() {
 
                 <div className="text-center space-y-2">
                     <h1 className="text-4xl md:text-5xl font-extrabold text-red-600 drop-shadow-sm tracking-tight">
-                        CaraCola Viajes 🐌
+                        CaraCola Viajes 🐌 V4
                     </h1>
                     <p className="text-gray-500 text-sm md:text-base">Tu ruta en autocaravana, paso a paso.</p>
                 </div>
@@ -571,7 +571,7 @@ export default function Home() {
                                             onClick={() => focusMapOnStage(index)}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
                                         >
-                                            <span>{day.isDriving ? '🚐' : '🏖️'}</span>
+                                            <span className="text-base">{day.isDriving ? '🚐' : '🏖️'}</span>
                                             Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                         </button>
                                     ))}
@@ -637,11 +637,11 @@ export default function Home() {
                                                                     className="hover:bg-red-50 transition cursor-pointer"
                                                                 >
                                                                     <td className="px-3 py-2">
-                                                                        <div className="font-medium text-gray-700 flex items-center gap-1">
-                                                                            <span className="text-base">{day.isDriving ? '🚐' : '🏖️'}</span>
+                                                                        <div className="font-medium text-gray-700 flex items-center gap-2">
+                                                                            <span className="text-lg">{day.isDriving ? '🚐' : '🏖️'}</span>
                                                                             <span>Día {day.day}</span>
                                                                         </div>
-                                                                        <div className="text-[10px] text-gray-400 mt-0.5">
+                                                                        <div className="text-[10px] text-gray-400 mt-0.5 ml-7">
                                                                             {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                                         </div>
                                                                     </td>
