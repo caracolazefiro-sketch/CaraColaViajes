@@ -8,19 +8,22 @@ const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
-// --- ICONOS MAPA (COLORES POR CATEGORÍA) ---
+// --- ICONOS MAPA (URLs de Google) ---
+// Definimos los iconos para los servicios encontrados
 const MARKER_ICONS = {
-    camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-    restaurant: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-    water: "http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png",      // Aguas (Azul claro)
-    gas: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png",        // Gasolinera (Naranja)
-    supermarket: "http://maps.google.com/mapfiles/ms/icons/green-dot.png", // Super (Verde)
-    laundry: "http://maps.google.com/mapfiles/ms/icons/purple-dot.png",    // Lavandería (Morado)
-    tourism: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",    // Turismo (Amarillo)
-    itinerary: {
-        startEnd: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-        tactical: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-    }
+    camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",      // Rojo
+    restaurant: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",   // Azul
+    water: "http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png",        // Azul claro
+    gas: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png",          // Naranja
+    supermarket: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",  // Verde
+    laundry: "http://maps.google.com/mapfiles/ms/icons/purple-dot.png",      // Morado
+    tourism: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"       // Amarillo
+};
+
+// Definimos los iconos para LA RUTA (Origen, Destino, Paradas)
+const ICONS_ITINERARY = {
+    startEnd: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",     // Rojo
+    tactical: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",     // Azul
 };
 
 // --- INTERFACES ---
@@ -58,11 +61,8 @@ const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 
 // --- COMPONENTE: LISTA DE SPOTS Y SERVICIOS ---
 const DaySpotsList: React.FC<{
     day: DailyPlan,
-    // Recibimos un objeto con todos los arrays de lugares
     places: Record<ServiceType, PlaceWithDistance[]>,
-    // Recibimos el estado de carga
     loading: Record<ServiceType, boolean>,
-    // Recibimos qué toggles están activos
     toggles: Record<ServiceType, boolean>,
     onToggle: (type: ServiceType) => void,
     onAddPlace: (place: PlaceWithDistance) => void,
@@ -73,7 +73,7 @@ const DaySpotsList: React.FC<{
     const saved = day.savedPlaces || [];
     const isSaved = (id?: string) => id ? saved.some(p => p.place_id === id) : false;
 
-    // Helper para renderizar botones de categoría
+    // Helper Botón Categoría
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
         <button
             onClick={() => onToggle(type)}
@@ -86,7 +86,7 @@ const DaySpotsList: React.FC<{
         </button>
     );
 
-    // Helper para renderizar listas de resultados
+    // Helper Lista Resultados
     const ServiceList = ({ type, title, colorClass, icon }: { type: ServiceType, title: string, colorClass: string, icon: string }) => {
         if (!toggles[type] && type !== 'camping') return null; // Camping siempre visible
 
@@ -106,7 +106,6 @@ const DaySpotsList: React.FC<{
                     <div className="space-y-2">
                         {list.map((spot, idx) => (
                             <div key={`${type}-${idx}`} className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-400 bg-green-50' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`}>
-                                {/* Número */}
                                 <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${type === 'camping' ? 'bg-red-600' : 'bg-blue-500'}`}>
                                     {idx + 1}
                                 </div>
@@ -117,7 +116,6 @@ const DaySpotsList: React.FC<{
                                         <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
                                     </div>
                                 </div>
-                                {/* Botón Añadir */}
                                 <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-blue-50 hover:text-blue-600'}`}>
                                     {isSaved(spot.place_id) ? '✔' : '+'}
                                 </button>
@@ -141,7 +139,6 @@ const DaySpotsList: React.FC<{
                 </p>
             </div>
 
-            {/* MIS SITIOS GUARDADOS */}
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
                     <h5 className="text-xs font-bold text-green-700 mb-2 flex items-center gap-1">✅ Mi Plan</h5>
@@ -158,8 +155,6 @@ const DaySpotsList: React.FC<{
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200">
-
-                    {/* --- SUPER BOTONERA --- */}
                     <div className="flex flex-wrap gap-2 mb-2">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm flex-grow justify-center">
                             <span>🚐</span> Spots ({places.camping.length})
@@ -176,12 +171,12 @@ const DaySpotsList: React.FC<{
 
                     <div className="space-y-2">
                         <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" />
-                        <ServiceList type="water" title="Cambio de Aguas / Servicios" colorClass="text-cyan-600" icon="💧" />
+                        <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" icon="💧" />
                         <ServiceList type="gas" title="Gasolineras" colorClass="text-orange-600" icon="⛽" />
                         <ServiceList type="restaurant" title="Restaurantes" colorClass="text-blue-800" icon="🍳" />
                         <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" />
                         <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" />
-                        <ServiceList type="tourism" title="Turismo y Visitas" colorClass="text-yellow-600" icon="📷" />
+                        <ServiceList type="tourism" title="Turismo" colorClass="text-yellow-600" icon="📷" />
                     </div>
                 </div>
             )}
@@ -204,7 +199,7 @@ export default function Home() {
     const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
 
-    // --- ESTADO UNIFICADO PARA LUGARES ---
+    // --- ESTADO UNIFICADO ---
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
     });
@@ -265,16 +260,14 @@ export default function Home() {
         return null;
     };
 
-    // --- BÚSQUEDA UNIFICADA ---
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
         if (!map || typeof google === 'undefined') return;
 
         const service = new google.maps.places.PlacesService(map);
         const centerPoint = new google.maps.LatLng(location.lat, location.lng);
 
-        // LÓGICA DE KEYWORDS
         let keywords = '';
-        let radius = 10000; // 10km por defecto
+        let radius = 10000;
 
         switch (type) {
             case 'camping': keywords = 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"'; radius = 20000; break;
@@ -352,8 +345,6 @@ export default function Home() {
         const dailyPlan = results.dailyItinerary[dayIndex];
         if (!dailyPlan) return;
         setSelectedDayIndex(dayIndex);
-
-        // Resetear toggles al cambiar de día (menos camping)
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -393,7 +384,6 @@ export default function Home() {
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
         setSelectedDayIndex(null);
-        // Resetear todo
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -519,9 +509,16 @@ export default function Home() {
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
             <div className="w-full max-w-6xl space-y-6">
 
+                {/* --- HEADER CON LOGO (asegúrate de que sea .jpg) --- */}
                 <div className="text-center space-y-4 mb-6 flex flex-col items-center">
-                    <img src="/logo.jpg" alt="CaraCola Viajes" className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" />
-                    <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
+                    <img
+                        src="/logo.jpg"
+                        alt="CaraCola Viajes"
+                        className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
+                    />
+                    <p className="text-gray-500 text-sm md:text-base font-medium">
+                        Tu ruta en autocaravana, paso a paso.
+                    </p>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100">
@@ -603,7 +600,7 @@ export default function Home() {
                                 <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                                 <div className="flex flex-wrap gap-2">
                                     <button
-                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false }); }}
+                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setCampings([]); setRestaurants([]); }}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}
                                     >
                                         🌎 General
@@ -664,32 +661,36 @@ export default function Home() {
                                                 </div>
                                                 <p className="text-xs text-gray-400 mb-4">Haz clic en una fila para ver detalles 👇</p>
 
-                                                <div className="border border-gray-100 rounded-lg overflow-hidden">
-                                                    <table className="min-w-full text-xs text-left">
-                                                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase"><tr><th className="px-3 py-2 text-center">Icon</th><th className="px-1 py-2">Etapa</th><th className="px-3 py-2 text-right">Km</th></tr></thead>
-                                                        <tbody className="divide-y divide-gray-100">
-                                                            {results.dailyItinerary?.map((day, index) => (
-                                                                <tr
-                                                                    key={index}
-                                                                    onClick={() => focusMapOnStage(index)}
-                                                                    className="hover:bg-red-50 transition cursor-pointer"
-                                                                >
-                                                                    <td className="pl-3 py-2 w-10 text-center text-xl align-middle">
-                                                                        {day.isDriving ? '🚐' : '🏖️'}
-                                                                    </td>
-                                                                    <td className="px-1 py-2 align-middle">
-                                                                        <div className="font-bold text-gray-800 text-sm">Día {day.day}</div>
-                                                                        <div className="text-[10px] text-gray-400 mt-0.5">
-                                                                            {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
+                                                <div className="space-y-3 text-left">
+                                                    {results.dailyItinerary?.map((day, index) => (
+                                                        <div
+                                                            key={index}
+                                                            onClick={() => focusMapOnStage(index)}
+                                                            className="border border-gray-200 rounded-lg p-3 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white"
+                                                        >
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className="font-bold text-red-700 text-sm flex items-center gap-1">
+                                                                    {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
+                                                                </span>
+                                                                <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                                                    {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-xs text-gray-600">
+                                                                {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
+                                                            </div>
+
+                                                            {day.savedPlaces && day.savedPlaces.length > 0 && (
+                                                                <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                                                    {day.savedPlaces.map((place, i) => (
+                                                                        <div key={i} className="text-[10px] text-green-700 flex items-center gap-1">
+                                                                            <span>✅</span> {place.name}
                                                                         </div>
-                                                                    </td>
-                                                                    <td className="pr-3 py-2 text-right font-mono text-xs text-gray-500 align-middle">
-                                                                        {day.isDriving ? `${day.distance.toFixed(0)}` : '-'}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </div>
                                         ) : (
