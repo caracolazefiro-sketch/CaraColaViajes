@@ -68,16 +68,13 @@ const DaySpotsList: React.FC<{
             </div>
 
             {day.isDriving && (
-                <div className="pt-3 border-t border-dashed border-red-200">
+                <div className="pt-3 border-t border-dashed border-red-200 space-y-4">
 
-                    {/* --- BARRA DE HERRAMIENTAS (SERVICIOS) SIEMPRE ARRIBA --- */}
+                    {/* --- BARRA DE HERRAMIENTAS --- */}
                     <div className="flex flex-wrap gap-2 mb-4">
-                        {/* Etiqueta Pernocta (Siempre activa) */}
                         <div className="px-3 py-1.5 rounded-lg bg-red-100 text-red-800 text-xs font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm">
                             <span>🚐</span> Pernocta ({campings.length})
                         </div>
-
-                        {/* Botón Restaurantes (Toggle) */}
                         <button
                             onClick={onToggleRestaurants}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1 shadow-sm
@@ -95,9 +92,7 @@ const DaySpotsList: React.FC<{
                             <h5 className="text-xs font-bold text-red-800 mb-2 border-b border-red-100 pb-1">
                                 Áreas y Campings Cercanos
                             </h5>
-
                             {loadingCampings && <p className="text-xs text-red-500 animate-pulse">Buscando áreas...</p>}
-
                             {!loadingCampings && campings.length > 0 && (
                                 <div className="space-y-2">
                                     {campings.map((spot, idx) => (
@@ -120,16 +115,14 @@ const DaySpotsList: React.FC<{
                             {!loadingCampings && campings.length === 0 && <p className="text-xs text-gray-400 italic">No hay campings cercanos.</p>}
                         </div>
 
-                        {/* LISTA 2: RESTAURANTES (Solo si activo) */}
+                        {/* LISTA 2: RESTAURANTES */}
                         {showRestaurants && (
                             <div className="animate-fadeIn">
                                 <h5 className="text-xs font-bold text-blue-800 mb-2 border-b border-blue-100 pb-1 flex justify-between">
                                     <span>Restaurantes Cercanos</span>
                                     <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 rounded">{restaurants.length}</span>
                                 </h5>
-
                                 {loadingRestaurants && <p className="text-xs text-blue-500 animate-pulse">Buscando comida...</p>}
-
                                 {!loadingRestaurants && restaurants.length > 0 && (
                                     <div className="space-y-2">
                                         {restaurants.map((spot, idx) => (
@@ -502,7 +495,7 @@ export default function Home() {
                                     ➕ Añadir Paradas Intermedias
                                 </label>
                                 {showWaypoints && (
-                                    <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full px-3 py-2 bg-white border border-red-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" />
+                                    <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full px-3 py-2 bg-white border border-blue-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" />
                                 )}
                             </div>
 
@@ -544,29 +537,21 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-6">
+                            {/* PESTAÑAS WRAP */}
                             <div className="bg-white rounded-xl shadow border border-gray-100 p-4">
                                 <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    <button
-                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setCampings([]); setRestaurants([]); }}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}
-                                    >
-                                        🌎 General
-                                    </button>
+                                    <button onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setCampings([]); setRestaurants([]); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}>🌎 General</button>
                                     {results.dailyItinerary?.map((day, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => focusMapOnStage(index)}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
-                                        >
-                                            <span>{day.isDriving ? '🚐' : '🏖️'}</span>
-                                            Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
+                                        <button key={index} onClick={() => focusMapOnStage(index)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}>
+                                            <span>{day.isDriving ? '🚐' : '🏖️'}</span> Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* MAPA */}
                                 <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative">
                                     <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
                                         {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#DC2626", strokeWeight: 4 }} />}
@@ -580,6 +565,7 @@ export default function Home() {
                                             />
                                         ))}
 
+                                        {/* CAMPINGS (Siempre) */}
                                         {campings.map((spot, i) => spot.geometry?.location && (
                                             <Marker
                                                 key={`camp-${i}`}
@@ -591,6 +577,7 @@ export default function Home() {
                                             />
                                         ))}
 
+                                        {/* RESTAURANTES (Solo si activados) */}
                                         {showRestaurants && restaurants.map((spot, i) => spot.geometry?.location && (
                                             <Marker
                                                 key={`rest-${i}`}
@@ -604,16 +591,38 @@ export default function Home() {
                                     </GoogleMap>
                                 </div>
 
+                                {/* PANEL LATERAL */}
                                 <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px]">
                                     <div className='p-0 h-full overflow-hidden'>
                                         {selectedDayIndex === null ? (
                                             <div className="text-center pt-8 overflow-y-auto h-full p-4">
+                                                {/* CABECERA RESUMEN: ORIGEN Y DESTINO */}
                                                 <h4 className="text-xl font-extrabold text-red-600 mb-1">Itinerario Completo</h4>
-                                                <p className="text-xs text-gray-400 mb-4">Haz clic en una pestaña arriba 👆</p>
+                                                <div className="text-sm font-bold text-gray-700 mb-2 bg-red-50 inline-block px-3 py-1 rounded-full">
+                                                    {formData.origen} ➝ {formData.destino}
+                                                </div>
+                                                <p className="text-xs text-gray-400 mb-4">Haz clic en una fila para ver detalles 👇</p>
+
+                                                {/* TABLA INTERACTIVA (CLICKABLE) */}
                                                 <div className="border border-gray-100 rounded-lg overflow-hidden">
                                                     <table className="min-w-full text-xs text-left">
                                                         <thead className="bg-gray-50 text-gray-500 font-bold uppercase"><tr><th className="px-3 py-2">Día</th><th className="px-3 py-2 text-right">Km</th></tr></thead>
-                                                        <tbody className="divide-y divide-gray-100">{results.dailyItinerary?.filter(d => d.isDriving).map((day, i) => (<tr key={i} className="hover:bg-red-50 transition"><td className="px-3 py-2 font-medium text-gray-700">Día {day.day}</td><td className="px-3 py-2 text-right font-mono text-gray-500">{day.distance.toFixed(0)}</td></tr>))}</tbody>
+                                                        <tbody className="divide-y divide-gray-100">
+                                                            {results.dailyItinerary?.map((day, index) => (
+                                                                <tr
+                                                                    key={index}
+                                                                    onClick={() => focusMapOnStage(index)} // CLICK MÁGICO
+                                                                    className="hover:bg-red-50 transition cursor-pointer"
+                                                                >
+                                                                    <td className="px-3 py-2 font-medium text-gray-700">
+                                                                        {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-right font-mono text-gray-500">
+                                                                        {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
                                                     </table>
                                                 </div>
                                             </div>
