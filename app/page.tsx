@@ -8,6 +8,19 @@ const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
+// --- ESTILOS DE IMPRESIÓN (CSS INLINE) ---
+const printStyles = `
+  @media print {
+    body { background: white; color: black; }
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+    .print-break { page-break-inside: avoid; }
+    .shadow-lg, .shadow-sm, .border { box-shadow: none !important; border: none !important; }
+    /* Forzamos que se vean los fondos de color (barras de progreso etc) */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  }
+`;
+
 // --- ICONOS MAPA ---
 const MARKER_ICONS: Record<string, string> = {
     camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",      // Rojo
@@ -58,7 +71,8 @@ const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
-const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
+const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
+const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 
 // --- COMPONENTE: LISTA DE SPOTS Y SERVICIOS ---
 const DaySpotsList: React.FC<{
@@ -92,9 +106,7 @@ const DaySpotsList: React.FC<{
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
 
-        if (savedOfType && type !== 'tourism') {
-            list = [savedOfType];
-        }
+        if (savedOfType && type !== 'tourism') list = [savedOfType];
 
         const isLoading = loading[type];
 
@@ -143,7 +155,7 @@ const DaySpotsList: React.FC<{
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
-            <div>
+            <div className="no-print">
                 <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
                     {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
                 </h4>
@@ -164,7 +176,7 @@ const DaySpotsList: React.FC<{
                                     </span>
                                     <span className="font-medium text-green-900 truncate">{place.name}</span>
                                 </div>
-                                <button onClick={() => place.place_id && onRemovePlace(place.place_id)} className="text-red-400 hover:text-red-600"><IconTrash /></button>
+                                <button onClick={() => place.place_id && onRemovePlace(place.place_id)} className="text-red-400 hover:text-red-600 no-print"><IconTrash /></button>
                             </div>
                         ))}
                     </div>
@@ -172,7 +184,7 @@ const DaySpotsList: React.FC<{
             )}
 
             {day.isDriving && (
-                <div className="pt-3 border-t border-dashed border-red-200">
+                <div className="pt-3 border-t border-dashed border-red-200 no-print">
                     <div className="flex flex-wrap gap-2 mb-2">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm flex-grow justify-center">
                             <span>🚐</span> Spots
@@ -198,7 +210,7 @@ const DaySpotsList: React.FC<{
                     </div>
                 </div>
             )}
-            {!day.isDriving && <p className="text-sm text-gray-700">Día de relax en {rawCityName}.</p>}
+            {!day.isDriving && <p className="text-sm text-gray-700 no-print">Día de relax en {rawCityName}.</p>}
         </div>
     );
 };
@@ -217,8 +229,6 @@ export default function Home() {
     const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
-
-    // --- ESTADO DE INICIALIZACIÓN (Para localStorage) ---
     const [isInitialized, setIsInitialized] = useState(false);
 
     // ESTADO UNIFICADO
@@ -251,7 +261,7 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [showWaypoints, setShowWaypoints] = useState(true);
 
-    // --- 1. CARGAR DATOS AL INICIO (PERSISTENCIA) ---
+    // --- PERSISTENCIA ---
     useEffect(() => {
         const savedData = localStorage.getItem('caracola_trip_v1');
         if (savedData) {
@@ -259,15 +269,11 @@ export default function Home() {
                 const parsed = JSON.parse(savedData);
                 if (parsed.formData) setFormData(parsed.formData);
                 if (parsed.results) setResults(parsed.results);
-                console.log("💾 Viaje cargado de la memoria.");
-            } catch (e) {
-                console.error("Error cargando localStorage", e);
-            }
+            } catch (e) { console.error(e); }
         }
-        setIsInitialized(true); // Marcamos como inicializado para empezar a guardar
+        setIsInitialized(true);
     }, []);
 
-    // --- 2. GUARDAR DATOS AUTOMÁTICAMENTE ---
     useEffect(() => {
         if (isInitialized) {
             const dataToSave = { formData, results };
@@ -275,13 +281,13 @@ export default function Home() {
         }
     }, [formData, results, isInitialized]);
 
-    // --- RESETEAR VIAJE (NUEVO BOTÓN) ---
     const handleResetTrip = () => {
         if (confirm("¿Seguro que quieres borrar este viaje y empezar de cero?")) {
             localStorage.removeItem('caracola_trip_v1');
-            window.location.reload(); // Recarga rápida para limpiar estados
+            window.location.reload();
         }
     };
+    // --- FIN PERSISTENCIA ---
 
     useEffect(() => { if (!showWaypoints) setFormData(prev => ({ ...prev, etapas: '' })); }, [showWaypoints]);
 
@@ -293,7 +299,6 @@ export default function Home() {
         }
     }, [formData.consumo, formData.precioGasoil, results.distanceKm]);
 
-    // ZOOM GENERAL
     useEffect(() => {
         if (map) {
             if (mapBounds) {
@@ -346,7 +351,6 @@ export default function Home() {
                     if (spot.geometry?.location) {
                         dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
                     }
-                    // EXTRAER FOTO
                     const photoUrl = spot.photos && spot.photos.length > 0 ? spot.photos[0].getUrl({ maxWidth: 200 }) : undefined;
 
                     return {
@@ -405,7 +409,6 @@ export default function Home() {
         const dailyPlan = results.dailyItinerary[dayIndex];
         if (!dailyPlan) return;
         setSelectedDayIndex(dayIndex);
-
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -445,7 +448,6 @@ export default function Home() {
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
         setSelectedDayIndex(null);
-        // Resetear
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -569,31 +571,34 @@ export default function Home() {
 
     return (
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
+
+            {/* --- ESTILOS DE IMPRESIÓN --- */}
+            <style jsx global>{printStyles}</style>
+
             <div className="w-full max-w-6xl space-y-6">
 
-                {/* --- HEADER CARACOLA CON LOGO Y RESET --- */}
-                <div className="relative text-center space-y-4 mb-6 flex flex-col items-center">
-                    <img
-                        src="/logo.jpg"
-                        alt="CaraCola Viajes"
-                        className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
-                    />
-                    <p className="text-gray-500 text-sm md:text-base font-medium">
-                        Tu ruta en autocaravana, paso a paso.
-                    </p>
-                    {/* Botón Reset Flotante o al lado del título */}
+                {/* HEADER */}
+                <div className="relative text-center space-y-4 mb-6 flex flex-col items-center no-print">
+                    <img src="/logo.jpg" alt="CaraCola Viajes" className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" />
+                    <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
+                    {/* BOTÓN RESET VISIBLE */}
                     {results.dailyItinerary && (
-                        <button
-                            onClick={handleResetTrip}
-                            className="absolute top-0 right-0 md:right-10 text-gray-400 hover:text-red-500 text-xs flex items-center gap-1 transition"
-                            title="Borrar viaje y empezar de cero"
-                        >
-                            <IconReset /> Borrar Viaje
-                        </button>
+                        <div className="absolute right-0 top-2 md:right-4">
+                            <button onClick={handleResetTrip} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1">
+                                <IconReset /> Borrar Viaje
+                            </button>
+                        </div>
                     )}
                 </div>
 
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100">
+                {/* PORTADA SOLO PARA IMPRESIÓN */}
+                <div className="print-only hidden text-center mb-10">
+                    <h1 className="text-4xl font-bold text-red-600 mb-2">CaraCola Viajes 🐌</h1>
+                    <h2 className="text-2xl font-bold text-gray-800">{formData.origen} ➝ {formData.destino}</h2>
+                    <p className="text-gray-500">Itinerario generado el {new Date().toLocaleDateString()}</p>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100 no-print">
                     <div className="bg-red-600 px-4 py-3">
                         <h2 className="text-white font-bold text-base flex items-center gap-2">⚙️ Configura tu Ruta</h2>
                     </div>
@@ -660,7 +665,7 @@ export default function Home() {
 
                 {results.totalCost !== null && (
                     <div className="space-y-6">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print">
                             <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-red-50 rounded-full"><IconCalendar /></div><div><p className="text-xl font-extrabold text-gray-800">{results.totalDays}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Días</p></div></div>
                             <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-blue-50 rounded-full"><IconMap /></div><div><p className="text-xl font-extrabold text-gray-800">{results.distanceKm?.toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Km</p></div></div>
                             <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-purple-50 rounded-full"><IconFuel /></div><div><p className="text-xl font-extrabold text-gray-800">{((results.distanceKm! / 100) * formData.consumo).toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Litros</p></div></div>
@@ -668,7 +673,7 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-6">
-                            <div className="bg-white rounded-xl shadow border border-gray-100 p-4">
+                            <div className="bg-white rounded-xl shadow border border-gray-100 p-4 no-print">
                                 <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                                 <div className="flex flex-wrap gap-2">
                                     <button
@@ -691,7 +696,7 @@ export default function Home() {
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative">
+                                <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print">
                                     <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
                                         {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ strokeColor: "#DC2626", strokeWeight: 4 }} />}
 
@@ -706,19 +711,14 @@ export default function Home() {
 
                                         {Object.keys(places).map((key) => {
                                             const type = key as ServiceType;
-                                            if (!toggles[type] && type !== 'camping') return null;
 
                                             const savedDay = results.dailyItinerary![selectedDayIndex!];
                                             const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
 
                                             let listToRender: PlaceWithDistance[] = [];
-
                                             if (toggles[type] || type === 'camping') {
-                                                if (savedOfType.length > 0 && type !== 'tourism') {
-                                                    listToRender = savedOfType;
-                                                } else {
-                                                    listToRender = [...savedOfType, ...places[type]];
-                                                }
+                                                if (savedOfType.length > 0 && type !== 'tourism') { listToRender = savedOfType; }
+                                                else { listToRender = [...savedOfType, ...places[type]]; }
                                             } else {
                                                 listToRender = savedOfType;
                                             }
@@ -731,12 +731,7 @@ export default function Home() {
                                                         key={`${type}-${i}`}
                                                         position={spot.geometry.location}
                                                         icon={MARKER_ICONS[type]}
-                                                        label={{
-                                                            text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
-                                                            color: "white",
-                                                            fontWeight: "bold",
-                                                            fontSize: "10px"
-                                                        }}
+                                                        label={{ text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
                                                         title={spot.name}
                                                         onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                         onMouseOver={() => setHoveredPlace(spot)}
@@ -778,25 +773,35 @@ export default function Home() {
                                     </GoogleMap>
                                 </div>
 
-                                <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px]">
-                                    <div className='p-0 h-full overflow-hidden'>
+                                <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] print:h-auto print:overflow-visible">
+                                    <div className='p-0 h-full overflow-hidden print:h-auto print:overflow-visible'>
                                         {selectedDayIndex === null ? (
-                                            <div className="text-center pt-8 overflow-y-auto h-full p-4">
+                                            <div className="text-center pt-8 overflow-y-auto h-full p-4 print:h-auto print:overflow-visible">
                                                 <h4 className="text-xl font-extrabold text-red-600 mb-1">Itinerario Completo</h4>
                                                 <div className="text-sm font-bold text-gray-700 mb-2 bg-red-50 inline-block px-3 py-1 rounded-full">
                                                     {formData.origen} ➝ {formData.destino}
                                                 </div>
-                                                <p className="text-xs text-gray-400 mb-4">Haz clic en una fila para ver detalles 👇</p>
 
-                                                {/* LISTA DE TARJETAS DEL ITINERARIO */}
-                                                <div className="space-y-3 text-left">
+                                                {/* BOTÓN IMPRIMIR */}
+                                                <div className="flex justify-center mb-4 no-print">
+                                                    <button
+                                                        onClick={() => window.print()}
+                                                        className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-lg"
+                                                    >
+                                                        <IconPrint /> Imprimir / Guardar PDF
+                                                    </button>
+                                                </div>
+
+                                                <p className="text-xs text-gray-400 mb-4 no-print">Haz clic en una fila para ver detalles 👇</p>
+
+                                                <div className="space-y-4 text-left">
                                                     {results.dailyItinerary?.map((day, index) => (
                                                         <div
                                                             key={index}
                                                             onClick={() => focusMapOnStage(index)}
-                                                            className="border border-gray-200 rounded-lg p-3 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white"
+                                                            className="border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white print-break"
                                                         >
-                                                            <div className="flex justify-between items-center mb-1">
+                                                            <div className="flex justify-between items-center mb-2">
                                                                 <span className="font-bold text-red-700 text-sm flex items-center gap-1">
                                                                     {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
                                                                 </span>
@@ -804,24 +809,23 @@ export default function Home() {
                                                                     {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
                                                                 </span>
                                                             </div>
-                                                            <div className="text-xs text-gray-600">
+                                                            <div className="text-xs text-gray-800 font-medium mb-2">
                                                                 {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                             </div>
 
                                                             {day.savedPlaces && day.savedPlaces.length > 0 && (
-                                                                <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                                                <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
                                                                     {day.savedPlaces.map((place, i) => (
-                                                                        <div key={i} className="text-[10px] text-green-700 flex items-center gap-1 truncate">
-                                                                            <span className="font-bold">
+                                                                        <div key={i} className="text-xs text-gray-700 flex items-start gap-2">
+                                                                            <span className="font-bold text-lg leading-none">
                                                                                 {place.type === 'camping' ? '🚐' :
                                                                                     place.type === 'restaurant' ? '🍳' :
-                                                                                        place.type === 'water' ? '💧' :
-                                                                                            place.type === 'gas' ? '⛽' :
-                                                                                                place.type === 'supermarket' ? '🛒' :
-                                                                                                    place.type === 'laundry' ? '🧺' :
-                                                                                                        place.type === 'tourism' ? '📷' : '📍'}
+                                                                                        place.type === 'tourism' ? '📷' : '📍'}
                                                                             </span>
-                                                                            {place.name}
+                                                                            <div>
+                                                                                <span className="font-bold block text-green-800">{place.name}</span>
+                                                                                <span className="text-[10px] text-gray-500">{place.vicinity}</span>
+                                                                            </div>
                                                                         </div>
                                                                     ))}
                                                                 </div>
