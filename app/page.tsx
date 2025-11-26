@@ -51,11 +51,17 @@ interface PlaceWithDistance {
     distanceFromCenter?: number;
     type?: ServiceType;
     photoUrl?: string;
+    types?: string[]; // AÑADIDO PARA AUDITORÍA: Las etiquetas de Google
 }
 
 interface DailyPlan {
-    day: number; date: string; isoDate: string;
-    from: string; to: string; distance: number; isDriving: boolean;
+    day: number;
+    date: string;
+    isoDate: string;
+    from: string;
+    to: string;
+    distance: number;
+    isDriving: boolean;
     coordinates?: Coordinates; type: 'overnight' | 'tactical' | 'start' | 'end';
     savedPlaces?: PlaceWithDistance[];
 }
@@ -76,6 +82,7 @@ const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 const IconMountain = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
+const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
 
 // --- HELPER TIEMPO ---
 const getWeatherIcon = (code: number) => {
@@ -95,18 +102,16 @@ const ElevationChart: React.FC<{ data: { distance: number, elevation: number }[]
     const maxElev = Math.max(...data.map(d => d.elevation));
     const totalDist = data[data.length - 1].distance;
 
-    // SVG Path logic
     const width = 300;
     const height = 60;
     let pathD = `M0,${height} `;
 
     data.forEach(d => {
         const x = (d.distance / totalDist) * width;
-        const y = height - ((d.elevation - minElev) / (maxElev - minElev || 1)) * (height - 10) - 5; // Margen
+        const y = height - ((d.elevation - minElev) / (maxElev - minElev || 1)) * (height - 10) - 5;
         pathD += `L${x},${y} `;
     });
-
-    pathD += `L${width},${height} Z`; // Cerrar polígono
+    pathD += `L${width},${height} Z`;
 
     return (
         <div className="mt-2 bg-white p-2 rounded border border-gray-200 shadow-inner">
@@ -122,17 +127,18 @@ const ElevationChart: React.FC<{ data: { distance: number, elevation: number }[]
     );
 };
 
-// --- COMPONENTE: LISTA DE SPOTS ---
+// --- COMPONENTE: LISTA DE SPOTS Y SERVICIOS ---
 const DaySpotsList: React.FC<{
     day: DailyPlan,
     places: Record<ServiceType, PlaceWithDistance[]>,
     loading: Record<ServiceType, boolean>,
     toggles: Record<ServiceType, boolean>,
+    auditMode: boolean, // MODO AUDITOR
     onToggle: (type: ServiceType) => void,
     onAddPlace: (place: PlaceWithDistance) => void,
     onRemovePlace: (placeId: string) => void,
     onHover: (place: PlaceWithDistance | null) => void
-}> = ({ day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover }) => {
+}> = ({ day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover }) => {
 
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     const saved = day.savedPlaces || [];
@@ -161,15 +167,12 @@ const DaySpotsList: React.FC<{
             } catch (e) { setWeatherStatus('error'); }
         };
         fetchWeather();
-        // Reset elevation on day change
         setElevationData(null);
     }, [day.coordinates, day.isoDate]);
 
-    // CÁLCULO DE ELEVACIÓN
     const handleCalcElevation = () => {
         if (typeof google === 'undefined' || !day.coordinates) return;
         setLoadingElevation(true);
-
         const cleanFrom = day.from.split('|')[0];
         const ds = new google.maps.DirectionsService();
         ds.route({
@@ -180,24 +183,28 @@ const DaySpotsList: React.FC<{
             if (status === 'OK' && result) {
                 const path = result.routes[0].overview_path;
                 const es = new google.maps.ElevationService();
-                es.getElevationAlongPath({
-                    path: path,
-                    samples: 100
-                }, (elevations, statusElev) => {
+                es.getElevationAlongPath({ path: path, samples: 100 }, (elevations, statusElev) => {
                     setLoadingElevation(false);
                     if (statusElev === 'OK' && elevations) {
-                        // Crear datos para gráfica (Distancia relativa 0-100%)
-                        const data = elevations.map((e, i) => ({
-                            distance: i, // Simplificado, sample index
-                            elevation: e.elevation
-                        }));
+                        const data = elevations.map((e, i) => ({ distance: i, elevation: e.elevation }));
                         setElevationData(data);
                     }
                 });
-            } else {
-                setLoadingElevation(false);
+            } else { setLoadingElevation(false); }
+        });
+    };
+
+    const handleCopyAudit = () => {
+        let report = `INFORME AUDITORÍA - ${rawCityName}\n=========================\n`;
+        (Object.keys(places) as ServiceType[]).forEach(type => {
+            if (places[type].length > 0) {
+                report += `\n--- ${type.toUpperCase()} (${places[type].length}) ---\n`;
+                places[type].forEach(p => {
+                    report += `[ ] ${p.name} | Rating: ${p.rating}\n    Tags: ${p.types?.join(', ')}\n    Dir: ${p.vicinity}\n`;
+                });
             }
         });
+        navigator.clipboard.writeText(report).then(() => alert("📋 Informe copiado al portapapeles"));
     };
 
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
@@ -225,6 +232,15 @@ const DaySpotsList: React.FC<{
                                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}>
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
                                     <div className="flex items-center gap-2">{spot.rating && <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span>}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
+
+                                    {/* DATOS DE AUDITORÍA (SOLO SI MODO ACTIVO) */}
+                                    {auditMode && (
+                                        <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded">
+                                            <p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p>
+                                            <p><strong>Dist:</strong> {spot.distanceFromCenter ? Math.round(spot.distanceFromCenter) : '?'}m</p>
+                                        </div>
+                                    )}
+
                                 </div>
                                 <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}</button>
                             </div>
@@ -262,20 +278,27 @@ const DaySpotsList: React.FC<{
                 </div>
             </div>
 
-            {/* ALTIMETRÍA (Solo días de conducción) */}
+            {/* ALTIMETRÍA */}
             {day.isDriving && (
                 <div className="mt-2">
                     {!elevationData && !loadingElevation && (
-                        <button
-                            onClick={handleCalcElevation}
-                            className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition"
-                        >
+                        <button onClick={handleCalcElevation} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
                             <IconMountain /> Analizar Desnivel (Pava-Check) 🏔️
                         </button>
                     )}
                     {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">Calculando pendientes...</p>}
                     {elevationData && <ElevationChart data={elevationData} />}
                 </div>
+            )}
+
+            {/* BOTÓN COPIAR INFORME AUDITORÍA (Solo visible en modo auditor) */}
+            {auditMode && (
+                <button
+                    onClick={handleCopyAudit}
+                    className="w-full text-xs font-mono bg-gray-800 text-white py-1 rounded mb-2 hover:bg-black"
+                >
+                    📋 Copiar Datos Técnicos del Día
+                </button>
             )}
 
             {saved.length > 0 && (
@@ -344,6 +367,7 @@ export default function Home() {
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [auditMode, setAuditMode] = useState(false); // ESTADO MODO AUDITOR
 
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
@@ -411,7 +435,6 @@ export default function Home() {
         }
     }, [formData.consumo, formData.precioGasoil, results.distanceKm]);
 
-    // ZOOM GENERAL
     useEffect(() => {
         if (map) {
             if (mapBounds) {
@@ -470,7 +493,8 @@ export default function Home() {
                         geometry: spot.geometry, distanceFromCenter: dist, type,
                         opening_hours: spot.opening_hours as any,
                         user_ratings_total: spot.user_ratings_total,
-                        photoUrl
+                        photoUrl,
+                        types: spot.types // AÑADIDO PARA AUDITORÍA
                     };
                 });
                 spotsWithDistance.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
@@ -697,13 +721,23 @@ export default function Home() {
                 <div className="relative text-center space-y-4 mb-6 flex flex-col items-center no-print">
                     <img src="/logo.jpg" alt="CaraCola Viajes" className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" />
                     <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
-                    {results.dailyItinerary && (
-                        <div className="absolute right-0 top-2 md:right-4">
+
+                    <div className="flex items-center gap-2 absolute right-0 top-0">
+                        {/* BOTÓN MODO AUDITOR */}
+                        <button
+                            onClick={() => setAuditMode(!auditMode)}
+                            className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white border-gray-900' : 'bg-gray-100 text-gray-500 border-gray-200'}`}
+                            title="Ver datos técnicos de los sitios"
+                        >
+                            <IconAudit /> {auditMode ? 'Auditor ON' : 'Auditor'}
+                        </button>
+
+                        {results.dailyItinerary && (
                             <button onClick={handleResetTrip} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1">
-                                <IconReset /> Borrar Viaje
+                                <IconReset /> Borrar
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {/* PORTADA PRINT */}
@@ -850,12 +884,7 @@ export default function Home() {
                                                         key={`${type}-${i}`}
                                                         position={spot.geometry.location}
                                                         icon={MARKER_ICONS[type]}
-                                                        label={{
-                                                            text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
-                                                            color: "white",
-                                                            fontWeight: "bold",
-                                                            fontSize: "10px"
-                                                        }}
+                                                        label={{ text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
                                                         title={spot.name}
                                                         onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                         onMouseOver={() => setHoveredPlace(spot)}
@@ -964,6 +993,7 @@ export default function Home() {
                                                 places={places}
                                                 loading={loadingPlaces}
                                                 toggles={toggles}
+                                                auditMode={auditMode} // PASAMOS EL MODO AUDITOR
                                                 onToggle={handleToggle}
                                                 onAddPlace={handleAddPlace}
                                                 onRemovePlace={handleRemovePlace}
