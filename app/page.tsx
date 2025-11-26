@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
-// --- ICONOS MAPA (COLORES POR CATEGORÍA) ---
+// --- ICONOS MAPA ---
 const MARKER_ICONS: Record<string, string> = {
     camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",      // Rojo
     restaurant: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",   // Azul
@@ -31,8 +31,10 @@ type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 
 interface PlaceWithDistance {
     name?: string;
     rating?: number;
+    user_ratings_total?: number; // Número de votos
     vicinity?: string;
     place_id?: string;
+    opening_hours?: { isOpen?: () => boolean; open_now?: boolean }; // Google a veces lo manda así o asá
     geometry?: { location?: any; };
     distanceFromCenter?: number;
     type?: ServiceType;
@@ -64,42 +66,34 @@ const DaySpotsList: React.FC<{
     toggles: Record<ServiceType, boolean>,
     onToggle: (type: ServiceType) => void,
     onAddPlace: (place: PlaceWithDistance) => void,
-    onRemovePlace: (placeId: string) => void
-}> = ({ day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace }) => {
+    onRemovePlace: (placeId: string) => void,
+    onHover: (place: PlaceWithDistance | null) => void // NUEVO: Prop para el hover
+}> = ({ day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover }) => {
 
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     const saved = day.savedPlaces || [];
     const isSaved = (id?: string) => id ? saved.some(p => p.place_id === id) : false;
 
-    // Helper Botón Categoría
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
         <button
             onClick={() => onToggle(type)}
             className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm flex-grow justify-center
-            ${toggles[type]
-                    ? 'bg-blue-600 text-white border-blue-700'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+            ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
         >
             <span>{icon}</span> {label}
         </button>
     );
 
-    // Helper Lista Resultados
     const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
         if (!toggles[type] && type !== 'camping') return null;
 
-        // MODO FOCO: Si hay guardado y NO es turismo, ocultamos la lista de búsqueda para no duplicar
         const savedOfType = saved.find(s => s.type === type);
+        let list = places[type];
+
         if (savedOfType && type !== 'tourism') {
-            return (
-                <div className="mt-4 animate-fadeIn">
-                    <h5 className={`text-xs font-bold ${colorClass} mb-1 flex items-center gap-1`}><span>{icon}</span> {title}</h5>
-                    <p className="text-[10px] text-green-600 italic">Ya has seleccionado un sitio. (Ver arriba en "Mi Plan")</p>
-                </div>
-            );
+            list = [savedOfType];
         }
 
-        const list = places[type];
         const isLoading = loading[type];
 
         return (
@@ -117,6 +111,8 @@ const DaySpotsList: React.FC<{
                             <div
                                 key={`${type}-${idx}`}
                                 className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`}
+                                onMouseEnter={() => onHover(spot)} // 🖱️ HOVER ENTRA
+                                onMouseLeave={() => onHover(null)} // 🖱️ HOVER SALE
                             >
                                 <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>
                                     {idx + 1}
@@ -135,8 +131,10 @@ const DaySpotsList: React.FC<{
                         ))}
                     </div>
                 )}
-
                 {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
+                {savedOfType && type !== 'tourism' && (
+                    <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio. Borra para ver más.</p>
+                )}
             </div>
         );
     };
@@ -152,25 +150,15 @@ const DaySpotsList: React.FC<{
                 </p>
             </div>
 
-            {/* --- PANEL RESUMEN DEL DÍA (PLAN) --- */}
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn">
-                    <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1">
-                        <span>✅</span> MI PLAN PARA HOY:
-                    </h5>
+                    <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> MI PLAN PARA HOY:</h5>
                     <div className="space-y-1">
                         {saved.map((place, i) => (
-                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded">
+                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)}>
                                 <div className="truncate flex-1 mr-2 flex items-center gap-2">
-                                    {/* Icono de tipo si lo tenemos, sino genérico */}
                                     <span className="font-bold text-lg">
-                                        {place.type === 'camping' ? '🚐' :
-                                            place.type === 'restaurant' ? '🍳' :
-                                                place.type === 'water' ? '💧' :
-                                                    place.type === 'gas' ? '⛽' :
-                                                        place.type === 'supermarket' ? '🛒' :
-                                                            place.type === 'laundry' ? '🧺' :
-                                                                place.type === 'tourism' ? '📷' : '📍'}
+                                        {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : place.type === 'water' ? '💧' : place.type === 'gas' ? '⛽' : place.type === 'supermarket' ? '🛒' : place.type === 'laundry' ? '🧺' : place.type === 'tourism' ? '📷' : '📍'}
                                     </span>
                                     <span className="font-medium text-green-900 truncate">{place.name}</span>
                                 </div>
@@ -183,8 +171,6 @@ const DaySpotsList: React.FC<{
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200">
-
-                    {/* SUPER BOTONERA */}
                     <div className="flex flex-wrap gap-2 mb-2">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm flex-grow justify-center">
                             <span>🚐</span> Spots
@@ -228,6 +214,8 @@ export default function Home() {
     const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
     const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+    // NUEVO ESTADO: HOVERED PLACE
+    const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
 
     // ESTADO UNIFICADO
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
@@ -269,7 +257,6 @@ export default function Home() {
         }
     }, [formData.consumo, formData.precioGasoil, results.distanceKm]);
 
-    // ZOOM GENERAL
     useEffect(() => {
         if (map) {
             if (mapBounds) {
@@ -324,7 +311,9 @@ export default function Home() {
                     }
                     return {
                         name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id,
-                        geometry: spot.geometry, distanceFromCenter: dist, type
+                        geometry: spot.geometry, distanceFromCenter: dist, type,
+                        opening_hours: spot.opening_hours as any, // Cast rapido
+                        user_ratings_total: spot.user_ratings_total
                     };
                 });
                 spotsWithDistance.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
@@ -338,7 +327,6 @@ export default function Home() {
     const handleToggle = (type: ServiceType) => {
         const newState = !toggles[type];
         setToggles(prev => ({ ...prev, [type]: newState }));
-
         if (newState && selectedDayIndex !== null && results.dailyItinerary) {
             const day = results.dailyItinerary[selectedDayIndex];
             if (day.coordinates) {
@@ -376,7 +364,6 @@ export default function Home() {
         const dailyPlan = results.dailyItinerary[dayIndex];
         if (!dailyPlan) return;
         setSelectedDayIndex(dayIndex);
-
         setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -541,9 +528,16 @@ export default function Home() {
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
             <div className="w-full max-w-6xl space-y-6">
 
+                {/* --- HEADER CARACOLA CON LOGO --- */}
                 <div className="text-center space-y-4 mb-6 flex flex-col items-center">
-                    <img src="/logo.jpg" alt="CaraCola Viajes" className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300" />
-                    <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
+                    <img
+                        src="/logo.jpg"
+                        alt="CaraCola Viajes"
+                        className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
+                    />
+                    <p className="text-gray-500 text-sm md:text-base font-medium">
+                        Tu ruta en autocaravana, paso a paso.
+                    </p>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100">
@@ -625,7 +619,7 @@ export default function Home() {
                                 <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                                 <div className="flex flex-wrap gap-2">
                                     <button
-                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false }); setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] }); }}
+                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false }); setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] }); setHoveredPlace(null); }}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}
                                     >
                                         🌎 General
@@ -657,30 +651,23 @@ export default function Home() {
                                             />
                                         ))}
 
-                                        {/* --- AQUI ESTÁ LA SOLUCIÓN DE FASE 7: RENDERIZADO HÍBRIDO --- */}
                                         {Object.keys(places).map((key) => {
                                             const type = key as ServiceType;
+                                            if (!toggles[type] && type !== 'camping') return null;
 
-                                            // 1. SIEMPRE pintamos los que están GUARDADOS (SAVED)
                                             const savedDay = results.dailyItinerary![selectedDayIndex!];
                                             const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
 
-                                            // 2. SI está activo el botón, pintamos los de búsqueda,
-                                            // PERO evitamos duplicar si ya está guardado (Modo Foco)
-                                            // Excepción: Turismo (pintamos todo)
                                             let searchList: PlaceWithDistance[] = [];
                                             if (toggles[type] || type === 'camping') {
                                                 if (savedOfType.length > 0 && type !== 'tourism') {
-                                                    searchList = []; // Modo foco: ocultar búsqueda si ya elegí
+                                                    searchList = [];
                                                 } else {
                                                     searchList = places[type];
                                                 }
                                             }
 
-                                            // Combinamos ambas listas para pintar
                                             const toRender = [...savedOfType, ...searchList];
-
-                                            // Eliminamos duplicados por ID por si acaso
                                             const uniqueRender = toRender.filter((v, i, a) => a.findIndex(t => (t.place_id === v.place_id)) === i);
 
                                             return uniqueRender.map((spot, i) => (
@@ -689,7 +676,6 @@ export default function Home() {
                                                         key={`${type}-${i}`}
                                                         position={spot.geometry.location}
                                                         icon={MARKER_ICONS[type]}
-                                                        // Si es guardado, le ponemos un label especial '✓'
                                                         label={{
                                                             text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(),
                                                             color: "white",
@@ -698,10 +684,36 @@ export default function Home() {
                                                         }}
                                                         title={spot.name}
                                                         onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
+                                                        onMouseOver={() => setHoveredPlace(spot)}
+                                                        onMouseOut={() => setHoveredPlace(null)}
                                                     />
                                                 )
                                             ));
                                         })}
+
+                                        {/* --- INFO WINDOW (BOCADILLO) AL HACER HOVER --- */}
+                                        {hoveredPlace && hoveredPlace.geometry?.location && (
+                                            <InfoWindow
+                                                position={hoveredPlace.geometry.location}
+                                                onCloseClick={() => setHoveredPlace(null)}
+                                                options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -30) }}
+                                            >
+                                                <div className="p-1 min-w-[150px]">
+                                                    <h6 className="font-bold text-sm text-gray-800 mb-1">{hoveredPlace.name}</h6>
+                                                    <div className="flex items-center gap-1 text-xs text-orange-500 font-bold mb-1">
+                                                        {hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}
+                                                        {hoveredPlace.user_ratings_total && <span className="text-gray-400 font-normal">({hoveredPlace.user_ratings_total})</span>}
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-500 mb-1">{hoveredPlace.vicinity}</p>
+                                                    {hoveredPlace.opening_hours?.open_now !== undefined && (
+                                                        <p className={`text-[10px] font-bold ${hoveredPlace.opening_hours.open_now ? 'text-green-600' : 'text-red-500'}`}>
+                                                            {hoveredPlace.opening_hours.open_now ? '● Abierto ahora' : '● Cerrado'}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </InfoWindow>
+                                        )}
+
                                     </GoogleMap>
                                 </div>
 
@@ -756,6 +768,7 @@ export default function Home() {
                                                 onToggle={handleToggle}
                                                 onAddPlace={handleAddPlace}
                                                 onRemovePlace={handleRemovePlace}
+                                                onHover={setHoveredPlace} // Pasamos la función de hover
                                             />
                                         )}
                                     </div>
