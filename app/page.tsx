@@ -117,16 +117,17 @@ const DaySpotsList: React.FC<{
                             {!loadingCampings && campings.length === 0 && <p className="text-xs text-gray-400 italic">No hay campings cercanos.</p>}
                         </div>
 
-                        {/* LISTA 2: RESTAURANTES */}
+                        {/* LISTA 2: RESTAURANTES (CON CONTADOR VISIBLE) */}
                         {showRestaurants && (
                             <div className="animate-fadeIn">
-                                {/* CABECERA RESTAURANTES CON CONTADOR */}
-                                <h5 className="text-xs font-bold text-blue-800 mb-2 border-b border-blue-100 pb-1 flex justify-between items-center">
-                                    <span>Restaurantes Cercanos</span>
-                                    <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full">
-                                        {restaurants.length}
-                                    </span>
-                                </h5>
+                                <div className="flex items-center justify-between mb-2 border-b border-blue-100 pb-1">
+                                    <h5 className="text-xs font-bold text-blue-800">Restaurantes Cercanos</h5>
+                                    {!loadingRestaurants && (
+                                        <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                            {restaurants.length}
+                                        </span>
+                                    )}
+                                </div>
 
                                 {loadingRestaurants && <p className="text-xs text-blue-500 animate-pulse">Buscando comida...</p>}
 
@@ -177,6 +178,7 @@ export default function Home() {
     const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
 
+    // --- ESTADOS MULTI-CAPA ---
     const [campings, setCampings] = useState<PlaceWithDistance[]>([]);
     const [restaurants, setRestaurants] = useState<PlaceWithDistance[]>([]);
     const [loadingCampings, setLoadingCampings] = useState(false);
@@ -216,14 +218,14 @@ export default function Home() {
     useEffect(() => {
         if (map) {
             if (mapBounds) {
-                // Si hay bounds explícitos (una etapa), usamos esos
                 setTimeout(() => map.fitBounds(mapBounds), 500);
-            } else if (directionsResponse) {
-                // Si NO hay bounds (Vista General), usamos los bounds de TODA la ruta
-                setTimeout(() => map.fitBounds(directionsResponse.routes[0].bounds), 500);
+            } else if (directionsResponse && selectedDayIndex === null) {
+                // Si estamos en VISTA GENERAL, hacemos zoom a toda la ruta
+                const routeBounds = directionsResponse.routes[0].bounds;
+                setTimeout(() => map.fitBounds(routeBounds), 500);
             }
         }
-    }, [map, mapBounds, directionsResponse]);
+    }, [map, mapBounds, directionsResponse, selectedDayIndex]);
 
     const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
         if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null;
@@ -558,7 +560,7 @@ export default function Home() {
                                 <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                                 <div className="flex flex-wrap gap-2">
                                     <button
-                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setNearbySpots([]); setRestaurants([]); }}
+                                        onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setCampings([]); setRestaurants([]); }}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}
                                     >
                                         🌎 General
@@ -636,10 +638,10 @@ export default function Home() {
                                                                 >
                                                                     <td className="px-3 py-2">
                                                                         <div className="font-medium text-gray-700 flex items-center gap-1">
-                                                                            <span>{day.isDriving ? '🚐' : '🏖️'}</span>
-                                                                            Día {day.day}
+                                                                            <span className="text-base">{day.isDriving ? '🚐' : '🏖️'}</span>
+                                                                            <span>Día {day.day}</span>
                                                                         </div>
-                                                                        <div className="text-[10px] text-gray-400">
+                                                                        <div className="text-[10px] text-gray-400 mt-0.5">
                                                                             {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                                                         </div>
                                                                     </td>
