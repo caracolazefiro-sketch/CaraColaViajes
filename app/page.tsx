@@ -14,6 +14,7 @@ const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
+// --- ESTILOS DE IMPRESIÓN ---
 const printStyles = `
   @media print {
     body { background: white; color: black; }
@@ -25,7 +26,7 @@ const printStyles = `
   }
 `;
 
-// --- DEFINICIÓN DE TODOS LOS ICONOS UI (AQUÍ ESTABA EL ERROR) ---
+// --- ICONOS SVG UI ---
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
@@ -34,7 +35,10 @@ const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
+const IconShare = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>);
 
+
+// --- COMPONENTE PRINCIPAL ---
 export default function Home() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -54,7 +58,7 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // ESTADO UNIFICADO (CON CUSTOM)
+  // ESTADO UNIFICADO
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
       camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: []
   });
@@ -112,6 +116,7 @@ export default function Home() {
       }
   };
 
+  // --- CARGAR VIAJE ---
   const handleLoadCloudTrip = (tripData: any, tripId: number) => {
       if (tripData) {
           if (tripData.formData) setFormData(tripData.formData);
@@ -124,9 +129,29 @@ export default function Home() {
       }
   };
 
+  // --- COMPARTIR VIAJE ---
+  const handleShareTrip = async () => {
+    if (!currentTripId) {
+        alert("Primero debes GUARDAR el viaje en la nube.");
+        return;
+    }
+    
+    const { error } = await supabase.from('trips').update({ is_public: true }).eq('id', currentTripId);
+
+    if (error) {
+        alert("Error al hacer público: " + error.message);
+        return;
+    }
+
+    const shareUrl = `${window.location.origin}/share/${currentTripId}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+        alert(`🔗 Enlace copiado al portapapeles:\n\n${shareUrl}\n\nCualquiera con este link podrá ver (pero no editar) tu ruta.`);
+    });
+  };
+
+  // --- GUARDAR EN NUBE ---
   const handleSaveToCloud = async () => {
     if (!results.dailyItinerary) return;
-    
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
         alert("Debes iniciar sesión para guardar en la nube.");
@@ -194,12 +219,14 @@ export default function Home() {
     return null;
   };
 
+  // --- BÚSQUEDA CON FILTRO ESTRICTO ---
   const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
       if (!map || typeof google === 'undefined') return;
       const service = new google.maps.places.PlacesService(map);
       const centerPoint = new google.maps.LatLng(location.lat, location.lng);
       let keywords = '';
       let radius = 10000; 
+
       switch(type) {
           case 'camping': keywords = 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"'; radius = 20000; break;
           case 'restaurant': keywords = 'restaurante OR comida OR bar'; radius = 5000; break;
@@ -324,10 +351,6 @@ export default function Home() {
     const { id, value, type, checked } = e.target;
     let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil','consumo','kmMaximoDia'].includes(id) ? parseFloat(value) : value);
     setFormData(prev => ({ ...prev, [id]: finalValue }));
-  };
-
-  const handleReturnHome = () => {
-      setFormData(prev => ({ ...prev, origen: prev.destino, destino: prev.origen }));
   };
 
   const calculateRoute = async (e: React.FormEvent) => {
@@ -491,6 +514,11 @@ export default function Home() {
                     </button>
                     {results.dailyItinerary && (
                         <>
+                            {currentTripId && (
+                                <button onClick={handleShareTrip} className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:bg-green-700 shadow-sm flex items-center gap-1">
+                                    <IconShare /> Compartir
+                                </button>
+                            )}
                             <button onClick={handleSaveToCloud} disabled={isSaving} className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 disabled:opacity-50">
                                 <IconCloud /> {isSaving ? '...' : 'Guardar'}
                             </button>
@@ -630,15 +658,18 @@ export default function Home() {
                                     let listToRender: PlaceWithDistance[] = [];
 
                                     if (toggles[type] || type === 'camping') {
+                                        // Si el botón está encendido
                                         if (savedOfType.length > 0 && type !== 'tourism') {
-                                            listToRender = savedOfType; 
+                                            listToRender = savedOfType; // Modo foco
                                         } else {
-                                            listToRender = [...savedOfType, ...places[type]];
+                                            listToRender = [...savedOfType, ...places[type]]; // Mezcla
                                         }
                                     } else {
+                                        // Si el botón está APAGADO -> Solo mostramos lo guardado (Permanencia)
                                         listToRender = savedOfType;
                                     }
 
+                                    // Limpieza duplicados
                                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
                                     
                                     return uniqueRender.map((spot, i) => (
@@ -646,8 +677,17 @@ export default function Home() {
                                             <Marker 
                                                 key={`${type}-${i}`} 
                                                 position={spot.geometry.location} 
-                                                icon={MARKER_ICONS[type]} 
-                                                label={{ text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
+                                                // ESCALADO DE ICONOS
+                                                icon={{
+                                                    url: MARKER_ICONS[type],
+                                                    scaledSize: new window.google.maps.Size(30, 30)
+                                                }}
+                                                label={{ 
+                                                    text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), 
+                                                    color: "white", 
+                                                    fontWeight: "bold", 
+                                                    fontSize: "10px" 
+                                                }}
                                                 title={spot.name}
                                                 onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                 onMouseOver={() => setHoveredPlace(spot)}
@@ -657,6 +697,7 @@ export default function Home() {
                                     ));
                                 })}
 
+                                {/* --- INFO WINDOW CON FOTO/ICONO --- */}
                                 {hoveredPlace && hoveredPlace.geometry?.location && (
                                     <InfoWindow
                                         position={hoveredPlace.geometry.location}
@@ -664,6 +705,7 @@ export default function Home() {
                                         options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -35) }}
                                     >
                                         <div className="p-0 w-[200px] overflow-hidden">
+                                            {/* FOTO O ICONO DE RESPALDO */}
                                             {hoveredPlace.photoUrl ? (
                                                 <img src={hoveredPlace.photoUrl} alt={hoveredPlace.name} className="w-full h-24 object-cover rounded-t-lg" />
                                             ) : (
@@ -678,6 +720,7 @@ export default function Home() {
                                                      hoveredPlace.type === 'tourism' ? '📷' : '📍'}
                                                 </div>
                                             )}
+                                            
                                             <div className="p-2 bg-white">
                                                 <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight">{hoveredPlace.name}</h6>
                                                 <div className="flex items-center gap-1 text-xs text-orange-500 font-bold mb-1">
@@ -685,6 +728,7 @@ export default function Home() {
                                                     {hoveredPlace.user_ratings_total && <span className="text-gray-400 font-normal">({hoveredPlace.user_ratings_total})</span>}
                                                 </div>
                                                 <p className="text-[10px] text-gray-500 line-clamp-2">{hoveredPlace.vicinity}</p>
+                                                
                                                 {hoveredPlace.opening_hours?.open_now !== undefined && (
                                                     <p className={`text-[10px] font-bold mt-1 ${hoveredPlace.opening_hours.open_now ? 'text-green-600' : 'text-red-500'}`}>
                                                         {hoveredPlace.opening_hours.open_now ? '● Abierto' : '● Cerrado'}
