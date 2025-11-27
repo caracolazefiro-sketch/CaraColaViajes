@@ -5,12 +5,16 @@ import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } fro
 import { Coordinates, DailyPlan, PlaceWithDistance, ServiceType, TripResult } from './types';
 import { MARKER_ICONS, ICONS_ITINERARY, normalizeText } from './constants';
 import DaySpotsList from './components/DaySpotsList';
+import ElevationChart from './components/ElevationChart';
+// IMPORTAMOS EL CLIENTE DE SUPABASE
+import { supabase } from './supabase';
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
+// --- ESTILOS DE IMPRESIÓN ---
 const printStyles = `
   @media print {
     body { background: white; color: black; }
@@ -22,15 +26,17 @@ const printStyles = `
   }
 `;
 
-// --- ICONOS SVG ---
+// --- ICONOS SVG (UI) ---
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
+const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
 
+// --- COMPONENTE PRINCIPAL ---
 export default function Home() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -46,7 +52,8 @@ export default function Home() {
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [auditMode, setAuditMode] = useState(false); 
-  
+  const [isSaving, setIsSaving] = useState(false); // Estado de guardado
+
   // ESTADO UNIFICADO
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
       camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
@@ -77,7 +84,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // --- PERSISTENCIA ---
+  // --- PERSISTENCIA LOCAL ---
   useEffect(() => {
       const savedData = localStorage.getItem('caracola_trip_v1');
       if (savedData) {
@@ -103,6 +110,39 @@ export default function Home() {
           window.location.reload();
       }
   };
+
+  // --- FUNCIÓN GUARDAR EN SUPABASE ---
+  const handleSaveToCloud = async () => {
+      if (!results.dailyItinerary) return;
+      setIsSaving(true);
+
+      const tripName = `${formData.origen} a ${formData.destino} (${formData.fechaInicio})`;
+      const tripPayload = {
+          formData,
+          results
+      };
+
+      try {
+          const { data, error } = await supabase
+              .from('trips')
+              .insert([
+                  { name: tripName, trip_data: tripPayload }
+              ])
+              .select();
+
+          if (error) throw error;
+
+          alert("✅ ¡Viaje guardado en la nube con éxito!");
+          console.log("Viaje guardado:", data);
+
+      } catch (error: any) {
+          console.error("Error guardando:", error);
+          alert("❌ Error al guardar: " + error.message);
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
 
   useEffect(() => { if (!showWaypoints) setFormData(prev => ({ ...prev, etapas: '' })); }, [showWaypoints]);
 
@@ -136,7 +176,7 @@ export default function Home() {
     return null;
   };
 
-  // --- BÚSQUEDA CON FILTRO ESTRICTO (COPIADA DEL BLOQUE ANTERIOR) ---
+  // --- BÚSQUEDA CON FILTRO ESTRICTO ---
   const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
       if (!map || typeof google === 'undefined') return;
       
@@ -180,7 +220,7 @@ export default function Home() {
                   };
               });
 
-              // FILTRO PORTERO
+              // --- FILTRO DE CALIDAD ---
               spotsWithDistance = spotsWithDistance.filter(spot => {
                   const tags = spot.types || [];
                   
@@ -193,7 +233,10 @@ export default function Home() {
                   }
                   if (type === 'gas') return tags.includes('gas_station');
                   if (type === 'supermarket') return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
-                  if (type === 'laundry') return tags.includes('laundry');
+                  if (type === 'laundry') {
+                       if (tags.includes('lodging') && !tags.includes('laundry')) return false;
+                       return tags.includes('laundry');
+                  }
                   return true; 
               });
 
@@ -285,6 +328,7 @@ export default function Home() {
     setDirectionsResponse(null); 
     setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null }); 
     setSelectedDayIndex(null); 
+    // Resetear
     setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
     setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
 
@@ -431,6 +475,18 @@ export default function Home() {
                 <button onClick={() => setAuditMode(!auditMode)} className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`} title="Modo Auditor">
                     <IconAudit /> {auditMode ? 'Auditor ON' : 'Auditor'}
                 </button>
+                
+                {/* BOTÓN GUARDAR EN NUBE (NUEVO) */}
+                {results.dailyItinerary && (
+                     <button 
+                        onClick={handleSaveToCloud} 
+                        disabled={isSaving}
+                        className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 disabled:opacity-50"
+                    >
+                        {isSaving ? '☁️ Guardando...' : '☁️ Guardar en Nube'}
+                    </button>
+                )}
+
                 {results.dailyItinerary && (
                      <button onClick={handleResetTrip} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1">
                         <IconReset /> Borrar
