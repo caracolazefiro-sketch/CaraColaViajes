@@ -15,7 +15,7 @@ const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w
 
 // JERARQUÍA DE ORDEN PARA "MI PLAN"
 const CATEGORY_ORDER: Record<string, number> = {
-    camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 99 
+    camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
 };
 
 interface DaySpotsListProps { 
@@ -134,12 +134,10 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng(''); setCustomType('custom'); setShowCustomForm(false);
     };
 
-    // --- FUNCIÓN EDITAR SITIO PERSONALIZADO ---
+    // EDITAR CUSTOM
     const handleEditCustom = (place: PlaceWithDistance) => {
         if (!place.place_id) return;
-        // 1. Borramos el actual
         onRemovePlace(place.place_id);
-        // 2. Rellenamos el formulario
         setCustomName(place.name || '');
         setCustomDesc(place.vicinity || '');
         setCustomLink(place.link || '');
@@ -148,7 +146,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
             setCustomLat(place.geometry.location.lat().toString());
             setCustomLng(place.geometry.location.lng().toString());
         }
-        // 3. Abrimos formulario
         setShowCustomForm(true);
     };
 
@@ -157,7 +154,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
     };
 
-    // --- BOTÓN ARREGLADO (Sin flex-grow para que no sea gigante) ---
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
         <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
             <span>{icon}</span> {label}
@@ -165,19 +161,27 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     );
 
     const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
+        // Si el botón no está activo, no mostramos nada (salvo camping que siempre se ve)
         if (!toggles[type] && type !== 'camping') return null; 
+        
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
-        
+
+        // CORRECCIÓN 1: Si es CUSTOM, la lista de "Resultados" son tus propios sitios guardados
         if (type === 'custom') {
-             // Custom no tiene lista de búsqueda, solo la de "Mi Plan"
-             return null; 
+            list = saved.filter(s => s.type === 'custom');
+        }
+        
+        // CORRECCIÓN 2: Modo Foco Universal (incluso Turismo)
+        // Si hay uno guardado, la lista de resultados se reduce a ESE guardado.
+        if (savedOfType && type !== 'custom') {
+            list = [savedOfType];
         }
 
-        // LÓGICA FOCO (Ahora también para Turismo)
-        if (savedOfType) list = [savedOfType];
-        
         const isLoading = loading[type];
+
+        // Si no hay elementos y no carga, no pintar nada
+        if (list.length === 0 && !isLoading) return null;
 
         return (
             <div className="animate-fadeIn mt-4">
@@ -193,34 +197,54 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                     <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
                                     {auditMode && <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded"><p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p></div>}
                                 </div>
-                                <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}</button>
+                                {/* Si es custom, mostramos editar, si no, el botón normal */}
+                                {type === 'custom' ? (
+                                    <div className="flex gap-1">
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(spot); }} className="text-blue-400 hover:text-blue-600 p-1" title="Editar"><IconEdit /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1" title="Borrar"><IconTrash /></button>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}</button>
+                                )}
                             </div>
                         ))}
                     </div>
                 )}
-                {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
-                {savedOfType && <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio.</p>}
+                {savedOfType && type !== 'custom' && <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio.</p>}
             </div>
         );
     };
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
-            <div>
-                <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
-                    {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
-                </h4>
-                <p className="text-md font-semibold text-gray-800">
-                    {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
-                </p>
+            
+            {/* CABECERA */}
+            <div className="flex justify-between items-start">
+                <div>
+                    <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
+                        {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
+                    </h4>
+                    <p className="text-md font-semibold text-gray-800">
+                        {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 font-mono">{day.date}</p>
+                </div>
+                <div className="bg-white/80 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[80px]">
+                    {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">Cargando...</div>}
+                    {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 días</div>}
+                    {weatherStatus === 'success' && weather && (
+                        <><div className="text-2xl">{getWeatherIcon(weather.code)}</div><div className="text-xs font-bold text-gray-800">{Math.round(weather.maxTemp)}° <span className="text-gray-400">/ {Math.round(weather.minTemp)}°</span></div><div className="text-[10px] text-blue-600 font-bold">💧 {weather.rainProb}%</div></>
+                    )}
+                </div>
             </div>
 
+            {/* MI PLAN */}
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">
                     <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> MI PLAN:</h5>
                     <div className="space-y-1">
                         {saved.map((place, i) => (
-                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded cursor-pointer hover:bg-green-100" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)}>
+                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded cursor-pointer hover:bg-green-100" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)} onClick={() => handlePlaceClick(place)}>
                                 <div className="truncate flex-1 mr-2 flex items-center gap-2">
                                     <span className="font-bold text-lg">
                                        {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : place.type === 'water' ? '💧' : place.type === 'gas' ? '⛽' : place.type === 'supermarket' ? '🛒' : place.type === 'laundry' ? '🧺' : place.type === 'tourism' ? '📷' : '⭐'}
@@ -231,9 +255,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                     </div>
                                 </div>
                                 <div className="flex gap-1">
-                                    {/* BOTÓN EDITAR PARA CUSTOM */}
                                     {place.type === 'custom' && (
-                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(place); }} className="text-blue-400 hover:text-blue-600 p-1" title="Editar"><IconEdit /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
                                     <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                 </div>
@@ -273,6 +296,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                             <input type="text" placeholder="Latitud" value={customLat} onChange={e => setCustomLat(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
                             <input type="text" placeholder="Longitud" value={customLng} onChange={e => setCustomLng(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
                         </div>
+                        <p className="text-[9px] text-gray-500 italic">* Pon coordenadas si quieres ver la chincheta en el mapa.</p>
                         <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">Guardar en Mi Plan</button>
                     </div>
                 </form>
@@ -280,18 +304,19 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
-                    <div className="flex flex-wrap gap-2 mb-2">
+                    {/* BOTONERA */}
+                    <div className="flex flex-wrap gap-2 mb-4">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span>🚐</span> Spots</div>
                         <ServiceButton type="water" icon="💧" label="Aguas" />
                         <ServiceButton type="gas" icon="⛽" label="Gas" />
-                        <ServiceButton type="custom" icon="⭐" label="Otros" />
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-4">
                         <ServiceButton type="restaurant" icon="🍳" label="Comer" />
                         <ServiceButton type="supermarket" icon="🛒" label="Super" />
                         <ServiceButton type="laundry" icon="🧺" label="Lavar" />
                         <ServiceButton type="tourism" icon="📷" label="Turismo" />
+                        <ServiceButton type="custom" icon="⭐" label="Otros" />
                     </div>
+                    
+                    {/* RESULTADOS DE BÚSQUEDA */}
                     <div className="space-y-2">
                         <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
                         <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" />
@@ -299,7 +324,19 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceList type="restaurant" title="Restaurantes" colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" />
                         <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
                         <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
-                        <ServiceList type="tourism" title="Turismo" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
+                        <ServiceList type="tourism" title="Turismo y Visitas" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
+                        <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-500" />
+                    </div>
+
+                    {/* ALTIMETRÍA */}
+                    <div className="mt-4 pt-2 border-t border-gray-100">
+                        {!elevationData && !loadingElevation && (
+                            <button onClick={handleCalcElevation} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
+                                <IconMountain /> Analizar Desnivel
+                            </button>
+                        )}
+                        {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">Calculando...</p>}
+                        {elevationData && <ElevationChart data={elevationData} />}
                     </div>
                 </div>
             )}
