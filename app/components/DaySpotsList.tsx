@@ -12,8 +12,11 @@ const IconPlus = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w
 const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>);
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>);
 const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>);
+// Iconos Privacidad
+const IconLock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>);
+const IconEye = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>);
 
-// JERARQUÍA DE ORDEN PARA "MI PLAN"
+// JERARQUÍA DE ORDEN
 const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
 };
@@ -55,6 +58,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     const [customLat, setCustomLat] = useState('');
     const [customLng, setCustomLng] = useState('');
     const [customType, setCustomType] = useState<ServiceType>('custom');
+    const [customPublic, setCustomPublic] = useState(false); // NUEVO: Privacidad
     const [geocoding, setGeocoding] = useState(false);
 
     // CLIMA
@@ -120,6 +124,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         });
     };
 
+    // GUARDAR SITIO MANUAL
     const handleSaveCustom = (e: React.FormEvent) => {
         e.preventDefault();
         let geometry = undefined;
@@ -128,10 +133,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         }
         const newPlace: PlaceWithDistance = {
             name: customName, vicinity: customDesc, link: customLink, place_id: `custom-${Date.now()}`, 
-            type: customType, rating: 0, distanceFromCenter: 0, types: ['custom'], geometry: geometry 
+            type: customType, rating: 0, distanceFromCenter: 0, types: ['custom'], geometry: geometry,
+            isPublic: customPublic // GUARDAMOS SI ES PÚBLICO O NO
         };
         onAddPlace(newPlace);
-        setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng(''); setCustomType('custom'); setShowCustomForm(false);
+        // Reset
+        setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng(''); 
+        setCustomType('custom'); setCustomPublic(false); setShowCustomForm(false);
     };
 
     // EDITAR CUSTOM
@@ -142,6 +150,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         setCustomDesc(place.vicinity || '');
         setCustomLink(place.link || '');
         setCustomType(place.type || 'custom');
+        setCustomPublic(place.isPublic || false); // Recuperar estado público
         if (place.geometry?.location) {
             setCustomLat(place.geometry.location.lat().toString());
             setCustomLng(place.geometry.location.lng().toString());
@@ -161,27 +170,19 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     );
 
     const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
-        // Si el botón no está activo, no mostramos nada (salvo camping que siempre se ve)
         if (!toggles[type] && type !== 'camping') return null; 
-        
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
-
-        // CORRECCIÓN 1: Si es CUSTOM, la lista de "Resultados" son tus propios sitios guardados
+        
         if (type === 'custom') {
             list = saved.filter(s => s.type === 'custom');
-        }
-        
-        // CORRECCIÓN 2: Modo Foco Universal (incluso Turismo)
-        // Si hay uno guardado, la lista de resultados se reduce a ESE guardado.
-        if (savedOfType && type !== 'custom') {
-            list = [savedOfType];
+        } else {
+            // Modo Foco
+            if (savedOfType) list = [savedOfType];
         }
 
         const isLoading = loading[type];
-
-        // Si no hay elementos y no carga, no pintar nada
-        if (list.length === 0 && !isLoading) return null;
+        if (type === 'custom' && list.length === 0) return null;
 
         return (
             <div className="animate-fadeIn mt-4">
@@ -197,11 +198,10 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                     <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
                                     {auditMode && <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded"><p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p></div>}
                                 </div>
-                                {/* Si es custom, mostramos editar, si no, el botón normal */}
                                 {type === 'custom' ? (
                                     <div className="flex gap-1">
-                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(spot); }} className="text-blue-400 hover:text-blue-600 p-1" title="Editar"><IconEdit /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1" title="Borrar"><IconTrash /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                     </div>
                                 ) : (
                                     <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}</button>
@@ -210,7 +210,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         ))}
                     </div>
                 )}
-                {savedOfType && type !== 'custom' && <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio.</p>}
+                {!isLoading && list.length === 0 && type !== 'custom' && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
             </div>
         );
     };
@@ -218,7 +218,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
             
-            {/* CABECERA */}
             <div className="flex justify-between items-start">
                 <div>
                     <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
@@ -238,7 +237,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 </div>
             </div>
 
-            {/* MI PLAN */}
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">
                     <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> MI PLAN:</h5>
@@ -254,7 +252,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                         {place.link && <a href={place.link} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline flex items-center gap-1" onClick={(e) => e.stopPropagation()}><IconLink /> Ver Link</a>}
                                     </div>
                                 </div>
-                                <div className="flex gap-1">
+                                <div className="flex gap-1 items-center">
+                                    {/* ICONO PRIVACIDAD */}
+                                    {place.type === 'custom' && (
+                                        <span title={place.isPublic ? "Público" : "Privado"}>
+                                            {place.isPublic ? <IconEye /> : <IconLock />}
+                                        </span>
+                                    )}
                                     {place.type === 'custom' && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditCustom(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
@@ -296,15 +300,29 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                             <input type="text" placeholder="Latitud" value={customLat} onChange={e => setCustomLat(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
                             <input type="text" placeholder="Longitud" value={customLng} onChange={e => setCustomLng(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
                         </div>
+
+                        {/* CHECKBOX DE PRIVACIDAD */}
+                        <div className="flex items-center gap-2 text-xs text-gray-700 bg-white p-2 rounded border border-gray-200">
+                            <input 
+                                type="checkbox" 
+                                checked={customPublic} 
+                                onChange={e => setCustomPublic(e.target.checked)}
+                                id="privacyCheck"
+                            />
+                            <label htmlFor="privacyCheck" className="cursor-pointer select-none flex items-center gap-1">
+                                <span>🌍</span> Permitir que otros vean esto al compartir
+                            </label>
+                        </div>
+
                         <p className="text-[9px] text-gray-500 italic">* Pon coordenadas si quieres ver la chincheta en el mapa.</p>
                         <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">Guardar en Mi Plan</button>
                     </div>
                 </form>
             )}
 
+            {/* ... El resto del código del mapa y botones sigue igual ... */}
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
-                    {/* BOTONERA */}
                     <div className="flex flex-wrap gap-2 mb-4">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span>🚐</span> Spots</div>
                         <ServiceButton type="water" icon="💧" label="Aguas" />
@@ -315,8 +333,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceButton type="tourism" icon="📷" label="Turismo" />
                         <ServiceButton type="custom" icon="⭐" label="Otros" />
                     </div>
-                    
-                    {/* RESULTADOS DE BÚSQUEDA */}
                     <div className="space-y-2">
                         <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
                         <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" />
@@ -325,11 +341,9 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
                         <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
                         <ServiceList type="tourism" title="Turismo y Visitas" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
-                        <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-500" />
+                        <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" />
                     </div>
-
-                    {/* ALTIMETRÍA */}
-                    <div className="mt-4 pt-2 border-t border-gray-100">
+                     <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (
                             <button onClick={handleCalcElevation} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
                                 <IconMountain /> Analizar Desnivel
