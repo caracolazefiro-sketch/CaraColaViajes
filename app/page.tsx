@@ -7,6 +7,7 @@ import { MARKER_ICONS, ICONS_ITINERARY, normalizeText } from './constants';
 import DaySpotsList from './components/DaySpotsList';
 import ElevationChart from './components/ElevationChart';
 import { supabase } from './supabase';
+import UserArea from './components/UserArea'; // <--- IMPORTANTE
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
@@ -32,9 +33,8 @@ const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w
 const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
-const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
-// AÑADIDO EL ICONO DE LA NUBE QUE FALTABA
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
+const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
 
 // --- COMPONENTE PRINCIPAL ---
 export default function Home() {
@@ -53,6 +53,7 @@ export default function Home() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [auditMode, setAuditMode] = useState(false); 
   const [isSaving, setIsSaving] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0); // Para forzar repintado si cargamos viaje
 
   // ESTADO UNIFICADO
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
@@ -111,18 +112,43 @@ export default function Home() {
       }
   };
 
+  // --- CARGAR VIAJE DESDE LA NUBE (Callback para UserArea) ---
+  const handleLoadCloudTrip = (tripData: any) => {
+      if (tripData) {
+          if (tripData.formData) setFormData(tripData.formData);
+          if (tripData.results) setResults(tripData.results);
+          // Forzamos reseteo de estados visuales
+          setSelectedDayIndex(null);
+          setMapBounds(null);
+          setForceUpdate(prev => prev + 1); // Truco para forzar re-render del mapa si hace falta
+          alert("✅ ¡Viaje cargado correctamente!");
+      }
+  };
+
   // --- GUARDAR EN NUBE (SUPABASE) ---
   const handleSaveToCloud = async () => {
     if (!results.dailyItinerary) return;
-    setIsSaving(true);
+    
+    // Verificamos si hay usuario logueado antes de guardar
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        alert("Debes iniciar sesión (arriba a la izquierda) para guardar en la nube.");
+        return;
+    }
 
+    setIsSaving(true);
     const tripName = `${formData.origen} a ${formData.destino} (${formData.fechaInicio})`;
     const tripPayload = { formData, results };
 
     try {
-        const { data, error } = await supabase.from('trips').insert([{ name: tripName, trip_data: tripPayload }]).select();
+        const { error } = await supabase.from('trips').insert([{ 
+            name: tripName, 
+            trip_data: tripPayload,
+            user_id: session.user.id 
+        }]);
+        
         if (error) throw error;
-        alert("✅ ¡Viaje guardado en la nube con éxito!");
+        alert("✅ ¡Viaje guardado en tu cuenta!");
     } catch (error: any) {
         console.error("Error guardando:", error);
         alert("❌ Error al guardar: " + error.message);
@@ -151,7 +177,7 @@ export default function Home() {
               setTimeout(() => map.fitBounds(routeBounds), 500);
           }
       }
-  }, [map, mapBounds, directionsResponse, selectedDayIndex]);
+  }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]); // Añadido forceUpdate
   
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
     if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
@@ -458,27 +484,25 @@ export default function Home() {
             <img src="/logo.jpg" alt="CaraCola Viajes" className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"/>
             <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
             
-            <div className="flex items-center gap-2 absolute right-0 top-0">
-                <button onClick={() => setAuditMode(!auditMode)} className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`} title="Modo Auditor">
-                    <IconAudit /> {auditMode ? 'Auditor ON' : 'Auditor'}
-                </button>
+            <div className="absolute right-0 top-0">
+                <UserArea onLoadTrip={handleLoadCloudTrip} />
                 
-                {/* BOTÓN GUARDAR EN NUBE */}
-                {results.dailyItinerary && (
-                     <button 
-                        onClick={handleSaveToCloud} 
-                        disabled={isSaving}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 disabled:opacity-50"
-                    >
-                        <IconCloud /> {isSaving ? '...' : 'Guardar'}
+                {/* BOTÓN AUDITOR Y GUARDAR */}
+                <div className="flex items-center gap-2 justify-end mt-2">
+                   <button onClick={() => setAuditMode(!auditMode)} className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`} title="Modo Auditor">
+                        <IconAudit />
                     </button>
-                )}
-
-                {results.dailyItinerary && (
-                     <button onClick={handleResetTrip} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1">
-                        <IconReset /> Borrar
-                    </button>
-                )}
+                    {results.dailyItinerary && (
+                        <>
+                            <button onClick={handleSaveToCloud} disabled={isSaving} className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                <IconCloud /> {isSaving ? '...' : 'Guardar'}
+                            </button>
+                             <button onClick={handleResetTrip} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1">
+                                <IconReset />
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
         
