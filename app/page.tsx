@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
-
-// 1. IMPORTAMOS LO QUE SACAMOS FUERA (ASÍ NO DUPLICAMOS)
 import { Coordinates, DailyPlan, PlaceWithDistance, ServiceType, TripResult } from './types';
-import { MARKER_ICONS, ICONS_ITINERARY } from './constants';
+import { MARKER_ICONS, ICONS_ITINERARY, normalizeText } from './constants';
 import DaySpotsList from './components/DaySpotsList';
+import ElevationChart from './components/ElevationChart';
 import { supabase } from './supabase';
 
 // --- CONFIGURACIÓN VISUAL ---
@@ -26,7 +25,7 @@ const printStyles = `
   }
 `;
 
-// --- ICONOS SVG UI (Estos se quedan aquí porque son específicos del Dashboard) ---
+// --- ICONOS SVG UI ---
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
@@ -34,8 +33,8 @@ const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
-const IconExcel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>);
-
+// AÑADIDO EL ICONO DE LA NUBE QUE FALTABA
+const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 
 // --- COMPONENTE PRINCIPAL ---
 export default function Home() {
@@ -211,6 +210,7 @@ export default function Home() {
               // FILTRO PORTERO
               spotsWithDistance = spotsWithDistance.filter(spot => {
                   const tags = spot.types || [];
+                  
                   if (type === 'camping') {
                       const nameLower = spot.name?.toLowerCase() || "";
                       const isCampingName = nameLower.includes("camping") || nameLower.includes("area") || nameLower.includes("autocaravana") || nameLower.includes("camper");
@@ -302,6 +302,10 @@ export default function Home() {
     const { id, value, type, checked } = e.target;
     let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil','consumo','kmMaximoDia'].includes(id) ? parseFloat(value) : value);
     setFormData(prev => ({ ...prev, [id]: finalValue }));
+  };
+
+  const handleReturnHome = () => {
+      setFormData(prev => ({ ...prev, origen: prev.destino, destino: prev.origen }));
   };
 
   const calculateRoute = async (e: React.FormEvent) => {
