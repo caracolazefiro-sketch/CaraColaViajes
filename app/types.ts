@@ -1,22 +1,20 @@
 export interface Coordinates { lat: number; lng: number; }
 
-// AÑADIDO 'custom' AL FINAL
 export type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism' | 'custom';
 
 export interface PlaceWithDistance {
     name?: string;
     rating?: number;
     user_ratings_total?: number;
-    vicinity?: string;
+    vicinity?: string; // Dirección o Descripción visual
     place_id?: string;
     opening_hours?: { isOpen?: () => boolean; open_now?: boolean };
-    geometry?: { location?: any; };
+    geometry?: { location?: any; }; // Aquí guardaremos las coordenadas para el mapa
     distanceFromCenter?: number; 
     type?: ServiceType;
     photoUrl?: string;
     types?: string[]; 
-    // AÑADIDO: Para guardar notas o links personalizados
-    customNote?: string; 
+    link?: string; // NUEVO: Para guardar la URL exacta (P4N, web del restaurante...)
 }
 
 export interface DailyPlan { 
