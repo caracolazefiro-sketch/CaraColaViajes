@@ -1,3 +1,5 @@
+// app/constants.ts
+
 // --- ICONOS MAPA ---
 export const MARKER_ICONS: Record<string, string> = {
     camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",      // Rojo
@@ -7,7 +9,7 @@ export const MARKER_ICONS: Record<string, string> = {
     supermarket: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",  // Verde
     laundry: "http://maps.google.com/mapfiles/ms/icons/purple-dot.png",      // Morado
     tourism: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",      // Amarillo
-    custom: "https://www.google.com/maps/place/?q=place_id:$"        // ⭐ NUEVO: ESTRELLA o SIMILAR
+    custom: "https://www.google.com/maps/place/?q=place_id:$"        // ⭐ NUEVO: Azul palido (Generico)
 };
 
 export const ICONS_ITINERARY = {

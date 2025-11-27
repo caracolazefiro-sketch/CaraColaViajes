@@ -7,7 +7,7 @@ import { MARKER_ICONS, ICONS_ITINERARY, normalizeText } from './constants';
 import DaySpotsList from './components/DaySpotsList';
 import ElevationChart from './components/ElevationChart';
 import { supabase } from './supabase';
-import UserArea from './components/UserArea'; // <--- IMPORTANTE
+import UserArea from './components/UserArea';
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
@@ -53,17 +53,18 @@ export default function Home() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [auditMode, setAuditMode] = useState(false); 
   const [isSaving, setIsSaving] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0); // Para forzar repintado si cargamos viaje
+  const [currentTripId, setCurrentTripId] = useState<number | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
-  // ESTADO UNIFICADO
+  // ESTADO UNIFICADO (AQUÍ ESTABA EL ERROR: FALTABA 'custom')
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
-      camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: []
+      camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: []
   });
   const [loadingPlaces, setLoadingPlaces] = useState<Record<ServiceType, boolean>>({
-      camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false
+      camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false
   });
   const [toggles, setToggles] = useState<Record<ServiceType, boolean>>({
-      camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false
+      camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true
   });
 
   const [formData, setFormData] = useState({
@@ -93,6 +94,7 @@ export default function Home() {
               const parsed = JSON.parse(savedData);
               if (parsed.formData) setFormData(parsed.formData);
               if (parsed.results) setResults(parsed.results);
+              if (parsed.tripId) setCurrentTripId(parsed.tripId);
           } catch (e) { console.error(e); }
       }
       setIsInitialized(true);
@@ -100,10 +102,10 @@ export default function Home() {
 
   useEffect(() => {
       if (isInitialized) {
-          const dataToSave = { formData, results };
+          const dataToSave = { formData, results, tripId: currentTripId };
           localStorage.setItem('caracola_trip_v1', JSON.stringify(dataToSave));
       }
-  }, [formData, results, isInitialized]);
+  }, [formData, results, currentTripId, isInitialized]);
 
   const handleResetTrip = () => {
       if (confirm("¿Seguro que quieres borrar este viaje y empezar de cero?")) {
@@ -112,27 +114,24 @@ export default function Home() {
       }
   };
 
-  // --- CARGAR VIAJE DESDE LA NUBE (Callback para UserArea) ---
-  const handleLoadCloudTrip = (tripData: any) => {
+  const handleLoadCloudTrip = (tripData: any, tripId: number) => {
       if (tripData) {
           if (tripData.formData) setFormData(tripData.formData);
           if (tripData.results) setResults(tripData.results);
-          // Forzamos reseteo de estados visuales
+          setCurrentTripId(tripId); 
           setSelectedDayIndex(null);
           setMapBounds(null);
-          setForceUpdate(prev => prev + 1); // Truco para forzar re-render del mapa si hace falta
-          alert("✅ ¡Viaje cargado correctamente!");
+          setForceUpdate(prev => prev + 1);
+          alert(`✅ Viaje cargado. (ID: ${tripId})`);
       }
   };
 
-  // --- GUARDAR EN NUBE (SUPABASE) ---
   const handleSaveToCloud = async () => {
     if (!results.dailyItinerary) return;
     
-    // Verificamos si hay usuario logueado antes de guardar
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-        alert("Debes iniciar sesión (arriba a la izquierda) para guardar en la nube.");
+        alert("Debes iniciar sesión para guardar.");
         return;
     }
 
@@ -141,17 +140,26 @@ export default function Home() {
     const tripPayload = { formData, results };
 
     try {
-        const { error } = await supabase.from('trips').insert([{ 
-            name: tripName, 
-            trip_data: tripPayload,
-            user_id: session.user.id 
-        }]);
-        
-        if (error) throw error;
-        alert("✅ ¡Viaje guardado en tu cuenta!");
+        if (currentTripId) {
+            const overwrite = confirm(`Este viaje ya existe (ID: ${currentTripId}).\n¿Sobrescribir? (Cancelar = Nuevo)`);
+            if (overwrite) {
+                const { error } = await supabase.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId);
+                if (error) throw error;
+                alert("✅ Actualizado correctamente.");
+            } else {
+                const { data, error } = await supabase.from('trips').insert([{ name: tripName + " (Copia)", trip_data: tripPayload, user_id: session.user.id }]).select();
+                if (error) throw error;
+                if (data && data[0]) setCurrentTripId(data[0].id);
+                alert("✅ Copia guardada.");
+            }
+        } else {
+            const { data, error } = await supabase.from('trips').insert([{ name: tripName, trip_data: tripPayload, user_id: session.user.id }]).select();
+            if (error) throw error;
+            if (data && data[0]) setCurrentTripId(data[0].id);
+            alert("✅ Viaje nuevo guardado.");
+        }
     } catch (error: any) {
-        console.error("Error guardando:", error);
-        alert("❌ Error al guardar: " + error.message);
+        alert("❌ Error: " + error.message);
     } finally {
         setIsSaving(false);
     }
@@ -167,7 +175,6 @@ export default function Home() {
     }
   }, [formData.consumo, formData.precioGasoil, results.distanceKm]);
 
-  // ZOOM GENERAL
   useEffect(() => {
       if (map) {
           if (mapBounds) {
@@ -177,7 +184,7 @@ export default function Home() {
               setTimeout(() => map.fitBounds(routeBounds), 500);
           }
       }
-  }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]); // Añadido forceUpdate
+  }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
   
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
     if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
@@ -189,7 +196,7 @@ export default function Home() {
     return null;
   };
 
-  // --- BÚSQUEDA CON FILTRO ESTRICTO ---
+  // BÚSQUEDA
   const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
       if (!map || typeof google === 'undefined') return;
       
@@ -233,10 +240,8 @@ export default function Home() {
                   };
               });
 
-              // FILTRO PORTERO
               spotsWithDistance = spotsWithDistance.filter(spot => {
                   const tags = spot.types || [];
-                  
                   if (type === 'camping') {
                       const nameLower = spot.name?.toLowerCase() || "";
                       const isCampingName = nameLower.includes("camping") || nameLower.includes("area") || nameLower.includes("autocaravana") || nameLower.includes("camper");
@@ -246,10 +251,7 @@ export default function Home() {
                   }
                   if (type === 'gas') return tags.includes('gas_station');
                   if (type === 'supermarket') return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
-                  if (type === 'laundry') {
-                       if (tags.includes('lodging') && !tags.includes('laundry')) return false;
-                       return tags.includes('laundry');
-                  }
+                  if (type === 'laundry') { if (tags.includes('lodging') && !tags.includes('laundry')) return false; return tags.includes('laundry'); }
                   return true; 
               });
 
@@ -301,8 +303,8 @@ export default function Home() {
     const dailyPlan = results.dailyItinerary[dayIndex];
     if (!dailyPlan) return;
     setSelectedDayIndex(dayIndex); 
-    setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
-    setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
+    setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true });
+    setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [] });
     setHoveredPlace(null);
 
     if (dailyPlan.coordinates) {
@@ -342,8 +344,9 @@ export default function Home() {
     setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null }); 
     setSelectedDayIndex(null); 
     // Resetear
-    setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false });
-    setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] });
+    setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true });
+    setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [] });
+    setCurrentTripId(null); 
 
     if (typeof google === 'undefined' || typeof google.maps.DirectionsService === 'undefined') {
         setLoading(false);
@@ -485,12 +488,12 @@ export default function Home() {
             <p className="text-gray-500 text-sm md:text-base font-medium">Tu ruta en autocaravana, paso a paso.</p>
             
             <div className="absolute right-0 top-0">
-                <UserArea onLoadTrip={handleLoadCloudTrip} />
+                {/* COMPONENTE DE USUARIO (Login/Logout/Mis Viajes) */}
+                <UserArea onLoadTrip={(data, id) => handleLoadCloudTrip(data, id)} />
                 
-                {/* BOTÓN AUDITOR Y GUARDAR */}
                 <div className="flex items-center gap-2 justify-end mt-2">
                    <button onClick={() => setAuditMode(!auditMode)} className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`} title="Modo Auditor">
-                        <IconAudit />
+                        <IconAudit /> {auditMode ? 'ON' : 'Audit'}
                     </button>
                     {results.dailyItinerary && (
                         <>
@@ -592,7 +595,7 @@ export default function Home() {
                         <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                         <div className="flex flex-wrap gap-2">
                             <button 
-                                onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false }); setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [] }); setHoveredPlace(null); }} 
+                                onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true }); setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [] }); setHoveredPlace(null); }} 
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}
                             >
                                 🌎 General
@@ -670,7 +673,16 @@ export default function Home() {
                                             {hoveredPlace.photoUrl ? (
                                                 <img src={hoveredPlace.photoUrl} alt={hoveredPlace.name} className="w-full h-24 object-cover rounded-t-lg" />
                                             ) : (
-                                                <div className="w-full h-16 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">Sin foto</div>
+                                                <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-4xl">
+                                                    {hoveredPlace.type === 'custom' ? '⭐' :
+                                                     hoveredPlace.type === 'camping' ? '🚐' :
+                                                     hoveredPlace.type === 'restaurant' ? '🍳' :
+                                                     hoveredPlace.type === 'water' ? '💧' :
+                                                     hoveredPlace.type === 'gas' ? '⛽' :
+                                                     hoveredPlace.type === 'supermarket' ? '🛒' :
+                                                     hoveredPlace.type === 'laundry' ? '🧺' :
+                                                     hoveredPlace.type === 'tourism' ? '📷' : '📍'}
+                                                </div>
                                             )}
                                             <div className="p-2 bg-white">
                                                 <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight">{hoveredPlace.name}</h6>
@@ -739,7 +751,7 @@ export default function Home() {
                                                                          place.type === 'gas' ? '⛽' :
                                                                          place.type === 'supermarket' ? '🛒' :
                                                                          place.type === 'laundry' ? '🧺' :
-                                                                         place.type === 'tourism' ? '📷' : '📍'}
+                                                                         place.type === 'tourism' ? '📷' : '⭐'}
                                                                     </span>
                                                                     <div>
                                                                         <span className="font-bold block text-green-800">{place.name}</span>
