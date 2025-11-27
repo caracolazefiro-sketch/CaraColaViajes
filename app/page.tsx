@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
-import { Coordinates, DailyPlan, PlaceWithDistance, ServiceType, TripResult } from './types';
-import { MARKER_ICONS, ICONS_ITINERARY, normalizeText } from './constants';
-import DaySpotsList from './components/DaySpotsList';
-import ElevationChart from './components/ElevationChart';
 import { supabase } from './supabase';
 import UserArea from './components/UserArea';
+// Nota: Aunque importamos tipos, definimos algunos localmente para evitar conflictos si no actualizaste types.ts
+// Si tienes types.ts actualizado, podrías borrar las interfaces de aquí, pero las dejo para asegurar que compile.
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
@@ -26,6 +24,63 @@ const printStyles = `
   }
 `;
 
+// --- ICONOS MAPA ---
+const MARKER_ICONS: Record<string, string> = {
+    camping: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",      // Rojo
+    restaurant: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",   // Azul
+    water: "http://maps.google.com/mapfiles/ms/icons/ltblue-dot.png",        // Azul claro
+    gas: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png",          // Naranja
+    supermarket: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",  // Verde
+    laundry: "http://maps.google.com/mapfiles/ms/icons/purple-dot.png",      // Morado
+    tourism: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",      // Amarillo
+    custom: "https://www.google.com/maps/place/?q=place_id:$"        // ⭐ AZUL PÁLIDO / ESTRELLA
+};
+
+const ICONS_ITINERARY = {
+    startEnd: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+    tactical: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+};
+
+// --- INTERFACES ---
+interface Coordinates { lat: number; lng: number; }
+// AÑADIDO 'custom' AL TIPO
+type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism' | 'custom';
+
+interface PlaceWithDistance {
+    name?: string;
+    rating?: number;
+    user_ratings_total?: number;
+    vicinity?: string;
+    place_id?: string;
+    opening_hours?: { isOpen?: () => boolean; open_now?: boolean };
+    geometry?: { location?: any; };
+    distanceFromCenter?: number; 
+    type?: ServiceType;
+    photoUrl?: string;
+    types?: string[];
+    link?: string;
+}
+
+interface DailyPlan { 
+    day: number; 
+    date: string; 
+    isoDate: string; 
+    from: string; 
+    to: string; 
+    distance: number; 
+    isDriving: boolean; 
+    coordinates?: Coordinates; 
+    type: 'overnight' | 'tactical' | 'start' | 'end';
+    savedPlaces?: PlaceWithDistance[]; 
+}
+
+interface TripResult { 
+    totalDays: number | null; distanceKm: number | null; totalCost: number | null; 
+    dailyItinerary: DailyPlan[] | null; error: string | null; 
+}
+
+interface WeatherData { code: number; maxTemp: number; minTemp: number; rainProb: number; }
+
 // --- ICONOS SVG UI ---
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
@@ -35,6 +90,17 @@ const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
+
+// --- COMPONENTES IMPORTADOS (Si no funcionan los imports, descomenta esto y borra los imports de arriba) ---
+import DaySpotsList from './components/DaySpotsList';
+import ElevationChart from './components/ElevationChart';
+
+// --- HELPER TIEMPO ---
+const getWeatherIcon = (code: number) => {
+    if (code === 0) return '☀️'; if (code >= 1 && code <= 3) return '⛅'; if (code >= 45 && code <= 48) return '🌫️';
+    if (code >= 51 && code <= 67) return '🌧️'; if (code >= 71 && code <= 77) return '❄️';
+    if (code >= 80 && code <= 82) return '🌦️'; if (code >= 95) return '⛈️'; return '🌡️';
+};
 
 // --- COMPONENTE PRINCIPAL ---
 export default function Home() {
@@ -56,7 +122,7 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // ESTADO UNIFICADO (AQUÍ ESTABA EL ERROR: FALTABA 'custom')
+  // ESTADO UNIFICADO (AQUÍ ESTABA EL ERROR: AHORA INCLUIMOS 'custom')
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
       camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: []
   });
@@ -131,7 +197,7 @@ export default function Home() {
     
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-        alert("Debes iniciar sesión para guardar.");
+        alert("Debes iniciar sesión (arriba a la izquierda) para guardar en la nube.");
         return;
     }
 
@@ -175,6 +241,7 @@ export default function Home() {
     }
   }, [formData.consumo, formData.precioGasoil, results.distanceKm]);
 
+  // ZOOM GENERAL
   useEffect(() => {
       if (map) {
           if (mapBounds) {
@@ -196,7 +263,7 @@ export default function Home() {
     return null;
   };
 
-  // BÚSQUEDA
+  // --- BÚSQUEDA CON FILTRO ESTRICTO ---
   const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
       if (!map || typeof google === 'undefined') return;
       
@@ -214,7 +281,10 @@ export default function Home() {
           case 'supermarket': keywords = 'supermercado OR "tienda alimentacion"'; radius = 5000; break;
           case 'laundry': keywords = 'lavanderia OR "laundry"'; radius = 10000; break;
           case 'tourism': keywords = 'turismo OR monumento OR museo OR "punto interes"'; radius = 10000; break;
+          // CUSTOM: No hace falta buscar, se añaden a mano
       }
+
+      if (type === 'custom') return;
 
       const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword: keywords };
 
@@ -240,6 +310,7 @@ export default function Home() {
                   };
               });
 
+              // FILTRO PORTERO
               spotsWithDistance = spotsWithDistance.filter(spot => {
                   const tags = spot.types || [];
                   if (type === 'camping') {
@@ -251,7 +322,10 @@ export default function Home() {
                   }
                   if (type === 'gas') return tags.includes('gas_station');
                   if (type === 'supermarket') return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
-                  if (type === 'laundry') { if (tags.includes('lodging') && !tags.includes('laundry')) return false; return tags.includes('laundry'); }
+                  if (type === 'laundry') {
+                       if (tags.includes('lodging') && !tags.includes('laundry')) return false;
+                       return tags.includes('laundry');
+                  }
                   return true; 
               });
 
@@ -751,7 +825,7 @@ export default function Home() {
                                                                          place.type === 'gas' ? '⛽' :
                                                                          place.type === 'supermarket' ? '🛒' :
                                                                          place.type === 'laundry' ? '🧺' :
-                                                                         place.type === 'tourism' ? '📷' : '⭐'}
+                                                                         place.type === 'tourism' ? '📷' : '📍'}
                                                                     </span>
                                                                     <div>
                                                                         <span className="font-bold block text-green-800">{place.name}</span>
