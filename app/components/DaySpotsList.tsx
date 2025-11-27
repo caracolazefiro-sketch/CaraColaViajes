@@ -11,10 +11,11 @@ const IconMountain = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h
 const IconPlus = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>);
 const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>);
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>);
+const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>);
 
 // JERARQUÍA DE ORDEN PARA "MI PLAN"
 const CATEGORY_ORDER: Record<string, number> = {
-    camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
+    camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 99 
 };
 
 interface DaySpotsListProps { 
@@ -46,6 +47,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     const [elevationData, setElevationData] = useState<{ distance: number, elevation: number }[] | null>(null);
     const [loadingElevation, setLoadingElevation] = useState(false);
     
+    // ESTADO FORMULARIO MANUAL
     const [showCustomForm, setShowCustomForm] = useState(false);
     const [customName, setCustomName] = useState('');
     const [customDesc, setCustomDesc] = useState(''); 
@@ -55,6 +57,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     const [customType, setCustomType] = useState<ServiceType>('custom');
     const [geocoding, setGeocoding] = useState(false);
 
+    // CLIMA
     useEffect(() => {
         if (!day.coordinates || !day.isoDate) return;
         const fetchWeather = async () => {
@@ -77,6 +80,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         setElevationData(null);
     }, [day.coordinates, day.isoDate]);
 
+    // ELEVACION
     const handleCalcElevation = () => {
         if (typeof google === 'undefined' || !day.coordinates) return;
         setLoadingElevation(true);
@@ -130,13 +134,32 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng(''); setCustomType('custom'); setShowCustomForm(false);
     };
 
+    // --- FUNCIÓN EDITAR SITIO PERSONALIZADO ---
+    const handleEditCustom = (place: PlaceWithDistance) => {
+        if (!place.place_id) return;
+        // 1. Borramos el actual
+        onRemovePlace(place.place_id);
+        // 2. Rellenamos el formulario
+        setCustomName(place.name || '');
+        setCustomDesc(place.vicinity || '');
+        setCustomLink(place.link || '');
+        setCustomType(place.type || 'custom');
+        if (place.geometry?.location) {
+            setCustomLat(place.geometry.location.lat().toString());
+            setCustomLng(place.geometry.location.lng().toString());
+        }
+        // 3. Abrimos formulario
+        setShowCustomForm(true);
+    };
+
     const handlePlaceClick = (spot: PlaceWithDistance) => {
         if (spot.link) window.open(spot.link, '_blank');
         else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
     };
 
+    // --- BOTÓN ARREGLADO (Sin flex-grow para que no sea gigante) ---
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
-        <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm flex-grow justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+        <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
             <span>{icon}</span> {label}
         </button>
     );
@@ -146,15 +169,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
         
-        // Si es CUSTOM, no hay lista de búsqueda externa, pero mostramos el bloque si está activo el botón
         if (type === 'custom') {
-             // Custom no tiene búsqueda externa, solo lo que guardes.
-             // Si quieres mostrar la lista de "sitios guardados" aquí, ya está arriba en "Mi Plan".
-             // Este bloque es solo para RESULTADOS DE BÚSQUEDA.
+             // Custom no tiene lista de búsqueda, solo la de "Mi Plan"
              return null; 
         }
 
-        if (savedOfType && type !== 'tourism') list = [savedOfType]; 
+        // LÓGICA FOCO (Ahora también para Turismo)
+        if (savedOfType) list = [savedOfType];
+        
         const isLoading = loading[type];
 
         return (
@@ -177,6 +199,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                     </div>
                 )}
                 {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
+                {savedOfType && <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio.</p>}
             </div>
         );
     };
@@ -197,7 +220,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                     <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> MI PLAN:</h5>
                     <div className="space-y-1">
                         {saved.map((place, i) => (
-                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded cursor-pointer hover:bg-green-100" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)} onClick={() => handlePlaceClick(place)}>
+                            <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded cursor-pointer hover:bg-green-100" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)}>
                                 <div className="truncate flex-1 mr-2 flex items-center gap-2">
                                     <span className="font-bold text-lg">
                                        {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : place.type === 'water' ? '💧' : place.type === 'gas' ? '⛽' : place.type === 'supermarket' ? '🛒' : place.type === 'laundry' ? '🧺' : place.type === 'tourism' ? '📷' : '⭐'}
@@ -207,7 +230,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                         {place.link && <a href={place.link} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline flex items-center gap-1" onClick={(e) => e.stopPropagation()}><IconLink /> Ver Link</a>}
                                     </div>
                                 </div>
-                                <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600"><IconTrash /></button>
+                                <div className="flex gap-1">
+                                    {/* BOTÓN EDITAR PARA CUSTOM */}
+                                    {place.type === 'custom' && (
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(place); }} className="text-blue-400 hover:text-blue-600 p-1" title="Editar"><IconEdit /></button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -252,17 +281,16 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-2">
-                        <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm flex-grow justify-center"><span>🚐</span> Spots</div>
+                        <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span>🚐</span> Spots</div>
                         <ServiceButton type="water" icon="💧" label="Aguas" />
                         <ServiceButton type="gas" icon="⛽" label="Gas" />
+                        <ServiceButton type="custom" icon="⭐" label="Otros" />
                     </div>
                     <div className="flex flex-wrap gap-2 mb-4">
                         <ServiceButton type="restaurant" icon="🍳" label="Comer" />
                         <ServiceButton type="supermarket" icon="🛒" label="Super" />
                         <ServiceButton type="laundry" icon="🧺" label="Lavar" />
                         <ServiceButton type="tourism" icon="📷" label="Turismo" />
-                        {/* AÑADIDO BOTÓN OTROS */}
-                        <ServiceButton type="custom" icon="⭐" label="Otros" /> 
                     </div>
                     <div className="space-y-2">
                         <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
@@ -272,8 +300,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
                         <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
                         <ServiceList type="tourism" title="Turismo" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
-                        {/* AÑADIDA LISTA OTROS (Vacía pero necesaria para el toggle) */}
-                         <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-500" />
                     </div>
                 </div>
             )}
