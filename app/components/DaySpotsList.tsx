@@ -10,6 +10,7 @@ const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 
 const IconMountain = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
 const IconPlus = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>);
 const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>);
+const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>);
 
 // JERARQUÍA DE ORDEN PARA "MI PLAN"
 const CATEGORY_ORDER: Record<string, number> = {
@@ -20,7 +21,7 @@ const CATEGORY_ORDER: Record<string, number> = {
     laundry: 5,
     restaurant: 6,
     tourism: 7,
-    custom: 99 // Lo último
+    custom: 99 
 };
 
 interface DaySpotsListProps { 
@@ -39,7 +40,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     
-    // ORDENAR LOS SITIOS GUARDADOS
+    // Ordenar los sitios guardados
     const saved = (day.savedPlaces || []).sort((a, b) => {
         const orderA = CATEGORY_ORDER[a.type || 'custom'] || 99;
         const orderB = CATEGORY_ORDER[b.type || 'custom'] || 99;
@@ -56,11 +57,12 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     // ESTADO FORMULARIO MANUAL
     const [showCustomForm, setShowCustomForm] = useState(false);
     const [customName, setCustomName] = useState('');
-    const [customDesc, setCustomDesc] = useState('');
+    const [customDesc, setCustomDesc] = useState(''); // Usado para dirección/nota
     const [customLink, setCustomLink] = useState('');
     const [customLat, setCustomLat] = useState('');
     const [customLng, setCustomLng] = useState('');
     const [customType, setCustomType] = useState<ServiceType>('custom');
+    const [geocoding, setGeocoding] = useState(false); // Estado de búsqueda de dirección
 
     // CLIMA
     useEffect(() => {
@@ -93,9 +95,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         const ds = new google.maps.DirectionsService();
         if (!day.coordinates) return;
         const dest = new google.maps.LatLng(day.coordinates.lat, day.coordinates.lng);
-        ds.route({
-            origin: cleanFrom, destination: dest, travelMode: google.maps.TravelMode.DRIVING
-        }, (result, status) => {
+        ds.route({ origin: cleanFrom, destination: dest, travelMode: google.maps.TravelMode.DRIVING }, (result, status) => {
             if (status === 'OK' && result) {
                 const path = result.routes[0].overview_path;
                 const es = new google.maps.ElevationService();
@@ -110,33 +110,57 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         });
     };
 
-    // GUARDAR SITIO MANUAL CON COORDENADAS Y LINK
+    // --- FUNCIÓN MÁGICA: BUSCAR COORDENADAS POR DIRECCIÓN ---
+    const handleGeocodeAddress = () => {
+        if (!customDesc) {
+            alert("Escribe una dirección o nombre de lugar primero.");
+            return;
+        }
+        if (typeof google === 'undefined') return;
+
+        setGeocoding(true);
+        const geocoder = new google.maps.Geocoder();
+        
+        // Truco: Añadimos el nombre de la ciudad del día para ayudar a Google si la dirección es vaga
+        const searchAddress = `${customDesc} near ${rawCityName}`;
+
+        geocoder.geocode({ address: searchAddress }, (results, status) => {
+            setGeocoding(false);
+            if (status === 'OK' && results && results[0]) {
+                const loc = results[0].geometry.location;
+                setCustomLat(loc.lat().toString());
+                setCustomLng(loc.lng().toString());
+                // Opcional: Actualizar el nombre con el oficial de Google si el usuario quiere
+                // setCustomDesc(results[0].formatted_address); 
+                alert("✅ Ubicación encontrada y coordenadas rellenas.");
+            } else {
+                alert("❌ No pudimos localizar ese sitio. Intenta ser más específico (Ej: Calle X, Ciudad).");
+            }
+        });
+    };
+
+    // GUARDAR SITIO MANUAL
     const handleSaveCustom = (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Construir objeto de ubicación si hay coordenadas
         let geometry = undefined;
         if (customLat && customLng && typeof google !== 'undefined') {
-             geometry = {
-                 location: new google.maps.LatLng(parseFloat(customLat), parseFloat(customLng))
-             };
+             geometry = { location: new google.maps.LatLng(parseFloat(customLat), parseFloat(customLng)) };
         }
 
         const newPlace: PlaceWithDistance = {
             name: customName,
             vicinity: customDesc, 
-            link: customLink, // Guardamos el link real
+            link: customLink, 
             place_id: `custom-${Date.now()}`, 
             type: customType,
             rating: 0,
             distanceFromCenter: 0,
             types: ['custom'],
-            geometry: geometry // Si hay geometría, el mapa lo pintará
+            geometry: geometry 
         };
         
         onAddPlace(newPlace);
-        
-        // Reset
         setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng('');
         setCustomType('custom'); setShowCustomForm(false);
     };
@@ -144,13 +168,10 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     // CLICK INTELIGENTE
     const handlePlaceClick = (spot: PlaceWithDistance) => {
         if (spot.link) {
-            // Si tiene link propio (Park4Night, web...), usarlo
             window.open(spot.link, '_blank');
         } else if (spot.place_id && !spot.place_id.startsWith('custom-')) {
-            // Si es de Google, abrir Maps
             window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
         }
-        // Si es custom y no tiene link, no hacemos nada
     };
 
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
@@ -163,7 +184,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         if (!toggles[type] && type !== 'camping') return null; 
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
-        if (savedOfType && type !== 'tourism') list = [savedOfType]; // Modo foco
+        if (savedOfType && type !== 'tourism') list = [savedOfType]; 
         const isLoading = loading[type];
 
         return (
@@ -186,6 +207,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                     </div>
                 )}
                 {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
+                {savedOfType && type !== 'tourism' && <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio.</p>}
             </div>
         );
     };
@@ -234,8 +256,11 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                     <span className="font-bold text-lg">
                                        {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : place.type === 'water' ? '💧' : place.type === 'gas' ? '⛽' : place.type === 'supermarket' ? '🛒' : place.type === 'laundry' ? '🧺' : place.type === 'tourism' ? '📷' : '⭐'}
                                     </span>
-                                    <span className="font-medium text-green-900 truncate">{place.name}</span>
-                                    {place.link && <IconLink />}
+                                    <div>
+                                        <span className="font-medium text-green-900 truncate block">{place.name}</span>
+                                        {/* Indicador visual de que es Link */}
+                                        {place.link && <a href={place.link} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline flex items-center gap-1" onClick={(e) => e.stopPropagation()}><IconLink /> Ver Link</a>}
+                                    </div>
                                 </div>
                                 <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600"><IconTrash /></button>
                             </div>
@@ -249,12 +274,12 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 <IconPlus /> {showCustomForm ? 'Cancelar' : 'Añadir Sitio Personalizado'}
             </button>
 
-            {/* FORMULARIO AÑADIR */}
+            {/* FORMULARIO AÑADIR MEJORADO (CON GEOCODER) */}
             {showCustomForm && (
                 <form onSubmit={handleSaveCustom} className="bg-gray-100 p-3 rounded-lg mb-4 border border-gray-300 animate-fadeIn">
                     <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                            <input type="text" placeholder="Nombre (ej: P4N Área)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
+                            <input type="text" placeholder="Nombre (ej: Taller Manolo)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
                             <select value={customType} onChange={e => setCustomType(e.target.value as ServiceType)} className="w-full p-2 text-xs rounded border border-gray-300 bg-white outline-none">
                                 <option value="custom">⭐ Otro</option>
                                 <option value="camping">🚐 Pernocta</option>
@@ -265,21 +290,36 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                 <option value="tourism">📷 Turismo</option>
                             </select>
                         </div>
-                        <input type="text" placeholder="Link URL (ej: https://park4night...)" value={customLink} onChange={e => setCustomLink(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
-                        <input type="text" placeholder="Descripción corta (ej: Cerca del río)" value={customDesc} onChange={e => setCustomDesc(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
                         
-                        {/* COORDENADAS OPCIONALES PARA MAPA */}
-                        <div className="grid grid-cols-2 gap-2">
-                            <input type="text" placeholder="Lat (ej: 39.49)" value={customLat} onChange={e => setCustomLat(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
-                            <input type="text" placeholder="Lng (ej: -0.32)" value={customLng} onChange={e => setCustomLng(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
+                        <div className="flex gap-2">
+                            <input type="text" placeholder="Dirección o Nota (ej: Calle Mayor 1)" value={customDesc} onChange={e => setCustomDesc(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
+                            {/* BOTÓN LUPA */}
+                            <button 
+                                type="button" 
+                                onClick={handleGeocodeAddress} 
+                                disabled={geocoding}
+                                className="bg-blue-500 text-white px-3 rounded text-xs font-bold hover:bg-blue-600 flex items-center justify-center"
+                                title="Buscar coordenadas automáticamente"
+                            >
+                                {geocoding ? '...' : <IconSearchLoc />}
+                            </button>
                         </div>
-                        <p className="text-[9px] text-gray-500 italic">* Pon coordenadas si quieres ver la chincheta en el mapa.</p>
 
-                        <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">Guardar en Mi Plan</button>
+                        <input type="text" placeholder="Link URL (Opcional)" value={customLink} onChange={e => setCustomLink(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                            <input type="text" placeholder="Latitud" value={customLat} onChange={e => setCustomLat(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
+                            <input type="text" placeholder="Longitud" value={customLng} onChange={e => setCustomLng(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
+                        </div>
+
+                        <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">
+                            Guardar en Mi Plan
+                        </button>
                     </div>
                 </form>
             )}
 
+            {/* Resto del componente igual... */}
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-2">
