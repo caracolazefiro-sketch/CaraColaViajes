@@ -1,4 +1,3 @@
-// app/components/TripForm.tsx
 'use client';
 
 import React from 'react';
@@ -18,6 +17,16 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
         const { id, value, type, checked } = e.target;
         let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
         setFormData({ ...formData, [id]: finalValue });
+    };
+
+    // --- AQUÍ ESTÁ LA CORRECCIÓN DEL ZOMBIE ---
+    const handleToggleWaypoints = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const isChecked = e.target.checked;
+        setShowWaypoints(isChecked);
+        if (!isChecked) {
+            // Si desmarcas, BORRAMOS activamente los datos de etapas
+            setFormData({ ...formData, etapas: '' });
+        }
     };
 
     const handleReturnHome = () => {
@@ -54,7 +63,8 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
 
                     <div className="md:col-span-2 lg:col-span-4 bg-red-50 p-3 rounded border border-red-100">
                         <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs mb-1 select-none">
-                            <input type="checkbox" className="text-red-600 rounded focus:ring-red-500" checked={showWaypoints} onChange={() => setShowWaypoints(!showWaypoints)} />
+                            {/* Usamos la nueva función handleToggleWaypoints */}
+                            <input type="checkbox" className="text-red-600 rounded focus:ring-red-500" checked={showWaypoints} onChange={handleToggleWaypoints} />
                             ➕ Añadir Paradas Intermedias
                         </label>
                         {showWaypoints && (

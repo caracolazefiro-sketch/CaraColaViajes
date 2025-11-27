@@ -1,10 +1,9 @@
-// app/components/AppHeader.tsx
 'use client';
 
 import React from 'react';
 import UserArea from './UserArea';
 
-// Iconos locales para la cabecera
+// Iconos
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
@@ -14,7 +13,7 @@ interface AppHeaderProps {
     onLoadTrip: (data: any, id: number) => void;
     auditMode: boolean;
     setAuditMode: (v: boolean) => void;
-    hasResults: boolean; // Para saber si mostrar botones de guardar/compartir
+    hasResults: boolean; 
     currentTripId: number | null;
     isSaving: boolean;
     onSave: () => void;
@@ -23,60 +22,63 @@ interface AppHeaderProps {
 }
 
 export default function AppHeader({ 
-    onLoadTrip, 
-    auditMode, 
-    setAuditMode, 
-    hasResults, 
-    currentTripId, 
-    isSaving, 
-    onSave, 
-    onShare, 
-    onReset 
+    onLoadTrip, auditMode, setAuditMode, hasResults, currentTripId, isSaving, onSave, onShare, onReset 
 }: AppHeaderProps) {
     return (
-        <div className="relative text-center space-y-4 mb-6 flex flex-col items-center no-print">
-            {/* LOGO */}
-            <img 
-                src="/logo.jpg" 
-                alt="CaraCola Viajes" 
-                className="h-24 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
-            />
-            <p className="text-gray-500 text-sm md:text-base font-medium">
-                Tu ruta en autocaravana, paso a paso.
-            </p>
-            
-            {/* ÁREA DE USUARIO Y BOTONERA */}
-            <div className="absolute right-0 top-0 flex flex-col items-end">
-                <UserArea onLoadTrip={onLoadTrip} />
+        <div className="relative mb-6 no-print">
+            {/* CONTENEDOR FLEXIBLE: En móvil columna, en PC fila */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 
-                <div className="flex items-center gap-2 justify-end mt-2">
-                    {/* Botón Auditor (siempre visible) */}
-                    <button 
-                        onClick={() => setAuditMode(!auditMode)} 
-                        className={`text-xs px-3 py-1 rounded-full border transition ${auditMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`} 
-                        title="Modo Auditor"
-                    >
-                        <IconAudit /> {auditMode ? 'ON' : 'Audit'}
-                    </button>
+                {/* LOGO Y TÍTULO (CENTRO/IZQUIERDA) */}
+                <div className="text-center md:text-left flex flex-col items-center md:items-start">
+                    <div className="flex items-center gap-3">
+                        <img 
+                            src="/logo.jpg" 
+                            alt="CaraCola Viajes" 
+                            className="h-16 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="hidden md:block">
+                            <h1 className="text-xl font-bold text-red-600 leading-tight">CaraCola Viajes</h1>
+                            <p className="text-gray-400 text-xs font-medium">Tu ruta en autocaravana</p>
+                        </div>
+                    </div>
+                    <p className="text-gray-500 text-sm font-medium md:hidden mt-1">Tu ruta en autocaravana, paso a paso.</p>
+                </div>
 
-                    {/* Botones de Acción (solo si hay ruta calculada) */}
-                    {hasResults && (
-                        <>
-                            {currentTripId && (
-                                <button onClick={onShare} className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:bg-green-700 shadow-sm flex items-center gap-1">
-                                    <IconShare /> Compartir
+                {/* ZONA DE USUARIO Y ACCIONES (DERECHA) */}
+                <div className="flex flex-col items-center md:items-end gap-2 w-full md:w-auto">
+                    
+                    {/* 1. LOGIN / USER AREA */}
+                    <UserArea onLoadTrip={onLoadTrip} />
+                    
+                    {/* 2. BOTONERA DE ACCIONES */}
+                    <div className="flex flex-wrap justify-center md:justify-end items-center gap-2 mt-1">
+                        <button 
+                            onClick={() => setAuditMode(!auditMode)} 
+                            className={`text-xs px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${auditMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`} 
+                            title="Modo Auditor"
+                        >
+                            <IconAudit /> {auditMode ? 'ON' : 'Audit'}
+                        </button>
+
+                        {hasResults && (
+                            <>
+                                {currentTripId && (
+                                    <button onClick={onShare} className="bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-bold hover:bg-green-700 shadow-sm flex items-center gap-1">
+                                        <IconShare /> Compartir
+                                    </button>
+                                )}
+                                
+                                <button onClick={onSave} disabled={isSaving} className="bg-blue-600 text-white px-3 py-1.5 rounded-full text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                    <IconCloud /> {isSaving ? '...' : 'Guardar'}
                                 </button>
-                            )}
-                            
-                            <button onClick={onSave} disabled={isSaving} className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:bg-blue-700 shadow-sm flex items-center gap-1 disabled:opacity-50">
-                                <IconCloud /> {isSaving ? '...' : 'Guardar'}
-                            </button>
-                            
-                            <button onClick={onReset} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1">
-                                <IconReset />
-                            </button>
-                        </>
-                    )}
+                                
+                                <button onClick={onReset} className="bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-red-50 shadow-sm flex items-center gap-1" title="Borrar y Empezar de cero">
+                                    <IconReset /> Borrar
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
