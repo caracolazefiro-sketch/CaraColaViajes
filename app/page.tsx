@@ -9,6 +9,7 @@ import ElevationChart from './components/ElevationChart';
 import { supabase } from './supabase';
 import UserArea from './components/UserArea';
 
+// --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
@@ -24,6 +25,11 @@ const printStyles = `
   }
 `;
 
+// --- DEFINICIÓN DE TODOS LOS ICONOS UI (AQUÍ ESTABA EL ERROR) ---
+const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
+const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
+const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
+const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
@@ -48,6 +54,7 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
 
+  // ESTADO UNIFICADO (CON CUSTOM)
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
       camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: []
   });
@@ -77,6 +84,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
+  // --- PERSISTENCIA LOCAL ---
   useEffect(() => {
       const savedData = localStorage.getItem('caracola_trip_v1');
       if (savedData) {
@@ -118,11 +126,17 @@ export default function Home() {
 
   const handleSaveToCloud = async () => {
     if (!results.dailyItinerary) return;
+    
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert("Debes iniciar sesión."); return; }
+    if (!session) {
+        alert("Debes iniciar sesión para guardar en la nube.");
+        return;
+    }
+
     setIsSaving(true);
     const tripName = `${formData.origen} a ${formData.destino} (${formData.fechaInicio})`;
     const tripPayload = { formData, results };
+
     try {
         if (currentTripId) {
             const overwrite = confirm(`Este viaje ya existe (ID: ${currentTripId}).\n¿Sobrescribir? (Cancelar = Nuevo)`);
@@ -142,7 +156,11 @@ export default function Home() {
             if (data && data[0]) setCurrentTripId(data[0].id);
             alert("✅ Viaje nuevo guardado.");
         }
-    } catch (error: any) { alert("❌ Error: " + error.message); } finally { setIsSaving(false); }
+    } catch (error: any) {
+        alert("❌ Error: " + error.message);
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   useEffect(() => { if (!showWaypoints) setFormData(prev => ({ ...prev, etapas: '' })); }, [showWaypoints]);
@@ -157,8 +175,12 @@ export default function Home() {
 
   useEffect(() => {
       if (map) {
-          if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
-          else if (directionsResponse && selectedDayIndex === null) { setTimeout(() => map.fitBounds(directionsResponse.routes[0].bounds), 500); }
+          if (mapBounds) {
+              setTimeout(() => map.fitBounds(mapBounds), 500); 
+          } else if (directionsResponse && selectedDayIndex === null) {
+              const routeBounds = directionsResponse.routes[0].bounds;
+              setTimeout(() => map.fitBounds(routeBounds), 500);
+          }
       }
   }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
   
@@ -176,7 +198,8 @@ export default function Home() {
       if (!map || typeof google === 'undefined') return;
       const service = new google.maps.places.PlacesService(map);
       const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-      let keywords = ''; let radius = 10000; 
+      let keywords = '';
+      let radius = 10000; 
       switch(type) {
           case 'camping': keywords = 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"'; radius = 20000; break;
           case 'restaurant': keywords = 'restaurante OR comida OR bar'; radius = 5000; break;
@@ -186,7 +209,9 @@ export default function Home() {
           case 'laundry': keywords = 'lavanderia OR "laundry"'; radius = 10000; break;
           case 'tourism': keywords = 'turismo OR monumento OR museo OR "punto interes"'; radius = 10000; break;
       }
+
       if (type === 'custom') return; 
+
       const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword: keywords };
       setLoadingPlaces(prev => ({...prev, [type]: true}));
       service.nearbySearch(request, (results, status) => {
@@ -194,14 +219,21 @@ export default function Home() {
           if (status === google.maps.places.PlacesServiceStatus.OK && results) {
               let spotsWithDistance: PlaceWithDistance[] = results.map(spot => {
                   let dist = 999999;
-                  if (spot.geometry?.location) { dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location); }
+                  if (spot.geometry?.location) {
+                      dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
+                  }
                   const photoUrl = spot.photos && spot.photos.length > 0 ? spot.photos[0].getUrl({ maxWidth: 200 }) : undefined;
+
                   return {
                       name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id,
                       geometry: spot.geometry, distanceFromCenter: dist, type,
-                      opening_hours: spot.opening_hours as any, user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types 
+                      opening_hours: spot.opening_hours as any,
+                      user_ratings_total: spot.user_ratings_total,
+                      photoUrl,
+                      types: spot.types 
                   };
               });
+
               spotsWithDistance = spotsWithDistance.filter(spot => {
                   const tags = spot.types || [];
                   if (type === 'camping') {
@@ -216,9 +248,12 @@ export default function Home() {
                   if (type === 'laundry') { if (tags.includes('lodging') && !tags.includes('laundry')) return false; return tags.includes('laundry'); }
                   return true; 
               });
+
               spotsWithDistance.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
               setPlaces(prev => ({...prev, [type]: spotsWithDistance}));
-          } else { setPlaces(prev => ({...prev, [type]: []})); }
+          } else {
+              setPlaces(prev => ({...prev, [type]: []}));
+          }
       });
   }, [map]);
 
@@ -302,6 +337,7 @@ export default function Home() {
     setDirectionsResponse(null); 
     setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null }); 
     setSelectedDayIndex(null); 
+    // Resetear
     setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true });
     setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [] });
     setCurrentTripId(null); 
@@ -585,7 +621,6 @@ export default function Home() {
                                     />
                                 ))}
 
-                                {/* RENDERIZADO HÍBRIDO (GUARDADOS + BÚSQUEDA) */}
                                 {Object.keys(places).map((key) => {
                                     const type = key as ServiceType;
                                     
@@ -595,18 +630,15 @@ export default function Home() {
                                     let listToRender: PlaceWithDistance[] = [];
 
                                     if (toggles[type] || type === 'camping') {
-                                        // Si el botón está encendido
                                         if (savedOfType.length > 0 && type !== 'tourism') {
-                                            listToRender = savedOfType; // Modo foco
+                                            listToRender = savedOfType; 
                                         } else {
-                                            listToRender = [...savedOfType, ...places[type]]; // Mezcla
+                                            listToRender = [...savedOfType, ...places[type]];
                                         }
                                     } else {
-                                        // Si el botón está APAGADO -> Solo mostramos lo guardado (Permanencia)
                                         listToRender = savedOfType;
                                     }
 
-                                    // Limpieza duplicados
                                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
                                     
                                     return uniqueRender.map((spot, i) => (
@@ -614,17 +646,8 @@ export default function Home() {
                                             <Marker 
                                                 key={`${type}-${i}`} 
                                                 position={spot.geometry.location} 
-                                                // ESCALADO DE ICONOS
-                                                icon={{
-                                                    url: MARKER_ICONS[type],
-                                                    scaledSize: new window.google.maps.Size(30, 30)
-                                                }}
-                                                label={{ 
-                                                    text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), 
-                                                    color: "white", 
-                                                    fontWeight: "bold", 
-                                                    fontSize: "10px" 
-                                                }}
+                                                icon={MARKER_ICONS[type]} 
+                                                label={{ text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), color: "white", fontWeight: "bold", fontSize: "10px" }}
                                                 title={spot.name}
                                                 onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
                                                 onMouseOver={() => setHoveredPlace(spot)}
@@ -634,7 +657,6 @@ export default function Home() {
                                     ));
                                 })}
 
-                                {/* --- INFO WINDOW CON FOTO/ICONO --- */}
                                 {hoveredPlace && hoveredPlace.geometry?.location && (
                                     <InfoWindow
                                         position={hoveredPlace.geometry.location}
@@ -642,7 +664,6 @@ export default function Home() {
                                         options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -35) }}
                                     >
                                         <div className="p-0 w-[200px] overflow-hidden">
-                                            {/* FOTO O ICONO DE RESPALDO */}
                                             {hoveredPlace.photoUrl ? (
                                                 <img src={hoveredPlace.photoUrl} alt={hoveredPlace.name} className="w-full h-24 object-cover rounded-t-lg" />
                                             ) : (
@@ -657,7 +678,6 @@ export default function Home() {
                                                      hoveredPlace.type === 'tourism' ? '📷' : '📍'}
                                                 </div>
                                             )}
-                                            
                                             <div className="p-2 bg-white">
                                                 <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight">{hoveredPlace.name}</h6>
                                                 <div className="flex items-center gap-1 text-xs text-orange-500 font-bold mb-1">
@@ -665,7 +685,6 @@ export default function Home() {
                                                     {hoveredPlace.user_ratings_total && <span className="text-gray-400 font-normal">({hoveredPlace.user_ratings_total})</span>}
                                                 </div>
                                                 <p className="text-[10px] text-gray-500 line-clamp-2">{hoveredPlace.vicinity}</p>
-                                                
                                                 {hoveredPlace.opening_hours?.open_now !== undefined && (
                                                     <p className={`text-[10px] font-bold mt-1 ${hoveredPlace.opening_hours.open_now ? 'text-green-600' : 'text-red-500'}`}>
                                                         {hoveredPlace.opening_hours.open_now ? '● Abierto' : '● Cerrado'}
