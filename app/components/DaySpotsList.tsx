@@ -14,14 +14,7 @@ const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="
 
 // JERARQUÍA DE ORDEN PARA "MI PLAN"
 const CATEGORY_ORDER: Record<string, number> = {
-    camping: 1,
-    water: 2,
-    gas: 3,
-    supermarket: 4,
-    laundry: 5,
-    restaurant: 6,
-    tourism: 7,
-    custom: 99 
+    camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
 };
 
 interface DaySpotsListProps { 
@@ -40,7 +33,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     
-    // Ordenar los sitios guardados
     const saved = (day.savedPlaces || []).sort((a, b) => {
         const orderA = CATEGORY_ORDER[a.type || 'custom'] || 99;
         const orderB = CATEGORY_ORDER[b.type || 'custom'] || 99;
@@ -54,17 +46,15 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     const [elevationData, setElevationData] = useState<{ distance: number, elevation: number }[] | null>(null);
     const [loadingElevation, setLoadingElevation] = useState(false);
     
-    // ESTADO FORMULARIO MANUAL
     const [showCustomForm, setShowCustomForm] = useState(false);
     const [customName, setCustomName] = useState('');
-    const [customDesc, setCustomDesc] = useState(''); // Usado para dirección/nota
+    const [customDesc, setCustomDesc] = useState(''); 
     const [customLink, setCustomLink] = useState('');
     const [customLat, setCustomLat] = useState('');
     const [customLng, setCustomLng] = useState('');
     const [customType, setCustomType] = useState<ServiceType>('custom');
-    const [geocoding, setGeocoding] = useState(false); // Estado de búsqueda de dirección
+    const [geocoding, setGeocoding] = useState(false);
 
-    // CLIMA
     useEffect(() => {
         if (!day.coordinates || !day.isoDate) return;
         const fetchWeather = async () => {
@@ -87,7 +77,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         setElevationData(null);
     }, [day.coordinates, day.isoDate]);
 
-    // ELEVACION
     const handleCalcElevation = () => {
         if (typeof google === 'undefined' || !day.coordinates) return;
         setLoadingElevation(true);
@@ -110,68 +99,40 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         });
     };
 
-    // --- FUNCIÓN MÁGICA: BUSCAR COORDENADAS POR DIRECCIÓN ---
     const handleGeocodeAddress = () => {
-        if (!customDesc) {
-            alert("Escribe una dirección o nombre de lugar primero.");
-            return;
-        }
+        if (!customDesc) { alert("Escribe una dirección o nombre de lugar primero."); return; }
         if (typeof google === 'undefined') return;
-
         setGeocoding(true);
         const geocoder = new google.maps.Geocoder();
-        
-        // Truco: Añadimos el nombre de la ciudad del día para ayudar a Google si la dirección es vaga
         const searchAddress = `${customDesc} near ${rawCityName}`;
-
         geocoder.geocode({ address: searchAddress }, (results, status) => {
             setGeocoding(false);
             if (status === 'OK' && results && results[0]) {
                 const loc = results[0].geometry.location;
                 setCustomLat(loc.lat().toString());
                 setCustomLng(loc.lng().toString());
-                // Opcional: Actualizar el nombre con el oficial de Google si el usuario quiere
-                // setCustomDesc(results[0].formatted_address); 
-                alert("✅ Ubicación encontrada y coordenadas rellenas.");
-            } else {
-                alert("❌ No pudimos localizar ese sitio. Intenta ser más específico (Ej: Calle X, Ciudad).");
-            }
+                alert("✅ Ubicación encontrada.");
+            } else { alert("❌ No pudimos localizar ese sitio."); }
         });
     };
 
-    // GUARDAR SITIO MANUAL
     const handleSaveCustom = (e: React.FormEvent) => {
         e.preventDefault();
-        
         let geometry = undefined;
         if (customLat && customLng && typeof google !== 'undefined') {
              geometry = { location: new google.maps.LatLng(parseFloat(customLat), parseFloat(customLng)) };
         }
-
         const newPlace: PlaceWithDistance = {
-            name: customName,
-            vicinity: customDesc, 
-            link: customLink, 
-            place_id: `custom-${Date.now()}`, 
-            type: customType,
-            rating: 0,
-            distanceFromCenter: 0,
-            types: ['custom'],
-            geometry: geometry 
+            name: customName, vicinity: customDesc, link: customLink, place_id: `custom-${Date.now()}`, 
+            type: customType, rating: 0, distanceFromCenter: 0, types: ['custom'], geometry: geometry 
         };
-        
         onAddPlace(newPlace);
-        setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng('');
-        setCustomType('custom'); setShowCustomForm(false);
+        setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng(''); setCustomType('custom'); setShowCustomForm(false);
     };
 
-    // CLICK INTELIGENTE
     const handlePlaceClick = (spot: PlaceWithDistance) => {
-        if (spot.link) {
-            window.open(spot.link, '_blank');
-        } else if (spot.place_id && !spot.place_id.startsWith('custom-')) {
-            window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
-        }
+        if (spot.link) window.open(spot.link, '_blank');
+        else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
     };
 
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
@@ -184,6 +145,15 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         if (!toggles[type] && type !== 'camping') return null; 
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
+        
+        // Si es CUSTOM, no hay lista de búsqueda externa, pero mostramos el bloque si está activo el botón
+        if (type === 'custom') {
+             // Custom no tiene búsqueda externa, solo lo que guardes.
+             // Si quieres mostrar la lista de "sitios guardados" aquí, ya está arriba en "Mi Plan".
+             // Este bloque es solo para RESULTADOS DE BÚSQUEDA.
+             return null; 
+        }
+
         if (savedOfType && type !== 'tourism') list = [savedOfType]; 
         const isLoading = loading[type];
 
@@ -207,45 +177,21 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                     </div>
                 )}
                 {!isLoading && list.length === 0 && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
-                {savedOfType && type !== 'tourism' && <p className="text-[9px] text-green-600 mt-1 italic text-center">Has elegido este sitio.</p>}
             </div>
         );
     };
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
-            <div className="flex justify-between items-start">
-                <div>
-                    <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
-                        {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
-                    </h4>
-                    <p className="text-md font-semibold text-gray-800">
-                        {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1 font-mono">{day.date}</p>
-                </div>
-                <div className="bg-white/80 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[80px]">
-                    {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">Cargando...</div>}
-                    {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 días</div>}
-                    {weatherStatus === 'success' && weather && (
-                        <><div className="text-2xl">{getWeatherIcon(weather.code)}</div><div className="text-xs font-bold text-gray-800">{Math.round(weather.maxTemp)}° <span className="text-gray-400">/ {Math.round(weather.minTemp)}°</span></div><div className="text-[10px] text-blue-600 font-bold">💧 {weather.rainProb}%</div></>
-                    )}
-                </div>
+            <div>
+                <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
+                    {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
+                </h4>
+                <p className="text-md font-semibold text-gray-800">
+                    {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
+                </p>
             </div>
 
-            {day.isDriving && (
-                <div className="mt-2">
-                    {!elevationData && !loadingElevation && (
-                        <button onClick={handleCalcElevation} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
-                            <IconMountain /> Analizar Desnivel (Pava-Check) 🏔️
-                        </button>
-                    )}
-                    {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">Calculando...</p>}
-                    {elevationData && <ElevationChart data={elevationData} />}
-                </div>
-            )}
-
-            {/* LISTA DE PLAN ORDENADA */}
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">
                     <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> MI PLAN:</h5>
@@ -258,7 +204,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                     </span>
                                     <div>
                                         <span className="font-medium text-green-900 truncate block">{place.name}</span>
-                                        {/* Indicador visual de que es Link */}
                                         {place.link && <a href={place.link} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline flex items-center gap-1" onClick={(e) => e.stopPropagation()}><IconLink /> Ver Link</a>}
                                     </div>
                                 </div>
@@ -269,17 +214,15 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 </div>
             )}
 
-            {/* BOTÓN AÑADIR PERSONALIZADO */}
             <button onClick={() => setShowCustomForm(!showCustomForm)} className="w-full mt-3 mb-2 bg-gray-800 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-black transition shadow-sm">
                 <IconPlus /> {showCustomForm ? 'Cancelar' : 'Añadir Sitio Personalizado'}
             </button>
 
-            {/* FORMULARIO AÑADIR MEJORADO (CON GEOCODER) */}
             {showCustomForm && (
                 <form onSubmit={handleSaveCustom} className="bg-gray-100 p-3 rounded-lg mb-4 border border-gray-300 animate-fadeIn">
                     <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                            <input type="text" placeholder="Nombre (ej: Taller Manolo)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
+                            <input type="text" placeholder="Nombre (ej: Taller)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
                             <select value={customType} onChange={e => setCustomType(e.target.value as ServiceType)} className="w-full p-2 text-xs rounded border border-gray-300 bg-white outline-none">
                                 <option value="custom">⭐ Otro</option>
                                 <option value="camping">🚐 Pernocta</option>
@@ -290,36 +233,22 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                 <option value="tourism">📷 Turismo</option>
                             </select>
                         </div>
-                        
                         <div className="flex gap-2">
-                            <input type="text" placeholder="Dirección o Nota (ej: Calle Mayor 1)" value={customDesc} onChange={e => setCustomDesc(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
-                            {/* BOTÓN LUPA */}
-                            <button 
-                                type="button" 
-                                onClick={handleGeocodeAddress} 
-                                disabled={geocoding}
-                                className="bg-blue-500 text-white px-3 rounded text-xs font-bold hover:bg-blue-600 flex items-center justify-center"
-                                title="Buscar coordenadas automáticamente"
-                            >
+                            <input type="text" placeholder="Dirección (ej: Calle Mayor 1)" value={customDesc} onChange={e => setCustomDesc(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
+                            <button type="button" onClick={handleGeocodeAddress} disabled={geocoding} className="bg-blue-500 text-white px-3 rounded text-xs font-bold hover:bg-blue-600 flex items-center justify-center" title="Buscar coordenadas">
                                 {geocoding ? '...' : <IconSearchLoc />}
                             </button>
                         </div>
-
                         <input type="text" placeholder="Link URL (Opcional)" value={customLink} onChange={e => setCustomLink(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
-                        
                         <div className="grid grid-cols-2 gap-2">
                             <input type="text" placeholder="Latitud" value={customLat} onChange={e => setCustomLat(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
                             <input type="text" placeholder="Longitud" value={customLng} onChange={e => setCustomLng(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
                         </div>
-
-                        <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">
-                            Guardar en Mi Plan
-                        </button>
+                        <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">Guardar en Mi Plan</button>
                     </div>
                 </form>
             )}
 
-            {/* Resto del componente igual... */}
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-2">
@@ -332,6 +261,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceButton type="supermarket" icon="🛒" label="Super" />
                         <ServiceButton type="laundry" icon="🧺" label="Lavar" />
                         <ServiceButton type="tourism" icon="📷" label="Turismo" />
+                        {/* AÑADIDO BOTÓN OTROS */}
+                        <ServiceButton type="custom" icon="⭐" label="Otros" /> 
                     </div>
                     <div className="space-y-2">
                         <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
@@ -341,6 +272,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
                         <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
                         <ServiceList type="tourism" title="Turismo" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
+                        {/* AÑADIDA LISTA OTROS (Vacía pero necesaria para el toggle) */}
+                         <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-500" />
                     </div>
                 </div>
             )}
