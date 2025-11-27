@@ -1,8 +1,7 @@
-// app/types.ts
-
 export interface Coordinates { lat: number; lng: number; }
 
-export type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism';
+// AÑADIDO 'custom' AL FINAL
+export type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism' | 'custom';
 
 export interface PlaceWithDistance {
     name?: string;
@@ -16,6 +15,8 @@ export interface PlaceWithDistance {
     type?: ServiceType;
     photoUrl?: string;
     types?: string[]; 
+    // AÑADIDO: Para guardar notas o links personalizados
+    customNote?: string; 
 }
 
 export interface DailyPlan { 

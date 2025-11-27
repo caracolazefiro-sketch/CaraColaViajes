@@ -1,4 +1,3 @@
-// app/components/DaySpotsList.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,11 +5,11 @@ import { DailyPlan, PlaceWithDistance, ServiceType, WeatherData } from '../types
 import { getWeatherIcon } from '../constants';
 import ElevationChart from './ElevationChart';
 
-// Iconos SVG (Los repetimos aquí o podríamos hacer otro archivo de iconos, pero está bien aquí por ahora)
+// Iconos
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
 const IconMountain = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
-const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
-const IconExcel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>);
+const IconPlus = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>);
+const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>);
 
 interface DaySpotsListProps { 
     day: DailyPlan;
@@ -34,8 +33,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     const [weatherStatus, setWeatherStatus] = useState<'loading' | 'success' | 'far_future' | 'error'>('loading');
     const [elevationData, setElevationData] = useState<{ distance: number, elevation: number }[] | null>(null);
     const [loadingElevation, setLoadingElevation] = useState(false);
+    
+    // ESTADO PARA EL FORMULARIO MANUAL
+    const [showCustomForm, setShowCustomForm] = useState(false);
+    const [customName, setCustomName] = useState('');
+    const [customNote, setCustomNote] = useState('');
+    const [customType, setCustomType] = useState<ServiceType>('custom');
 
-    // WEATHER EFFECT
+    // CLIMA
     useEffect(() => {
         if (!day.coordinates || !day.isoDate) return;
         const fetchWeather = async () => {
@@ -60,7 +65,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         setElevationData(null);
     }, [day.coordinates, day.isoDate]);
 
-    // ELEVATION CALC
+    // ELEVACION
     const handleCalcElevation = () => {
         if (typeof google === 'undefined' || !day.coordinates) return;
         setLoadingElevation(true);
@@ -89,41 +94,25 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         });
     };
 
-    // CSV EXPORT
-    const handleDownloadExcel = () => {
-        let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Día,Ciudad,Tipo Servicio,Nombre,Rating,Distancia (m),Dirección,Google Maps Link,Tags de Google\n";
-        (Object.keys(places) as ServiceType[]).forEach(type => {
-            places[type].forEach(p => {
-                const row = [
-                    `Día ${day.day}`, `"${rawCityName}"`, type.toUpperCase(), `"${p.name?.replace(/"/g, '""')}"`,
-                    p.rating || "", Math.round(p.distanceFromCenter || 0), `"${p.vicinity?.replace(/"/g, '""')}"`,
-                    `https://www.google.com/maps/place/?q=place_id:${p.place_id}`, `"${p.types?.join(', ')}"`
-                ].join(",");
-                csvContent += row + "\n";
-            });
-        });
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `auditoria_${rawCityName.replace(/\s/g, '_')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    // CLIPBOARD EXPORT
-    const handleCopyAudit = () => {
-        let report = `INFORME AUDITORÍA - ${rawCityName}\n=========================\n`;
-        (Object.keys(places) as ServiceType[]).forEach(type => {
-            if (places[type].length > 0) {
-                report += `\n--- ${type.toUpperCase()} (${places[type].length}) ---\n`;
-                places[type].forEach(p => {
-                    report += `[ ] ${p.name} | Rating: ${p.rating}\n    Tags: ${p.types?.join(', ')}\n    Dir: ${p.vicinity}\n`;
-                });
-            }
-        });
-        navigator.clipboard.writeText(report).then(() => alert("📋 Informe copiado al portapapeles"));
+    // GUARDAR SITIO MANUAL
+    const handleSaveCustom = (e: React.FormEvent) => {
+        e.preventDefault();
+        const newPlace: PlaceWithDistance = {
+            name: customName,
+            vicinity: customNote, // Usamos vicinity para la nota/link
+            place_id: `custom-${Date.now()}`, // ID único
+            type: customType,
+            rating: 0,
+            distanceFromCenter: 0,
+            types: ['custom']
+        };
+        onAddPlace(newPlace);
+        
+        // Reset form
+        setCustomName('');
+        setCustomNote('');
+        setCustomType('custom');
+        setShowCustomForm(false);
     };
 
     const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
@@ -150,15 +139,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                 <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>{idx + 1}</div>
                                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}>
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
-                                    <div className="flex items-center gap-2">{spot.rating && <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span>}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
+                                    <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
                                     
                                     {auditMode && (
                                         <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded">
                                             <p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p>
-                                            <p><strong>Dist:</strong> {spot.distanceFromCenter ? Math.round(spot.distanceFromCenter) : '?'}m</p>
                                         </div>
                                     )}
-
                                 </div>
                                 <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}</button>
                             </div>
@@ -196,7 +183,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 </div>
             </div>
 
-            {/* ALTIMETRÍA */}
             {day.isDriving && (
                 <div className="mt-2">
                     {!elevationData && !loadingElevation && (
@@ -209,18 +195,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 </div>
             )}
 
-            {/* BOTONES MODO AUDITOR */}
-            {auditMode && (
-                <div className="grid grid-cols-2 gap-2 mb-2 mt-2">
-                    <button onClick={handleCopyAudit} className="text-xs font-mono bg-gray-800 text-white py-1 rounded hover:bg-black">
-                        📋 Copiar Texto
-                    </button>
-                    <button onClick={handleDownloadExcel} className="text-xs font-mono bg-green-700 text-white py-1 rounded hover:bg-green-800 flex items-center justify-center gap-1">
-                        <IconExcel /> Descargar Excel
-                    </button>
-                </div>
-            )}
-
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">
                     <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> MI PLAN:</h5>
@@ -229,15 +203,67 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                             <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)}>
                                 <div className="truncate flex-1 mr-2 flex items-center gap-2">
                                     <span className="font-bold text-lg">
-                                       {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : place.type === 'water' ? '💧' : place.type === 'gas' ? '⛽' : place.type === 'supermarket' ? '🛒' : place.type === 'laundry' ? '🧺' : place.type === 'tourism' ? '📷' : '📍'}
+                                       {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : place.type === 'water' ? '💧' : place.type === 'gas' ? '⛽' : place.type === 'supermarket' ? '🛒' : place.type === 'laundry' ? '🧺' : place.type === 'tourism' ? '📷' : '⭐'}
                                     </span>
-                                    <span className="font-medium text-green-900 truncate">{place.name}</span>
+                                    <div>
+                                        <span className="font-medium text-green-900 truncate block">{place.name}</span>
+                                        {/* Mostrar nota/link si es custom */}
+                                        {place.type === 'custom' && place.vicinity && (
+                                            <a href={place.vicinity} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline flex items-center gap-1">
+                                                <IconLink /> Ver Link/Nota
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                                 <button onClick={() => place.place_id && onRemovePlace(place.place_id)} className="text-red-400 hover:text-red-600"><IconTrash /></button>
                             </div>
                         ))}
                     </div>
                 </div>
+            )}
+
+            {/* BOTÓN AÑADIR PERSONALIZADO */}
+            <button 
+                onClick={() => setShowCustomForm(!showCustomForm)}
+                className="w-full mt-3 mb-2 bg-gray-800 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-black transition shadow-sm"
+            >
+                <IconPlus /> {showCustomForm ? 'Cancelar' : 'Añadir Sitio Personalizado'}
+            </button>
+
+            {/* FORMULARIO AÑADIR */}
+            {showCustomForm && (
+                <form onSubmit={handleSaveCustom} className="bg-gray-100 p-3 rounded-lg mb-4 border border-gray-300 animate-fadeIn">
+                    <div className="space-y-2">
+                        <input 
+                            type="text" 
+                            placeholder="Nombre (ej: Casa de Pepe)" 
+                            value={customName} 
+                            onChange={e => setCustomName(e.target.value)} 
+                            className="w-full p-2 text-xs rounded border border-gray-300 focus:border-blue-500 outline-none" 
+                            required 
+                        />
+                        <select 
+                            value={customType} 
+                            onChange={e => setCustomType(e.target.value as ServiceType)}
+                            className="w-full p-2 text-xs rounded border border-gray-300 bg-white outline-none"
+                        >
+                            <option value="custom">⭐ Otro / Personalizado</option>
+                            <option value="camping">🚐 Pernocta</option>
+                            <option value="restaurant">🍳 Restaurante</option>
+                            <option value="tourism">📷 Turismo</option>
+                        </select>
+                        <input 
+                            type="text" 
+                            placeholder="Link o Nota (ej: Reserva 21h)" 
+                            value={customNote} 
+                            onChange={e => setCustomNote(e.target.value)} 
+                            className="w-full p-2 text-xs rounded border border-gray-300 focus:border-blue-500 outline-none" 
+                        />
+                        <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">
+                            Guardar en Mi Plan
+                        </button>
+                    </div>
+                </form>
             )}
 
             {day.isDriving && (
