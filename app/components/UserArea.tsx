@@ -2,18 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { TripResult } from '../types';
 
 interface UserAreaProps {
-    onLoadTrip: (tripData: any) => void; // Función para cargar un viaje en el mapa
+    onLoadTrip: (tripData: any, tripId: number) => void;
 }
 
 export default function UserArea({ onLoadTrip }: UserAreaProps) {
     const [user, setUser] = useState<any>(null);
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState(''); // Nuevo campo password
     const [loading, setLoading] = useState(false);
     const [showTrips, setShowTrips] = useState(false);
     const [myTrips, setMyTrips] = useState<any[]>([]);
+    
+    // Estado para cambiar entre modos (magic vs password)
+    const [authMode, setAuthMode] = useState<'magic' | 'password' | 'register'>('magic');
 
     // Comprobar si ya estamos logueados al arrancar
     useEffect(() => {
@@ -23,7 +26,6 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
         };
         checkUser();
 
-        // Escuchar cambios de sesión (login/logout)
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             setUser(session?.user || null);
         });
@@ -31,33 +33,53 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
         return () => { authListener.subscription.unsubscribe(); };
     }, []);
 
-    // Función de Login (Magic Link)
-    const handleLogin = async (e: React.FormEvent) => {
+    // 1. Login con Magic Link (El de antes)
+    const handleMagicLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         const { error } = await supabase.auth.signInWithOtp({
             email,
-            options: {
-                emailRedirectTo: window.location.origin, // Vuelve a la página actual
-            },
+            options: { emailRedirectTo: window.location.origin },
         });
         setLoading(false);
         if (error) alert('Error: ' + error.message);
-        else alert('¡Enlace enviado! Revisa tu correo electrónico para entrar.');
+        else alert('¡Enlace enviado! Revisa tu correo.');
     };
 
-    // Función de Logout
+    // 2. Login con Contraseña (NUEVO)
+    const handlePasswordLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+        setLoading(false);
+        if (error) alert('Error: ' + error.message);
+        // Si no hay error, el usuario se actualiza solo por el useEffect
+    };
+
+    // 3. Registro con Contraseña (NUEVO)
+    const handleSignUp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+        });
+        setLoading(false);
+        if (error) alert('Error: ' + error.message);
+        else alert('¡Registro correcto! Revisa tu email para confirmar tu cuenta.');
+    };
+
     const handleLogout = async () => {
         await supabase.auth.signOut();
         setShowTrips(false);
-        alert("Sesión cerrada");
     };
 
-    // Cargar lista de viajes
     const loadMyTrips = async () => {
         if (!user) return;
         setLoading(true);
-        // Pedimos solo los viajes de este usuario
         const { data, error } = await supabase
             .from('trips')
             .select('*')
@@ -81,35 +103,55 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
         }
     };
 
-    // --- RENDERIZADO ---
-
-    // 1. Si NO estoy logueado -> Mostrar formulario de Login
+    // --- RENDERIZADO: PANEL DE LOGIN ---
     if (!user) {
         return (
-            <div className="flex flex-col items-center gap-2">
-                <form onSubmit={handleLogin} className="flex gap-2">
+            <div className="flex flex-col items-end gap-2">
+                {/* Selector de Modo */}
+                <div className="flex gap-2 text-[10px] text-gray-500 mb-1">
+                    <button onClick={() => setAuthMode('magic')} className={`hover:text-red-600 ${authMode === 'magic' ? 'font-bold text-red-600 underline' : ''}`}>Magic Link</button>
+                    <span>|</span>
+                    <button onClick={() => setAuthMode('password')} className={`hover:text-red-600 ${authMode === 'password' ? 'font-bold text-red-600 underline' : ''}`}>Contraseña</button>
+                    <span>|</span>
+                    <button onClick={() => setAuthMode('register')} className={`hover:text-red-600 ${authMode === 'register' ? 'font-bold text-red-600 underline' : ''}`}>Registrarse</button>
+                </div>
+
+                {/* Formulario Dinámico */}
+                <form onSubmit={authMode === 'magic' ? handleMagicLogin : (authMode === 'password' ? handlePasswordLogin : handleSignUp)} className="flex flex-col md:flex-row gap-2 items-center bg-white p-2 rounded border border-gray-200 shadow-sm">
                     <input 
                         type="email" 
                         placeholder="Tu email..." 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="px-3 py-1 rounded border border-gray-300 text-xs w-40 focus:ring-red-500 focus:border-red-500"
+                        className="px-2 py-1 rounded border border-gray-300 text-xs w-32 focus:outline-none focus:border-red-500"
                         required
                     />
+                    
+                    {authMode !== 'magic' && (
+                        <input 
+                            type="password" 
+                            placeholder="Contraseña..." 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="px-2 py-1 rounded border border-gray-300 text-xs w-24 focus:outline-none focus:border-red-500"
+                            required
+                            minLength={6}
+                        />
+                    )}
+
                     <button 
                         type="submit" 
                         disabled={loading}
-                        className="bg-gray-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black disabled:opacity-50"
+                        className="bg-gray-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap"
                     >
-                        {loading ? '...' : 'Entrar'}
+                        {loading ? '...' : (authMode === 'magic' ? 'Enviar Link' : (authMode === 'register' ? 'Crear Cuenta' : 'Entrar'))}
                     </button>
                 </form>
-                <p className="text-[9px] text-gray-400">Te enviaremos un enlace mágico a tu correo.</p>
             </div>
         );
     }
 
-    // 2. Si ESTOY logueado -> Mostrar Menú de Usuario
+    // --- RENDERIZADO: USUARIO LOGUEADO ---
     return (
         <div className="flex items-center gap-3 relative">
             <div className="text-right hidden md:block">
@@ -131,9 +173,8 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
                 Salir
             </button>
 
-            {/* --- MODAL FLOTANTE DE VIAJES --- */}
             {showTrips && (
-                <div className="absolute top-10 right-0 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-fadeIn">
+                <div className="absolute top-10 right-0 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-fadeIn text-left">
                     <div className="bg-red-600 px-4 py-2 flex justify-between items-center">
                         <h3 className="text-white font-bold text-sm">📂 Archivo de Rutas</h3>
                         <button onClick={() => setShowTrips(false)} className="text-white hover:text-gray-200">✕</button>
@@ -153,7 +194,7 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
                                         </div>
                                         <p className="text-[9px] text-gray-400 mb-2">{new Date(trip.created_at).toLocaleDateString()}</p>
                                         <button 
-                                            onClick={() => { onLoadTrip(trip.trip_data); setShowTrips(false); }}
+                                            onClick={() => { onLoadTrip(trip.trip_data, trip.id); setShowTrips(false); }}
                                             className="w-full bg-red-600 text-white py-1 rounded text-[10px] font-bold hover:bg-red-700"
                                         >
                                             📥 Cargar este viaje
