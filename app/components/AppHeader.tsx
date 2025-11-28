@@ -38,7 +38,7 @@ export default function AppHeader({
                             className="h-16 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
                         />
                         <div className="hidden md:block">
-                            <h1 className="text-xl font-bold text-red-600 leading-tight">CaraCola Viajes</h1>
+                            <h1 className="text-xl font-bold text-red-600 leading-tight">P R U E B A S</h1>
                             <p className="text-gray-400 text-xs font-medium">Tu ruta en autocaravana</p>
                         </div>
                     </div>
