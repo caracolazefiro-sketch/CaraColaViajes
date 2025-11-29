@@ -1,22 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { DailyPlan, PlaceWithDistance, ServiceType, WeatherData } from '../types';
+import React, { useState } from 'react';
+import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import { getWeatherIcon } from '../constants';
 import ElevationChart from './ElevationChart';
+import AddPlaceForm from './AddPlaceForm';
+// Hooks
+import { useWeather } from '../hooks/useWeather';
+import { useElevation } from '../hooks/useElevation';
 
 // Iconos
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
 const IconMountain = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
 const IconPlus = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>);
 const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>);
-const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>);
 const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>);
-// Iconos Privacidad
 const IconLock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>);
 const IconEye = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>);
 
-// JERARQUÍA DE ORDEN
 const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
 };
@@ -37,125 +38,37 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     
-    const saved = (day.savedPlaces || []).sort((a, b) => {
-        const orderA = CATEGORY_ORDER[a.type || 'custom'] || 99;
-        const orderB = CATEGORY_ORDER[b.type || 'custom'] || 99;
-        return orderA - orderB;
-    });
+    // Hooks
+    const { weather, weatherStatus } = useWeather(day.coordinates, day.isoDate);
+    const { elevationData, loadingElevation, calculateElevation } = useElevation();
 
+    // Estado Formulario
+    const [showForm, setShowForm] = useState(false);
+    const [placeToEdit, setPlaceToEdit] = useState<PlaceWithDistance | null>(null);
+
+    const saved = (day.savedPlaces || []).sort((a, b) => (CATEGORY_ORDER[a.type || 'custom'] || 99) - (CATEGORY_ORDER[b.type || 'custom'] || 99));
     const isSaved = (id?: string) => id ? saved.some(p => p.place_id === id) : false;
-    
-    const [weather, setWeather] = useState<WeatherData | null>(null);
-    const [weatherStatus, setWeatherStatus] = useState<'loading' | 'success' | 'far_future' | 'error'>('loading');
-    const [elevationData, setElevationData] = useState<{ distance: number, elevation: number }[] | null>(null);
-    const [loadingElevation, setLoadingElevation] = useState(false);
-    
-    // ESTADO FORMULARIO MANUAL
-    const [showCustomForm, setShowCustomForm] = useState(false);
-    const [customName, setCustomName] = useState('');
-    const [customDesc, setCustomDesc] = useState(''); 
-    const [customLink, setCustomLink] = useState('');
-    const [customLat, setCustomLat] = useState('');
-    const [customLng, setCustomLng] = useState('');
-    const [customType, setCustomType] = useState<ServiceType>('custom');
-    const [customPublic, setCustomPublic] = useState(false); // NUEVO: Privacidad
-    const [geocoding, setGeocoding] = useState(false);
 
-    // CLIMA
-    useEffect(() => {
-        if (!day.coordinates || !day.isoDate) return;
-        const fetchWeather = async () => {
-            setWeatherStatus('loading');
-            const today = new Date();
-            const tripDate = new Date(day.isoDate);
-            const diffDays = Math.ceil((tripDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            if (diffDays < 0 || diffDays > 14) { setWeatherStatus('far_future'); return; }
-            if (!day.coordinates) return;
-            try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${day.coordinates.lat}&longitude=${day.coordinates.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
-                const data = await res.json();
-                if (data.daily) {
-                    setWeather({ code: data.daily.weather_code[0], maxTemp: data.daily.temperature_2m_max[0], minTemp: data.daily.temperature_2m_min[0], rainProb: data.daily.precipitation_probability_max[0] });
-                    setWeatherStatus('success');
-                } else setWeatherStatus('error');
-            } catch (e) { setWeatherStatus('error'); }
-        };
-        fetchWeather();
-        setElevationData(null);
-    }, [day.coordinates, day.isoDate]);
-
-    // ELEVACION
-    const handleCalcElevation = () => {
-        if (typeof google === 'undefined' || !day.coordinates) return;
-        setLoadingElevation(true);
-        const cleanFrom = day.from.split('|')[0];
-        const ds = new google.maps.DirectionsService();
-        if (!day.coordinates) return;
-        const dest = new google.maps.LatLng(day.coordinates.lat, day.coordinates.lng);
-        ds.route({ origin: cleanFrom, destination: dest, travelMode: google.maps.TravelMode.DRIVING }, (result, status) => {
-            if (status === 'OK' && result) {
-                const path = result.routes[0].overview_path;
-                const es = new google.maps.ElevationService();
-                es.getElevationAlongPath({ path: path, samples: 100 }, (elevations, statusElev) => {
-                    setLoadingElevation(false);
-                    if (statusElev === 'OK' && elevations) {
-                        const data = elevations.map((e, i) => ({ distance: i, elevation: e.elevation }));
-                        setElevationData(data);
-                    }
-                });
-            } else { setLoadingElevation(false); }
-        });
-    };
-
-    const handleGeocodeAddress = () => {
-        if (!customDesc) { alert("Escribe una dirección o nombre de lugar primero."); return; }
-        if (typeof google === 'undefined') return;
-        setGeocoding(true);
-        const geocoder = new google.maps.Geocoder();
-        const searchAddress = `${customDesc} near ${rawCityName}`;
-        geocoder.geocode({ address: searchAddress }, (results, status) => {
-            setGeocoding(false);
-            if (status === 'OK' && results && results[0]) {
-                const loc = results[0].geometry.location;
-                setCustomLat(loc.lat().toString());
-                setCustomLng(loc.lng().toString());
-                alert("✅ Ubicación encontrada.");
-            } else { alert("❌ No pudimos localizar ese sitio."); }
-        });
-    };
-
-    // GUARDAR SITIO MANUAL
-    const handleSaveCustom = (e: React.FormEvent) => {
-        e.preventDefault();
-        let geometry = undefined;
-        if (customLat && customLng && typeof google !== 'undefined') {
-             geometry = { location: new google.maps.LatLng(parseFloat(customLat), parseFloat(customLng)) };
-        }
-        const newPlace: PlaceWithDistance = {
-            name: customName, vicinity: customDesc, link: customLink, place_id: `custom-${Date.now()}`, 
-            type: customType, rating: 0, distanceFromCenter: 0, types: ['custom'], geometry: geometry,
-            isPublic: customPublic // GUARDAMOS SI ES PÚBLICO O NO
-        };
-        onAddPlace(newPlace);
-        // Reset
-        setCustomName(''); setCustomDesc(''); setCustomLink(''); setCustomLat(''); setCustomLng(''); 
-        setCustomType('custom'); setCustomPublic(false); setShowCustomForm(false);
-    };
-
-    // EDITAR CUSTOM
-    const handleEditCustom = (place: PlaceWithDistance) => {
+    const handleEditStart = (place: PlaceWithDistance) => {
         if (!place.place_id) return;
-        onRemovePlace(place.place_id);
-        setCustomName(place.name || '');
-        setCustomDesc(place.vicinity || '');
-        setCustomLink(place.link || '');
-        setCustomType(place.type || 'custom');
-        setCustomPublic(place.isPublic || false); // Recuperar estado público
-        if (place.geometry?.location) {
-            setCustomLat(place.geometry.location.lat().toString());
-            setCustomLng(place.geometry.location.lng().toString());
-        }
-        setShowCustomForm(true);
+        setPlaceToEdit(place);
+        // Eliminamos temporalmente para evitar duplicados al guardar (como antes)
+        onRemovePlace(place.place_id); 
+        setShowForm(true);
+    };
+
+    const handleFormSave = (place: PlaceWithDistance) => {
+        onAddPlace(place);
+        setShowForm(false);
+        setPlaceToEdit(null);
+    };
+
+    const handleFormCancel = () => {
+        // Si cancelamos y estábamos editando, deberíamos restaurar el sitio.
+        // Como simplificación por ahora, si el usuario cancela la edición de algo borrado, lo pierde (igual que antes).
+        // UX improvement para el futuro: No borrar hasta Guardar.
+        setShowForm(false);
+        setPlaceToEdit(null);
     };
 
     const handlePlaceClick = (spot: PlaceWithDistance) => {
@@ -173,13 +86,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         if (!toggles[type] && type !== 'camping') return null; 
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
-        
-        if (type === 'custom') {
-            list = saved.filter(s => s.type === 'custom');
-        } else {
-            // Modo Foco
-            if (savedOfType) list = [savedOfType];
-        }
+        if (type === 'custom') list = saved.filter(s => s.type === 'custom');
+        else if (savedOfType) list = [savedOfType];
 
         const isLoading = loading[type];
         if (type === 'custom' && list.length === 0) return null;
@@ -200,7 +108,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                 </div>
                                 {type === 'custom' ? (
                                     <div className="flex gap-1">
-                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                         <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                     </div>
                                 ) : (
@@ -217,7 +125,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
 
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
-            
             <div className="flex justify-between items-start">
                 <div>
                     <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
@@ -253,14 +160,11 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                     </div>
                                 </div>
                                 <div className="flex gap-1 items-center">
-                                    {/* ICONO PRIVACIDAD */}
                                     {place.type === 'custom' && (
-                                        <span title={place.isPublic ? "Público" : "Privado"}>
-                                            {place.isPublic ? <IconEye /> : <IconLock />}
-                                        </span>
+                                        <span title={place.isPublic ? "Público" : "Privado"}>{place.isPublic ? <IconEye /> : <IconLock />}</span>
                                     )}
                                     {place.type === 'custom' && (
-                                        <button onClick={(e) => { e.stopPropagation(); handleEditCustom(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditStart(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
                                     <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                 </div>
@@ -270,57 +174,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 </div>
             )}
 
-            <button onClick={() => setShowCustomForm(!showCustomForm)} className="w-full mt-3 mb-2 bg-gray-800 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-black transition shadow-sm">
-                <IconPlus /> {showCustomForm ? 'Cancelar' : 'Añadir Sitio Personalizado'}
-            </button>
-
-            {showCustomForm && (
-                <form onSubmit={handleSaveCustom} className="bg-gray-100 p-3 rounded-lg mb-4 border border-gray-300 animate-fadeIn">
-                    <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                            <input type="text" placeholder="Nombre (ej: Taller)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
-                            <select value={customType} onChange={e => setCustomType(e.target.value as ServiceType)} className="w-full p-2 text-xs rounded border border-gray-300 bg-white outline-none">
-                                <option value="custom">⭐ Otro</option>
-                                <option value="camping">🚐 Pernocta</option>
-                                <option value="restaurant">🍳 Restaurante</option>
-                                <option value="water">💧 Aguas</option>
-                                <option value="gas">⛽ Gasolinera</option>
-                                <option value="supermarket">🛒 Super</option>
-                                <option value="tourism">📷 Turismo</option>
-                            </select>
-                        </div>
-                        <div className="flex gap-2">
-                            <input type="text" placeholder="Dirección (ej: Calle Mayor 1)" value={customDesc} onChange={e => setCustomDesc(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
-                            <button type="button" onClick={handleGeocodeAddress} disabled={geocoding} className="bg-blue-500 text-white px-3 rounded text-xs font-bold hover:bg-blue-600 flex items-center justify-center" title="Buscar coordenadas">
-                                {geocoding ? '...' : <IconSearchLoc />}
-                            </button>
-                        </div>
-                        <input type="text" placeholder="Link URL (Opcional)" value={customLink} onChange={e => setCustomLink(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
-                        <div className="grid grid-cols-2 gap-2">
-                            <input type="text" placeholder="Latitud" value={customLat} onChange={e => setCustomLat(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
-                            <input type="text" placeholder="Longitud" value={customLng} onChange={e => setCustomLng(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
-                        </div>
-
-                        {/* CHECKBOX DE PRIVACIDAD */}
-                        <div className="flex items-center gap-2 text-xs text-gray-700 bg-white p-2 rounded border border-gray-200">
-                            <input 
-                                type="checkbox" 
-                                checked={customPublic} 
-                                onChange={e => setCustomPublic(e.target.checked)}
-                                id="privacyCheck"
-                            />
-                            <label htmlFor="privacyCheck" className="cursor-pointer select-none flex items-center gap-1">
-                                <span>🌍</span> Permitir que otros vean esto al compartir
-                            </label>
-                        </div>
-
-                        <p className="text-[9px] text-gray-500 italic">* Pon coordenadas si quieres ver la chincheta en el mapa.</p>
-                        <button type="submit" className="w-full bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700">Guardar en Mi Plan</button>
-                    </div>
-                </form>
+            {!showForm ? (
+                <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-black transition shadow-sm">
+                    <IconPlus /> Añadir Sitio Personalizado
+                </button>
+            ) : (
+                <AddPlaceForm initialData={placeToEdit} rawCityName={rawCityName} onSave={handleFormSave} onCancel={handleFormCancel} />
             )}
 
-            {/* ... El resto del código del mapa y botones sigue igual ... */}
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-4">
@@ -345,7 +206,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (
-                            <button onClick={handleCalcElevation} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
+                            <button onClick={() => calculateElevation(day.from, day.coordinates)} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
                                 <IconMountain /> Analizar Desnivel
                             </button>
                         )}

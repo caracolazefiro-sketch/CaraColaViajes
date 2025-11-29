@@ -14,7 +14,8 @@ export interface PlaceWithDistance {
     type?: ServiceType;
     photoUrl?: string;
     types?: string[]; 
-    link?: string; // NUEVO: Para guardar la URL exacta (P4N, web del restaurante...)
+    link?: string; // URL externa (P4N, web...)
+    isPublic?: boolean; // <--- NUEVA PROPIEDAD: Control de privacidad
 }
 
 export interface DailyPlan { 
