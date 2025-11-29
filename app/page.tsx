@@ -388,7 +388,11 @@ export default function Home() {
       <div className="w-full max-w-6xl space-y-6">
         
         {/* HEADER */}
-        <div className="relative text-center space-y-4 mb-6 flex flex-col items-center no-print">
+        <div className="w-full no-print">
+    <AppHeader 
+        // ... props ...
+    />
+</div>
             <AppHeader 
                 onLoadTrip={handleLoadCloudTrip} 
                 auditMode={auditMode} 
