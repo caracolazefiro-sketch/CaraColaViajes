@@ -8,20 +8,19 @@ import { TripResult } from '../types';
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
-const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>);
-const IconChevronDown = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>);
+const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>);
 const IconChevronUp = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>);
 
-// Iconos Stats
-const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
-const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
-const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+// Iconos Stats (Más pequeños para la línea única)
+const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
+const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
+const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
 interface TripFormProps {
     formData: any;
     setFormData: (data: any) => void;
     loading: boolean;
-    results: TripResult; // NUEVO: Recibe los resultados para el resumen
+    results: TripResult;
     onSubmit: (e: React.FormEvent) => void;
     showWaypoints: boolean;
     setShowWaypoints: (show: boolean) => void;
@@ -29,14 +28,13 @@ interface TripFormProps {
 
 export default function TripForm({ formData, setFormData, loading, results, onSubmit, showWaypoints, setShowWaypoints }: TripFormProps) {
     
-    const [isExpanded, setIsExpanded] = useState(true); // Estado de repliegue
+    const [isExpanded, setIsExpanded] = useState(true); 
     const [tempStop, setTempStop] = useState('');
     
     const originRef = useRef<google.maps.places.Autocomplete | null>(null);
     const destRef = useRef<google.maps.places.Autocomplete | null>(null);
     const stopRef = useRef<google.maps.places.Autocomplete | null>(null);
 
-    // AUTO-REPLIEGUE: Si termina de cargar y hay resultados, cerramos el formulario
     useEffect(() => {
         if (!loading && results.totalDays !== null) {
             setIsExpanded(false);
@@ -62,7 +60,7 @@ export default function TripForm({ formData, setFormData, loading, results, onSu
         const place = ref.current?.getPlace();
         if (place && place.formatted_address) {
             if (field === 'tempStop') setTempStop(place.formatted_address);
-            else setFormData(prev => ({ ...prev, [field]: place.formatted_address }));
+            else setFormData((prev: any) => ({ ...prev, [field]: place.formatted_address })); // ✅ Corrección 1
         }
     };
 
@@ -74,7 +72,7 @@ export default function TripForm({ formData, setFormData, loading, results, onSu
         geocoder.geocode({ address: value }, (results, status) => {
             if (status === 'OK' && results && results[0]) {
                 const cleanAddress = results[0].formatted_address;
-                setFormData(prev => ({ ...prev, [field]: cleanAddress }));
+                setFormData((prev: any) => ({ ...prev, [field]: cleanAddress })); // ✅ Corrección 2
                 alert(`✅ Ubicación validada:\n"${cleanAddress}"`);
             } else {
                 alert("❌ Google no ha podido localizar este sitio.");
@@ -94,41 +92,46 @@ export default function TripForm({ formData, setFormData, loading, results, onSu
         setFormData({ ...formData, etapas: newStops.join('|') });
     };
 
-    // --- MODO RESUMEN (DASHBOARD) ---
+    // --- MODO RESUMEN (DASHBOARD ULTRA-COMPACTO) ---
     if (!isExpanded && results.totalDays) {
         return (
-            <div className="bg-white rounded-xl shadow-lg border border-red-100 no-print transition-all duration-500 ease-in-out cursor-pointer hover:shadow-xl" onClick={() => setIsExpanded(true)}>
-                <div className="bg-gradient-to-r from-red-600 to-red-700 px-4 py-3 flex justify-between items-center text-white rounded-t-xl">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        <h2 className="font-bold text-sm truncate flex items-center gap-2">
-                            <span>🏁 {formData.origen.split(',')[0]}</span> 
-                            <span className="text-red-200">➝</span> 
-                            <span>{formData.destino.split(',')[0]}</span>
-                        </h2>
-                        {formData.vueltaACasa && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">Circular</span>}
+            <div 
+                className="bg-white rounded-xl shadow-md border border-gray-200 no-print cursor-pointer hover:shadow-lg hover:border-red-300 transition-all duration-300 flex flex-col md:flex-row items-center justify-between p-2 gap-2 md:gap-4" 
+                onClick={() => setIsExpanded(true)}
+            >
+                {/* 1. RUTA (Izquierda) */}
+                <div className="flex items-center gap-2 overflow-hidden w-full md:w-auto px-2">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-800 font-bold truncate">
+                        <span className="text-red-600">🏁</span> 
+                        <span>{formData.origen.split(',')[0]}</span> 
+                        <span className="text-gray-400 text-xs">➝</span> 
+                        <span>{formData.destino.split(',')[0]}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-bold bg-black/20 px-3 py-1 rounded-full">
-                        <span title="Modificar Ruta">Editar</span>
-                        <IconEdit />
+                    {formData.vueltaACasa && <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-full font-bold">Circular</span>}
+                </div>
+
+                {/* 2. DATOS (Centro - Integrados) */}
+                <div className="flex items-center gap-3 md:gap-6 bg-gray-50 rounded-lg px-3 py-1.5 w-full md:w-auto justify-center">
+                    <div className="flex items-center gap-1" title="Duración">
+                        <IconCalendar />
+                        <span className="text-xs font-bold text-gray-700">{results.totalDays} <span className="font-normal text-gray-500">días</span></span>
+                    </div>
+                    <div className="w-px h-3 bg-gray-300"></div>
+                    <div className="flex items-center gap-1" title="Distancia">
+                        <IconMap />
+                        <span className="text-xs font-bold text-gray-700">{results.distanceKm?.toFixed(0)} <span className="font-normal text-gray-500">km</span></span>
+                    </div>
+                    <div className="w-px h-3 bg-gray-300 hidden sm:block"></div>
+                    <div className="flex items-center gap-1 hidden sm:flex" title="Coste Estimado">
+                        <IconWallet />
+                        <span className="text-xs font-bold text-green-600">{results.totalCost?.toFixed(0)} €</span>
                     </div>
                 </div>
-                
-                {/* BARRA DE DATOS INTEGRADA (Antiguo TripStats) */}
-                <div className="flex justify-around items-center p-3 text-gray-700 text-xs md:text-sm">
-                    <div className="flex items-center gap-1.5" title="Duración Total">
-                        <span className="text-red-500"><IconCalendar /></span> 
-                        <span className="font-bold">{results.totalDays} Días</span>
-                    </div>
-                    <div className="w-px h-6 bg-gray-200"></div>
-                    <div className="flex items-center gap-1.5" title="Distancia Total">
-                        <span className="text-blue-500"><IconMap /></span> 
-                        <span className="font-bold">{results.distanceKm?.toFixed(0)} km</span>
-                    </div>
-                    <div className="w-px h-6 bg-gray-200 hidden md:block"></div>
-                    <div className="flex items-center gap-1.5 hidden md:flex" title="Coste Estimado">
-                        <span className="text-green-600"><IconWallet /></span> 
-                        <span className="font-bold">{results.totalCost?.toFixed(0)} €</span>
-                    </div>
+
+                {/* 3. BOTÓN EDITAR (Derecha) */}
+                <div className="hidden md:flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">
+                    <span>Editar</span>
+                    <IconEdit />
                 </div>
             </div>
         );
