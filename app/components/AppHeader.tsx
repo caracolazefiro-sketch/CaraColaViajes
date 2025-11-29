@@ -1,130 +1,112 @@
 // --------------------------------------------------------------------------
-// AppHeader.tsx
+// AppHeader.tsx - FINAL (Tailwind CSS, Logo Corregido, SVG Placeholder)
 // --------------------------------------------------------------------------
-'use client'; // Necesario si usas hooks (useState) y Context/MUI
+'use client'; 
 import React, { useState } from 'react';
-import Image from 'next/image'; // Para usar el logo como imagen optimizada
+import Image from 'next/image'; 
 
-// 1. IMPORTACIONES CORREGIDAS A MUI
-import { 
-    Box, Button, IconButton, Drawer, Typography, Divider 
-} from '@mui/material'; 
-import MenuIcon from '@mui/icons-material/Menu'; // Icono de hamburguesa
+// Componente SVG Placeholder para el Menú
+// Lo usamos porque no hay librería de iconos instalada.
+const MenuIcon = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+  </svg>
+);
 
-// 2. IMPORTACIÓN DE COMPONENTES LOCALES
-import UserArea from './UserArea'; // Importamos tu componente UserArea.tsx
+// IMPORTACIONES LOCALES
+import UserArea from './UserArea'; // Tu componente existente
 
 const AppHeader = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Componente para el Logo (Asume una imagen en /public)
+  // Componente para el Logo (Apuntando a logo.jpg en /public)
   const LogoComponent = () => (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    <div className="flex items-center">
       <Image 
-        src="/logo.jpg" // CAMBIA ESTA RUTA SI TU LOGO TIENE OTRO NOMBRE
+        src="/logo.jpg" // RUTA CORREGIDA
         alt="CaraCola Viajes Logo" 
         width={40} 
         height={40} 
-        priority // Carga prioritaria para la cabecera
+        priority
       />
-    </Box>
+    </div>
   );
 
-  // --- COMPONENTES INTERNOS SIMPLIFICADOS (Botones de Acción) ---
+  // --- Botones de Acción (Reemplazan los componentes Button de MUI) ---
   const ActionButtons = () => (
-    <Box sx={styles.actionButtonsContainer}>
-      <Button variant="text" color="primary">Buscar Viajes</Button>
-      <Button variant="text" color="secondary"># 🐌 MANIFIESTO</Button> 
-    </Box>
+    <div className="flex space-x-4"> 
+      <button className="text-gray-700 hover:text-blue-600 font-medium transition duration-150 ease-in-out">
+        Buscar Viajes
+      </button>
+      <button className="text-gray-700 hover:text-yellow-600 font-medium transition duration-150 ease-in-out">
+        # 🐌 MANIFIESTO
+      </button>
+    </div>
   );
   // --------------------------------------------------------------------------
 
   return (
-    <Box component="header" sx={styles.header}>
+    // Estilos de cabecera: Fijo, ancho completo, centrado de items y separación de bloques
+    <header className="fixed w-full z-10 bg-white shadow-md p-4 flex items-center justify-between">
       
       {/* 1. Bloque Izquierdo: Logo */}
       <LogoComponent />
 
       {/* 2. Bloque Derecho: Controles y Área de Usuario */}
-      <Box sx={styles.controlsContainer}>
+      <div className="flex items-center space-x-4">
         
-        {/* A. Botones de Acción (SOLO VISIBLES en Sobremesa) */}
-        <Box sx={styles.desktopControls}>
+        {/* A. Botones de Acción (ESCRITORIO: visible en sm:flex, oculto por defecto) */}
+        <div className="hidden sm:flex"> 
           <ActionButtons />
-        </Box>
+        </div>
 
-        {/* B. Icono de Menú Hamburguesa (SOLO VISIBLE en Móvil) */}
-        <Box sx={styles.mobileMenuIcon}>
-          <IconButton 
-            onClick={() => setIsDrawerOpen(true)}
-            aria-label="Menú principal"
-            size="large"
-          >
-            <MenuIcon />
-          </IconButton>
-        </Box>
+        {/* B. Icono de Menú Hamburguesa (MÓVIL: block por defecto, oculto en sm:hidden) */}
+        <button 
+          onClick={() => setIsDrawerOpen(true)}
+          className="sm:hidden p-2 text-gray-700 hover:text-blue-600"
+          aria-label="Menú principal"
+        >
+          <MenuIcon className="h-6 w-6" /> 
+        </button>
         
         {/* C. Área de Usuario (SIEMPRE VISIBLE) */}
-        <UserArea /> {/* Usamos tu componente existente */}
-      </Box>
+        <UserArea />
+      </div>
 
       {/* 3. Drawer para Menú Móvil */}
-      <Drawer
-        anchor="right"
-        open={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-      >
-        <Box sx={styles.drawerContent} role="presentation">
-          <Typography variant="h6" sx={{ p: 2 }}>Menú CaraCola</Typography>
-          <Divider />
-          <ActionButtons />
-          {/* Aquí irían otros enlaces de navegación si fuera necesario */}
-        </Box>
-      </Drawer>
-    </Box>
+      {isDrawerOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 sm:hidden" 
+          onClick={() => setIsDrawerOpen(false)}
+        >
+          <div 
+            className="fixed top-0 right-0 h-full w-64 bg-white shadow-xl transition-transform duration-300 ease-in-out transform translate-x-0"
+            onClick={(e) => e.stopPropagation()} 
+          >
+            <div className="p-4">
+                <p className="text-xl font-semibold mb-4 border-b pb-2">Menú CaraCola</p>
+                <div className="flex flex-col space-y-2">
+                    <button 
+                        onClick={() => { /* Manejar clic del botón */ setIsDrawerOpen(false); }}
+                        className="w-full text-left p-2 text-gray-700 hover:bg-gray-100 font-medium"
+                    >
+                        Buscar Viajes
+                    </button>
+                    <button 
+                        onClick={() => { /* Manejar clic del botón */ setIsDrawerOpen(false); }}
+                        className="w-full text-left p-2 text-gray-700 hover:bg-gray-100 font-medium"
+                    >
+                        # 🐌 MANIFIESTO
+                    </button>
+                    {/* Añadir más enlaces de navegación aquí */}
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
   );
 };
-
-// Objeto de Estilos Responsivos
-const styles = {
-    // ... (El objeto styles sigue siendo el mismo que acordamos)
-    header: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between', 
-      padding: '10px 20px',
-      backgroundColor: '#fff', 
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    },
-    
-    controlsContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '15px', 
-    },
-  
-    actionButtonsContainer: {
-      display: 'flex',
-      gap: '10px',
-    },
-  
-    // Controla la VISIBILIDAD DE BOTONES DE ACCIÓN: SOLO SOBREMESA
-    desktopControls: {
-      // Usando breakpoints de MUI: Oculto en 'xs' (móvil), visible en 'sm' (sobremesa)
-      display: { xs: 'none', sm: 'flex' }, 
-    },
-  
-    // Controla la VISIBILIDAD DEL ICONO DE MENÚ: SOLO MÓVIL
-    mobileMenuIcon: {
-      // Visible en 'xs' (móvil), oculto en 'sm' (sobremesa)
-      display: { xs: 'block', sm: 'none' }, 
-    },
-  
-    drawerContent: {
-      width: 250, 
-      paddingTop: '10px',
-    }
-  };
 
 export default AppHeader;
 // --------------------------------------------------------------------------
