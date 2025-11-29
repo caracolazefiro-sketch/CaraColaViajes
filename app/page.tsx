@@ -157,7 +157,7 @@ export default function Home() {
 
     try {
         if (currentTripId) {
-            const overwrite = confirm(`¿Sobreescribir viaje existente (ID: ${currentTripId})?\nCancelar = Guardar copia nueva`);
+            const overwrite = confirm(`¿Sobrescribir viaje existente (ID: ${currentTripId})?\nCancelar = Guardar copia nueva`);
             if (overwrite) {
                 const { error } = await supabase.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId);
                 if (error) throw error;
@@ -209,6 +209,7 @@ export default function Home() {
     // LÓGICA VUELTA A CASA
     let origin = formData.origen;
     let destination = formData.destino;
+    // Si hay paradas, las preparamos
     let waypoints = formData.etapas.split(',').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
 
     if (formData.vueltaACasa) {

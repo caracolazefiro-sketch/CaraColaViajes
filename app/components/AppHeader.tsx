@@ -28,7 +28,7 @@ export default function AppHeader({
     return (
         <div className="relative mb-6 no-print w-full">
             {/* Contenedor principal: LOGO a la izquierda, CONTROLES a la derecha */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-2">
                 
                 {/* 1. LOGO Y TÍTULO (Fijos a la izquierda) */}
                 <div className="text-center md:text-left flex flex-col items-center md:items-start">
