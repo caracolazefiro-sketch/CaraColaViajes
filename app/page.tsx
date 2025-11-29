@@ -26,10 +26,11 @@ const printStyles = `
   }
 `;
 
+// Iconos
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
-const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 
 export default function Home() {
@@ -201,7 +202,7 @@ export default function Home() {
     let origin = formData.origen;
     let destination = formData.destino;
     
-    // --- CAMBIO CLAVE: LEER CON BARRA VERTICAL '|' ---
+    // Leer waypoints con '|'
     let waypoints = formData.etapas.split('|').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
 
     const outboundLegsCount = waypoints.length + 1;
@@ -232,7 +233,30 @@ export default function Home() {
       const formatDateISO = (d: Date) => d.toISOString().split('T')[0]; 
       const addDay = (d: Date) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
 
-      let currentLegStartName = formData.origen;
+      // --- HELPERS PARA LIMPIAR NOMBRES ---
+      // Esta función busca la ciudad/localidad exacta basándose en coordenadas
+      const getCleanCityName = async (lat: number, lng: number): Promise<string> => {
+          const geocoder = new google.maps.Geocoder();
+          try {
+            const response = await geocoder.geocode({ location: { lat, lng } });
+            if (response.results[0]) {
+              const comps = response.results[0].address_components;
+              // Prioridad: Localidad > Área Administrativa 2 (Provincia/Comarca) > Punto Ruta
+              const city = comps.find(c => c.types.includes("locality"))?.long_name || 
+                           comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || 
+                           "Punto en Ruta";
+              return city;
+            }
+          } catch (e) { }
+          return "Punto en Ruta";
+      };
+
+      // Inicializar nombre de inicio limpio
+      // Hacemos una llamada inicial para saber exactamente cómo se llama el origen "real" (ej: "Madrid" en vez de "Calle Mayor 1")
+      let currentLegStartName = "Origen";
+      const startLoc = route.legs[0].start_location;
+      currentLegStartName = await getCleanCityName(startLoc.lat(), startLoc.lng());
+
       let totalDistMeters = 0; 
 
       for (let i = 0; i < route.legs.length; i++) {
@@ -242,19 +266,7 @@ export default function Home() {
         let legAccumulator = 0;
         let segmentStartName = currentLegStartName;
 
-        const getCityAndProvince = async (lat: number, lng: number): Promise<string> => {
-            const geocoder = new google.maps.Geocoder();
-            try {
-              const response = await geocoder.geocode({ location: { lat, lng } });
-              if (response.results[0]) {
-                const comps = response.results[0].address_components;
-                const city = comps.find(c => c.types.includes("locality"))?.long_name || comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || "Punto Ruta";
-                return city;
-              }
-            } catch (e) { }
-            return "Parada Ruta";
-        };
-
+        // Subdivisión por Km Máximo (Paradas Tácticas)
         for (let j = 0; j < legPoints.length - 1; j++) {
             const point1 = legPoints[j];
             const point2 = legPoints[j+1];
@@ -263,7 +275,8 @@ export default function Home() {
             if (legAccumulator + segmentDist > maxMeters) {
                 const lat = point1.lat();
                 const lng = point2.lng(); 
-                const locationString = await getCityAndProvince(lat, lng);
+                // Usamos la función de limpieza para la parada táctica también
+                const locationString = await getCleanCityName(lat, lng);
                 const stopTitle = `📍 Parada Táctica: ${locationString}`;
 
                 itinerary.push({ 
@@ -280,12 +293,11 @@ export default function Home() {
             }
         }
 
-        let endLegName = leg.end_address.split(',')[0];
+        // --- CAMBIO UX: OBTENER NOMBRE LIMPIO DEL DESTINO ---
+        // En lugar de leg.end_address (que es la calle sucia), pedimos el nombre limpio
+        let endLegName = await getCleanCityName(leg.end_location.lat(), leg.end_location.lng());
         
-        if (i === route.legs.length - 1) {
-            endLegName = formData.vueltaACasa ? formData.origen : formData.destino;
-        }
-        
+        // Si hay movimiento o es un cambio de etapa significativo
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
             const isFinalDest = i === route.legs.length - 1;
             itinerary.push({ 
@@ -305,8 +317,8 @@ export default function Home() {
         }
         totalDistMeters += leg.distance?.value || 0;
 
+        // Lógica del Pivote (Estancia en destino)
         if (formData.vueltaACasa && i === outboundLegsCount - 1) {
-            
             let returnDistanceMeters = 0;
             for(let k = i + 1; k < route.legs.length; k++) {
                 returnDistanceMeters += route.legs[k].distance?.value || 0;
@@ -322,7 +334,8 @@ export default function Home() {
                 const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
 
                 if (stayDays > 0) {
-                    const stayCity = formData.destino; 
+                    // Usamos el nombre limpio que acabamos de calcular
+                    const stayCity = endLegName; 
                     for(let d=0; d < stayDays; d++) {
                         itinerary.push({ 
                             day: dayCounter, 
@@ -343,14 +356,19 @@ export default function Home() {
         }
       }
 
+      // Estancia si NO es vuelta a casa
       if (formData.fechaRegreso && !formData.vueltaACasa) {
           const diffTime = new Date(formData.fechaRegreso).getTime() - currentDate.getTime();
           const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          // Calculamos el nombre limpio del destino final también
+          const finalLeg = route.legs[route.legs.length - 1];
+          const finalCity = await getCleanCityName(finalLeg.end_location.lat(), finalLeg.end_location.lng());
+
           for(let i=0; i < stayDays; i++) {
                dayCounter++; currentDate = addDay(currentDate);
                itinerary.push({ 
                    day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
-                   from: formData.destino, to: formData.destino, distance: 0, isDriving: false, type: 'end', savedPlaces: [] 
+                   from: finalCity, to: finalCity, distance: 0, isDriving: false, type: 'end', savedPlaces: [] 
                });
           }
       }
