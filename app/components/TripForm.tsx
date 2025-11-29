@@ -1,11 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { Autocomplete } from '@react-google-maps/api';
 
-// Iconos (Para evitar errores de Iconos faltantes)
-const IconClock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
-const IconTank = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
-const IconInfo = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+// Iconos
+const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
+const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
 interface TripFormProps {
     formData: any;
@@ -17,10 +17,16 @@ interface TripFormProps {
 }
 
 export default function TripForm({ formData, setFormData, loading, onSubmit, showWaypoints, setShowWaypoints }: TripFormProps) {
+    
+    // Referencias para los Autocomplete
+    const originRef = useRef<google.maps.places.Autocomplete | null>(null);
+    const destRef = useRef<google.maps.places.Autocomplete | null>(null);
+    const stopRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+    const [tempStop, setTempStop] = useState(''); // Estado temporal para el buscador de paradas
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
-        // Manejamos checkbox para vueltaACasa y evitarPeajes
         let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
         setFormData({ ...formData, [id]: finalValue });
     };
@@ -31,6 +37,51 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
         if (!isChecked) setFormData({ ...formData, etapas: '' });
     };
 
+    // --- LÓGICA DE AUTOCOMPLETADO ---
+    const onPlaceChanged = (field: 'origen' | 'destino' | 'tempStop') => {
+        let ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
+        const place = ref.current?.getPlace();
+        
+        if (place && place.formatted_address) {
+            if (field === 'tempStop') {
+                setTempStop(place.formatted_address);
+            } else {
+                setFormData(prev => ({ ...prev, [field]: place.formatted_address }));
+            }
+        }
+    };
+
+    // --- LÓGICA DE "BUSCAR COORDENADAS" / VALIDAR ---
+    const handleManualGeocode = (field: 'origen' | 'destino') => {
+        const value = formData[field];
+        if (!value) return;
+        
+        if (typeof google === 'undefined') return;
+        const geocoder = new google.maps.Geocoder();
+        
+        geocoder.geocode({ address: value }, (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+                const cleanAddress = results[0].formatted_address;
+                setFormData(prev => ({ ...prev, [field]: cleanAddress }));
+                alert(`✅ Ubicación validada:\n"${cleanAddress}"\n\n(Coordenadas: ${results[0].geometry.location.toUrlValue()})`);
+            } else {
+                alert("❌ Google no ha podido localizar este sitio. Prueba con una dirección más exacta o coordenadas.");
+            }
+        });
+    };
+
+    // Añadir parada desde el buscador auxiliar a la lista principal
+    const addWaypoint = () => {
+        if (!tempStop) return;
+        const current = formData.etapas ? formData.etapas.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+        // Evitar duplicados exactos
+        if (!current.includes(tempStop)) {
+            current.push(tempStop);
+            setFormData({ ...formData, etapas: current.join(', ') });
+        }
+        setTempStop(''); // Limpiar el buscador
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-red-100 no-print">
             <div className="bg-red-600 px-4 py-3">
@@ -39,7 +90,8 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
 
             <form onSubmit={onSubmit} className="p-5 text-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* FILA 1: FECHAS */}
+                    
+                    {/* FECHAS */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">Inicio</label>
                         <input type="date" id="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" required />
@@ -49,24 +101,39 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
                         <input type="date" id="fechaRegreso" value={formData.fechaRegreso} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" />
                     </div>
                     
-                    {/* FILA 2: ORIGEN DESTINO */}
-                    <div className="space-y-1">
+                    {/* ORIGEN (CON AUTOCOMPLETE + VALIDAR) */}
+                    <div className="space-y-1 relative">
                         <label className="text-xs font-bold text-gray-500 uppercase">Origen</label>
-                        <input type="text" id="origen" value={formData.origen} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-300" required />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase">Destino Principal</label>
-                        <input type="text" id="destino" value={formData.destino} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-300" required />
+                        <div className="flex gap-1">
+                            <Autocomplete onLoad={ref => originRef.current = ref} onPlaceChanged={() => onPlaceChanged('origen')} className='w-full'>
+                                <input type="text" id="origen" value={formData.origen} onChange={handleChange} placeholder="Ciudad, calle o coords" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
+                            </Autocomplete>
+                            <button type="button" onClick={() => handleManualGeocode('origen')} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title="Validar ubicación exacta">
+                                <IconSearchLoc />
+                            </button>
+                        </div>
                     </div>
 
-                    {/* FILA 3: OPCIONES DE RUTA (Checkbox Vuelta a Casa AL LADO de Paradas) */}
+                    {/* DESTINO (CON AUTOCOMPLETE + VALIDAR) */}
+                    <div className="space-y-1 relative">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Destino Principal</label>
+                        <div className="flex gap-1">
+                            <Autocomplete onLoad={ref => destRef.current = ref} onPlaceChanged={() => onPlaceChanged('destino')} className='w-full'>
+                                <input type="text" id="destino" value={formData.destino} onChange={handleChange} placeholder="Ej: Cabo Norte" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
+                            </Autocomplete>
+                            <button type="button" onClick={() => handleManualGeocode('destino')} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title="Validar ubicación exacta">
+                                <IconSearchLoc />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* PARADAS INTERMEDIAS + VUELTA A CASA */}
                     <div className="md:col-span-2 lg:col-span-4 bg-red-50 p-3 rounded border border-red-100 flex flex-col md:flex-row gap-6 items-center">
                         <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs select-none">
                             <input type="checkbox" className="text-red-600 rounded focus:ring-red-500" checked={showWaypoints} onChange={handleToggleWaypoints} />
                             ➕ Añadir Paradas Intermedias
                         </label>
 
-                        {/* AQUÍ ESTÁ EL CHECKBOX DE VUELTA A CASA */}
                         <label className="flex items-center gap-2 cursor-pointer text-blue-800 font-bold text-xs select-none border-l pl-6 border-red-200">
                             <input 
                                 type="checkbox" 
@@ -79,13 +146,44 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
                         </label>
                     </div>
 
+                    {/* ZONA DE PARADAS INTELIGENTE */}
                     {showWaypoints && (
-                        <div className="md:col-span-2 lg:col-span-4 -mt-2">
-                            <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full px-3 py-2 bg-white border border-blue-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" />
+                        <div className="md:col-span-2 lg:col-span-4 -mt-2 space-y-2 p-2 bg-gray-50 rounded border border-gray-200">
+                            {/* Buscador Auxiliar */}
+                            <div className="flex gap-2 items-center">
+                                <div className="flex-1 relative">
+                                    <Autocomplete onLoad={ref => stopRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStop')}>
+                                        <input 
+                                            type="text" 
+                                            value={tempStop} 
+                                            onChange={(e) => setTempStop(e.target.value)} 
+                                            placeholder="🔍 Buscar parada (Ej: Carcassonne)..." 
+                                            className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                                        />
+                                    </Autocomplete>
+                                </div>
+                                <button type="button" onClick={addWaypoint} className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1">
+                                    <IconPlusCircle /> Añadir
+                                </button>
+                            </div>
+                            
+                            {/* Input Original (Modificable manualmente) */}
+                            <div className="relative">
+                                <label className="text-[10px] font-bold text-gray-400 absolute -top-2 left-2 bg-gray-50 px-1">Lista de Paradas (Editable)</label>
+                                <input 
+                                    type="text" 
+                                    id="etapas" 
+                                    value={formData.etapas} 
+                                    onChange={handleChange} 
+                                    placeholder="Las paradas aparecerán aquí separadas por comas..." 
+                                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none text-gray-700" 
+                                />
+                            </div>
+                            <p className="text-[9px] text-gray-400 italic">* Puedes usar el buscador de arriba o escribir manualmente separando por comas.</p>
                         </div>
                     )}
 
-                    {/* FILA 4: SLIDERS */}
+                    {/* SLIDERS Y BOTÓN FINAL (Igual que antes) */}
                     <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
                         <div className="space-y-2">
                             <div className="flex justify-between items-center"><label className="text-xs font-bold text-gray-700">Ritmo (Km/día)</label><span className="bg-gray-100 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">{formData.kmMaximoDia} km</span></div>
