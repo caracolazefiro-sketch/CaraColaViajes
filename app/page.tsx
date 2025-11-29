@@ -8,10 +8,12 @@ import { supabase } from './supabase';
 // IMPORTAMOS NUESTROS COMPONENTES
 import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
-import DaySpotsList from './components/DaySpotsList';
-import TripMap from './components/TripMap'; // <--- IMPORTACIÓN NUEVA
+import TripMap from './components/TripMap';
+import TripStats from './components/TripStats';        // <--- NUEVO
+import StageSelector from './components/StageSelector'; // <--- NUEVO
+import ItineraryPanel from './components/ItineraryPanel'; // <--- NUEVO
 
-// --- CONFIGURACIÓN LIBRERÍAS (Se queda aquí para useJsApiLoader) ---
+// --- CONFIGURACIÓN ---
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
 const printStyles = `
@@ -24,15 +26,6 @@ const printStyles = `
     * { -webkit-print-color-adjust: exact !important; print-adjust: exact !important; }
   }
 `;
-
-// Iconos Stats
-const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
-const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
-const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
-const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
-const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
-const IconPlusSm = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>);
-const IconTrashSm = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -166,7 +159,9 @@ export default function Home() {
     
     let origin = formData.origen;
     let destination = formData.destino;
+    
     let waypoints = formData.etapas.split('|').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
+
     const outboundLegsCount = waypoints.length + 1;
 
     if (formData.vueltaACasa) {
@@ -395,37 +390,24 @@ export default function Home() {
 
         {results.totalCost !== null && (
             <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print">
-                    <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-red-50 rounded-full"><IconCalendar /></div><div><p className="text-xl font-extrabold text-gray-800">{results.totalDays}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Días</p></div></div>
-                    <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-blue-50 rounded-full"><IconMap /></div><div><p className="text-xl font-extrabold text-gray-800">{results.distanceKm?.toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Km</p></div></div>
-                    <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-purple-50 rounded-full"><IconFuel /></div><div><p className="text-xl font-extrabold text-gray-800">{((results.distanceKm! / 100) * formData.consumo).toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Litros</p></div></div>
-                    <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-green-50 rounded-full"><IconWallet /></div><div><p className="text-xl font-extrabold text-green-600">{results.totalCost?.toFixed(0)} €</p><p className="text-[10px] text-gray-500 font-bold uppercase">Coste</p></div></div>
-                </div>
+                
+                {/* 1. ESTADÍSTICAS (Extraído) */}
+                <TripStats 
+                    days={results.totalDays} 
+                    distance={results.distanceKm} 
+                    cost={results.totalCost} 
+                    liters={((results.distanceKm! / 100) * formData.consumo)} 
+                />
 
-                <div className="bg-white rounded-xl shadow border border-gray-100 p-4 no-print">
-                    <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
-                    <div className="flex flex-wrap gap-2">
-                        <button 
-                            onClick={() => { setSelectedDayIndex(null); setMapBounds(null); setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true }); setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [] }); setHoveredPlace(null); }} 
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === null ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'}`}
-                        >
-                            🌎 General
-                        </button>
-                        {results.dailyItinerary?.map((day, index) => (
-                            <button 
-                                key={index} 
-                                onClick={() => focusMapOnStage(index)} 
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
-                            >
-                                <span>{day.isDriving ? '🚐' : '🏖️'}</span> 
-                                Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                {/* 2. SELECTOR DE ETAPAS (Extraído) */}
+                <StageSelector 
+                    dailyItinerary={results.dailyItinerary} 
+                    selectedDayIndex={selectedDayIndex} 
+                    onSelectDay={focusMapOnStage} 
+                />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* AQUÍ ESTÁ EL CAMBIO: USAMOS EL NUEVO COMPONENTE TripMap */}
+                    {/* 3. MAPA (Extraído) */}
                     <TripMap 
                         setMap={setMap}
                         mapBounds={mapBounds}
@@ -439,98 +421,24 @@ export default function Home() {
                         onPlaceClick={handlePlaceClick}
                     />
 
-                    <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] print:h-auto print:overflow-visible">
-                        <div className='p-0 h-full overflow-hidden print:h-auto print:overflow-visible'>
-                            {selectedDayIndex === null ? (
-                                <div className="text-center pt-8 overflow-y-auto h-full p-4 print:h-auto print:overflow-visible">
-                                    <h4 className="text-xl font-extrabold text-red-600 mb-1">Itinerario Completo</h4>
-                                    <div className="text-sm font-bold text-gray-700 mb-2 bg-red-50 inline-block px-3 py-1 rounded-full">{formData.origen} ➝ {formData.destino}</div>
-                                    
-                                    <div className="flex justify-center mb-4 no-print">
-                                        <button onClick={() => window.print()} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-lg">
-                                            <IconPrint /> Imprimir / Guardar PDF
-                                        </button>
-                                    </div>
-
-                                    <p className="text-xs text-gray-400 mb-4 no-print">Haz clic en una fila para ver detalles 👇</p>
-                                    
-                                    <div className="space-y-4 text-left">
-                                        {results.dailyItinerary?.map((day, index) => (
-                                            <div 
-                                                key={index} 
-                                                onClick={() => focusMapOnStage(index)}
-                                                className="border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white print-break"
-                                            >
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <span className="font-bold text-red-700 text-sm flex items-center gap-1">
-                                                        {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
-                                                    </span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                            {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
-                                                        </span>
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleAddDay(index); }}
-                                                            className="text-green-600 hover:bg-green-100 p-1 rounded-full text-xs font-bold"
-                                                            title="Añadir un día más aquí"
-                                                        >
-                                                            <IconPlusSm />
-                                                        </button>
-                                                        {!day.isDriving && (
-                                                            <button 
-                                                                onClick={(e) => { e.stopPropagation(); handleRemoveDay(index); }}
-                                                                className="text-red-500 hover:bg-red-100 p-1 rounded-full text-xs font-bold"
-                                                                title="Quitar este día"
-                                                            >
-                                                                <IconTrashSm />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="text-xs text-gray-800 font-medium mb-2">
-                                                    {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
-                                                </div>
-                                                
-                                                {day.savedPlaces && day.savedPlaces.length > 0 && (
-                                                    <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
-                                                        {day.savedPlaces.map((place, i) => (
-                                                            <div key={i} className="text-xs text-gray-700 flex items-start gap-2">
-                                                                <span className="font-bold text-lg leading-none">
-                                                                   {place.type === 'camping' ? '🚐' : 
-                                                                    place.type === 'restaurant' ? '🍳' : 
-                                                                    place.type === 'water' ? '💧' :
-                                                                    place.type === 'gas' ? '⛽' :
-                                                                    place.type === 'supermarket' ? '🛒' :
-                                                                    place.type === 'laundry' ? '🧺' :
-                                                                    place.type === 'tourism' ? '📷' : '⭐'}
-                                                                </span>
-                                                                <div>
-                                                                    <span className="font-bold block text-green-800">{place.name}</span>
-                                                                    <span className="text-[10px] text-gray-500">{place.vicinity}</span>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <DaySpotsList 
-                                    day={results.dailyItinerary![selectedDayIndex]} 
-                                    places={places} 
-                                    loading={loadingPlaces} 
-                                    toggles={toggles} 
-                                    auditMode={auditMode} 
-                                    onToggle={handleToggle} 
-                                    onAddPlace={handleAddPlace} 
-                                    onRemovePlace={handleRemovePlace} 
-                                    onHover={setHoveredPlace}
-                                />
-                            )}
-                        </div>
-                    </div>
+                    {/* 4. PANEL ITINERARIO / DETALLE (Extraído) */}
+                    <ItineraryPanel 
+                        dailyItinerary={results.dailyItinerary}
+                        selectedDayIndex={selectedDayIndex}
+                        origin={formData.origen}
+                        destination={formData.destino}
+                        places={places}
+                        loadingPlaces={loadingPlaces}
+                        toggles={toggles}
+                        auditMode={auditMode}
+                        onToggle={handleToggle}
+                        onAddPlace={handleAddPlace}
+                        onRemovePlace={handleRemovePlace}
+                        onHover={setHoveredPlace}
+                        onAddDay={handleAddDay}
+                        onRemoveDay={handleRemoveDay}
+                        onSelectDay={focusMapOnStage}
+                    />
                 </div>
             </div>
         )}
