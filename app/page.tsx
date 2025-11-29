@@ -11,6 +11,8 @@ import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import DaySpotsList from './components/DaySpotsList';
 
+// --- VERIFICACIÓN FASE 34 --- ESTE ARCHIVO INCLUYE LOGICA VUELTA A CASA ---
+
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -23,11 +25,11 @@ const printStyles = `
     .print-only { display: block !important; }
     .print-break { page-break-inside: avoid; }
     .shadow-lg, .shadow-sm, .border { box-shadow: none !important; border: none !important; }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    * { -webkit-print-color-adjust: exact !important; print-adjust: exact !important; }
   }
 `;
 
-// Iconos de la tabla resumen
+// Iconos
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
@@ -35,7 +37,6 @@ const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 
 export default function Home() {
-  // Estado de Montaje (Fix Hydration)
   const [mounted, setMounted] = useState(false);
 
   const { isLoaded } = useJsApiLoader({
@@ -77,7 +78,7 @@ export default function Home() {
     precioGasoil: 1.60,
     kmMaximoDia: 400,
     evitarPeajes: false,
-    vueltaACasa: false, // NUEVO CAMPO
+    vueltaACasa: false, // CAMPO AÑADIDO
   });
 
   const [results, setResults] = useState<TripResult>({
@@ -127,6 +128,7 @@ export default function Home() {
           setSelectedDayIndex(null);
           setMapBounds(null);
           setForceUpdate(prev => prev + 1);
+          alert(`✅ Viaje cargado. (ID: ${tripId})`);
       }
   };
 
@@ -207,7 +209,6 @@ export default function Home() {
     // LÓGICA VUELTA A CASA
     let origin = formData.origen;
     let destination = formData.destino;
-    // Si hay paradas, las preparamos
     let waypoints = formData.etapas.split(',').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
 
     if (formData.vueltaACasa) {
@@ -310,9 +311,6 @@ export default function Home() {
       }
 
       // Estancia en Destino 
-      // Lógica simple: Si hay fecha regreso, añadimos días. 
-      // En modo circular, esto añade los días de estancia en el ORIGEN al final del todo. 
-      // (Para V1 está bien: calcula días totales, aunque geográficamente la estancia debería ser en el punto medio).
       if (formData.fechaRegreso && !formData.vueltaACasa) {
           const diffTime = new Date(formData.fechaRegreso).getTime() - currentDate.getTime();
           const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -344,14 +342,15 @@ export default function Home() {
           }
       }
   }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
-  
+
   const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
       if (!map || typeof google === 'undefined') return;
-      if (type === 'custom') return; 
       const service = new google.maps.places.PlacesService(map);
       const centerPoint = new google.maps.LatLng(location.lat, location.lng);
       let keywords = '';
       let radius = 10000; 
+
+      if (type === 'custom') return; // Custom no busca en Google
 
       switch(type) {
           case 'camping': keywords = 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"'; radius = 20000; break;
@@ -448,11 +447,10 @@ export default function Home() {
     }
   };
 
-  if (!mounted) return <div className="flex justify-center items-center h-screen bg-red-50 text-red-600 font-bold text-xl animate-pulse">Iniciando Motores... 🐌</div>;
   if (!isLoaded) return <div className="flex justify-center items-center h-screen bg-red-50 text-red-600 font-bold text-xl animate-pulse">Cargando CaraCola...</div>;
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900 pt-2 sm:pt-4">
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
       <style jsx global>{printStyles}</style>
       <div className="w-full max-w-6xl space-y-6">
         
@@ -478,7 +476,7 @@ export default function Home() {
              <p className="text-gray-500">Itinerario generado el {new Date().toLocaleDateString()}</p>
         </div>
 
-        {/* FORMULARIO COMPONETIZADO */}
+        {/* FORMULARIO */}
         <TripForm 
             formData={formData} 
             setFormData={setFormData} 
@@ -491,7 +489,6 @@ export default function Home() {
         {/* RESULTADOS */}
         {results.totalCost !== null && (
             <div className="space-y-6">
-                {/* ESTADÍSTICAS */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print">
                     <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-red-50 rounded-full"><IconCalendar /></div><div><p className="text-xl font-extrabold text-gray-800">{results.totalDays}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Días</p></div></div>
                     <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-blue-50 rounded-full"><IconMap /></div><div><p className="text-xl font-extrabold text-gray-800">{results.distanceKm?.toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Km</p></div></div>
@@ -499,7 +496,6 @@ export default function Home() {
                     <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100"><div className="p-2 bg-green-50 rounded-full"><IconWallet /></div><div><p className="text-xl font-extrabold text-green-600">{results.totalCost?.toFixed(0)} €</p><p className="text-[10px] text-gray-500 font-bold uppercase">Coste</p></div></div>
                 </div>
 
-                {/* BOTONERA DE DÍAS */}
                 <div className="bg-white rounded-xl shadow border border-gray-100 p-4 no-print">
                     <h3 className="font-bold text-gray-700 text-sm mb-3">Selecciona una Etapa:</h3>
                     <div className="flex flex-wrap gap-2">
@@ -513,7 +509,7 @@ export default function Home() {
                             <button 
                                 key={index} 
                                 onClick={() => focusMapOnStage(index)} 
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
                             >
                                 <span>{day.isDriving ? '🚐' : '🏖️'}</span> 
                                 Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
@@ -523,7 +519,6 @@ export default function Home() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* MAPA */}
                     <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print">
                         <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
                             {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 } }} />}

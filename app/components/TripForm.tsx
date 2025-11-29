@@ -2,6 +2,13 @@
 
 import React from 'react';
 
+// --- VERIFICACIÓN FASE 34 --- CHECKBOX VUELTA A CASA ---
+
+// Iconos
+const IconClock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+const IconTank = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
+const IconInfo = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+
 interface TripFormProps {
     formData: any;
     setFormData: (data: any) => void;
@@ -80,7 +87,6 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
                         </div>
                     )}
 
-                    {/* FILA 4: PARAMETROS */}
                     <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
                         <div className="space-y-2">
                             <div className="flex justify-between items-center"><label className="text-xs font-bold text-gray-700">Ritmo (Km/día)</label><span className="bg-gray-100 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">{formData.kmMaximoDia} km</span></div>
