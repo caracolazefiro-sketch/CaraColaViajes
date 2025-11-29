@@ -26,10 +26,13 @@ export default function StageSelector({ dailyItinerary, selectedDayIndex, onSele
                     <button 
                         key={index} 
                         onClick={() => onSelectDay(index)} 
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-md' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-700 border-orange-200 hover:border-orange-300')}`}
                     >
                         <span>{day.isDriving ? '🚐' : '🏖️'}</span> 
-                        Día {day.day}: {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
+                        <span>Día {day.day}</span>
+                        {/* FECHA DISCRETA */}
+                        <span className={`text-[10px] font-normal ${selectedDayIndex === index ? 'text-red-200' : 'text-gray-400'}`}>({day.date})</span>: 
+                        <span className="ml-1">{day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}</span>
                     </button>
                 ))}
             </div>

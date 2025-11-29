@@ -4,7 +4,7 @@ import React from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import DaySpotsList from './DaySpotsList';
 
-// Iconos locales para los botones de gestión de días
+// Iconos locales
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
 const IconPlusSm = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>);
 const IconTrashSm = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
@@ -45,7 +45,6 @@ export default function ItineraryPanel({
     onSelectDay
 }: ItineraryPanelProps) {
 
-    // Si no hay itinerario, no mostramos nada (o un placeholder)
     if (!dailyItinerary) return null;
 
     return (
@@ -53,7 +52,6 @@ export default function ItineraryPanel({
             <div className='p-0 h-full overflow-hidden print:h-auto print:overflow-visible'>
                 
                 {selectedDayIndex === null ? (
-                    // VISTA RESUMEN (LISTA DE DÍAS)
                     <div className="text-center pt-8 overflow-y-auto h-full p-4 print:h-auto print:overflow-visible">
                         <h4 className="text-xl font-extrabold text-red-600 mb-1">Itinerario Completo</h4>
                         <div className="text-sm font-bold text-gray-700 mb-2 bg-red-50 inline-block px-3 py-1 rounded-full">{origin} ➝ {destination}</div>
@@ -74,9 +72,16 @@ export default function ItineraryPanel({
                                     className="border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white print-break"
                                 >
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="font-bold text-red-700 text-sm flex items-center gap-1">
-                                            {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
-                                        </span>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-bold text-red-700 text-sm flex items-center gap-1">
+                                                {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
+                                            </span>
+                                            {/* FECHA DISCRETA AQUI */}
+                                            <span className="text-xs text-gray-400 font-medium">
+                                                {day.date}
+                                            </span>
+                                        </div>
+                                        
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                                                 {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
@@ -104,7 +109,6 @@ export default function ItineraryPanel({
                                         {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                     </div>
                                     
-                                    {/* LISTA DE SITIOS GUARDADOS EN EL RESUMEN */}
                                     {day.savedPlaces && day.savedPlaces.length > 0 && (
                                         <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
                                             {day.savedPlaces.map((place, i) => (
@@ -131,7 +135,6 @@ export default function ItineraryPanel({
                         </div>
                     </div>
                 ) : (
-                    // VISTA DETALLE (DAY SPOTS LIST)
                     <DaySpotsList 
                         day={dailyItinerary[selectedDayIndex]} 
                         places={places} 
