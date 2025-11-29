@@ -27,11 +27,26 @@ body {
 
 /* --- UTILIDADES PERSONALIZADAS --- */
 
-/* Ocultar barra de scroll pero permitir deslizar (Para el Selector de Etapas) */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
+/* Barra de scroll MINIMALISTA (Fina pero usable) */
 .scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    scrollbar-width: thin;          /* Firefox: Fina */
+    scrollbar-color: #e5e7eb transparent; /* Firefox: Gris suave sobre transparente */
+}
+
+/* Chrome, Edge, Safari */
+.scrollbar-hide::-webkit-scrollbar {
+    height: 6px;                    /* Altura muy reducida */
+}
+
+.scrollbar-hide::-webkit-scrollbar-track {
+    background: transparent;        /* Fondo invisible */
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb {
+    background-color: #e5e7eb;      /* Color gris muy suave (gray-200) */
+    border-radius: 20px;            /* Redondeada */
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb:hover {
+    background-color: #d1d5db;      /* Un poco más oscuro al pasar el ratón (gray-300) */
 }
