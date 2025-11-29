@@ -1,18 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { Coordinates, DailyPlan, PlaceWithDistance, ServiceType, TripResult } from './types';
-import { MARKER_ICONS, ICONS_ITINERARY } from './constants';
 import { supabase } from './supabase';
 
+// IMPORTAMOS NUESTROS COMPONENTES
 import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import DaySpotsList from './components/DaySpotsList';
+import TripMap from './components/TripMap'; // <--- IMPORTACIÓN NUEVA
 
-// --- CONFIGURACIÓN VISUAL ---
-const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
-const center = { lat: 40.416775, lng: -3.703790 };
+// --- CONFIGURACIÓN LIBRERÍAS (Se queda aquí para useJsApiLoader) ---
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
 const printStyles = `
@@ -26,7 +25,7 @@ const printStyles = `
   }
 `;
 
-// Iconos
+// Iconos Stats
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
@@ -86,6 +85,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
+  // PERSISTENCIA
   useEffect(() => {
       setMounted(true);
       if (typeof window !== 'undefined') {
@@ -109,76 +109,41 @@ export default function Home() {
       }
   }, [formData, results, currentTripId, mounted, isInitialized]);
 
-  // --- HELPERS DE FECHAS ---
+  // HELPERS FECHAS
   const formatDate = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const formatDateISO = (d: Date) => d.toISOString().split('T')[0]; 
   const addDay = (d: Date) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
 
-  // --- FUNCIÓN RECALCULAR FECHAS (ACORDEÓN) ---
+  // RECALCULAR ACORDEÓN
   const recalculateDates = (itinerary: DailyPlan[]) => {
       let currentDate = new Date(formData.fechaInicio);
       const updatedItinerary = itinerary.map((day, index) => {
-          // Asignar nueva fecha secuencial
-          const updatedDay = {
-              ...day,
-              day: index + 1,
-              date: formatDate(currentDate),
-              isoDate: formatDateISO(currentDate)
-          };
+          const updatedDay = { ...day, day: index + 1, date: formatDate(currentDate), isoDate: formatDateISO(currentDate) };
           currentDate = addDay(currentDate);
           return updatedDay;
       });
       return updatedItinerary;
   };
 
-  // --- HANDLER: AÑADIR DÍA (RELAX) ---
   const handleAddDay = (index: number) => {
       if (!results.dailyItinerary) return;
       const currentItinerary = [...results.dailyItinerary];
       const previousDay = currentItinerary[index];
-      
-      // Creamos un nuevo día de estancia en el mismo sitio donde acaba el día actual
-      // Usamos el nombre limpio que ya tiene 'to'
-      const newDay: DailyPlan = {
-          day: 0, // Se recalculará
-          date: '', 
-          isoDate: '',
-          from: previousDay.to, // Nos quedamos donde estábamos
-          to: previousDay.to,
-          distance: 0,
-          isDriving: false,
-          type: 'overnight',
-          coordinates: previousDay.coordinates, // Mismas coordenadas
-          savedPlaces: [] // Empezamos limpios de sitios guardados
-      };
-
-      // Insertamos después del día actual
+      const newDay: DailyPlan = { day: 0, date: '', isoDate: '', from: previousDay.to, to: previousDay.to, distance: 0, isDriving: false, type: 'overnight', coordinates: previousDay.coordinates, savedPlaces: [] };
       currentItinerary.splice(index + 1, 0, newDay);
-      
-      // Recalculamos fechas
       const finalItinerary = recalculateDates(currentItinerary);
-      
       setResults({ ...results, dailyItinerary: finalItinerary, totalDays: finalItinerary.length });
   };
 
-  // --- HANDLER: QUITAR DÍA (SOLO RELAX) ---
   const handleRemoveDay = (index: number) => {
       if (!results.dailyItinerary) return;
-      
-      // Protección: No borrar días de conducción
-      if (results.dailyItinerary[index].isDriving) {
-          alert("⚠️ No puedes borrar una etapa de conducción aquí.\n\nPara eliminar una parada de ruta, usa el formulario de arriba (los chips) y recalcula.");
-          return;
-      }
-
+      if (results.dailyItinerary[index].isDriving) { alert("⚠️ No puedes borrar una etapa de conducción aquí.\n\nPara eliminar una parada de ruta, usa el formulario de arriba (los chips) y recalcula."); return; }
       const currentItinerary = [...results.dailyItinerary];
       currentItinerary.splice(index, 1);
-      
       const finalItinerary = recalculateDates(currentItinerary);
       setResults({ ...results, dailyItinerary: finalItinerary, totalDays: finalItinerary.length });
   };
 
-  // ... (Resto de handlers igual: Reset, Load, Share, Save, Geocode) ...
   const handleResetTrip = () => { if (confirm("¿Borrar viaje y empezar de cero?")) { localStorage.removeItem('caracola_trip_v1'); window.location.reload(); } };
   const handleLoadCloudTrip = (tripData: any, tripId: number) => { if (tripData) { setFormData(tripData.formData); setResults(tripData.results); setCurrentTripId(tripId); setSelectedDayIndex(null); setMapBounds(null); setForceUpdate(prev => prev + 1); alert(`✅ Viaje cargado. (ID: ${tripId})`); } };
   const handleShareTrip = async () => { if (!currentTripId) return alert("Guarda el viaje primero."); const { error } = await supabase.from('trips').update({ is_public: true }).eq('id', currentTripId); if (error) return alert("Error: " + error.message); const shareUrl = `${window.location.origin}/share/${currentTripId}`; try { await navigator.clipboard.writeText(shareUrl); alert(`🔗 Enlace copiado:\n\n${shareUrl}`); } catch (err) { prompt("Copia este enlace:", shareUrl); } };
@@ -201,9 +166,7 @@ export default function Home() {
     
     let origin = formData.origen;
     let destination = formData.destino;
-    
     let waypoints = formData.etapas.split('|').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
-
     const outboundLegsCount = waypoints.length + 1;
 
     if (formData.vueltaACasa) {
@@ -213,31 +176,23 @@ export default function Home() {
 
     try {
       const result = await directionsService.route({
-        origin: origin, 
-        destination: destination, 
-        waypoints: waypoints,
-        travelMode: google.maps.TravelMode.DRIVING, 
-        avoidTolls: formData.evitarPeajes,
+        origin: origin, destination: destination, waypoints: waypoints, travelMode: google.maps.TravelMode.DRIVING, avoidTolls: formData.evitarPeajes,
       });
 
       setDirectionsResponse(result);
       const route = result.routes[0];
       const itinerary: DailyPlan[] = [];
-      
       let dayCounter = 1;
       let currentDate = new Date(formData.fechaInicio);
       const maxMeters = formData.kmMaximoDia * 1000;
       
-      // Helpers locales para el cálculo inicial
       const getCleanCityName = async (lat: number, lng: number): Promise<string> => {
           const geocoder = new google.maps.Geocoder();
           try {
             const response = await geocoder.geocode({ location: { lat, lng } });
             if (response.results[0]) {
               const comps = response.results[0].address_components;
-              const city = comps.find(c => c.types.includes("locality"))?.long_name || 
-                           comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || 
-                           "Punto en Ruta";
+              const city = comps.find(c => c.types.includes("locality"))?.long_name || comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || "Punto en Ruta";
               return city;
             }
           } catch (e) { }
@@ -247,7 +202,6 @@ export default function Home() {
       let currentLegStartName = "Origen";
       const startLoc = route.legs[0].start_location;
       currentLegStartName = await getCleanCityName(startLoc.lat(), startLoc.lng());
-
       let totalDistMeters = 0; 
 
       for (let i = 0; i < route.legs.length; i++) {
@@ -263,69 +217,39 @@ export default function Home() {
             const segmentDist = google.maps.geometry.spherical.computeDistanceBetween(point1, point2);
 
             if (legAccumulator + segmentDist > maxMeters) {
-                const lat = point1.lat();
-                const lng = point2.lng(); 
+                const lat = point1.lat(); const lng = point2.lng(); 
                 const locationString = await getCleanCityName(lat, lng);
                 const stopTitle = `📍 Parada Táctica: ${locationString}`;
-
-                itinerary.push({ 
-                    day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
-                    from: segmentStartName, to: stopTitle, distance: (legAccumulator + segmentDist) / 1000, isDriving: true,
-                    coordinates: { lat, lng }, type: 'tactical', savedPlaces: []
-                });
-                dayCounter++;
-                currentDate = addDay(currentDate);
-                legAccumulator = 0;
-                segmentStartName = locationString;
-            } else {
-                legAccumulator += segmentDist;
-            }
+                itinerary.push({ day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate), from: segmentStartName, to: stopTitle, distance: (legAccumulator + segmentDist) / 1000, isDriving: true, coordinates: { lat, lng }, type: 'tactical', savedPlaces: [] });
+                dayCounter++; currentDate = addDay(currentDate); legAccumulator = 0; segmentStartName = locationString;
+            } else { legAccumulator += segmentDist; }
         }
 
         let endLegName = await getCleanCityName(leg.end_location.lat(), leg.end_location.lng());
         
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
             const isFinalDest = i === route.legs.length - 1;
-            itinerary.push({ 
-                day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
-                from: segmentStartName, to: endLegName, distance: legAccumulator / 1000, isDriving: true,
-                coordinates: { lat: leg.end_location.lat(), lng: leg.end_location.lng() }, 
-                type: isFinalDest ? 'end' : 'overnight', 
-                savedPlaces: [] 
-            });
-            
-            if (i < route.legs.length - 1) { 
-                dayCounter++; 
-                currentDate = addDay(currentDate); 
-            }
-            
+            itinerary.push({ day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate), from: segmentStartName, to: endLegName, distance: legAccumulator / 1000, isDriving: true, coordinates: { lat: leg.end_location.lat(), lng: leg.end_location.lng() }, type: isFinalDest ? 'end' : 'overnight', savedPlaces: [] });
+            if (i < route.legs.length - 1) { dayCounter++; currentDate = addDay(currentDate); }
             currentLegStartName = endLegName;
         }
         totalDistMeters += leg.distance?.value || 0;
 
         if (formData.vueltaACasa && i === outboundLegsCount - 1) {
             let returnDistanceMeters = 0;
-            for(let k = i + 1; k < route.legs.length; k++) {
-                returnDistanceMeters += route.legs[k].distance?.value || 0;
-            }
+            for(let k = i + 1; k < route.legs.length; k++) { returnDistanceMeters += route.legs[k].distance?.value || 0; }
             const daysDrivingBack = Math.ceil(returnDistanceMeters / (formData.kmMaximoDia * 1000));
             
             if (formData.fechaRegreso) {
                 const dateBackHome = new Date(formData.fechaRegreso);
                 const departureDate = new Date(dateBackHome);
                 departureDate.setDate(departureDate.getDate() - daysDrivingBack + 1); 
-                
                 const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-
                 if (stayDays > 0) {
                     const stayCity = endLegName; 
                     for(let d=0; d < stayDays; d++) {
-                        itinerary.push({ 
-                            day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
-                            from: stayCity, to: stayCity, distance: 0, isDriving: false, type: 'overnight', savedPlaces: [] 
-                        });
-                        dayCounter++; 
-                        currentDate = addDay(currentDate);
+                        itinerary.push({ day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate), from: stayCity, to: stayCity, distance: 0, isDriving: false, type: 'overnight', savedPlaces: [] });
+                        dayCounter++; currentDate = addDay(currentDate);
                     }
                 }
             }
@@ -337,33 +261,21 @@ export default function Home() {
           const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           const finalLeg = route.legs[route.legs.length - 1];
           const finalCity = await getCleanCityName(finalLeg.end_location.lat(), finalLeg.end_location.lng());
-
           for(let i=0; i < stayDays; i++) {
                dayCounter++; currentDate = addDay(currentDate);
-               itinerary.push({ 
-                   day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
-                   from: finalCity, to: finalCity, distance: 0, isDriving: false, type: 'end', savedPlaces: [] 
-               });
+               itinerary.push({ day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate), from: finalCity, to: finalCity, distance: 0, isDriving: false, type: 'end', savedPlaces: [] });
           }
       }
       const liters = (totalDistMeters / 1000 / 100) * formData.consumo;
       setResults({ totalDays: dayCounter, distanceKm: totalDistMeters / 1000, totalCost: liters * formData.precioGasoil, dailyItinerary: itinerary, error: null });
-    } catch (error: any) {
-      console.error(error);
-      setResults(prev => ({...prev, error: "Error al calcular. Revisa las ciudades."}));
-    } finally {
-      setLoading(false);
-    }
+    } catch (error: any) { console.error(error); setResults(prev => ({...prev, error: "Error al calcular. Revisa las ciudades."})); } finally { setLoading(false); }
   };
 
+  // --- MAPA (Usando el Componente Nuevo) ---
   useEffect(() => {
       if (map) {
-          if (mapBounds) {
-              setTimeout(() => map.fitBounds(mapBounds), 500); 
-          } else if (directionsResponse && selectedDayIndex === null) {
-              const routeBounds = directionsResponse.routes[0].bounds;
-              setTimeout(() => map.fitBounds(routeBounds), 500);
-          }
+          if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
+          else if (directionsResponse && selectedDayIndex === null) { const routeBounds = directionsResponse.routes[0].bounds; setTimeout(() => map.fitBounds(routeBounds), 500); }
       }
   }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
 
@@ -371,11 +283,8 @@ export default function Home() {
       if (!map || typeof google === 'undefined') return;
       const service = new google.maps.places.PlacesService(map);
       const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-      let keywords = '';
-      let radius = 10000; 
-
+      let keywords = ''; let radius = 10000; 
       if (type === 'custom') return; 
-
       switch(type) {
           case 'camping': keywords = 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"'; radius = 20000; break;
           case 'restaurant': keywords = 'restaurante OR comida OR bar'; radius = 5000; break;
@@ -385,7 +294,6 @@ export default function Home() {
           case 'laundry': keywords = 'lavanderia OR "laundry"'; radius = 10000; break;
           case 'tourism': keywords = 'turismo OR monumento OR museo OR "punto interes"'; radius = 10000; break;
       }
-
       setLoadingPlaces(prev => ({...prev, [type]: true}));
       service.nearbySearch({ location: centerPoint, radius, keyword: keywords }, (res, status) => {
           setLoadingPlaces(prev => ({...prev, [type]: false}));
@@ -394,11 +302,7 @@ export default function Home() {
                   let dist = 999999;
                   if (spot.geometry?.location) { dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location); }
                   const photoUrl = spot.photos && spot.photos.length > 0 ? spot.photos[0].getUrl({ maxWidth: 200 }) : undefined;
-                  return {
-                      name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id,
-                      geometry: spot.geometry, distanceFromCenter: dist, type,
-                      opening_hours: spot.opening_hours as any, user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types 
-                  };
+                  return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry: spot.geometry, distanceFromCenter: dist, type, opening_hours: spot.opening_hours as any, user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
               });
               spots = spots.filter(spot => {
                   const tags = spot.types || [];
@@ -422,27 +326,9 @@ export default function Home() {
       }
   };
 
-  const handleAddPlace = (place: PlaceWithDistance) => {
-      if (selectedDayIndex === null || !results.dailyItinerary) return;
-      const updatedItinerary = [...results.dailyItinerary];
-      const currentDay = updatedItinerary[selectedDayIndex];
-      if (!currentDay.savedPlaces) currentDay.savedPlaces = [];
-      if (!currentDay.savedPlaces.some(p => p.place_id === place.place_id)) {
-          currentDay.savedPlaces.push(place);
-          setResults({ ...results, dailyItinerary: updatedItinerary });
-      }
-  };
-
-  const handleRemovePlace = (placeId: string) => {
-      if (selectedDayIndex === null || !results.dailyItinerary) return;
-      const updatedItinerary = [...results.dailyItinerary];
-      const currentDay = updatedItinerary[selectedDayIndex];
-      if (currentDay.savedPlaces) {
-          currentDay.savedPlaces = currentDay.savedPlaces.filter(p => p.place_id !== placeId);
-          setResults({ ...results, dailyItinerary: updatedItinerary });
-      }
-  };
-
+  const handleAddPlace = (place: PlaceWithDistance) => { if (selectedDayIndex === null || !results.dailyItinerary) return; const updatedItinerary = [...results.dailyItinerary]; const currentDay = updatedItinerary[selectedDayIndex]; if (!currentDay.savedPlaces) currentDay.savedPlaces = []; if (!currentDay.savedPlaces.some(p => p.place_id === place.place_id)) { currentDay.savedPlaces.push(place); setResults({ ...results, dailyItinerary: updatedItinerary }); } };
+  const handleRemovePlace = (placeId: string) => { if (selectedDayIndex === null || !results.dailyItinerary) return; const updatedItinerary = [...results.dailyItinerary]; const currentDay = updatedItinerary[selectedDayIndex]; if (currentDay.savedPlaces) { currentDay.savedPlaces = currentDay.savedPlaces.filter(p => p.place_id !== placeId); setResults({ ...results, dailyItinerary: updatedItinerary }); } };
+  
   const focusMapOnStage = async (dayIndex: number) => {
     if (typeof google === 'undefined' || !results.dailyItinerary) return;
     const dailyPlan = results.dailyItinerary[dayIndex];
@@ -451,7 +337,6 @@ export default function Home() {
     setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true });
     setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [] });
     setHoveredPlace(null);
-
     if (dailyPlan.coordinates) {
         const bounds = new google.maps.LatLngBounds();
         bounds.extend({ lat: dailyPlan.coordinates.lat + 0.4, lng: dailyPlan.coordinates.lng + 0.4 });
@@ -469,6 +354,11 @@ export default function Home() {
              searchPlaces(coord, 'camping'); 
         }
     }
+  };
+
+  const handlePlaceClick = (spot: PlaceWithDistance) => {
+      if (spot.link) window.open(spot.link, '_blank');
+      else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
   };
 
   if (!isLoaded) return <div className="flex justify-center items-center h-screen bg-red-50 text-red-600 font-bold text-xl animate-pulse">Cargando CaraCola...</div>;
@@ -535,100 +425,19 @@ export default function Home() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print">
-                        <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}>
-                            {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 } }} />}
-                            
-                            {results.dailyItinerary?.map((day, i) => day.coordinates && (
-                                <Marker 
-                                    key={`itinerary-${i}`}
-                                    position={day.coordinates}
-                                    icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd}
-                                    title={day.to}
-                                />
-                            ))}
-
-                            {Object.keys(places).map((key) => {
-                                const type = key as ServiceType;
-                                
-                                const savedDay = results.dailyItinerary![selectedDayIndex!];
-                                const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
-                                let listToRender: PlaceWithDistance[] = [];
-
-                                if (toggles[type] || type === 'camping') {
-                                    if (savedOfType.length > 0 && type !== 'tourism') listToRender = savedOfType; 
-                                    else if (type === 'custom') listToRender = savedOfType; 
-                                    else listToRender = [...savedOfType, ...places[type]];
-                                } else {
-                                    listToRender = savedOfType;
-                                }
-
-                                const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
-                                
-                                return uniqueRender.map((spot, i) => (
-                                    spot.geometry?.location && (
-                                        <Marker 
-                                            key={`${type}-${i}`} 
-                                            position={spot.geometry.location} 
-                                            icon={{
-                                                url: MARKER_ICONS[type],
-                                                scaledSize: new window.google.maps.Size(30, 30)
-                                            }}
-                                            label={{ 
-                                                text: savedOfType.some(s => s.place_id === spot.place_id) ? "✓" : (i + 1).toString(), 
-                                                color: "white", 
-                                                fontWeight: "bold", 
-                                                fontSize: "10px" 
-                                            }}
-                                            title={spot.name}
-                                            onClick={() => spot.place_id && window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank')}
-                                            onMouseOver={() => setHoveredPlace(spot)}
-                                            onMouseOut={() => setHoveredPlace(null)}
-                                        />
-                                    )
-                                ));
-                            })}
-
-                            {hoveredPlace && hoveredPlace.geometry?.location && (
-                                <InfoWindow
-                                    position={hoveredPlace.geometry.location}
-                                    onCloseClick={() => setHoveredPlace(null)}
-                                    options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -35) }}
-                                >
-                                    <div className="p-0 w-[200px] overflow-hidden">
-                                        {hoveredPlace.photoUrl ? (
-                                            <img src={hoveredPlace.photoUrl} alt={hoveredPlace.name} className="w-full h-24 object-cover rounded-t-lg" />
-                                        ) : (
-                                            <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-4xl">
-                                                {hoveredPlace.type === 'custom' ? '⭐' :
-                                                 hoveredPlace.type === 'camping' ? '🚐' :
-                                                 hoveredPlace.type === 'restaurant' ? '🍳' :
-                                                 hoveredPlace.type === 'water' ? '💧' :
-                                                 hoveredPlace.type === 'gas' ? '⛽' :
-                                                 hoveredPlace.type === 'supermarket' ? '🛒' :
-                                                 hoveredPlace.type === 'laundry' ? '🧺' :
-                                                 hoveredPlace.type === 'tourism' ? '📷' : '📍'}
-                                            </div>
-                                        )}
-                                        <div className="p-2 bg-white">
-                                            <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight">{hoveredPlace.name}</h6>
-                                            <div className="flex items-center gap-1 text-xs text-orange-500 font-bold mb-1">
-                                                {hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}
-                                                {hoveredPlace.user_ratings_total && <span className="text-gray-400 font-normal">({hoveredPlace.user_ratings_total})</span>}
-                                            </div>
-                                            <p className="text-[10px] text-gray-500 line-clamp-2">{hoveredPlace.vicinity}</p>
-                                            {hoveredPlace.opening_hours?.open_now !== undefined && (
-                                                <p className={`text-[10px] font-bold mt-1 ${hoveredPlace.opening_hours.open_now ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {hoveredPlace.opening_hours.open_now ? '● Abierto' : '● Cerrado'}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </InfoWindow>
-                            )}
-
-                        </GoogleMap>
-                    </div>
+                    {/* AQUÍ ESTÁ EL CAMBIO: USAMOS EL NUEVO COMPONENTE TripMap */}
+                    <TripMap 
+                        setMap={setMap}
+                        mapBounds={mapBounds}
+                        directionsResponse={directionsResponse}
+                        dailyItinerary={results.dailyItinerary}
+                        places={places}
+                        toggles={toggles}
+                        selectedDayIndex={selectedDayIndex}
+                        hoveredPlace={hoveredPlace}
+                        setHoveredPlace={setHoveredPlace}
+                        onPlaceClick={handlePlaceClick}
+                    />
 
                     <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] print:h-auto print:overflow-visible">
                         <div className='p-0 h-full overflow-hidden print:h-auto print:overflow-visible'>
@@ -660,7 +469,6 @@ export default function Home() {
                                                         <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                                                             {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
                                                         </span>
-                                                        {/* BOTONES ACORDEÓN: + / - */}
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); handleAddDay(index); }}
                                                             className="text-green-600 hover:bg-green-100 p-1 rounded-full text-xs font-bold"
