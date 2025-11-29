@@ -11,7 +11,7 @@ import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import DaySpotsList from './components/DaySpotsList';
 
-// --- VERIFICACIÓN FASE 34 --- ESTE ARCHIVO INCLUYE LOGICA VUELTA A CASA Y FIX HEADER ---
+// --- VERIFICACIÓN FASE 35: LÓGICA VUELTA A CASA INTEGRADA ---
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
@@ -78,7 +78,7 @@ export default function Home() {
     precioGasoil: 1.60,
     kmMaximoDia: 400,
     evitarPeajes: false,
-    vueltaACasa: false, // CAMPO AÑADIDO
+    vueltaACasa: false,
   });
 
   const [results, setResults] = useState<TripResult>({
@@ -192,7 +192,7 @@ export default function Home() {
     return null;
   };
 
-  // --- CÁLCULO DE RUTA (MODIFICADO PARA VUELTA A CASA) ---
+  // --- CÁLCULO DE RUTA (LÓGICA DEL PIVOTE INTEGRADA) ---
   const calculateRoute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded) return;
@@ -206,11 +206,15 @@ export default function Home() {
 
     const directionsService = new google.maps.DirectionsService();
     
-    // LÓGICA VUELTA A CASA
+    // 1. CONFIGURACIÓN DE PUNTOS
     let origin = formData.origen;
     let destination = formData.destino;
     // Si hay paradas, las preparamos
     let waypoints = formData.etapas.split(',').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
+
+    // Calcular cuántos tramos corresponden a la "IDA" (Origen -> Waypoints -> Destino Principal)
+    // +1 porque si hay 0 paradas, hay 1 tramo de ida (Origen->Destino). Si hay 1 parada, hay 2 tramos.
+    const outboundLegsCount = waypoints.length + 1;
 
     if (formData.vueltaACasa) {
         // Si es circular: Destino Final = Origen
@@ -243,6 +247,7 @@ export default function Home() {
       let currentLegStartName = formData.origen;
       let totalDistMeters = 0; 
 
+      // 2. PROCESAMIENTO DE TRAMOS (LEGS)
       for (let i = 0; i < route.legs.length; i++) {
         const leg = route.legs[i];
         let legPoints: google.maps.LatLng[] = [];
@@ -263,6 +268,7 @@ export default function Home() {
             return "Parada Ruta";
         };
 
+        // Subdivisión por Km Máximo (Paradas Tácticas)
         for (let j = 0; j < legPoints.length - 1; j++) {
             const point1 = legPoints[j];
             const point2 = legPoints[j+1];
@@ -291,11 +297,12 @@ export default function Home() {
         // Nombre del destino de este tramo
         let endLegName = leg.end_address.split(',')[0];
         
-        // Si es el último tramo, ajustamos el nombre según si es circular o no
+        // Si es el último tramo global, ajustamos el nombre
         if (i === route.legs.length - 1) {
             endLegName = formData.vueltaACasa ? formData.origen : formData.destino;
         }
         
+        // Si estamos en un punto de parada (waypoint o destino final)
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
             const isFinalDest = i === route.legs.length - 1;
             itinerary.push({ 
@@ -305,14 +312,67 @@ export default function Home() {
                 type: isFinalDest ? 'end' : 'overnight', 
                 savedPlaces: [] 
             });
+            
+            // Solo avanzamos día si NO es el destino final, o si es un punto intermedio
+            if (i < route.legs.length - 1) { 
+                dayCounter++; 
+                currentDate = addDay(currentDate); 
+            }
+            
             currentLegStartName = endLegName;
-            if (i < route.legs.length - 1) { dayCounter++; currentDate = addDay(currentDate); }
         }
         totalDistMeters += leg.distance?.value || 0;
+
+        // --- ALGORITMO DEL PIVOTE: INYECCIÓN DE ESTANCIA CENTRAL ---
+        // Si es vuelta a casa y acabamos de llegar al destino principal (fin de la ida)
+        if (formData.vueltaACasa && i === outboundLegsCount - 1) {
+            
+            // 1. Calcular cuánto se tarda en volver (suma de los legs restantes)
+            let returnDistanceMeters = 0;
+            for(let k = i + 1; k < route.legs.length; k++) {
+                returnDistanceMeters += route.legs[k].distance?.value || 0;
+            }
+            
+            // 2. Estimar días de conducción para la vuelta (usando kmMaximoDia)
+            const daysDrivingBack = Math.ceil(returnDistanceMeters / (formData.kmMaximoDia * 1000));
+            
+            // 3. Calcular días de estancia disponibles
+            if (formData.fechaRegreso) {
+                const dateBackHome = new Date(formData.fechaRegreso);
+                // Fecha en la que debemos salir del destino principal
+                const departureDate = new Date(dateBackHome);
+                departureDate.setDate(departureDate.getDate() - daysDrivingBack + 1); // +1 ajuste seguridad
+                
+                // Días reales de relax
+                const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                if (stayDays > 0) {
+                    const stayCity = formData.destino; // Estamos aquí ahora
+                    for(let d=0; d < stayDays; d++) {
+                        // Importante: No incrementamos dayCounter al principio para que el día de llegada cuente
+                        // Pero aquí ya hemos cerrado el día de llegada, así que avanzamos.
+                        
+                        itinerary.push({ 
+                            day: dayCounter, 
+                            date: formatDate(currentDate), 
+                            isoDate: formatDateISO(currentDate),
+                            from: stayCity, 
+                            to: stayCity, 
+                            distance: 0, 
+                            isDriving: false, 
+                            type: 'overnight', 
+                            savedPlaces: [] 
+                        });
+                        dayCounter++; 
+                        currentDate = addDay(currentDate);
+                    }
+                }
+            }
+        }
       }
 
-      // Estancia en Destino 
-      // Si NO es circular y hay fecha regreso, añadimos días extras en el destino final.
+      // --- ESTANCIA EN DESTINO (SOLO IDA) ---
+      // Si NO es circular y hay fecha regreso, añadimos días extras al final.
       if (formData.fechaRegreso && !formData.vueltaACasa) {
           const diffTime = new Date(formData.fechaRegreso).getTime() - currentDate.getTime();
           const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -327,6 +387,7 @@ export default function Home() {
       const liters = (totalDistMeters / 1000 / 100) * formData.consumo;
       setResults({ totalDays: dayCounter, distanceKm: totalDistMeters / 1000, totalCost: liters * formData.precioGasoil, dailyItinerary: itinerary, error: null });
     } catch (error: any) {
+      console.error(error);
       setResults(prev => ({...prev, error: "Error al calcular. Revisa las ciudades."}));
     } finally {
       setLoading(false);
