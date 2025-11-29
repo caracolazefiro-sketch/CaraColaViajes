@@ -15,22 +15,15 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
+        // Manejamos checkbox para vueltaACasa y evitarPeajes
         let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
         setFormData({ ...formData, [id]: finalValue });
     };
 
-    // --- AQUÍ ESTÁ LA CORRECCIÓN DEL ZOMBIE ---
     const handleToggleWaypoints = (e: React.ChangeEvent<HTMLInputElement>) => {
         const isChecked = e.target.checked;
         setShowWaypoints(isChecked);
-        if (!isChecked) {
-            // Si desmarcas, BORRAMOS activamente los datos de etapas
-            setFormData({ ...formData, etapas: '' });
-        }
-    };
-
-    const handleReturnHome = () => {
-        setFormData({ ...formData, origen: formData.destino, destino: formData.origen });
+        if (!isChecked) setFormData({ ...formData, etapas: '' });
     };
 
     return (
@@ -41,6 +34,7 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
 
             <form onSubmit={onSubmit} className="p-5 text-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* FILA 1: FECHAS */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">Inicio</label>
                         <input type="date" id="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" required />
@@ -49,29 +43,44 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
                         <label className="text-xs font-bold text-gray-500 uppercase">Regreso (Opcional)</label>
                         <input type="date" id="fechaRegreso" value={formData.fechaRegreso} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" />
                     </div>
+                    
+                    {/* FILA 2: ORIGEN DESTINO */}
                     <div className="space-y-1">
-                        <div className="flex justify-between">
-                            <label className="text-xs font-bold text-gray-500 uppercase">Origen</label>
-                            <button type="button" onClick={handleReturnHome} className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer" title="Intercambiar Origen y Destino">🔄 Vuelta a Casa</button>
-                        </div>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Origen</label>
                         <input type="text" id="origen" value={formData.origen} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-300" required />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase">Destino</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Destino Principal</label>
                         <input type="text" id="destino" value={formData.destino} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-300" required />
                     </div>
 
-                    <div className="md:col-span-2 lg:col-span-4 bg-red-50 p-3 rounded border border-red-100">
-                        <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs mb-1 select-none">
-                            {/* Usamos la nueva función handleToggleWaypoints */}
+                    {/* FILA 3: OPCIONES DE RUTA (Checkbox Vuelta a Casa) */}
+                    <div className="md:col-span-2 lg:col-span-4 bg-red-50 p-3 rounded border border-red-100 flex flex-col md:flex-row gap-6 items-center">
+                        <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs select-none">
                             <input type="checkbox" className="text-red-600 rounded focus:ring-red-500" checked={showWaypoints} onChange={handleToggleWaypoints} />
                             ➕ Añadir Paradas Intermedias
                         </label>
-                        {showWaypoints && (
-                            <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full px-3 py-2 bg-white border border-blue-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" />
-                        )}
+
+                        {/* NUEVO CHECKBOX VUELTA A CASA */}
+                        <label className="flex items-center gap-2 cursor-pointer text-blue-800 font-bold text-xs select-none">
+                            <input 
+                                type="checkbox" 
+                                id="vueltaACasa" 
+                                checked={formData.vueltaACasa || false} 
+                                onChange={handleChange} 
+                                className="text-blue-600 rounded focus:ring-blue-500" 
+                            />
+                            🔄 Vuelta a Casa (Circular)
+                        </label>
                     </div>
 
+                    {showWaypoints && (
+                        <div className="md:col-span-2 lg:col-span-4 -mt-2">
+                            <input type="text" id="etapas" value={formData.etapas} onChange={handleChange} placeholder="Ej: Valencia, Madrid" className="w-full px-3 py-2 bg-white border border-blue-200 rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" />
+                        </div>
+                    )}
+
+                    {/* FILA 4: PARAMETROS */}
                     <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
                         <div className="space-y-2">
                             <div className="flex justify-between items-center"><label className="text-xs font-bold text-gray-700">Ritmo (Km/día)</label><span className="bg-gray-100 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">{formData.kmMaximoDia} km</span></div>
@@ -79,11 +88,11 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
                         </div>
                         <div className="space-y-2">
                             <div className="flex justify-between items-center"><label className="text-xs font-bold text-gray-700">Consumo (L/100)</label><span className="bg-gray-100 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">{formData.consumo} L</span></div>
-                            <input type="range" id="consumo" min="5" max="25" step="0.1" value={formData.consumo} onChange={handleChange} className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600" />
+                            <input type="range" id="consumo" min="5" max="25" step="0.1" value={formData.consumo} onChange={handleChange} className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-red-600" />
                         </div>
                         <div className="space-y-2">
                             <div className="flex justify-between items-center"><label className="text-xs font-bold text-gray-700">Precio Diésel (€/L)</label><span className="bg-gray-100 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">{formData.precioGasoil} €</span></div>
-                            <input type="range" id="precioGasoil" min="1.00" max="2.50" step="0.01" value={formData.precioGasoil} onChange={handleChange} className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600" />
+                            <input type="range" id="precioGasoil" min="1.00" max="2.50" step="0.01" value={formData.precioGasoil} onChange={handleChange} className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-green-600" />
                         </div>
                     </div>
 

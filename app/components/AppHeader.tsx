@@ -1,10 +1,9 @@
-// app/components/AppHeader.tsx
 'use client';
 
 import React from 'react';
 import UserArea from './UserArea';
 
-// Iconos locales para la cabecera
+// Iconos locales para la cabecera (Optimizados para no depender de externos)
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
@@ -27,11 +26,11 @@ export default function AppHeader({
 }: AppHeaderProps) {
     return (
         <div className="relative mb-6 no-print w-full">
-            {/* Contenedor principal: LOGO a la izquierda, CONTROLES a la derecha */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* CONTENEDOR PRINCIPAL FLUIDO: Columna en móvil, Fila en PC */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-2">
                 
-                {/* 1. LOGO Y TÍTULO (Fijos a la izquierda / Centro en móvil) */}
-                <div className="text-center md:text-left flex flex-col items-center md:items-start">
+                {/* ZONA IZQUIERDA: LOGO Y TÍTULO */}
+                <div className="text-center md:text-left flex flex-col items-center md:items-start w-full md:w-auto">
                     <div className="flex items-center gap-3">
                         <img 
                             src="/logo.jpg" 
@@ -43,18 +42,20 @@ export default function AppHeader({
                             <p className="text-gray-400 text-xs font-medium">Tu ruta en autocaravana</p>
                         </div>
                     </div>
-                    {/* Título visible solo en móvil debajo del logo */}
+                    {/* Título visible solo en móvil para ahorrar espacio */}
                     <p className="text-gray-500 text-sm font-medium md:hidden mt-1">Tu ruta en autocaravana, paso a paso.</p>
                 </div>
 
-                {/* 2. ZONA DE USUARIO Y ACCIONES (Contenedor Derecha) */}
-                <div className="flex flex-col items-center md:items-end gap-2 w-full md:w-auto">
+                {/* ZONA DERECHA: CONTROLES Y USUARIO */}
+                <div className="flex flex-col items-center md:items-end gap-3 w-full md:w-auto">
                     
-                    {/* A. LOGIN / MIS VIAJES */}
-                    <UserArea onLoadTrip={onLoadTrip} />
+                    {/* 1. ÁREA DE USUARIO (Email, Mis Viajes, Salir) */}
+                    <div className="w-full flex justify-center md:justify-end">
+                        <UserArea onLoadTrip={onLoadTrip} />
+                    </div>
                     
-                    {/* B. BOTONERA DE ACCIONES (Guardar, Compartir, Auditor) */}
-                    <div className="flex flex-wrap justify-center md:justify-end items-center gap-2 mt-1">
+                    {/* 2. BOTONERA DE ACCIONES (Audit, Guardar, Borrar) */}
+                    <div className="flex flex-wrap justify-center md:justify-end items-center gap-2">
                         <button 
                             onClick={() => setAuditMode(!auditMode)} 
                             className={`text-xs px-3 py-1.5 rounded-full border transition flex items-center gap-1 ${auditMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`} 
