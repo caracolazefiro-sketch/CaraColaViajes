@@ -30,7 +30,7 @@ export default function AppHeader({
             {/* Contenedor principal: LOGO a la izquierda, CONTROLES a la derecha */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 
-                {/* 1. LOGO Y TÍTULO (Fijos a la izquierda) */}
+                {/* 1. LOGO Y TÍTULO (Fijos a la izquierda / Centro en móvil) */}
                 <div className="text-center md:text-left flex flex-col items-center md:items-start">
                     <div className="flex items-center gap-3">
                         <img 
