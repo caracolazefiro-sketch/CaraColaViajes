@@ -2,8 +2,6 @@
 
 import React from 'react';
 
-// --- VERIFICACIÓN FASE 34 --- Vuelta a Casa (Checkbox) ---
-
 // Iconos (Para evitar errores de Iconos faltantes)
 const IconClock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconTank = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
@@ -61,15 +59,15 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
                         <input type="text" id="destino" value={formData.destino} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-300" required />
                     </div>
 
-                    {/* FILA 3: OPCIONES DE RUTA (Checkbox Vuelta a Casa) */}
+                    {/* FILA 3: OPCIONES DE RUTA (Checkbox Vuelta a Casa AL LADO de Paradas) */}
                     <div className="md:col-span-2 lg:col-span-4 bg-red-50 p-3 rounded border border-red-100 flex flex-col md:flex-row gap-6 items-center">
                         <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs select-none">
                             <input type="checkbox" className="text-red-600 rounded focus:ring-red-500" checked={showWaypoints} onChange={handleToggleWaypoints} />
                             ➕ Añadir Paradas Intermedias
                         </label>
 
-                        {/* NUEVO CHECKBOX VUELTA A CASA */}
-                        <label className="flex items-center gap-2 cursor-pointer text-blue-800 font-bold text-xs select-none">
+                        {/* AQUÍ ESTÁ EL CHECKBOX DE VUELTA A CASA */}
+                        <label className="flex items-center gap-2 cursor-pointer text-blue-800 font-bold text-xs select-none border-l pl-6 border-red-200">
                             <input 
                                 type="checkbox" 
                                 id="vueltaACasa" 
@@ -87,6 +85,7 @@ export default function TripForm({ formData, setFormData, loading, onSubmit, sho
                         </div>
                     )}
 
+                    {/* FILA 4: SLIDERS */}
                     <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
                         <div className="space-y-2">
                             <div className="flex justify-between items-center"><label className="text-xs font-bold text-gray-700">Ritmo (Km/día)</label><span className="bg-gray-100 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">{formData.kmMaximoDia} km</span></div>

@@ -6,12 +6,9 @@ import { Coordinates, DailyPlan, PlaceWithDistance, ServiceType, TripResult } fr
 import { MARKER_ICONS, ICONS_ITINERARY } from './constants';
 import { supabase } from './supabase';
 
-// IMPORTAMOS NUESTROS COMPONENTES
 import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import DaySpotsList from './components/DaySpotsList';
-
-// --- VERIFICACIÓN FASE 35: LÓGICA VUELTA A CASA INTEGRADA ---
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
@@ -57,7 +54,6 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // Estados de búsqueda y filtros
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
       camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: []
   });
@@ -88,7 +84,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // PERSISTENCIA
   useEffect(() => {
       setMounted(true);
       if (typeof window !== 'undefined') {
@@ -112,7 +107,6 @@ export default function Home() {
       }
   }, [formData, results, currentTripId, mounted, isInitialized]);
 
-  // HELPERS
   const handleResetTrip = () => {
       if (confirm("¿Borrar viaje y empezar de cero?")) {
           localStorage.removeItem('caracola_trip_v1');
@@ -181,7 +175,6 @@ export default function Home() {
     }
   };
 
-  // --- GEOCODER ---
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
     if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
     const geocoder = new google.maps.Geocoder();
@@ -192,7 +185,7 @@ export default function Home() {
     return null;
   };
 
-  // --- CÁLCULO DE RUTA (LÓGICA DEL PIVOTE INTEGRADA) ---
+  // --- CÁLCULO DE RUTA ---
   const calculateRoute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded) return;
@@ -206,20 +199,14 @@ export default function Home() {
 
     const directionsService = new google.maps.DirectionsService();
     
-    // 1. CONFIGURACIÓN DE PUNTOS
     let origin = formData.origen;
     let destination = formData.destino;
-    // Si hay paradas, las preparamos
     let waypoints = formData.etapas.split(',').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
 
-    // Calcular cuántos tramos corresponden a la "IDA" (Origen -> Waypoints -> Destino Principal)
-    // +1 porque si hay 0 paradas, hay 1 tramo de ida (Origen->Destino). Si hay 1 parada, hay 2 tramos.
     const outboundLegsCount = waypoints.length + 1;
 
     if (formData.vueltaACasa) {
-        // Si es circular: Destino Final = Origen
         destination = formData.origen;
-        // Y el "Destino Principal" pasa a ser un waypoint obligatorio al final
         waypoints.push({ location: formData.destino, stopover: true });
     }
 
@@ -247,7 +234,6 @@ export default function Home() {
       let currentLegStartName = formData.origen;
       let totalDistMeters = 0; 
 
-      // 2. PROCESAMIENTO DE TRAMOS (LEGS)
       for (let i = 0; i < route.legs.length; i++) {
         const leg = route.legs[i];
         let legPoints: google.maps.LatLng[] = [];
@@ -268,7 +254,6 @@ export default function Home() {
             return "Parada Ruta";
         };
 
-        // Subdivisión por Km Máximo (Paradas Tácticas)
         for (let j = 0; j < legPoints.length - 1; j++) {
             const point1 = legPoints[j];
             const point2 = legPoints[j+1];
@@ -294,15 +279,12 @@ export default function Home() {
             }
         }
 
-        // Nombre del destino de este tramo
         let endLegName = leg.end_address.split(',')[0];
         
-        // Si es el último tramo global, ajustamos el nombre
         if (i === route.legs.length - 1) {
             endLegName = formData.vueltaACasa ? formData.origen : formData.destino;
         }
         
-        // Si estamos en un punto de parada (waypoint o destino final)
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
             const isFinalDest = i === route.legs.length - 1;
             itinerary.push({ 
@@ -313,7 +295,6 @@ export default function Home() {
                 savedPlaces: [] 
             });
             
-            // Solo avanzamos día si NO es el destino final, o si es un punto intermedio
             if (i < route.legs.length - 1) { 
                 dayCounter++; 
                 currentDate = addDay(currentDate); 
@@ -323,35 +304,25 @@ export default function Home() {
         }
         totalDistMeters += leg.distance?.value || 0;
 
-        // --- ALGORITMO DEL PIVOTE: INYECCIÓN DE ESTANCIA CENTRAL ---
-        // Si es vuelta a casa y acabamos de llegar al destino principal (fin de la ida)
         if (formData.vueltaACasa && i === outboundLegsCount - 1) {
             
-            // 1. Calcular cuánto se tarda en volver (suma de los legs restantes)
             let returnDistanceMeters = 0;
             for(let k = i + 1; k < route.legs.length; k++) {
                 returnDistanceMeters += route.legs[k].distance?.value || 0;
             }
             
-            // 2. Estimar días de conducción para la vuelta (usando kmMaximoDia)
             const daysDrivingBack = Math.ceil(returnDistanceMeters / (formData.kmMaximoDia * 1000));
             
-            // 3. Calcular días de estancia disponibles
             if (formData.fechaRegreso) {
                 const dateBackHome = new Date(formData.fechaRegreso);
-                // Fecha en la que debemos salir del destino principal
                 const departureDate = new Date(dateBackHome);
-                departureDate.setDate(departureDate.getDate() - daysDrivingBack + 1); // +1 ajuste seguridad
+                departureDate.setDate(departureDate.getDate() - daysDrivingBack + 1); 
                 
-                // Días reales de relax
                 const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
 
                 if (stayDays > 0) {
-                    const stayCity = formData.destino; // Estamos aquí ahora
+                    const stayCity = formData.destino; 
                     for(let d=0; d < stayDays; d++) {
-                        // Importante: No incrementamos dayCounter al principio para que el día de llegada cuente
-                        // Pero aquí ya hemos cerrado el día de llegada, así que avanzamos.
-                        
                         itinerary.push({ 
                             day: dayCounter, 
                             date: formatDate(currentDate), 
@@ -371,8 +342,6 @@ export default function Home() {
         }
       }
 
-      // --- ESTANCIA EN DESTINO (SOLO IDA) ---
-      // Si NO es circular y hay fecha regreso, añadimos días extras al final.
       if (formData.fechaRegreso && !formData.vueltaACasa) {
           const diffTime = new Date(formData.fechaRegreso).getTime() - currentDate.getTime();
           const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -394,7 +363,6 @@ export default function Home() {
     }
   };
 
-  // --- MAPA Y SPOTS ---
   useEffect(() => {
       if (map) {
           if (mapBounds) {
@@ -413,7 +381,7 @@ export default function Home() {
       let keywords = '';
       let radius = 10000; 
 
-      if (type === 'custom') return; // Custom no busca en Google
+      if (type === 'custom') return; 
 
       switch(type) {
           case 'camping': keywords = 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"'; radius = 20000; break;
@@ -517,7 +485,6 @@ export default function Home() {
       <style jsx global>{printStyles}</style>
       <div className="w-full max-w-6xl space-y-6">
         
-        {/* HEADER */}
         <div className="w-full no-print">
             <AppHeader 
                 onLoadTrip={handleLoadCloudTrip} 
@@ -528,14 +495,12 @@ export default function Home() {
             />
         </div>
 
-        {/* PORTADA PRINT */}
         <div className="print-only hidden text-center mb-10">
              <h1 className="text-4xl font-bold text-red-600 mb-2">CaraCola Viajes 🐌</h1>
              <h2 className="text-2xl font-bold text-gray-800">{formData.origen} ➝ {formData.destino}</h2>
              <p className="text-gray-500">Itinerario generado el {new Date().toLocaleDateString()}</p>
         </div>
 
-        {/* FORMULARIO */}
         <TripForm 
             formData={formData} 
             setFormData={setFormData} 
@@ -545,7 +510,6 @@ export default function Home() {
             setShowWaypoints={setShowWaypoints} 
         />
 
-        {/* RESULTADOS */}
         {results.totalCost !== null && (
             <div className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print">
