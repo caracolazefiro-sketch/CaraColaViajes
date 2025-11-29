@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { Coordinates, PlaceWithDistance, ServiceType } from './types';
-import { supabase } from './supabase';
 
 // IMPORTAMOS NUESTROS COMPONENTES
 import AppHeader from './components/AppHeader';
@@ -13,8 +12,9 @@ import TripStats from './components/TripStats';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 
-// IMPORTAMOS EL CEREBRO 🧠
+// IMPORTAMOS LOS GANCHOS (HOOKS) 🧠
 import { useTripCalculator } from './hooks/useTripCalculator';
+import { useTripPersistence } from './hooks/useTripPersistence'; // <--- NUEVO
 
 // --- CONFIGURACIÓN ---
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
@@ -31,8 +31,6 @@ const printStyles = `
 `;
 
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
-
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
@@ -40,29 +38,15 @@ export default function Home() {
     language: 'es' 
   });
 
-  // --- USAMOS EL HOOK ---
-  const { 
-      results, 
-      setResults, 
-      directionsResponse, 
-      setDirectionsResponse, // Necesario para resetear mapa al calcular
-      loading, 
-      calculateRoute, 
-      addDayToItinerary, 
-      removeDayFromItinerary 
-  } = useTripCalculator();
-
-  // Estados de UI (Mapa, Filtros, Formulario)
+  // --- 1. ESTADOS VISUALES LOCALES ---
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [auditMode, setAuditMode] = useState(false); 
-  const [isSaving, setIsSaving] = useState(false);
-  const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
 
+  // Estados de POIs (Se moverán a un hook pronto)
   const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
       camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: []
   });
@@ -73,6 +57,7 @@ export default function Home() {
       camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true
   });
 
+  // Estados de Formulario
   const [formData, setFormData] = useState({
     fechaInicio: new Date().toISOString().split('T')[0],
     origen: 'Salamanca',
@@ -85,62 +70,42 @@ export default function Home() {
     evitarPeajes: false,
     vueltaACasa: false,
   });
-
+  const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // PERSISTENCIA LOCAL
-  useEffect(() => {
-      setMounted(true);
-      if (typeof window !== 'undefined') {
-          const savedData = localStorage.getItem('caracola_trip_v1');
-          if (savedData) {
-              try {
-                  const parsed = JSON.parse(savedData);
-                  if (parsed.formData) setFormData(parsed.formData);
-                  if (parsed.results) setResults(parsed.results);
-                  if (parsed.tripId) setCurrentTripId(parsed.tripId);
-              } catch (e) { console.error(e); }
-          }
-      }
-      setIsInitialized(true);
-  }, []);
+  // --- 2. CEREBRO DE CÁLCULO ---
+  const { 
+      results, setResults, directionsResponse, setDirectionsResponse, 
+      loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
+  } = useTripCalculator();
 
-  useEffect(() => {
-      if (mounted && isInitialized && typeof window !== 'undefined') {
-          const dataToSave = { formData, results, tripId: currentTripId };
-          localStorage.setItem('caracola_trip_v1', JSON.stringify(dataToSave));
+  // --- 3. CEREBRO DE MEMORIA (PERSISTENCIA) ---
+  const { isSaving, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
+      formData, setFormData, 
+      results, setResults, 
+      currentTripId, setCurrentTripId,
+      // Callback para resetear UI al cargar
+      () => {
+          setSelectedDayIndex(null);
+          setMapBounds(null);
+          setForceUpdate(prev => prev + 1);
       }
-  }, [formData, results, currentTripId, mounted, isInitialized]);
+  );
 
-  // HANDLERS UI
+  // --- 4. HANDLERS UI ---
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
-      // Reseteamos UI antes de calcular
       setSelectedDayIndex(null); 
       setCurrentTripId(null); 
       setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true });
       setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [] });
-      // Llamamos al cerebro
       calculateRoute(formData);
   };
 
-  const handleResetTrip = () => { if (confirm("¿Borrar viaje y empezar de cero?")) { localStorage.removeItem('caracola_trip_v1'); window.location.reload(); } };
-  const handleLoadCloudTrip = (tripData: any, tripId: number) => { 
-      if (tripData) { 
-          setFormData(tripData.formData); 
-          setResults(tripData.results); 
-          setCurrentTripId(tripId); 
-          setSelectedDayIndex(null); 
-          setMapBounds(null); 
-          setForceUpdate(prev => prev + 1); 
-          alert(`✅ Viaje cargado. (ID: ${tripId})`); 
-      } 
-  };
-  const handleShareTrip = async () => { if (!currentTripId) return alert("Guarda el viaje primero."); const { error } = await supabase.from('trips').update({ is_public: true }).eq('id', currentTripId); if (error) return alert("Error: " + error.message); const shareUrl = `${window.location.origin}/share/${currentTripId}`; try { await navigator.clipboard.writeText(shareUrl); alert(`🔗 Enlace copiado:\n\n${shareUrl}`); } catch (err) { prompt("Copia este enlace:", shareUrl); } };
-  const handleSaveToCloud = async () => { if (!results.dailyItinerary) return; const { data: { session } } = await supabase.auth.getSession(); if (!session) return alert("Inicia sesión para guardar."); setIsSaving(true); const tripName = `${formData.origen} a ${formData.destino} (${formData.fechaInicio})`; const tripPayload = { formData, results }; try { if (currentTripId) { const overwrite = confirm(`¿Sobrescribir viaje existente (ID: ${currentTripId})?\nCancelar = Guardar copia nueva`); if (overwrite) { const { error } = await supabase.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId); if (error) throw error; alert("✅ Actualizado correctamente."); } else { const { data, error } = await supabase.from('trips').insert([{ name: tripName + " (Copia)", trip_data: tripPayload, user_id: session.user.id }]).select(); if (error) throw error; if (data && data[0]) setCurrentTripId(data[0].id); alert("✅ Copia guardada."); } } else { const { data, error } = await supabase.from('trips').insert([{ name: tripName, trip_data: tripPayload, user_id: session.user.id }]).select(); if (error) throw error; if (data && data[0]) setCurrentTripId(data[0].id); alert("✅ Viaje nuevo guardado."); } } catch (error: any) { alert("❌ Error: " + error.message); } finally { setIsSaving(false); } };
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => { if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; const geocoder = new google.maps.Geocoder(); try { const response = await geocoder.geocode({ address: cityName }); if (response.results.length > 0) return response.results[0].geometry.location.toJSON(); } catch (e) { } return null; };
 
-  // --- EFECTOS DE MAPA Y BUSQUEDA (Se mantienen aquí porque dependen del mapa visual) ---
+  // --- EFECTOS DE MAPA Y BUSQUEDA (POIs) ---
+  // (Esto será lo siguiente en salir a un hook 'useTripPlaces')
   useEffect(() => {
       if (map) {
           if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
