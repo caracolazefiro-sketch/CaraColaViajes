@@ -1,109 +1,79 @@
 // --------------------------------------------------------------------------
-// AppHeader.tsx - FINAL (Tailwind CSS, Logo Corregido, SVG Placeholder)
+// AppHeader.tsx - VERSIÓN LOGIN/LOGOUT (Solo Logo y Acceso)
 // --------------------------------------------------------------------------
 'use client'; 
 import React, { useState } from 'react';
 import Image from 'next/image'; 
 
-// Componente SVG Placeholder para el Menú
-// Lo usamos porque no hay librería de iconos instalada.
+// MenuIcon (Se mantiene el placeholder SVG por si lo necesitas en móvil, aunque lo ocultaremos)
 const MenuIcon = (props) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
   </svg>
 );
 
-// IMPORTACIONES LOCALES
-import UserArea from './UserArea'; // Tu componente existente
+// NOTA: ASUMO QUE UserArea maneja el estado de la sesión, pero lo simplificaremos.
+// En este caso, crearemos un componente de navegación simple.
 
-const AppHeader = () => {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  // Componente para el Logo (Apuntando a logo.jpg en /public)
-  const LogoComponent = () => (
+const LogoComponent = () => (
     <div className="flex items-center">
       <Image 
-        src="/logo.jpg" // RUTA CORREGIDA
+        src="/logo.jpg" 
         alt="CaraCola Viajes Logo" 
         width={40} 
         height={40} 
         priority
       />
+      {/* Opcional: Añadir el nombre de la app para claridad */}
+      <span className="ml-2 text-xl font-bold text-red-600">CaraCola</span>
     </div>
-  );
+);
 
-  // --- Botones de Acción (Reemplazan los componentes Button de MUI) ---
-  const ActionButtons = () => (
-    <div className="flex space-x-4"> 
-      <button className="text-gray-700 hover:text-blue-600 font-medium transition duration-150 ease-in-out">
-        Buscar Viajes
-      </button>
-      <button className="text-gray-700 hover:text-yellow-600 font-medium transition duration-150 ease-in-out">
-        # 🐌 MANIFIESTO
-      </button>
-    </div>
-  );
-  // --------------------------------------------------------------------------
+// --- Nuevo Componente para Enlaces de Login/Logout ---
+const AuthLinks = ({ isAuthenticated }) => {
+    if (isAuthenticated) {
+        // Opción Logueado (Ver en la imagen que me enviaste antes: Mis Viajes, Salir)
+        return (
+            <div className="flex items-center space-x-4">
+                <button className="text-sm font-medium text-gray-700 hover:text-red-600">
+                    Mis Viajes
+                </button>
+                <button className="text-sm font-medium text-red-600 hover:text-red-800">
+                    Salir
+                </button>
+            </div>
+        );
+    }
+    
+    // Opción No Logueado (Ver en la imagen que me enviaste antes: Magic Link, Contraseña, Registrarse)
+    return (
+        <div className="flex items-center space-x-4">
+            <a href="/magic-link" className="text-sm font-medium text-red-600 hover:underline">Magic Link</a>
+            <a href="/login" className="text-sm font-medium text-gray-700 hover:underline">Contraseña</a>
+            <a href="/register" className="text-sm font-medium text-gray-700 hover:underline">Registrarse</a>
+        </div>
+    );
+};
+// -----------------------------------------------------
 
+const AppHeader = ({ isAuthenticated = false }) => {
+  // El menú móvil/Drawer se puede eliminar si esta cabecera es solo para Login/Registro
+  // Pero lo mantendremos simple para esta versión:
+  
   return (
-    // Estilos de cabecera: Fijo, ancho completo, centrado de items y separación de bloques
+    // Se mantiene la estructura fixed w-full z-10 bg-white shadow-md p-4 flex items-center justify-between
     <header className="fixed w-full z-10 bg-white shadow-md p-4 flex items-center justify-between">
       
       {/* 1. Bloque Izquierdo: Logo */}
       <LogoComponent />
 
-      {/* 2. Bloque Derecho: Controles y Área de Usuario */}
-      <div className="flex items-center space-x-4">
-        
-        {/* A. Botones de Acción (ESCRITORIO: visible en sm:flex, oculto por defecto) */}
-        <div className="hidden sm:flex"> 
-          <ActionButtons />
-        </div>
-
-        {/* B. Icono de Menú Hamburguesa (MÓVIL: block por defecto, oculto en sm:hidden) */}
-        <button 
-          onClick={() => setIsDrawerOpen(true)}
-          className="sm:hidden p-2 text-gray-700 hover:text-blue-600"
-          aria-label="Menú principal"
-        >
-          <MenuIcon className="h-6 w-6" /> 
-        </button>
-        
-        {/* C. Área de Usuario (SIEMPRE VISIBLE) */}
-        <UserArea />
+      {/* 2. Bloque Derecho: Controles de Autenticación */}
+      {/* Eliminamos los controles responsivos de menú hamburguesa */}
+      <div className="flex items-center">
+        {/* Aquí pasamos el estado de autenticación (debería venir de un Contexto global) */}
+        <AuthLinks isAuthenticated={isAuthenticated} />
       </div>
 
-      {/* 3. Drawer para Menú Móvil */}
-      {isDrawerOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 sm:hidden" 
-          onClick={() => setIsDrawerOpen(false)}
-        >
-          <div 
-            className="fixed top-0 right-0 h-full w-64 bg-white shadow-xl transition-transform duration-300 ease-in-out transform translate-x-0"
-            onClick={(e) => e.stopPropagation()} 
-          >
-            <div className="p-4">
-                <p className="text-xl font-semibold mb-4 border-b pb-2">Menú CaraCola</p>
-                <div className="flex flex-col space-y-2">
-                    <button 
-                        onClick={() => { /* Manejar clic del botón */ setIsDrawerOpen(false); }}
-                        className="w-full text-left p-2 text-gray-700 hover:bg-gray-100 font-medium"
-                    >
-                        Buscar Viajes
-                    </button>
-                    <button 
-                        onClick={() => { /* Manejar clic del botón */ setIsDrawerOpen(false); }}
-                        className="w-full text-left p-2 text-gray-700 hover:bg-gray-100 font-medium"
-                    >
-                        # 🐌 MANIFIESTO
-                    </button>
-                    {/* Añadir más enlaces de navegación aquí */}
-                </div>
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 };
