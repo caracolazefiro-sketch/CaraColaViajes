@@ -11,7 +11,7 @@ import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import DaySpotsList from './components/DaySpotsList';
 
-// --- VERIFICACIÓN FASE 34 --- ESTE ARCHIVO INCLUYE LOGICA VUELTA A CASA ---
+// --- VERIFICACIÓN FASE 34 --- ESTE ARCHIVO INCLUYE LOGICA VUELTA A CASA Y FIX HEADER ---
 
 // --- CONFIGURACIÓN VISUAL ---
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
@@ -209,6 +209,7 @@ export default function Home() {
     // LÓGICA VUELTA A CASA
     let origin = formData.origen;
     let destination = formData.destino;
+    // Si hay paradas, las preparamos
     let waypoints = formData.etapas.split(',').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
 
     if (formData.vueltaACasa) {
@@ -311,6 +312,7 @@ export default function Home() {
       }
 
       // Estancia en Destino 
+      // Si NO es circular y hay fecha regreso, añadimos días extras en el destino final.
       if (formData.fechaRegreso && !formData.vueltaACasa) {
           const diffTime = new Date(formData.fechaRegreso).getTime() - currentDate.getTime();
           const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
