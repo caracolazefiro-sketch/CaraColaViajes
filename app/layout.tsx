@@ -16,7 +16,9 @@ export const metadata: Metadata = {
   title: "CaraCola Viajes 🐌 | Planificador de Rutas Camper",
   description: "Calcula tu ruta en autocaravana, encuentra áreas de pernocta y controla tus gastos de viaje.",
   icons: {
-    icon: '/logo.png', // Esto busca la imagen en la carpeta public
+    icon: '/logo.jpg', // ✅ CORREGIDO: Ahora apunta al .jpg real
+    shortcut: '/logo.jpg',
+    apple: '/logo.jpg',
   },
 };
 
@@ -26,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es"> {/* ✅ CORREGIDO: Idioma español */}
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

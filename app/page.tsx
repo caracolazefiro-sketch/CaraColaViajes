@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { Coordinates, PlaceWithDistance, ServiceType } from './types';
 import { supabase } from './supabase';
@@ -9,7 +9,7 @@ import { supabase } from './supabase';
 import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
-import TripStats from './components/TripStats';
+// TripStats YA NO SE IMPORTA AQUÍ, VIVE DENTRO DE TRIPFORM
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 
@@ -39,7 +39,6 @@ export default function Home() {
     language: 'es' 
   });
 
-  // --- ESTADOS DE UI (Visuales puros) ---
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
@@ -47,7 +46,6 @@ export default function Home() {
   const [auditMode, setAuditMode] = useState(false); 
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // --- ESTADOS DE DATOS (Formulario) ---
   const [formData, setFormData] = useState({
     fechaInicio: new Date().toISOString().split('T')[0],
     origen: 'Salamanca',
@@ -63,20 +61,19 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // --- 1. HOOK DE CÁLCULO (Rutas y Fechas) ---
+  // --- 1. HOOK DE CÁLCULO ---
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
   } = useTripCalculator();
 
-  // --- 2. HOOK DE LUGARES (POIs y Buscador) ---
-  // (Aquí estaba el error: habíamos dejado las declaraciones antiguas debajo)
+  // --- 2. HOOK DE LUGARES ---
   const { 
       places, loadingPlaces, toggles, 
       searchPlaces, handleToggle, resetPlaces 
   } = useTripPlaces(map);
 
-  // --- 3. HOOK DE MEMORIA (Supabase / LocalStorage) ---
+  // --- 3. HOOK DE MEMORIA ---
   const { isSaving, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
       formData, setFormData, 
       results, setResults, 
@@ -88,13 +85,12 @@ export default function Home() {
       }
   );
 
-  // --- HANDLERS INTERMEDIOS (Conectores) ---
-  
+  // --- HANDLERS ---
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
       setSelectedDayIndex(null); 
       setCurrentTripId(null); 
-      resetPlaces(); // Reseteamos filtros desde el hook
+      resetPlaces(); 
       calculateRoute(formData);
   };
 
@@ -108,13 +104,11 @@ export default function Home() {
       return null; 
   };
 
-  // Wrapper para el Toggle que inyecta las coordenadas del día seleccionado
   const handleToggleWrapper = (type: ServiceType) => {
       const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
       handleToggle(type, day?.coordinates);
   };
 
-  // Lógica de "Enfocar Etapa"
   const focusMapOnStage = async (dayIndex: number | null) => {
     if (dayIndex === null) {
         setSelectedDayIndex(null); 
@@ -132,13 +126,12 @@ export default function Home() {
     resetPlaces();
     setHoveredPlace(null);
 
-    // Buscar y Centrar
     if (dailyPlan.coordinates) {
         const bounds = new google.maps.LatLngBounds();
         bounds.extend({ lat: dailyPlan.coordinates.lat + 0.4, lng: dailyPlan.coordinates.lng + 0.4 });
         bounds.extend({ lat: dailyPlan.coordinates.lat - 0.4, lng: dailyPlan.coordinates.lng - 0.4 });
         setMapBounds(bounds);
-        searchPlaces(dailyPlan.coordinates, 'camping'); // Usa searchPlaces del HOOK
+        searchPlaces(dailyPlan.coordinates, 'camping');
     } else {
         const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
         const coord = await geocodeCity(cleanTo);
@@ -152,7 +145,6 @@ export default function Home() {
     }
   };
 
-  // Efecto para ajustar el zoom del mapa cuando cambian los límites
   useEffect(() => {
       if (map) {
           if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
@@ -209,24 +201,21 @@ export default function Home() {
              <p className="text-gray-500">Itinerario generado el {new Date().toLocaleDateString()}</p>
         </div>
 
+        {/* TRIPFORM AHORA LLEVA DENTRO LOS STATS Y EL MODO RESUMEN */}
         <TripForm 
             formData={formData} 
             setFormData={setFormData} 
             loading={loading} 
+            results={results} // <--- LE PASAMOS LOS RESULTADOS
             onSubmit={handleCalculateWrapper} 
             showWaypoints={showWaypoints} 
             setShowWaypoints={setShowWaypoints} 
         />
 
         {results.totalCost !== null && (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-fadeIn">
                 
-                <TripStats 
-                    days={results.totalDays} 
-                    distance={results.distanceKm} 
-                    cost={results.totalCost} 
-                    liters={((results.distanceKm! / 100) * formData.consumo)} 
-                />
+                {/* TripStats ELIMINADO DE AQUÍ, YA ESTÁ DENTRO DEL FORM */}
 
                 <StageSelector 
                     dailyItinerary={results.dailyItinerary} 
