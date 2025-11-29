@@ -1,9 +1,10 @@
+// app/components/AppHeader.tsx
 'use client';
 
 import React from 'react';
 import UserArea from './UserArea';
 
-// Iconos
+// Iconos locales para la cabecera
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
@@ -26,10 +27,10 @@ export default function AppHeader({
 }: AppHeaderProps) {
     return (
         <div className="relative mb-6 no-print">
-            {/* CONTENEDOR FLEXIBLE: En móvil columna, en PC fila */}
+            {/* Contenedor principal: LOGO a la izquierda, CONTROLES a la derecha */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 
-                {/* LOGO Y TÍTULO (CENTRO/IZQUIERDA) */}
+                {/* 1. LOGO Y TÍTULO */}
                 <div className="text-center md:text-left flex flex-col items-center md:items-start">
                     <div className="flex items-center gap-3">
                         <img 
@@ -38,20 +39,21 @@ export default function AppHeader({
                             className="h-16 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
                         />
                         <div className="hidden md:block">
-                            <h1 className="text-xl font-bold text-red-600 leading-tight">P R U E B A S</h1>
+                            <h1 className="text-xl font-bold text-red-600 leading-tight">CaraCola Viajes</h1>
                             <p className="text-gray-400 text-xs font-medium">Tu ruta en autocaravana</p>
                         </div>
                     </div>
+                    {/* Título visible solo en móvil debajo del logo */}
                     <p className="text-gray-500 text-sm font-medium md:hidden mt-1">Tu ruta en autocaravana, paso a paso.</p>
                 </div>
 
-                {/* ZONA DE USUARIO Y ACCIONES (DERECHA) */}
+                {/* 2. ZONA DE USUARIO Y ACCIONES (Contenedor Derecha) */}
                 <div className="flex flex-col items-center md:items-end gap-2 w-full md:w-auto">
                     
-                    {/* 1. LOGIN / USER AREA */}
+                    {/* A. LOGIN / MIS VIAJES */}
                     <UserArea onLoadTrip={onLoadTrip} />
                     
-                    {/* 2. BOTONERA DE ACCIONES */}
+                    {/* B. BOTONERA DE ACCIONES (Guardar, Compartir, Auditor) */}
                     <div className="flex flex-wrap justify-center md:justify-end items-center gap-2 mt-1">
                         <button 
                             onClick={() => setAuditMode(!auditMode)} 
