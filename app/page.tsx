@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { PlaceWithDistance, ServiceType } from './types';
+import { Coordinates, PlaceWithDistance, ServiceType } from './types';
+import { supabase } from './supabase';
 
-// COMPONENTES
+// IMPORTAMOS NUESTROS COMPONENTES
 import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
@@ -12,10 +13,10 @@ import TripStats from './components/TripStats';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 
-// HOOKS (La Lógica)
+// IMPORTAMOS LOS GANCHOS (HOOKS) 🧠
 import { useTripCalculator } from './hooks/useTripCalculator';
 import { useTripPersistence } from './hooks/useTripPersistence';
-import { useTripPlaces } from './hooks/useTripPlaces'; // <--- NUEVO
+import { useTripPlaces } from './hooks/useTripPlaces';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
@@ -44,7 +45,7 @@ export default function Home() {
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
   const [auditMode, setAuditMode] = useState(false); 
-  const [forceUpdate, setForceUpdate] = useState(0); // Para forzar repintado si hace falta
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   // --- ESTADOS DE DATOS (Formulario) ---
   const [formData, setFormData] = useState({
@@ -69,6 +70,7 @@ export default function Home() {
   } = useTripCalculator();
 
   // --- 2. HOOK DE LUGARES (POIs y Buscador) ---
+  // (Aquí estaba el error: habíamos dejado las declaraciones antiguas debajo)
   const { 
       places, loadingPlaces, toggles, 
       searchPlaces, handleToggle, resetPlaces 
@@ -92,7 +94,7 @@ export default function Home() {
       e.preventDefault();
       setSelectedDayIndex(null); 
       setCurrentTripId(null); 
-      resetPlaces(); // Reseteamos filtros
+      resetPlaces(); // Reseteamos filtros desde el hook
       calculateRoute(formData);
   };
 
@@ -112,7 +114,7 @@ export default function Home() {
       handleToggle(type, day?.coordinates);
   };
 
-  // Lógica de "Enfocar Etapa" (Esta conecta Map, Places y Calculator)
+  // Lógica de "Enfocar Etapa"
   const focusMapOnStage = async (dayIndex: number | null) => {
     if (dayIndex === null) {
         setSelectedDayIndex(null); 
@@ -127,7 +129,7 @@ export default function Home() {
     if (!dailyPlan) return;
     
     setSelectedDayIndex(dayIndex); 
-    resetPlaces(); // Reiniciamos filtros al cambiar de día
+    resetPlaces();
     setHoveredPlace(null);
 
     // Buscar y Centrar
@@ -136,9 +138,8 @@ export default function Home() {
         bounds.extend({ lat: dailyPlan.coordinates.lat + 0.4, lng: dailyPlan.coordinates.lng + 0.4 });
         bounds.extend({ lat: dailyPlan.coordinates.lat - 0.4, lng: dailyPlan.coordinates.lng - 0.4 });
         setMapBounds(bounds);
-        searchPlaces(dailyPlan.coordinates, 'camping'); // Búsqueda automática inicial
+        searchPlaces(dailyPlan.coordinates, 'camping'); // Usa searchPlaces del HOOK
     } else {
-        // Fallback por geocoding si no hay coords guardadas
         const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
         const coord = await geocodeCity(cleanTo);
         if (coord) {
@@ -150,6 +151,14 @@ export default function Home() {
         }
     }
   };
+
+  // Efecto para ajustar el zoom del mapa cuando cambian los límites
+  useEffect(() => {
+      if (map) {
+          if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
+          else if (directionsResponse && selectedDayIndex === null) { const routeBounds = directionsResponse.routes[0].bounds; setTimeout(() => map.fitBounds(routeBounds), 500); }
+      }
+  }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
 
   const handlePlaceClick = (spot: PlaceWithDistance) => {
       if (spot.link) window.open(spot.link, '_blank');
