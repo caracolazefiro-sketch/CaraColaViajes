@@ -30,8 +30,10 @@ const printStyles = `
 const IconCalendar = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 const IconMap = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7" /></svg>);
 const IconFuel = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>);
-const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconPrint = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>);
+const IconPlusSm = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>);
+const IconTrashSm = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -107,83 +109,81 @@ export default function Home() {
       }
   }, [formData, results, currentTripId, mounted, isInitialized]);
 
-  const handleResetTrip = () => {
-      if (confirm("¿Borrar viaje y empezar de cero?")) {
-          localStorage.removeItem('caracola_trip_v1');
-          window.location.reload();
+  // --- HELPERS DE FECHAS ---
+  const formatDate = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const formatDateISO = (d: Date) => d.toISOString().split('T')[0]; 
+  const addDay = (d: Date) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
+
+  // --- FUNCIÓN RECALCULAR FECHAS (ACORDEÓN) ---
+  const recalculateDates = (itinerary: DailyPlan[]) => {
+      let currentDate = new Date(formData.fechaInicio);
+      const updatedItinerary = itinerary.map((day, index) => {
+          // Asignar nueva fecha secuencial
+          const updatedDay = {
+              ...day,
+              day: index + 1,
+              date: formatDate(currentDate),
+              isoDate: formatDateISO(currentDate)
+          };
+          currentDate = addDay(currentDate);
+          return updatedDay;
+      });
+      return updatedItinerary;
+  };
+
+  // --- HANDLER: AÑADIR DÍA (RELAX) ---
+  const handleAddDay = (index: number) => {
+      if (!results.dailyItinerary) return;
+      const currentItinerary = [...results.dailyItinerary];
+      const previousDay = currentItinerary[index];
+      
+      // Creamos un nuevo día de estancia en el mismo sitio donde acaba el día actual
+      // Usamos el nombre limpio que ya tiene 'to'
+      const newDay: DailyPlan = {
+          day: 0, // Se recalculará
+          date: '', 
+          isoDate: '',
+          from: previousDay.to, // Nos quedamos donde estábamos
+          to: previousDay.to,
+          distance: 0,
+          isDriving: false,
+          type: 'overnight',
+          coordinates: previousDay.coordinates, // Mismas coordenadas
+          savedPlaces: [] // Empezamos limpios de sitios guardados
+      };
+
+      // Insertamos después del día actual
+      currentItinerary.splice(index + 1, 0, newDay);
+      
+      // Recalculamos fechas
+      const finalItinerary = recalculateDates(currentItinerary);
+      
+      setResults({ ...results, dailyItinerary: finalItinerary, totalDays: finalItinerary.length });
+  };
+
+  // --- HANDLER: QUITAR DÍA (SOLO RELAX) ---
+  const handleRemoveDay = (index: number) => {
+      if (!results.dailyItinerary) return;
+      
+      // Protección: No borrar días de conducción
+      if (results.dailyItinerary[index].isDriving) {
+          alert("⚠️ No puedes borrar una etapa de conducción aquí.\n\nPara eliminar una parada de ruta, usa el formulario de arriba (los chips) y recalcula.");
+          return;
       }
+
+      const currentItinerary = [...results.dailyItinerary];
+      currentItinerary.splice(index, 1);
+      
+      const finalItinerary = recalculateDates(currentItinerary);
+      setResults({ ...results, dailyItinerary: finalItinerary, totalDays: finalItinerary.length });
   };
 
-  const handleLoadCloudTrip = (tripData: any, tripId: number) => {
-      if (tripData) {
-          setFormData(tripData.formData);
-          setResults(tripData.results);
-          setCurrentTripId(tripId); 
-          setSelectedDayIndex(null);
-          setMapBounds(null);
-          setForceUpdate(prev => prev + 1);
-          alert(`✅ Viaje cargado. (ID: ${tripId})`);
-      }
-  };
-
-  const handleShareTrip = async () => {
-    if (!currentTripId) return alert("Guarda el viaje primero.");
-    const { error } = await supabase.from('trips').update({ is_public: true }).eq('id', currentTripId);
-    if (error) return alert("Error: " + error.message);
-    const shareUrl = `${window.location.origin}/share/${currentTripId}`;
-    
-    try {
-        await navigator.clipboard.writeText(shareUrl);
-        alert(`🔗 Enlace copiado:\n\n${shareUrl}`);
-    } catch (err) {
-        prompt("Copia este enlace:", shareUrl);
-    }
-  };
-
-  const handleSaveToCloud = async () => {
-    if (!results.dailyItinerary) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return alert("Inicia sesión para guardar.");
-
-    setIsSaving(true);
-    const tripName = `${formData.origen} a ${formData.destino} (${formData.fechaInicio})`;
-    const tripPayload = { formData, results };
-
-    try {
-        if (currentTripId) {
-            const overwrite = confirm(`¿Sobrescribir viaje existente (ID: ${currentTripId})?\nCancelar = Guardar copia nueva`);
-            if (overwrite) {
-                const { error } = await supabase.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId);
-                if (error) throw error;
-                alert("✅ Actualizado correctamente.");
-            } else {
-                const { data, error } = await supabase.from('trips').insert([{ name: tripName + " (Copia)", trip_data: tripPayload, user_id: session.user.id }]).select();
-                if (error) throw error;
-                if (data && data[0]) setCurrentTripId(data[0].id);
-                alert("✅ Copia guardada.");
-            }
-        } else {
-            const { data, error } = await supabase.from('trips').insert([{ name: tripName, trip_data: tripPayload, user_id: session.user.id }]).select();
-            if (error) throw error;
-            if (data && data[0]) setCurrentTripId(data[0].id);
-            alert("✅ Viaje nuevo guardado.");
-        }
-    } catch (error: any) {
-        alert("❌ Error: " + error.message);
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
-    if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
-    const geocoder = new google.maps.Geocoder();
-    try {
-      const response = await geocoder.geocode({ address: cityName });
-      if (response.results.length > 0) return response.results[0].geometry.location.toJSON();
-    } catch (e) { }
-    return null;
-  };
+  // ... (Resto de handlers igual: Reset, Load, Share, Save, Geocode) ...
+  const handleResetTrip = () => { if (confirm("¿Borrar viaje y empezar de cero?")) { localStorage.removeItem('caracola_trip_v1'); window.location.reload(); } };
+  const handleLoadCloudTrip = (tripData: any, tripId: number) => { if (tripData) { setFormData(tripData.formData); setResults(tripData.results); setCurrentTripId(tripId); setSelectedDayIndex(null); setMapBounds(null); setForceUpdate(prev => prev + 1); alert(`✅ Viaje cargado. (ID: ${tripId})`); } };
+  const handleShareTrip = async () => { if (!currentTripId) return alert("Guarda el viaje primero."); const { error } = await supabase.from('trips').update({ is_public: true }).eq('id', currentTripId); if (error) return alert("Error: " + error.message); const shareUrl = `${window.location.origin}/share/${currentTripId}`; try { await navigator.clipboard.writeText(shareUrl); alert(`🔗 Enlace copiado:\n\n${shareUrl}`); } catch (err) { prompt("Copia este enlace:", shareUrl); } };
+  const handleSaveToCloud = async () => { if (!results.dailyItinerary) return; const { data: { session } } = await supabase.auth.getSession(); if (!session) return alert("Inicia sesión para guardar."); setIsSaving(true); const tripName = `${formData.origen} a ${formData.destino} (${formData.fechaInicio})`; const tripPayload = { formData, results }; try { if (currentTripId) { const overwrite = confirm(`¿Sobrescribir viaje existente (ID: ${currentTripId})?\nCancelar = Guardar copia nueva`); if (overwrite) { const { error } = await supabase.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId); if (error) throw error; alert("✅ Actualizado correctamente."); } else { const { data, error } = await supabase.from('trips').insert([{ name: tripName + " (Copia)", trip_data: tripPayload, user_id: session.user.id }]).select(); if (error) throw error; if (data && data[0]) setCurrentTripId(data[0].id); alert("✅ Copia guardada."); } } else { const { data, error } = await supabase.from('trips').insert([{ name: tripName, trip_data: tripPayload, user_id: session.user.id }]).select(); if (error) throw error; if (data && data[0]) setCurrentTripId(data[0].id); alert("✅ Viaje nuevo guardado."); } } catch (error: any) { alert("❌ Error: " + error.message); } finally { setIsSaving(false); } };
+  const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => { if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; const geocoder = new google.maps.Geocoder(); try { const response = await geocoder.geocode({ address: cityName }); if (response.results.length > 0) return response.results[0].geometry.location.toJSON(); } catch (e) { } return null; };
 
   // --- CÁLCULO DE RUTA ---
   const calculateRoute = async (e: React.FormEvent) => {
@@ -202,7 +202,6 @@ export default function Home() {
     let origin = formData.origen;
     let destination = formData.destino;
     
-    // Leer waypoints con '|'
     let waypoints = formData.etapas.split('|').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
 
     const outboundLegsCount = waypoints.length + 1;
@@ -229,19 +228,13 @@ export default function Home() {
       let currentDate = new Date(formData.fechaInicio);
       const maxMeters = formData.kmMaximoDia * 1000;
       
-      const formatDate = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const formatDateISO = (d: Date) => d.toISOString().split('T')[0]; 
-      const addDay = (d: Date) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
-
-      // --- HELPERS PARA LIMPIAR NOMBRES ---
-      // Esta función busca la ciudad/localidad exacta basándose en coordenadas
+      // Helpers locales para el cálculo inicial
       const getCleanCityName = async (lat: number, lng: number): Promise<string> => {
           const geocoder = new google.maps.Geocoder();
           try {
             const response = await geocoder.geocode({ location: { lat, lng } });
             if (response.results[0]) {
               const comps = response.results[0].address_components;
-              // Prioridad: Localidad > Área Administrativa 2 (Provincia/Comarca) > Punto Ruta
               const city = comps.find(c => c.types.includes("locality"))?.long_name || 
                            comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || 
                            "Punto en Ruta";
@@ -251,8 +244,6 @@ export default function Home() {
           return "Punto en Ruta";
       };
 
-      // Inicializar nombre de inicio limpio
-      // Hacemos una llamada inicial para saber exactamente cómo se llama el origen "real" (ej: "Madrid" en vez de "Calle Mayor 1")
       let currentLegStartName = "Origen";
       const startLoc = route.legs[0].start_location;
       currentLegStartName = await getCleanCityName(startLoc.lat(), startLoc.lng());
@@ -266,7 +257,6 @@ export default function Home() {
         let legAccumulator = 0;
         let segmentStartName = currentLegStartName;
 
-        // Subdivisión por Km Máximo (Paradas Tácticas)
         for (let j = 0; j < legPoints.length - 1; j++) {
             const point1 = legPoints[j];
             const point2 = legPoints[j+1];
@@ -275,7 +265,6 @@ export default function Home() {
             if (legAccumulator + segmentDist > maxMeters) {
                 const lat = point1.lat();
                 const lng = point2.lng(); 
-                // Usamos la función de limpieza para la parada táctica también
                 const locationString = await getCleanCityName(lat, lng);
                 const stopTitle = `📍 Parada Táctica: ${locationString}`;
 
@@ -293,11 +282,8 @@ export default function Home() {
             }
         }
 
-        // --- CAMBIO UX: OBTENER NOMBRE LIMPIO DEL DESTINO ---
-        // En lugar de leg.end_address (que es la calle sucia), pedimos el nombre limpio
         let endLegName = await getCleanCityName(leg.end_location.lat(), leg.end_location.lng());
         
-        // Si hay movimiento o es un cambio de etapa significativo
         if (legAccumulator > 0 || segmentStartName !== endLegName) {
             const isFinalDest = i === route.legs.length - 1;
             itinerary.push({ 
@@ -317,13 +303,11 @@ export default function Home() {
         }
         totalDistMeters += leg.distance?.value || 0;
 
-        // Lógica del Pivote (Estancia en destino)
         if (formData.vueltaACasa && i === outboundLegsCount - 1) {
             let returnDistanceMeters = 0;
             for(let k = i + 1; k < route.legs.length; k++) {
                 returnDistanceMeters += route.legs[k].distance?.value || 0;
             }
-            
             const daysDrivingBack = Math.ceil(returnDistanceMeters / (formData.kmMaximoDia * 1000));
             
             if (formData.fechaRegreso) {
@@ -334,19 +318,11 @@ export default function Home() {
                 const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
 
                 if (stayDays > 0) {
-                    // Usamos el nombre limpio que acabamos de calcular
                     const stayCity = endLegName; 
                     for(let d=0; d < stayDays; d++) {
                         itinerary.push({ 
-                            day: dayCounter, 
-                            date: formatDate(currentDate), 
-                            isoDate: formatDateISO(currentDate),
-                            from: stayCity, 
-                            to: stayCity, 
-                            distance: 0, 
-                            isDriving: false, 
-                            type: 'overnight', 
-                            savedPlaces: [] 
+                            day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
+                            from: stayCity, to: stayCity, distance: 0, isDriving: false, type: 'overnight', savedPlaces: [] 
                         });
                         dayCounter++; 
                         currentDate = addDay(currentDate);
@@ -356,11 +332,9 @@ export default function Home() {
         }
       }
 
-      // Estancia si NO es vuelta a casa
       if (formData.fechaRegreso && !formData.vueltaACasa) {
           const diffTime = new Date(formData.fechaRegreso).getTime() - currentDate.getTime();
           const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          // Calculamos el nombre limpio del destino final también
           const finalLeg = route.legs[route.legs.length - 1];
           const finalCity = await getCleanCityName(finalLeg.end_location.lat(), finalLeg.end_location.lng());
 
@@ -682,9 +656,28 @@ export default function Home() {
                                                     <span className="font-bold text-red-700 text-sm flex items-center gap-1">
                                                         {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
                                                     </span>
-                                                    <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                        {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                                            {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
+                                                        </span>
+                                                        {/* BOTONES ACORDEÓN: + / - */}
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleAddDay(index); }}
+                                                            className="text-green-600 hover:bg-green-100 p-1 rounded-full text-xs font-bold"
+                                                            title="Añadir un día más aquí"
+                                                        >
+                                                            <IconPlusSm />
+                                                        </button>
+                                                        {!day.isDriving && (
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); handleRemoveDay(index); }}
+                                                                className="text-red-500 hover:bg-red-100 p-1 rounded-full text-xs font-bold"
+                                                                title="Quitar este día"
+                                                            >
+                                                                <IconTrashSm />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="text-xs text-gray-800 font-medium mb-2">
                                                     {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
