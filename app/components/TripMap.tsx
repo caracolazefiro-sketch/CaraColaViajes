@@ -24,10 +24,9 @@ interface TripMapProps {
     setHoveredPlace: (place: PlaceWithDistance | null) => void;
     onPlaceClick: (place: PlaceWithDistance) => void;
     onAddPlace: (place: PlaceWithDistance) => void;
-    // NUEVAS PROPS PARA BÚSQUEDA
     onSearch: (query: string, lat: number, lng: number) => void;
     onClearSearch: () => void;
-    mapInstance: google.maps.Map | null; // Necesitamos la instancia para saber el centro
+    mapInstance: google.maps.Map | null; 
 }
 
 export default function TripMap({
@@ -56,8 +55,8 @@ export default function TripMap({
     return (
         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
             
-            {/* --- BARRA DE BÚSQUEDA FLOTANTE --- */}
-            <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
+            {/* --- BARRA DE BÚSQUEDA FLOTANTE (Posicionada en superior DERECHA) --- */}
+            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
                     <button type="submit" className="p-2 text-gray-400 hover:text-blue-500"><IconSearch /></button>
                     <input 
@@ -88,7 +87,10 @@ export default function TripMap({
                     zoomControl: true, 
                     streetViewControl: false, 
                     mapTypeControl: true,
-                    fullscreenControl: true 
+                    fullscreenControl: true,
+                    mapTypeControlOptions: {
+                        position: google.maps.ControlPosition.TOP_LEFT // Movemos los botones Mapa/Satélite
+                    }
                 }}
             >
                 {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 }, suppressMarkers: false }} />}
@@ -99,15 +101,14 @@ export default function TripMap({
 
                 {Object.keys(places).map((key) => {
                     const type = key as ServiceType;
-                    // Mostrar si está el toggle activo, O si es 'search' y tiene resultados
+                    
                     if (!toggles[type] && type !== 'search') return null;
                     if (type === 'search' && (!places.search || places.search.length === 0)) return null;
 
-                    // ... (Lógica de filtrado visual igual que antes para lo guardado) ...
                     const savedDay = selectedDayIndex !== null ? dailyItinerary![selectedDayIndex] : null;
                     const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
                     let listToRender = type === 'custom' ? savedOfType : [...savedOfType, ...places[type]];
-                    if (type === 'search') listToRender = places.search; // Search manda sobre todo
+                    if (type === 'search') listToRender = places.search; 
 
                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
                     

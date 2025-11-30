@@ -1,11 +1,11 @@
-'use client';
+ 'use client';
 
 import React, { useState } from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import { getWeatherIcon } from '../constants';
 import ElevationChart from './ElevationChart';
 import AddPlaceForm from './AddPlaceForm';
-// Hooks
+// Hooks importados que deben existir en tu estructura:
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
 
@@ -22,6 +22,7 @@ const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
 };
 
+// Interfaz que usa el componente (Necesario tenerla aquí o importarla)
 interface DaySpotsListProps { 
     day: DailyPlan;
     places: Record<ServiceType, PlaceWithDistance[]>;
@@ -36,13 +37,14 @@ interface DaySpotsListProps {
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover }) => {
     
+    // Extracción de nombre de ciudad (limpio)
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     
-    // Hooks
+    // Hooks (Reemplaza la lógica interna que tenías)
     const { weather, weatherStatus } = useWeather(day.coordinates, day.isoDate);
     const { elevationData, loadingElevation, calculateElevation } = useElevation();
 
-    // Estado Formulario
+    // Estado Formulario de Añadir/Editar Sitio Personalizado
     const [showForm, setShowForm] = useState(false);
     const [placeToEdit, setPlaceToEdit] = useState<PlaceWithDistance | null>(null);
 
@@ -52,7 +54,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     const handleEditStart = (place: PlaceWithDistance) => {
         if (!place.place_id) return;
         setPlaceToEdit(place);
-        // Eliminamos temporalmente para evitar duplicados al guardar (como antes)
         onRemovePlace(place.place_id); 
         setShowForm(true);
     };
@@ -64,9 +65,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     };
 
     const handleFormCancel = () => {
-        // Si cancelamos y estábamos editando, deberíamos restaurar el sitio.
-        // Como simplificación por ahora, si el usuario cancela la edición de algo borrado, lo pierde (igual que antes).
-        // UX improvement para el futuro: No borrar hasta Guardar.
         setShowForm(false);
         setPlaceToEdit(null);
     };
@@ -83,11 +81,19 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     );
 
     const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
-        if (!toggles[type] && type !== 'camping') return null; 
-        const savedOfType = saved.find(s => s.type === type);
+        
+        const isSpecialType = type === 'search' || type === 'custom';
+        const hasResults = places[type]?.length > 0 || saved.filter(s => s.type === type).length > 0;
+        
+        if (!toggles[type] && type !== 'camping' && !isSpecialType) return null;
+        if (type === 'search' && !hasResults && !toggles[type]) return null;
+        if (type === 'custom' && !hasResults) return null;
+
+        const savedOfType = saved.filter(s => s.type === type);
         let list = places[type];
-        if (type === 'custom') list = saved.filter(s => s.type === 'custom');
-        else if (savedOfType) list = [savedOfType];
+        if (type === 'custom') list = savedOfType;
+        else if (savedOfType.length > 0 && type !== 'search') list = [...savedOfType, ...list].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
+        else if (savedOfType.length > 0 && type === 'search') list = savedOfType; 
 
         const isLoading = loading[type];
         if (type === 'custom' && list.length === 0) return null;
@@ -106,9 +112,12 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                     <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
                                     {auditMode && <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded"><p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p></div>}
                                 </div>
-                                {type === 'custom' ? (
+                                {type === 'custom' || type === 'search' ? (
                                     <div className="flex gap-1">
-                                        <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
+                                        {/* Botones de acción para Custom/Search */}
+                                        {type === 'custom' && (
+                                            <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
+                                        )}
                                         <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                     </div>
                                 ) : (
@@ -192,7 +201,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceButton type="supermarket" icon="🛒" label="Super" />
                         <ServiceButton type="laundry" icon="🧺" label="Lavar" />
                         <ServiceButton type="tourism" icon="📷" label="Turismo" />
-                        <ServiceButton type="custom" icon="⭐" label="Otros" />
+                        <ServiceButton type="custom" icon="⭐" label="Propios" />
                     </div>
                     <div className="space-y-2">
                         <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
@@ -203,6 +212,9 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
                         <ServiceList type="tourism" title="Turismo y Visitas" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
                         <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" />
+                        
+                        {/* NUEVA LISTA: RESULTADOS DE BÚSQUEDA */}
+                        <ServiceList type="search" title="Resultados de Búsqueda" colorClass="text-purple-600" icon="🔎" markerColor="bg-purple-500" />
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (
@@ -220,4 +232,4 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     );
 };
 
-export default DaySpotsList;
+export default DaySpotsList; 
