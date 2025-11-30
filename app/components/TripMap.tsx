@@ -51,7 +51,6 @@ export default function TripMap({
         });
         
         map.addListener('zoom_changed', () => { 
-            // Solo marcamos interacción si NO es un movimiento del sistema
             if (!isProgrammaticMove.current) {
                 hasUserInteracted.current = true; 
             }
@@ -63,14 +62,17 @@ export default function TripMap({
         if (!mapInstance) return;
 
         const applyBounds = (bounds: google.maps.LatLngBounds) => {
-            // Activamos el candado para que el listener ignore este movimiento
             isProgrammaticMove.current = true;
             mapInstance.fitBounds(bounds);
             
-            // Reseteamos el candado después de que el mapa termine de moverse (aprox)
+            // Pequeño timeout para liberar el candado
             setTimeout(() => {
                 isProgrammaticMove.current = false;
-                hasUserInteracted.current = false; // Reset interaction state after forced move
+                // Si hemos forzado un movimiento (ej: Botón General), reseteamos la "memoria" de interacción
+                // para que futuros cambios automáticos sigan funcionando hasta que el usuario toque de nuevo.
+                if (mapBounds || selectedDayIndex === null) {
+                    hasUserInteracted.current = false; 
+                }
             }, 800);
         };
 
@@ -78,7 +80,7 @@ export default function TripMap({
         if (mapBounds) {
             applyBounds(mapBounds);
         } 
-        // CASO 2: Carga inicial o reset suave
+        // CASO 2: Carga inicial o reset suave (Solo si no ha tocado el mapa)
         else if (directionsResponse && !hasUserInteracted.current && selectedDayIndex === null) {
             const routeBounds = directionsResponse.routes[0].bounds;
             if (routeBounds) applyBounds(routeBounds);
@@ -98,6 +100,10 @@ export default function TripMap({
     };
 
     const searchPlaceholder = t ? t('MAP_SEARCH_PLACEHOLDER') : 'Buscar en esta zona...';
+
+    // Generamos una clave única para forzar el repintado de la ruta si cambia
+    // Usamos el polyline codificado como ID único de la ruta
+    const routeKey = directionsResponse?.routes?.[0]?.overview_polyline || 'no-route';
 
     return (
         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
@@ -126,10 +132,22 @@ export default function TripMap({
                     zoomControlOptions: { position: google.maps.ControlPosition.LEFT_TOP }
                 }}
             >
-                {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 }, suppressMarkers: false }} />}
+                {directionsResponse && (
+                    <DirectionsRenderer 
+                        key={routeKey} // 🔑 CLAVE MAESTRA: Fuerza repintado si cambia la ruta
+                        directions={directionsResponse} 
+                        options={{ 
+                            polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 }, 
+                            suppressMarkers: false,
+                            preserveViewport: true // 🛑 PROHIBIDO TOCAR EL ZOOM: Nosotros mandamos
+                        }} 
+                    />
+                )}
+                
                 {dailyItinerary?.map((day, i) => day.coordinates && (
                     <Marker key={`itinerary-${i}`} position={day.coordinates} icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd} title={day.to} label={{ text: `${i+1}`, color: "white", fontSize: "10px", fontWeight: "bold" }} />
                 ))}
+                
                 {Object.keys(places).map((key) => {
                     const type = key as ServiceType;
                     if (!toggles[type] && type !== 'search') return null;
@@ -145,6 +163,7 @@ export default function TripMap({
                         )
                     ));
                 })}
+                
                 {hoveredPlace && hoveredPlace.geometry?.location && (
                     <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -35) }}>
                         <div className="p-0 w-[220px] overflow-hidden font-sans">
