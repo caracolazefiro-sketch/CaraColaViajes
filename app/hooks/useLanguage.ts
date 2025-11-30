@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 
-type Language = 'es' | 'en';
-type UnitSystem = 'metric' | 'imperial';
+export type Language = 'es' | 'en'; // ✅ Exportamos también por si acaso
+export type UnitSystem = 'metric' | 'imperial';
 
 interface TranslationMap {
     [key: string]: string;
 }
 
-interface LanguageSettings {
+// ✅ CORRECCIÓN: Añadido 'export' para que StageSelector pueda usarla
+export interface LanguageSettings {
     lang: Language;
     units: UnitSystem;
     dateFormat: string;
@@ -62,7 +63,6 @@ const translations: Record<Language, TranslationMap> = {
         'FORM_VALIDATE': 'Validar',
         'LOCATION_VALIDATED': 'Ubicación validada',
         'LOCATION_NOT_FOUND': 'Google no ha podido localizar este sitio.',
-        
         'STATS_DAYS': 'días',
         'STATS_KM': 'km',
         'STATS_LITERS': 'litros',
