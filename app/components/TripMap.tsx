@@ -38,32 +38,52 @@ export default function TripMap({
 
     const [searchQuery, setSearchQuery] = useState('');
     
-    // 🧠 UX MEJORADA: Control de Zoom Manual
-    // Usamos un ref para saber si el usuario ya ha movido el mapa manualmente
+    // CONTROL DE INTERACCIÓN (SISTEMA VS HUMANO)
     const hasUserInteracted = useRef(false);
+    const isProgrammaticMove = useRef(false);
 
-    // Efecto para controlar el FitBounds de forma inteligente
+    // Listener para el mapa
+    const handleMapLoad = (map: google.maps.Map) => {
+        setMap(map);
+        
+        map.addListener('dragstart', () => { 
+            hasUserInteracted.current = true; 
+        });
+        
+        map.addListener('zoom_changed', () => { 
+            // Solo marcamos interacción si NO es un movimiento del sistema
+            if (!isProgrammaticMove.current) {
+                hasUserInteracted.current = true; 
+            }
+        });
+    };
+
+    // Efecto para controlar el FitBounds (El Único Conductor)
     useEffect(() => {
         if (!mapInstance) return;
 
-        // CASO 1: Selección explícita de un día (Prioridad Alta)
+        const applyBounds = (bounds: google.maps.LatLngBounds) => {
+            // Activamos el candado para que el listener ignore este movimiento
+            isProgrammaticMove.current = true;
+            mapInstance.fitBounds(bounds);
+            
+            // Reseteamos el candado después de que el mapa termine de moverse (aprox)
+            setTimeout(() => {
+                isProgrammaticMove.current = false;
+                hasUserInteracted.current = false; // Reset interaction state after forced move
+            }, 800);
+        };
+
+        // CASO 1: Límites explícitos (Día específico o General forzado)
         if (mapBounds) {
-            mapInstance.fitBounds(mapBounds);
-            hasUserInteracted.current = false; // Reseteamos interacción al cambiar de día
+            applyBounds(mapBounds);
         } 
-        // CASO 2: Carga inicial de la ruta completa (Solo si no ha tocado el mapa)
+        // CASO 2: Carga inicial o reset suave
         else if (directionsResponse && !hasUserInteracted.current && selectedDayIndex === null) {
             const routeBounds = directionsResponse.routes[0].bounds;
-            mapInstance.fitBounds(routeBounds);
+            if (routeBounds) applyBounds(routeBounds);
         }
     }, [mapInstance, mapBounds, directionsResponse, selectedDayIndex]);
-
-    // Listener para detectar si el usuario mueve el mapa
-    const handleMapLoad = (map: google.maps.Map) => {
-        setMap(map);
-        map.addListener('dragstart', () => { hasUserInteracted.current = true; });
-        map.addListener('zoom_changed', () => { hasUserInteracted.current = true; });
-    };
 
     const handleSearchSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -98,7 +118,7 @@ export default function TripMap({
             </div>
             <GoogleMap 
                 mapContainerStyle={containerStyle} center={center} zoom={6} 
-                onLoad={handleMapLoad} // Usamos nuestro handler mejorado
+                onLoad={handleMapLoad} 
                 options={{ 
                     zoomControl: true, streetViewControl: false, mapTypeControl: true, fullscreenControl: true,
                     mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_LEFT },

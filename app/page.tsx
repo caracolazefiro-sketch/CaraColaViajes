@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { Coordinates, PlaceWithDistance, ServiceType } from './types';
+import { PlaceWithDistance, ServiceType } from './types';
 
 // COMPONENTES
 import AppHeader from './components/AppHeader';
@@ -37,7 +37,7 @@ export default function Home() {
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: LIBRARIES,
-    language: 'es', // IDIOMA FIJO
+    language: 'es', 
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -62,7 +62,6 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // ✅ CORRECCIÓN: Pasamos settings.units al hook
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
@@ -95,14 +94,12 @@ export default function Home() {
       handleToggle(type, day?.coordinates);
   };
 
-  // ✅ CORRECCIÓN CRÍTICA: Gestión de Zoom al volver a "General"
   const focusMapOnStage = async (dayIndex: number | null) => {
     // CASO: Volver a la Vista General
     if (dayIndex === null) {
         setSelectedDayIndex(null);
         
-        // 🛠️ FIX: Forzamos los límites de la ruta completa (si existe)
-        // Esto le dice al mapa: "Oye, resetea el zoom AHORA", ignorando si el usuario lo había movido antes.
+        // Enviamos los límites de la ruta completa para resetear la vista
         if (directionsResponse && directionsResponse.routes[0] && directionsResponse.routes[0].bounds) {
              setMapBounds(directionsResponse.routes[0].bounds);
         } else {
@@ -140,18 +137,7 @@ export default function Home() {
     }
   };
 
-  // EFECTO CRÍTICO DE FOCUS (Repintado de Zoom)
-  // Nota: Al usar setMapBounds arriba explícitamente, este efecto se disparará y el mapa obedecerá.
-  useEffect(() => {
-      if (map) {
-          if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
-          else if (directionsResponse && selectedDayIndex === null) { 
-              // Este es el fallback inicial, pero ahora el botón General usa mapBounds explícito
-              const routeBounds = directionsResponse.routes[0].bounds; 
-              setTimeout(() => map.fitBounds(routeBounds), 500); 
-          }
-      }
-  }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
+  // 🔥 ELIMINADO: useEffect de fitBounds (Estaba duplicado y causando conflictos)
 
   const handlePlaceClick = (spot: PlaceWithDistance) => {
       if (spot.link) window.open(spot.link, '_blank');
@@ -186,7 +172,6 @@ export default function Home() {
       <style jsx global>{printStyles}</style>
       <div className="w-full max-w-6xl space-y-6">
         
-        {/* HEADER ÚNICO Y LIMPIO */}
         <div className="w-full no-print">
             <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} setLang={setLang} language={language} />
         </div>
