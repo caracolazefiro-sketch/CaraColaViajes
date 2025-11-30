@@ -40,7 +40,6 @@ const translations: Record<Language, TranslationMap> = {
         'ALERT_DEBUG_COPIED': '📋 Datos del viaje copiados al portapapeles.',
         'ACTION_DELETE_TRIP': 'Borrar Viaje',
         'ACTION_LOAD_TRIP': 'Cargar este viaje',
-
         'HEADER_AUDIT': 'Audit',
         'FORM_TITLE': 'Configuración del Viaje',
         'FORM_START_DATE': 'Inicio',
@@ -63,7 +62,6 @@ const translations: Record<Language, TranslationMap> = {
         'FORM_VALIDATE': 'Validar',
         'LOCATION_VALIDATED': 'Ubicación validada',
         'LOCATION_NOT_FOUND': 'Google no ha podido localizar este sitio.',
-        
         'STATS_DAYS': 'días',
         'STATS_KM': 'km',
         'STATS_LITERS': 'litros',
@@ -72,9 +70,7 @@ const translations: Record<Language, TranslationMap> = {
         'STATS_KM_LONG': 'Distancia Total',
         'STATS_COST_LONG': 'Coste Estimado',
         'STATS_DAY': 'Día',
-
         'DASHBOARD_EDIT': 'Editar',
-        
         'ITINERARY_TITLE': 'Itinerario Completo',
         'ITINERARY_DAYS_TITLE': 'Tu Ruta:',
         'ITINERARY_GENERAL': 'General',
@@ -87,10 +83,8 @@ const translations: Record<Language, TranslationMap> = {
         'ITINERARY_REMOVE_DAY': 'Eliminar este día',
         'CLICK_FOR_DETAILS': 'Haz clic en una fila para ver detalles 👇',
         'ITINERARY_GENERATED_ON': 'Itinerario generado el',
-        
         'MAP_SEARCH_PLACEHOLDER': 'Buscar en esta zona...',
         'MAP_ADD': 'Añadir',
-        
         'SERVICE_WATER': 'Aguas',
         'SERVICE_GAS': 'Gas',
         'SERVICE_EAT': 'Comer',
@@ -100,7 +94,6 @@ const translations: Record<Language, TranslationMap> = {
         'SERVICE_CUSTOM': 'Propios',
         'SERVICE_SEARCH': 'Búsqueda',
         'SERVICE_CAMPING': 'Áreas y Campings',
-        
         'ACTION_SAVE': 'Guardar',
         'ACTION_SHARE': 'Compartir',
         'ACTION_DELETE': 'Borrar',
@@ -131,7 +124,6 @@ const translations: Record<Language, TranslationMap> = {
         'ALERT_DEBUG_COPIED': '📋 Trip data copied to clipboard.',
         'ACTION_DELETE_TRIP': 'Delete Trip',
         'ACTION_LOAD_TRIP': 'Load this trip',
-
         'HEADER_AUDIT': 'Audit',
         'FORM_TITLE': 'Trip Configuration',
         'FORM_START_DATE': 'Start Date',
@@ -154,7 +146,6 @@ const translations: Record<Language, TranslationMap> = {
         'FORM_VALIDATE': 'Validate',
         'LOCATION_VALIDATED': 'Location validated',
         'LOCATION_NOT_FOUND': 'Google could not locate this place.',
-
         'STATS_DAYS': 'days',
         'STATS_KM': 'mi',
         'STATS_LITERS': 'gal',
@@ -164,7 +155,6 @@ const translations: Record<Language, TranslationMap> = {
         'STATS_COST_LONG': 'Estimated Cost',
         'STATS_DAY': 'Day',
         'DASHBOARD_EDIT': 'Edit',
-
         'ITINERARY_TITLE': 'Full Itinerary',
         'ITINERARY_DAYS_TITLE': 'Your Route:',
         'ITINERARY_GENERAL': 'General',
@@ -177,10 +167,8 @@ const translations: Record<Language, TranslationMap> = {
         'ITINERARY_REMOVE_DAY': 'Remove this day',
         'CLICK_FOR_DETAILS': 'Click a row to see details 👇',
         'ITINERARY_GENERATED_ON': 'Itinerary generated on',
-
         'MAP_SEARCH_PLACEHOLDER': 'Search this area...',
         'MAP_ADD': 'Add',
-
         'SERVICE_WATER': 'Water',
         'SERVICE_GAS': 'Gas',
         'SERVICE_EAT': 'Eat',
@@ -190,7 +178,6 @@ const translations: Record<Language, TranslationMap> = {
         'SERVICE_CUSTOM': 'Own Spots',
         'SERVICE_SEARCH': 'Search',
         'SERVICE_CAMPING': 'Campsites & Areas',
-
         'ACTION_SAVE': 'Save',
         'ACTION_SHARE': 'Share',
         'ACTION_DELETE': 'Delete',
@@ -223,15 +210,12 @@ export function useLanguage() {
         }
     }, [language]);
 
-    // FIX: Aseguramos que devuelve string, incluso si la key no existe
     const t = (key: string): string => {
         return settings.translations[key] || key;
     };
     
     const convert = (value: number, unit: 'km' | 'liter' | 'currency' | 'kph'): number => {
-        if (settings.units === 'metric') {
-            return value; 
-        }
+        if (settings.units === 'metric') return value; 
         switch (unit) {
             case 'km': return value * 0.621371; 
             case 'liter': return value * 0.264172; 

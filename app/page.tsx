@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { Coordinates, PlaceWithDistance, ServiceType } from './types';
+import { PlaceWithDistance, ServiceType } from './types';
 
-// COMPONENTES
 import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 
-// HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
 import { useTripPersistence } from './hooks/useTripPersistence';
 import { useTripPlaces } from './hooks/useTripPlaces';
@@ -31,17 +29,15 @@ const printStyles = `
 `;
 
 export default function Home() {
-  // --- HOOK DE IDIOMA ---
   const { settings, t, convert, setLang, language } = useLanguage();
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: LIBRARIES,
-    language: 'es', // IDIOMA FIJO para evitar recargas del mapa
+    language: 'es', 
   });
 
-  // --- ESTADOS DE UI ---
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
@@ -49,7 +45,6 @@ export default function Home() {
   const [auditMode, setAuditMode] = useState(false); 
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // --- ESTADOS DE DATOS ---
   const [formData, setFormData] = useState({
     fechaInicio: new Date().toISOString().split('T')[0],
     origen: 'Salamanca',
@@ -65,7 +60,6 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // --- HOOKS ---
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
@@ -81,7 +75,6 @@ export default function Home() {
       () => { setSelectedDayIndex(null); setMapBounds(null); setForceUpdate(prev => prev + 1); }
   );
 
-  // --- HANDLERS ---
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
       setSelectedDayIndex(null); setCurrentTripId(null); resetPlaces(); 
@@ -168,14 +161,8 @@ export default function Home() {
       <style jsx global>{printStyles}</style>
       <div className="w-full max-w-6xl space-y-6">
         
-        {/* HEADER UNIFICADO (Contiene Logo, Banderas y Usuario) */}
         <div className="w-full no-print">
-            <AppHeader 
-                onLoadTrip={handleLoadCloudTrip} 
-                t={t} 
-                setLang={setLang} 
-                language={language} 
-            />
+            <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} setLang={setLang} language={language} />
         </div>
 
         <div className="print-only hidden text-center mb-10">
@@ -202,7 +189,6 @@ export default function Home() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    {/* Mantenemos Itinerario Izquierda - Mapa Derecha */}
                     <ItineraryPanel 
                         dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
@@ -216,6 +202,7 @@ export default function Home() {
                         places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
                         onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
                         onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
+                        t={t}
                     />
                 </div>
             </div>
