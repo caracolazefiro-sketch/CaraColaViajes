@@ -16,7 +16,7 @@ const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w
 const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>);
 const IconLock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>);
 const IconEye = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>);
-const IconWind = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>); // Generic alert icon used for wind/danger
+const IconWind = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
 const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
@@ -37,11 +37,10 @@ interface DaySpotsListProps {
 }
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
-    day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover, t 
+    day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover, t, convert 
 }) => {
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
-    // ✅ Usamos el hook actualizado con Start + End
     const { routeWeather, weatherStatus } = useWeather(day.coordinates, day.isoDate, day.startCoordinates);
     const { elevationData, loadingElevation, calculateElevation } = useElevation();
 
@@ -50,6 +49,19 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
     const saved = (day.savedPlaces || []).sort((a, b) => (CATEGORY_ORDER[a.type || 'custom'] || 99) - (CATEGORY_ORDER[b.type || 'custom'] || 99));
     const isSaved = (id?: string) => id ? saved.some(p => p.place_id === id) : false;
+
+    // Detectamos si estamos en modo imperial (si 1 km != 1 unidad)
+    const isImperial = convert(1, 'km') !== 1;
+    const speedUnit = isImperial ? 'mph' : 'km/h';
+    const tempUnit = isImperial ? '°F' : '°C';
+
+    // Helper para convertir temperatura
+    const formatTemp = (celsius: number) => {
+        if (isImperial) {
+            return Math.round((celsius * 9/5) + 32);
+        }
+        return Math.round(celsius);
+    };
 
     const handleEditStart = (place: PlaceWithDistance) => {
         if (!place.place_id) return;
@@ -142,27 +154,28 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                     <p className="text-xs text-gray-500 mt-1 font-mono">{day.date}</p>
                 </div>
                 
-                {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA */}
+                {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA + TEMPERATURA */}
                 <div className="bg-white/90 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[90px]">
                     {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">{t('FORM_LOADING')}</div>}
-                    {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 días</div>}
+                    {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 {t('STATS_DAYS')}</div>}
                     {weatherStatus === 'success' && routeWeather && routeWeather.end && (
                         <div>
                             <div className="flex justify-end gap-2 items-center mb-1">
-                                {routeWeather.summary === 'danger' && <span className="animate-pulse text-red-600" title="Alerta: Viento fuerte o Nieve">⚠️</span>}
+                                {routeWeather.summary === 'danger' && <span className="animate-pulse text-red-600" title="Alert">⚠️</span>}
                                 <span className="text-2xl">{getWeatherIcon(routeWeather.end.code)}</span>
                             </div>
                             <div className="text-xs font-bold text-gray-800">
-                                {Math.round(routeWeather.end.maxTemp)}° <span className="text-gray-400">/ {Math.round(routeWeather.end.minTemp)}°</span>
+                                {/* 🌡️ CONVERSIÓN DE TEMPERATURA AQUÍ */}
+                                {formatTemp(routeWeather.end.maxTemp)}° <span className="text-gray-400">/ {formatTemp(routeWeather.end.minTemp)}°{tempUnit}</span>
                             </div>
                             
-                            {/* Información detallada de riesgo */}
                             <div className="flex flex-col text-[9px] mt-1 gap-0.5">
                                 <span className={`${routeWeather.end.rainProb > 50 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                                     💧 {routeWeather.end.rainProb}%
                                 </span>
-                                <span className={`${routeWeather.end.windSpeed > 25 ? 'text-orange-600 font-bold' : 'text-gray-400'}`} title="Velocidad del viento">
-                                    💨 {Math.round(routeWeather.end.windSpeed)} km/h
+                                <span className={`${routeWeather.end.windSpeed > 25 ? 'text-orange-600 font-bold' : 'text-gray-400'}`} title="Wind">
+                                    {/* 🔄 Conversión de unidad de viento: kph a mph si es necesario */}
+                                    💨 {Math.round(convert(routeWeather.end.windSpeed, 'kph'))} {speedUnit}
                                 </span>
                             </div>
                         </div>
@@ -175,8 +188,11 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 <div className="bg-red-100 border border-red-200 text-red-800 p-2 rounded text-xs flex items-center gap-2">
                     <span className="text-lg">🚨</span>
                     <div>
-                        <span className="font-bold block">Precaución en ruta</span>
-                        Viento fuerte ({Math.round(routeWeather.end?.windSpeed || 0)}km/h) o condiciones adversas.
+                        <span className="font-bold block">{isImperial ? 'Caution on Route' : 'Precaución en ruta'}</span>
+                        {isImperial 
+                            ? `Strong wind (${Math.round(convert(routeWeather.end?.windSpeed || 0, 'kph'))} mph) or bad weather.`
+                            : `Viento fuerte (${Math.round(routeWeather.end?.windSpeed || 0)} km/h) o condiciones adversas.`
+                        }
                     </div>
                 </div>
             )}
@@ -193,12 +209,12 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     </span>
                                     <div>
                                         <span className="font-medium text-green-900 truncate block">{place.name}</span>
-                                        {place.link && <a href={place.link} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline flex items-center gap-1" onClick={(e) => e.stopPropagation()}><IconLink /> Ver Link</a>}
+                                        {place.link && <a href={place.link} target="_blank" rel="noreferrer" className="text-[9px] text-blue-500 hover:underline flex items-center gap-1" onClick={(e) => e.stopPropagation()}><IconLink /> {isImperial ? 'View Link' : 'Ver Link'}</a>}
                                     </div>
                                 </div>
                                 <div className="flex gap-1 items-center">
                                     {place.type === 'custom' && (
-                                        <span title={place.isPublic ? "Público" : "Privado"}>{place.isPublic ? <IconEye /> : <IconLock />}</span>
+                                        <span title={place.isPublic ? "Public" : "Private"}>{place.isPublic ? <IconEye /> : <IconLock />}</span>
                                     )}
                                     {place.type === 'custom' && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditStart(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
@@ -213,7 +229,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
             {!showForm ? (
                 <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-black transition shadow-sm">
-                    <IconPlus /> {t('MAP_ADD')} Sitio
+                    <IconPlus /> {t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}
                 </button>
             ) : (
                 <AddPlaceForm initialData={placeToEdit} rawCityName={rawCityName} onSave={handleFormSave} onCancel={handleFormCancel} />
@@ -245,7 +261,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                      <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (
                             <button onClick={() => calculateElevation(day.from, day.coordinates)} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
-                                <IconMountain /> Analizar Desnivel
+                                <IconMountain /> {isImperial ? 'Check Elevation' : 'Analizar Desnivel'}
                             </button>
                         )}
                         {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">{t('FORM_LOADING')}</p>}
@@ -253,7 +269,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                     </div>
                 </div>
             )}
-            {!day.isDriving && <p className="text-sm text-gray-700 mt-2">Día de relax en {rawCityName}.</p>}
+            {!day.isDriving && <p className="text-sm text-gray-700 mt-2">{isImperial ? `Relax day in ${rawCityName}.` : `Día de relax en ${rawCityName}.`}</p>}
         </div>
     );
 };
