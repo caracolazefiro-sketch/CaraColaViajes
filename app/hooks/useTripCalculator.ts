@@ -18,27 +18,42 @@ interface Converter {
     (value: number, unit: 'km' | 'liter' | 'currency' | 'kph'): number;
 }
 
+// Helpers de fechas
 const formatDate = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const formatDateISO = (d: Date) => d.toISOString().split('T')[0];
 const addDay = (d: Date) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; };
+// Helper de espera (Pausa técnica)
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Helper para limpiar nombres de ciudad
-const getCleanCityName = async (lat: number, lng: number): Promise<string> => {
+// --- HELPER GEOCODING ROBUSTO (Con Reintentos) ---
+const getCleanCityName = async (lat: number, lng: number, attempt = 1): Promise<string> => {
     if (typeof google === 'undefined') return "Punto en Ruta";
     const geocoder = new google.maps.Geocoder();
+    
     try {
         const response = await geocoder.geocode({ location: { lat, lng } });
         if (response.results[0]) {
             const comps = response.results[0].address_components;
+            
+            // Búsqueda en cascada (Vital para zonas sin "locality" definida)
             return comps.find(c => c.types.includes("locality"))?.long_name || 
+                   comps.find(c => c.types.includes("sublocality"))?.long_name ||
+                   comps.find(c => c.types.includes("administrative_area_level_3"))?.long_name ||
                    comps.find(c => c.types.includes("administrative_area_level_2"))?.long_name || 
+                   comps.find(c => c.types.includes("administrative_area_level_1"))?.long_name || // Región
                    "Punto en Ruta";
         }
-    } catch (e) { }
+    } catch (e: any) {
+        // 🛡️ ESTRATEGIA ANTI-BLOQUEO: Si Google dice "OVER_QUERY_LIMIT", esperamos y reintentamos.
+        if (e.code === 'OVER_QUERY_LIMIT' && attempt <= 3) {
+            console.warn(`Rate limit hit. Retrying city name... (Attempt ${attempt})`);
+            await sleep(1000 * attempt); // Espera progresiva: 1s, 2s, 3s
+            return getCleanCityName(lat, lng, attempt + 1);
+        }
+    }
     return "Punto en Ruta";
 };
 
-// AHORA RECIBE 'units' TAMBIÉN
 export function useTripCalculator(convert: Converter, units: 'metric' | 'imperial') {
     const [results, setResults] = useState<TripResult>({
         totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null
@@ -79,9 +94,7 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
             let dayCounter = 1;
             let currentDate = new Date(formData.fechaInicio);
             
-            // 🛑 CORRECCIÓN DE UNIDADES: Convertir Input Usuario -> Metros Reales
-            // Si es Imperial (Millas) -> Multiplicar por 1609.34
-            // Si es Métrico (Km) -> Multiplicar por 1000
+            // Conversión de unidades (Millas vs Km)
             const maxMeters = units === 'imperial' 
                 ? formData.kmMaximoDia * 1609.34 
                 : formData.kmMaximoDia * 1000;
@@ -93,34 +106,33 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
             for (let i = 0; i < route.legs.length; i++) {
                 const leg = route.legs[i];
                 let legPoints: google.maps.LatLng[] = [];
-                // Aplanamos todos los puntos de la ruta para tener la geometría fina
                 leg.steps.forEach(step => { if(step.path) legPoints = legPoints.concat(step.path); });
                 
                 let legAccumulator = 0;
                 let segmentStartName = currentLegStartName;
 
-                // 🧠 ALGORITMO SLICING V2 (Cliente): Interpolación punto a punto
+                // Algoritmo Slicing V2 (Interpolación)
                 for (let j = 0; j < legPoints.length - 1; j++) {
                     const point1 = legPoints[j];
                     const point2 = legPoints[j+1];
                     const segmentDist = google.maps.geometry.spherical.computeDistanceBetween(point1, point2);
 
                     if (legAccumulator + segmentDist > maxMeters) {
-                        // ¡Corte! Hemos superado el límite diario en este micro-segmento
                         const lat = point2.lat(); 
                         const lng = point2.lng();
+                        
+                        // ⏱️ PEQUEÑA PAUSA PREVENTIVA (200ms) para no saturar al geocodificador en bucles rápidos
+                        await sleep(200); 
                         const locationString = await getCleanCityName(lat, lng);
                         const stopTitle = `📍 Parada Táctica: ${locationString}`;
                         
-                        // Guardamos el día
                         itinerary.push({ 
                             day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
                             from: segmentStartName, to: stopTitle, 
-                            distance: (legAccumulator + segmentDist) / 1000, // Siempre guardamos KM internos
+                            distance: (legAccumulator + segmentDist) / 1000, 
                             isDriving: true, coordinates: { lat, lng }, type: 'tactical', savedPlaces: [] 
                         });
                         
-                        // Reset para el siguiente día
                         dayCounter++; currentDate = addDay(currentDate); 
                         legAccumulator = 0; 
                         segmentStartName = locationString;
@@ -129,7 +141,8 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                     }
                 }
 
-                // Cierre del Leg (Waypoint oficial o Destino)
+                // Cierre del Leg
+                await sleep(200); // Pausa también aquí
                 let endLegName = await getCleanCityName(leg.end_location.lat(), leg.end_location.lng());
 
                 if (legAccumulator > 0 || segmentStartName !== endLegName) {
@@ -146,19 +159,47 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                 }
                 totalDistMeters += leg.distance?.value || 0;
 
-                // Lógica de Vuelta a Casa (Simplificada para brevedad, mantener lógica original si funciona)
+                // Lógica de Vuelta a Casa
                 if (formData.vueltaACasa && i === outboundLegsCount - 1) {
-                     // ... (Tu lógica existente de pivote) ...
+                    let returnDistanceMeters = 0;
+                    for(let k = i + 1; k < route.legs.length; k++) { returnDistanceMeters += route.legs[k].distance?.value || 0; }
+                    const daysDrivingBack = Math.ceil(returnDistanceMeters / maxMeters);
+                    
+                    if (formData.fechaRegreso) {
+                        const dateBackHome = new Date(formData.fechaRegreso);
+                        const departureDate = new Date(dateBackHome);
+                        departureDate.setDate(departureDate.getDate() - daysDrivingBack + 1);
+                        
+                        const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+                        if (stayDays > 0) {
+                            const stayCity = endLegName;
+                            const stayCoords = { lat: leg.end_location.lat(), lng: leg.end_location.lng() };
+
+                            for(let d=0; d < stayDays; d++) {
+                                itinerary.push({ 
+                                    day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
+                                    from: stayCity, to: stayCity, distance: 0, 
+                                    isDriving: false, type: 'overnight', 
+                                    coordinates: stayCoords, 
+                                    savedPlaces: [] 
+                                });
+                                dayCounter++; currentDate = addDay(currentDate);
+                            }
+                        }
+                    }
                 }
             }
 
-            // Estancia en destino final (Misma lógica)
+            // Estancia en destino final (Solo Ida)
             if (formData.fechaRegreso && !formData.vueltaACasa) {
                 const diffTime = new Date(formData.fechaRegreso).getTime() - currentDate.getTime();
                 const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 const finalLeg = route.legs[route.legs.length - 1];
                 const finalCoords = { lat: finalLeg.end_location.lat(), lng: finalLeg.end_location.lng() };
-                const finalCity = await getCleanCityName(finalCoords.lat, finalCoords.lng);
+                
+                // Usamos el nombre del destino original del formulario si es posible, queda más limpio
+                // Pero validamos con coordenadas por si acaso
+                const finalCity = formData.destino.split(',')[0] || await getCleanCityName(finalCoords.lat, finalCoords.lng);
 
                 for(let k=0; k < stayDays; k++) {
                     dayCounter++; currentDate = addDay(currentDate);
@@ -170,20 +211,11 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                 }
             }
 
-            // --- RESULTADOS FINALES ---
+            // Resultados Finales
             const distanceKmMetric = totalDistMeters / 1000;
-            
-            // Consumo: Litros/100km (Input)
-            // Precio: Moneda/Litro (Input)
-            // Distancia: Km (Base)
-            
-            // 1. Calculamos Litros totales (Física pura, da igual el sistema)
-            // Si el input es Imperial: consumo es Gal/100mi. Si es Metrico: L/100km.
-            // Esto es complejo. Asumiremos que el valor numérico 'consumo' es correcto para la distancia en 'user unit'.
-            
-            const distanceUserUnit = convert(distanceKmMetric, 'km'); // Km -> Mi si es imperial
-            const litersUserUnit = (distanceUserUnit / 100) * formData.consumo; // (Mi / 100) * Gal/100mi = Gal
-            const costUserUnit = litersUserUnit * formData.precioGasoil; // Gal * $/Gal = $
+            const distanceUserUnit = convert(distanceKmMetric, 'km'); 
+            const litersUserUnit = (distanceUserUnit / 100) * formData.consumo; 
+            const costUserUnit = litersUserUnit * formData.precioGasoil; 
 
             setResults({ 
                 totalDays: dayCounter, 
@@ -202,7 +234,6 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
         }
     };
 
-    // ... (Mantener funciones addDayToItinerary y removeDayFromItinerary igual)
     const recalculateDates = (itinerary: DailyPlan[], startDate: string) => {
         let currentDate = new Date(startDate);
         return itinerary.map((day, index) => {
