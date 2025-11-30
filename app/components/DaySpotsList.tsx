@@ -16,12 +16,12 @@ const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w
 const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>);
 const IconLock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>);
 const IconEye = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>);
+const IconWind = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>); // Generic alert icon used for wind/danger
 
 const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
 };
 
-// ✅ CORRECCIÓN 1: Añadimos 't' y 'convert' a la interfaz
 interface DaySpotsListProps { 
     day: DailyPlan;
     places: Record<ServiceType, PlaceWithDistance[]>;
@@ -37,12 +37,12 @@ interface DaySpotsListProps {
 }
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
-    day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover, 
-    t // ✅ CORRECCIÓN 2: Recibimos 't' (convert lo dejamos disponible pero no lo usamos visualmente aquí)
+    day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover, t 
 }) => {
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
-    const { weather, weatherStatus } = useWeather(day.coordinates, day.isoDate);
+    // ✅ Usamos el hook actualizado con Start + End
+    const { routeWeather, weatherStatus } = useWeather(day.coordinates, day.isoDate, day.startCoordinates);
     const { elevationData, loadingElevation, calculateElevation } = useElevation();
 
     const [showForm, setShowForm] = useState(false);
@@ -81,7 +81,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     );
 
     const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
-        
         const isSpecialType = type === 'search' || type === 'custom';
         const hasResults = places[type]?.length > 0 || saved.filter(s => s.type === type).length > 0;
         
@@ -110,7 +109,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
                                     <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
-                                    {auditMode && <div className="mt-1 pt-1 border-t border-gray-100 text-[9px] font-mono text-gray-500 bg-gray-50 p-1 rounded"><p><strong>Tags:</strong> {spot.types?.slice(0, 3).join(', ')}...</p></div>}
                                 </div>
                                 {type === 'custom' || type === 'search' ? (
                                     <div className="flex gap-1">
@@ -143,14 +141,45 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                     </p>
                     <p className="text-xs text-gray-500 mt-1 font-mono">{day.date}</p>
                 </div>
-                <div className="bg-white/80 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[80px]">
+                
+                {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA */}
+                <div className="bg-white/90 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[90px]">
                     {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">{t('FORM_LOADING')}</div>}
                     {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 días</div>}
-                    {weatherStatus === 'success' && weather && (
-                        <><div className="text-2xl">{getWeatherIcon(weather.code)}</div><div className="text-xs font-bold text-gray-800">{Math.round(weather.maxTemp)}° <span className="text-gray-400">/ {Math.round(weather.minTemp)}°</span></div><div className="text-[10px] text-blue-600 font-bold">💧 {weather.rainProb}%</div></>
+                    {weatherStatus === 'success' && routeWeather && routeWeather.end && (
+                        <div>
+                            <div className="flex justify-end gap-2 items-center mb-1">
+                                {routeWeather.summary === 'danger' && <span className="animate-pulse text-red-600" title="Alerta: Viento fuerte o Nieve">⚠️</span>}
+                                <span className="text-2xl">{getWeatherIcon(routeWeather.end.code)}</span>
+                            </div>
+                            <div className="text-xs font-bold text-gray-800">
+                                {Math.round(routeWeather.end.maxTemp)}° <span className="text-gray-400">/ {Math.round(routeWeather.end.minTemp)}°</span>
+                            </div>
+                            
+                            {/* Información detallada de riesgo */}
+                            <div className="flex flex-col text-[9px] mt-1 gap-0.5">
+                                <span className={`${routeWeather.end.rainProb > 50 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                                    💧 {routeWeather.end.rainProb}%
+                                </span>
+                                <span className={`${routeWeather.end.windSpeed > 25 ? 'text-orange-600 font-bold' : 'text-gray-400'}`} title="Velocidad del viento">
+                                    💨 {Math.round(routeWeather.end.windSpeed)} km/h
+                                </span>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
+
+            {/* Aviso de Peligro si el semáforo es Rojo */}
+            {weatherStatus === 'success' && routeWeather?.summary === 'danger' && (
+                <div className="bg-red-100 border border-red-200 text-red-800 p-2 rounded text-xs flex items-center gap-2">
+                    <span className="text-lg">🚨</span>
+                    <div>
+                        <span className="font-bold block">Precaución en ruta</span>
+                        Viento fuerte ({Math.round(routeWeather.end?.windSpeed || 0)}km/h) o condiciones adversas.
+                    </div>
+                </div>
+            )}
 
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">

@@ -26,24 +26,27 @@ export interface DailyPlan {
     to: string; 
     distance: number; 
     isDriving: boolean; 
-    coordinates?: Coordinates; 
+    // ✅ NUEVO: Coordenadas de inicio para el clima en ruta
+    startCoordinates?: Coordinates; 
+    coordinates?: Coordinates; // Coordenadas de destino
     type: 'overnight' | 'tactical' | 'start' | 'end';
     savedPlaces?: PlaceWithDistance[]; 
 }
 
-// ✅ CORREGIDO: Añadida propiedad 'liters'
 export interface TripResult { 
     totalDays: number | null; 
     distanceKm: number | null; 
     totalCost: number | null; 
-    liters?: number | null; // <--- AÑADIDO PARA EVITAR ERROR TS2353
+    liters?: number | null; 
     dailyItinerary: DailyPlan[] | null; 
     error: string | null; 
 }
 
+// ✅ MEJORA: Datos climáticos extendidos (Viento y Nieve)
 export interface WeatherData { 
     code: number; 
     maxTemp: number; 
     minTemp: number; 
     rainProb: number; 
+    windSpeed: number; // Nuevo: Velocidad viento km/h
 }
