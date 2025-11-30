@@ -86,6 +86,8 @@ export function useTripCalculator(convert: Converter) {
             let currentDate = new Date(formData.fechaInicio);
             
             // CONVERSIÓN CRÍTICA: KM MÁXIMO debe convertirse a Metros
+            // La función convert ya nos da el valor en la unidad correcta (Km o Millas). Al multiplicar por 1000, 
+            // estamos convirtiendo el límite máximo diario del usuario a metros.
             const maxMeters = convert(formData.kmMaximoDia, 'km') * 1000;
 
             // Nombre inicial limpio
@@ -189,16 +191,18 @@ export function useTripCalculator(convert: Converter) {
             }
 
             // CÁLCULO FINAL: Conversion de KM/Liters a la unidad del usuario
-            const distanceInUserUnit = convert(totalDistMeters / 1000, 'km');
+            const distanceKmMetric = totalDistMeters / 1000;
+            const distanceInUserUnit = convert(distanceKmMetric, 'km');
+            
             // Consumo en unidad Liters/100km
             const fuelConsumptionPer100Km = formData.consumo; 
             // Coste en unidad Euro
             const fuelPricePerUnit = formData.precioGasoil; 
             
             // Calculamos los litros (KM totales / 100) * Litros/100km
-            const litersMetric = (totalDistMeters / 1000 / 100) * fuelConsumptionPer100Km;
+            const litersMetric = (distanceKmMetric / 100) * fuelConsumptionPer100Km;
 
-            // Coste TOTAL en EUROS (siempre se calcula en euros primero para simplificar)
+            // Coste TOTAL en EUROS
             const totalCostEuros = litersMetric * fuelPricePerUnit;
             
             // Convertimos LitersMetric a la unidad del usuario (Galones)
@@ -210,9 +214,9 @@ export function useTripCalculator(convert: Converter) {
 
             setResults({ 
                 totalDays: dayCounter, 
-                distanceKm: distanceInUserUnit, // Ya está en user unit
-                totalCost: costInUserUnit,     // Ya está en user unit
-                liters: litersInUserUnit,      // Nuevo, ya está en user unit
+                distanceKm: distanceInUserUnit, // Ya está en user unit (mi/km)
+                totalCost: costInUserUnit,     // Ya está en user unit ($/€)
+                liters: litersInUserUnit,      // Ya está en user unit (gal/liters)
                 dailyItinerary: itinerary, 
                 error: null 
             });
