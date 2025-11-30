@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
+// Icono Bicho (Debug)
+const IconBug = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>);
+const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
+
 interface UserAreaProps {
     onLoadTrip: (tripData: any, tripId: number) => void;
 }
@@ -60,6 +64,15 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
         if (!error) setMyTrips(prev => prev.filter(t => t.id !== id));
     };
 
+    // --- NUEVA FUNCIÓN: COPIAR DATOS TÉCNICOS ---
+    const handleCopyDebugData = (e: React.MouseEvent, trip: any) => {
+        e.stopPropagation(); // Evitar que se cargue el viaje al hacer clic
+        const debugData = JSON.stringify(trip.trip_data, null, 2);
+        navigator.clipboard.writeText(debugData)
+            .then(() => alert("📋 Datos del viaje copiados al portapapeles.\n\nAhora pégalos en el chat con tu Socio."))
+            .catch(err => console.error("Error al copiar:", err));
+    };
+
     if (!user) {
         return (
             <div className="flex flex-col items-end gap-1">
@@ -97,13 +110,36 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
                     <div className="bg-red-600 px-4 py-2 flex justify-between items-center text-white font-bold text-sm"><h3>📂 Archivo de Rutas</h3><button onClick={() => setShowTrips(false)}>✕</button></div>
                     <div className="max-h-60 overflow-y-auto p-2 bg-gray-50">
                         {loading ? <p className="text-center text-xs text-gray-400 py-4">Cargando...</p> : myTrips.length === 0 ? <p className="text-center text-xs text-gray-400 py-4">Sin viajes guardados.</p> : (
-                            <div className="space-y-2">{myTrips.map((trip) => (
-                                <div key={trip.id} className="bg-white p-3 rounded border border-gray-200 shadow-sm hover:border-red-300 transition">
-                                    <div className="flex justify-between items-start mb-1"><h4 className="text-xs font-bold text-gray-800 line-clamp-2">{trip.name || 'Viaje sin nombre'}</h4><button onClick={() => handleDeleteTrip(trip.id)} className="text-gray-300 hover:text-red-500">🗑️</button></div>
-                                    <p className="text-[9px] text-gray-400 mb-2">{new Date(trip.created_at).toLocaleDateString()}</p>
-                                    <button onClick={() => { onLoadTrip(trip.trip_data, trip.id); setShowTrips(false); }} className="w-full bg-red-600 text-white py-1 rounded text-[10px] font-bold hover:bg-red-700">📥 Cargar</button>
-                                </div>
-                            ))}</div>
+                            <div className="space-y-2">
+                                {myTrips.map((trip) => (
+                                    <div key={trip.id} className="bg-white p-3 rounded border border-gray-200 shadow-sm hover:border-red-300 transition group">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <h4 className="text-xs font-bold text-gray-800 line-clamp-2 flex-1">{trip.name || 'Viaje sin nombre'}</h4>
+                                            
+                                            <div className="flex gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                {/* BOTÓN DEBUG (NUEVO) */}
+                                                <button 
+                                                    onClick={(e) => handleCopyDebugData(e, trip)} 
+                                                    className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
+                                                    title="Copiar Datos Técnicos (JSON)"
+                                                >
+                                                    <IconBug />
+                                                </button>
+                                                {/* BOTÓN BORRAR */}
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }} 
+                                                    className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
+                                                    title="Borrar Viaje"
+                                                >
+                                                    <IconTrash />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p className="text-[9px] text-gray-400 mb-2">{new Date(trip.created_at).toLocaleDateString()}</p>
+                                        <button onClick={() => { onLoadTrip(trip.trip_data, trip.id); setShowTrips(false); }} className="w-full bg-red-600 text-white py-1 rounded text-[10px] font-bold hover:bg-red-700">📥 Cargar</button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
