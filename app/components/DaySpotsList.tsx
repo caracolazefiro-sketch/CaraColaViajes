@@ -1,11 +1,10 @@
- 'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import { getWeatherIcon } from '../constants';
 import ElevationChart from './ElevationChart';
 import AddPlaceForm from './AddPlaceForm';
-// Hooks importados que deben existir en tu estructura:
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
 
@@ -22,7 +21,7 @@ const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
 };
 
-// Interfaz que usa el componente (Necesario tenerla aquí o importarla)
+// ✅ CORRECCIÓN 1: Añadimos 't' y 'convert' a la interfaz
 interface DaySpotsListProps { 
     day: DailyPlan;
     places: Record<ServiceType, PlaceWithDistance[]>;
@@ -33,18 +32,19 @@ interface DaySpotsListProps {
     onAddPlace: (place: PlaceWithDistance) => void;
     onRemovePlace: (placeId: string) => void;
     onHover: (place: PlaceWithDistance | null) => void;
+    t: (key: string) => string;
+    convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number;
 }
 
-const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover }) => {
+const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
+    day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover, 
+    t // ✅ CORRECCIÓN 2: Recibimos 't' (convert lo dejamos disponible pero no lo usamos visualmente aquí)
+}) => {
     
-    // Extracción de nombre de ciudad (limpio)
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
-    
-    // Hooks (Reemplaza la lógica interna que tenías)
     const { weather, weatherStatus } = useWeather(day.coordinates, day.isoDate);
     const { elevationData, loadingElevation, calculateElevation } = useElevation();
 
-    // Estado Formulario de Añadir/Editar Sitio Personalizado
     const [showForm, setShowForm] = useState(false);
     const [placeToEdit, setPlaceToEdit] = useState<PlaceWithDistance | null>(null);
 
@@ -101,7 +101,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         return (
             <div className="animate-fadeIn mt-4">
                 <h5 className={`text-xs font-bold ${colorClass} mb-2 border-b border-gray-100 pb-1 flex justify-between items-center`}><span className="flex items-center gap-1"><span>{icon}</span> {title}</span>{!isLoading && <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{list.length}</span>}</h5>
-                {isLoading && <p className="text-[10px] text-gray-400 animate-pulse">Buscando...</p>}
+                {isLoading && <p className="text-[10px] text-gray-400 animate-pulse">{t('FORM_LOADING')}</p>}
                 {!isLoading && list.length > 0 && (
                     <div className="space-y-2">
                         {list.map((spot, idx) => (
@@ -114,14 +114,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                 </div>
                                 {type === 'custom' || type === 'search' ? (
                                     <div className="flex gap-1">
-                                        {/* Botones de acción para Custom/Search */}
                                         {type === 'custom' && (
                                             <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                         )}
                                         <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : 'Elegir'}</button>
+                                    <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : t('MAP_ADD')}</button>
                                 )}
                             </div>
                         ))}
@@ -137,7 +136,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
             <div className="flex justify-between items-start">
                 <div>
                     <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
-                        {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
+                        {day.isDriving ? t('ITINERARY_DRIVING') : t('ITINERARY_STAY')}
                     </h4>
                     <p className="text-md font-semibold text-gray-800">
                         {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
@@ -145,7 +144,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                     <p className="text-xs text-gray-500 mt-1 font-mono">{day.date}</p>
                 </div>
                 <div className="bg-white/80 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[80px]">
-                    {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">Cargando...</div>}
+                    {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">{t('FORM_LOADING')}</div>}
                     {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 días</div>}
                     {weatherStatus === 'success' && weather && (
                         <><div className="text-2xl">{getWeatherIcon(weather.code)}</div><div className="text-xs font-bold text-gray-800">{Math.round(weather.maxTemp)}° <span className="text-gray-400">/ {Math.round(weather.minTemp)}°</span></div><div className="text-[10px] text-blue-600 font-bold">💧 {weather.rainProb}%</div></>
@@ -155,7 +154,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
 
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">
-                    <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> MI PLAN:</h5>
+                    <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> {t('ITINERARY_PLAN')}:</h5>
                     <div className="space-y-1">
                         {saved.map((place, i) => (
                             <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded cursor-pointer hover:bg-green-100" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)} onClick={() => handlePlaceClick(place)}>
@@ -185,7 +184,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
 
             {!showForm ? (
                 <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-black transition shadow-sm">
-                    <IconPlus /> Añadir Sitio Personalizado
+                    <IconPlus /> {t('MAP_ADD')} Sitio
                 </button>
             ) : (
                 <AddPlaceForm initialData={placeToEdit} rawCityName={rawCityName} onSave={handleFormSave} onCancel={handleFormCancel} />
@@ -195,26 +194,24 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-4">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span>🚐</span> Spots</div>
-                        <ServiceButton type="water" icon="💧" label="Aguas" />
-                        <ServiceButton type="gas" icon="⛽" label="Gas" />
-                        <ServiceButton type="restaurant" icon="🍳" label="Comer" />
-                        <ServiceButton type="supermarket" icon="🛒" label="Super" />
-                        <ServiceButton type="laundry" icon="🧺" label="Lavar" />
-                        <ServiceButton type="tourism" icon="📷" label="Turismo" />
-                        <ServiceButton type="custom" icon="⭐" label="Propios" />
+                        <ServiceButton type="water" icon="💧" label={t('SERVICE_WATER')} />
+                        <ServiceButton type="gas" icon="⛽" label={t('SERVICE_GAS')} />
+                        <ServiceButton type="restaurant" icon="🍳" label={t('SERVICE_EAT')} />
+                        <ServiceButton type="supermarket" icon="🛒" label={t('SERVICE_SUPERMARKET')} />
+                        <ServiceButton type="laundry" icon="🧺" label={t('SERVICE_LAUNDRY')} />
+                        <ServiceButton type="tourism" icon="📷" label={t('SERVICE_TOURISM')} />
+                        <ServiceButton type="custom" icon="⭐" label={t('SERVICE_CUSTOM')} />
                     </div>
                     <div className="space-y-2">
-                        <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
-                        <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" />
-                        <ServiceList type="gas" title="Gasolineras" colorClass="text-orange-600" icon="⛽" markerColor="bg-orange-500" />
-                        <ServiceList type="restaurant" title="Restaurantes" colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" />
-                        <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
-                        <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
-                        <ServiceList type="tourism" title="Turismo y Visitas" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
-                        <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" />
-                        
-                        {/* NUEVA LISTA: RESULTADOS DE BÚSQUEDA */}
-                        <ServiceList type="search" title="Resultados de Búsqueda" colorClass="text-purple-600" icon="🔎" markerColor="bg-purple-500" />
+                        <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
+                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" />
+                        <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" icon="⛽" markerColor="bg-orange-500" />
+                        <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" />
+                        <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
+                        <ServiceList type="laundry" title={t('SERVICE_LAUNDRY')} colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
+                        <ServiceList type="tourism" title={t('SERVICE_TOURISM')} colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
+                        <ServiceList type="custom" title={t('SERVICE_CUSTOM')} colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" />
+                        <ServiceList type="search" title={t('SERVICE_SEARCH')} colorClass="text-purple-600" icon="🔎" markerColor="bg-purple-500" />
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (
@@ -222,7 +219,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                                 <IconMountain /> Analizar Desnivel
                             </button>
                         )}
-                        {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">Calculando...</p>}
+                        {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">{t('FORM_LOADING')}</p>}
                         {elevationData && <ElevationChart data={elevationData} />}
                     </div>
                 </div>
@@ -232,4 +229,4 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     );
 };
 
-export default DaySpotsList; 
+export default DaySpotsList;
