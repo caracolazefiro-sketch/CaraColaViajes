@@ -62,6 +62,7 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
+  // ✅ CORRECCIÓN: Pasamos settings.units al hook
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
@@ -94,10 +95,26 @@ export default function Home() {
       handleToggle(type, day?.coordinates);
   };
 
+  // ✅ CORRECCIÓN CRÍTICA: Gestión de Zoom al volver a "General"
   const focusMapOnStage = async (dayIndex: number | null) => {
+    // CASO: Volver a la Vista General
     if (dayIndex === null) {
-        setSelectedDayIndex(null); setMapBounds(null); resetPlaces(); setHoveredPlace(null); return;
+        setSelectedDayIndex(null);
+        
+        // 🛠️ FIX: Forzamos los límites de la ruta completa (si existe)
+        // Esto le dice al mapa: "Oye, resetea el zoom AHORA", ignorando si el usuario lo había movido antes.
+        if (directionsResponse && directionsResponse.routes[0] && directionsResponse.routes[0].bounds) {
+             setMapBounds(directionsResponse.routes[0].bounds);
+        } else {
+             setMapBounds(null);
+        }
+
+        resetPlaces(); 
+        setHoveredPlace(null); 
+        return;
     }
+
+    // CASO: Ir a una Etapa Específica
     if (typeof google === 'undefined' || !results.dailyItinerary) return;
     const dailyPlan = results.dailyItinerary[dayIndex];
     if (!dailyPlan) return;
@@ -124,10 +141,15 @@ export default function Home() {
   };
 
   // EFECTO CRÍTICO DE FOCUS (Repintado de Zoom)
+  // Nota: Al usar setMapBounds arriba explícitamente, este efecto se disparará y el mapa obedecerá.
   useEffect(() => {
       if (map) {
           if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
-          else if (directionsResponse && selectedDayIndex === null) { const routeBounds = directionsResponse.routes[0].bounds; setTimeout(() => map.fitBounds(routeBounds), 500); }
+          else if (directionsResponse && selectedDayIndex === null) { 
+              // Este es el fallback inicial, pero ahora el botón General usa mapBounds explícito
+              const routeBounds = directionsResponse.routes[0].bounds; 
+              setTimeout(() => map.fitBounds(routeBounds), 500); 
+          }
       }
   }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
 
