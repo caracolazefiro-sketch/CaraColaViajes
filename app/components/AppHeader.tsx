@@ -35,6 +35,7 @@ export default function AppHeader({
 
                 {/* 2. ZONA DE USUARIO Y ACCIONES */}
                 <div className="flex items-center gap-4">
+                    {/* LE PASAMOS LA PROP T AL USERAREA */}
                     <UserArea onLoadTrip={onLoadTrip} t={t} /> 
                     
                     {/* SELECTOR DE IDIOMA */}

@@ -119,7 +119,7 @@ const translations: Record<Language, TranslationMap> = {
         'ITINERARY_PLAN': 'MY PLAN',
         'ITINERARY_PRINT': 'Print / Save PDF',
 
-        'MAP_SEARCH_PLACEHOLDER': 'Search in this area...',
+        'MAP_SEARCH_PLACEHOLDER': 'Search this area...',
         'MAP_ADD': 'Add',
 
         'SERVICE_WATER': 'Water',
@@ -163,28 +163,27 @@ export function useLanguage() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             localStorage.setItem('caracola_lang', language);
-            // Fuerza un repaint global para que Next.js sepa que el idioma ha cambiado
             document.documentElement.lang = language; 
         }
     }, [language]);
 
     // Función de traducción simple
     const t = (key: keyof TranslationMap | string): string => {
+        // Aseguramos que la salida sea siempre STRING
         return settings.translations[key] || key;
     };
     
     // Función de conversión (KM/Liters a Miles/Gallons/Euros a Dólares)
-    const convert = (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => {
+    const convert = (value: number, unit: 'km' | 'liter' | 'currency' | 'kph'): number => {
         if (settings.units === 'metric') {
             return value; // No conversion needed
         }
         
-        // Conversiones por cada unidad al sistema Imperial (EN)
         switch (unit) {
-            case 'km': return value * 0.621371; // Kilómetros (input) -> Millas (output)
-            case 'liter': return value * 0.264172; // Litros (input) -> Galones (output)
-            case 'currency': return value * 1.08; // Euro (input) -> Dólar (output - Tasa simple 1.08)
-            case 'kph': return value * 0.621371; // km/h (input) -> mi/h
+            case 'km': return value * 0.621371; 
+            case 'liter': return value * 0.264172; 
+            case 'currency': return value * 1.08; 
+            case 'kph': return value * 0.621371; 
             default: return value;
         }
     };

@@ -9,15 +9,17 @@ const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 
 
 interface UserAreaProps {
     onLoadTrip: (tripData: any, tripId: number) => void;
+    t: (key: string) => string; // AÑADIDA PROP T
 }
 
-export default function UserArea({ onLoadTrip }: UserAreaProps) {
+export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
     const [user, setUser] = useState<any>(null);
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [password, setPassword] = useState(''); 
     const [loading, setLoading] = useState(false);
     const [showTrips, setShowTrips] = useState(false);
     const [myTrips, setMyTrips] = useState<any[]>([]);
+    
     const [authMode, setAuthMode] = useState<'magic' | 'password' | 'register'>('magic');
 
     useEffect(() => {
@@ -26,102 +28,179 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
             setUser(session?.user || null);
         };
         checkUser();
+
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             setUser(session?.user || null);
         });
+
         return () => { authListener.subscription.unsubscribe(); };
     }, []);
 
     const handleMagicLogin = async (e: React.FormEvent) => {
         e.preventDefault(); setLoading(true);
-        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
-        setLoading(false); if (error) alert('Error: ' + error.message); else alert('¡Enlace enviado! Revisa tu correo.');
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.origin },
+        });
+        setLoading(false);
+        if (error) alert('Error: ' + error.message);
+        else alert(t('ALERT_LINK_SENT'));
     };
 
     const handlePasswordLogin = async (e: React.FormEvent) => {
         e.preventDefault(); setLoading(true);
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        setLoading(false); if (error) alert('Error: ' + error.message);
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+        setLoading(false);
+        if (error) alert('Error: ' + error.message);
     };
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault(); setLoading(true);
-        const { error } = await supabase.auth.signUp({ email, password });
-        setLoading(false); if (error) alert('Error: ' + error.message); else alert('¡Registro correcto! Revisa tu email.');
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+        });
+        setLoading(false);
+        if (error) alert('Error: ' + error.message);
+        else alert(t('ALERT_REGISTRATION_SUCCESS'));
     };
 
-    const handleLogout = async () => { await supabase.auth.signOut(); setShowTrips(false); };
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        setShowTrips(false);
+    };
 
     const loadMyTrips = async () => {
-        if (!user) return; setLoading(true);
-        const { data, error } = await supabase.from('trips').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-        if (!error) { setMyTrips(data || []); setShowTrips(true); } setLoading(false);
+        if (!user) return;
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('trips')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error("Error cargando viajes:", error);
+        } else {
+            setMyTrips(data || []);
+            setShowTrips(true);
+        }
+        setLoading(false);
     };
 
     const handleDeleteTrip = async (id: number) => {
-        if (!confirm("¿Seguro que quieres borrar este viaje de la nube?")) return;
+        if (!confirm(t('CONFIRM_DELETE_TRIP'))) return;
         const { error } = await supabase.from('trips').delete().eq('id', id);
-        if (!error) setMyTrips(prev => prev.filter(t => t.id !== id));
+        if (!error) {
+            setMyTrips(prev => prev.filter(t => t.id !== id));
+        }
     };
 
-    // --- NUEVA FUNCIÓN: COPIAR DATOS TÉCNICOS ---
     const handleCopyDebugData = (e: React.MouseEvent, trip: any) => {
-        e.stopPropagation(); // Evitar que se cargue el viaje al hacer clic
+        e.stopPropagation(); 
         const debugData = JSON.stringify(trip.trip_data, null, 2);
         navigator.clipboard.writeText(debugData)
-            .then(() => alert("📋 Datos del viaje copiados al portapapeles.\n\nAhora pégalos en el chat con tu Socio."))
+            .then(() => alert(t('ALERT_DEBUG_COPIED')))
             .catch(err => console.error("Error al copiar:", err));
     };
 
+    // --- RENDERIZADO: PANEL DE LOGIN ---
     if (!user) {
         return (
-            <div className="flex flex-col items-end gap-1">
-                <div className="flex gap-2 text-[10px] text-gray-500">
-                    <button onClick={() => setAuthMode('magic')} className={`hover:text-red-600 ${authMode === 'magic' ? 'font-bold text-red-600 underline' : ''}`}>Magic Link</button>
+            <div className="flex flex-col items-end gap-2">
+                {/* Selector de Modo */}
+                <div className="flex gap-2 text-[10px] text-gray-500 mb-1">
+                    <button onClick={() => setAuthMode('magic')} className={`hover:text-red-600 ${authMode === 'magic' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_MAGIC_LINK')}</button>
                     <span>|</span>
-                    <button onClick={() => setAuthMode('password')} className={`hover:text-red-600 ${authMode === 'password' ? 'font-bold text-red-600 underline' : ''}`}>Contraseña</button>
+                    <button onClick={() => setAuthMode('password')} className={`hover:text-red-600 ${authMode === 'password' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_PASSWORD')}</button>
                     <span>|</span>
-                    <button onClick={() => setAuthMode('register')} className={`hover:text-red-600 ${authMode === 'register' ? 'font-bold text-red-600 underline' : ''}`}>Registrarse</button>
+                    <button onClick={() => setAuthMode('register')} className={`hover:text-red-600 ${authMode === 'register' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_REGISTER')}</button>
                 </div>
-                <form onSubmit={authMode === 'magic' ? handleMagicLogin : (authMode === 'password' ? handlePasswordLogin : handleSignUp)} className="flex gap-2 items-center bg-white p-1 rounded border border-gray-200 shadow-sm">
-                    <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-xs w-32 focus:border-red-500 outline-none" required />
-                    {authMode !== 'magic' && <input type="password" placeholder="Clave" value={password} onChange={(e) => setPassword(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-xs w-24 focus:border-red-500 outline-none" required minLength={6} />}
-                    <button type="submit" disabled={loading} className="bg-gray-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap">{loading ? '...' : 'Entrar'}</button>
+
+                {/* Formulario Dinámico */}
+                <form onSubmit={authMode === 'magic' ? handleMagicLogin : (authMode === 'password' ? handlePasswordLogin : handleSignUp)} className="flex flex-col md:flex-row gap-2 items-center bg-white p-2 rounded border border-gray-200 shadow-sm">
+                    <input 
+                        type="email" 
+                        placeholder={t('AUTH_EMAIL_PLACEHOLDER')} 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="px-2 py-1 rounded border border-gray-300 text-xs w-32 focus:outline-none focus:border-red-500"
+                        required
+                    />
+                    
+                    {authMode !== 'magic' && (
+                        <input 
+                            type="password" 
+                            placeholder={t('AUTH_PASSWORD_PLACEHOLDER')} 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="px-2 py-1 rounded border border-gray-300 text-xs w-24 focus:outline-none focus:border-red-500"
+                            required
+                            minLength={6}
+                        />
+                    )}
+
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="bg-gray-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap"
+                    >
+                        {loading ? '...' : (authMode === 'magic' ? t('AUTH_SEND_LINK') : (authMode === 'register' ? t('AUTH_CREATE_ACCOUNT') : t('AUTH_LOGIN')))}
+                    </button>
                 </form>
             </div>
         );
     }
 
+    // --- RENDERIZADO: USUARIO LOGUEADO ---
     return (
-        <div className="flex items-center gap-4 relative">
-            <div className="text-right hidden md:flex items-center gap-2 text-xs text-gray-600">
-                <span>Hola,</span>
-                <span className="font-bold text-gray-900">{user.email}</span>
+        <div className="flex items-center gap-3 relative">
+            <div className="text-right hidden md:block">
+                <p className="text-[10px] text-gray-500">{t('HEADER_GREETING')}</p>
+                <p className="text-xs font-bold text-gray-800">{user.email}</p>
             </div>
             
-            <button onClick={() => showTrips ? setShowTrips(false) : loadMyTrips()} className="bg-red-50 text-red-700 border border-red-100 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 flex items-center gap-1 transition-colors">
-                📂 Mis Viajes
+            <button 
+                onClick={() => showTrips ? setShowTrips(false) : loadMyTrips()}
+                className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-200 flex items-center gap-1"
+            >
+                {t('HEADER_MY_TRIPS')}
             </button>
 
-            <button onClick={handleLogout} className="text-gray-400 hover:text-red-500 text-xs underline">Salir</button>
+            <button 
+                onClick={handleLogout}
+                className="text-gray-400 hover:text-red-500 text-xs underline"
+            >
+                {t('HEADER_LOGOUT')}
+            </button>
 
             {showTrips && (
                 <div className="absolute top-10 right-0 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-fadeIn text-left">
-                    <div className="bg-red-600 px-4 py-2 flex justify-between items-center text-white font-bold text-sm"><h3>📂 Archivo de Rutas</h3><button onClick={() => setShowTrips(false)}>✕</button></div>
+                    <div className="bg-red-600 px-4 py-2 flex justify-between items-center">
+                        <h3 className="text-white font-bold text-sm">{t('HEADER_ARCHIVE_TITLE')}</h3>
+                        <button onClick={() => setShowTrips(false)} className="text-white hover:text-gray-200">✕</button>
+                    </div>
                     <div className="max-h-60 overflow-y-auto p-2 bg-gray-50">
-                        {loading ? <p className="text-center text-xs text-gray-400 py-4">Cargando...</p> : myTrips.length === 0 ? <p className="text-center text-xs text-gray-400 py-4">Sin viajes guardados.</p> : (
+                        {loading ? (
+                            <p className="text-center text-xs text-gray-400 py-4">{t('LOADING_LIBRARY')}</p>
+                        ) : myTrips.length === 0 ? (
+                            <p className="text-center text-xs text-gray-400 py-4">{t('NO_TRIPS_SAVED')}</p>
+                        ) : (
                             <div className="space-y-2">
                                 {myTrips.map((trip) => (
                                     <div key={trip.id} className="bg-white p-3 rounded border border-gray-200 shadow-sm hover:border-red-300 transition group">
                                         <div className="flex justify-between items-start mb-1">
-                                            <h4 className="text-xs font-bold text-gray-800 line-clamp-2 flex-1">{trip.name || 'Viaje sin nombre'}</h4>
+                                            <h4 className="text-xs font-bold text-gray-800 line-clamp-2 flex-1">{trip.name || t('TRIP_UNNAMED')}</h4>
                                             
                                             <div className="flex gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
-                                                {/* BOTÓN DEBUG (NUEVO) */}
+                                                {/* BOTÓN DEBUG */}
                                                 <button 
                                                     onClick={(e) => handleCopyDebugData(e, trip)} 
                                                     className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50"
-                                                    title="Copiar Datos Técnicos (JSON)"
+                                                    title={t('ACTION_COPY_DEBUG')}
                                                 >
                                                     <IconBug />
                                                 </button>
@@ -129,14 +208,14 @@ export default function UserArea({ onLoadTrip }: UserAreaProps) {
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }} 
                                                     className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
-                                                    title="Borrar Viaje"
+                                                    title={t('ACTION_DELETE_TRIP')}
                                                 >
                                                     <IconTrash />
                                                 </button>
                                             </div>
                                         </div>
                                         <p className="text-[9px] text-gray-400 mb-2">{new Date(trip.created_at).toLocaleDateString()}</p>
-                                        <button onClick={() => { onLoadTrip(trip.trip_data, trip.id); setShowTrips(false); }} className="w-full bg-red-600 text-white py-1 rounded text-[10px] font-bold hover:bg-red-700">📥 Cargar</button>
+                                        <button onClick={() => { onLoadTrip(trip.trip_data, trip.id); setShowTrips(false); }} className="w-full bg-red-600 text-white py-1 rounded text-[10px] font-bold hover:bg-red-700">📥 {t('ACTION_LOAD_TRIP')}</button>
                                     </div>
                                 ))}
                             </div>

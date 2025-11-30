@@ -10,13 +10,13 @@ import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
-import UserArea from './components/UserArea'; // Importar UserArea para acceder a él en el renderizado
+import UserArea from './components/UserArea'; 
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
 import { useTripPersistence } from './hooks/useTripPersistence';
 import { useTripPlaces } from './hooks/useTripPlaces';
-import { useLanguage } from './hooks/useLanguage'; // <--- NUEVO
+import { useLanguage } from './hooks/useLanguage';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
@@ -39,7 +39,7 @@ export default function Home() {
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: LIBRARIES,
-    language: settings.lang, // Usamos el idioma del hook
+    language: 'es', // CRÍTICO: Idioma fijo para evitar errores de recarga
   });
 
   // --- ESTADOS DE UI ---
@@ -70,7 +70,7 @@ export default function Home() {
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
-  } = useTripCalculator(convert); // Pasamos convert
+  } = useTripCalculator(convert); 
 
   const { 
       places, loadingPlaces, toggles, 
@@ -170,14 +170,14 @@ export default function Home() {
       <div className="w-full max-w-6xl space-y-6">
         
         <div className="w-full no-print flex justify-between items-center pb-2">
-            <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} /> {/* <--- T pasado */}
+            <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} />
             
-            {/* SELECTOR DE IDIOMA (Bandera) */}
             <div className="flex items-center gap-2">
-                <UserArea onLoadTrip={handleLoadCloudTrip} t={t} /> {/* <-- T pasado */}
+                <UserArea onLoadTrip={handleLoadCloudTrip} t={t} /> 
+                {/* SELECTOR DE IDIOMA */}
                 <button 
                     onClick={() => setLang(language === 'es' ? 'en' : 'es')}
-                    title={language === 'es' ? 'Cambiar a Inglés' : 'Change to Spanish'}
+                    title={language === 'es' ? 'Change to English (Imperial)' : 'Cambiar a Español (Métrico)'}
                     className="p-1.5 rounded-full bg-white shadow-md hover:bg-gray-100 transition"
                 >
                     <span className="text-xl">{language === 'es' ? '🇪🇸' : '🇬🇧'}</span>
@@ -196,7 +196,7 @@ export default function Home() {
             onSubmit={handleCalculateWrapper} showWaypoints={showWaypoints} setShowWaypoints={setShowWaypoints}
             auditMode={auditMode} setAuditMode={setAuditMode} isSaving={isSaving} onSave={handleSaveToCloud}
             onShare={handleShareTrip} onReset={handleResetTrip} currentTripId={currentTripId}
-            t={t} convert={convert} // <--- T y CONVERT pasados
+            t={t} convert={convert}
         />
 
         {results.totalCost !== null && (
@@ -204,7 +204,7 @@ export default function Home() {
                 
                 <StageSelector 
                     dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} onSelectDay={focusMapOnStage} 
-                    t={t}
+                    t={t} settings={settings}
                 />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -214,7 +214,7 @@ export default function Home() {
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
                         onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                         onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
-                        onSelectDay={focusMapOnStage} t={t} convert={convert} // <--- T y CONVERT pasados
+                        onSelectDay={focusMapOnStage} t={t} convert={convert}
                     />
 
                     <TripMap 
