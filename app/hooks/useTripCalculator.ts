@@ -1,4 +1,3 @@
-// app/hooks/useTripCalculator.ts
 import { useState } from 'react';
 import { TripResult, DailyPlan } from '../types';
 
@@ -143,10 +142,16 @@ export function useTripCalculator() {
                         const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
                         if (stayDays > 0) {
                             const stayCity = endLegName;
+                            // ✅ CORRECCIÓN: Capturamos las coordenadas exactas de llegada
+                            const stayCoords = { lat: leg.end_location.lat(), lng: leg.end_location.lng() };
+
                             for(let d=0; d < stayDays; d++) {
                                 itinerary.push({ 
                                     day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
-                                    from: stayCity, to: stayCity, distance: 0, isDriving: false, type: 'overnight', savedPlaces: [] 
+                                    from: stayCity, to: stayCity, distance: 0, 
+                                    isDriving: false, type: 'overnight', 
+                                    coordinates: stayCoords, // ✅ PASAMOS LAS COORDENADAS
+                                    savedPlaces: [] 
                                 });
                                 dayCounter++; currentDate = addDay(currentDate);
                             }
@@ -161,11 +166,17 @@ export function useTripCalculator() {
                 const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 const finalLeg = route.legs[route.legs.length - 1];
                 const finalCity = await getCleanCityName(finalLeg.end_location.lat(), finalLeg.end_location.lng());
+                // ✅ CORRECCIÓN: Capturamos las coordenadas finales
+                const finalCoords = { lat: finalLeg.end_location.lat(), lng: finalLeg.end_location.lng() };
+
                 for(let i=0; i < stayDays; i++) {
                     dayCounter++; currentDate = addDay(currentDate);
                     itinerary.push({ 
                         day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
-                        from: finalCity, to: finalCity, distance: 0, isDriving: false, type: 'end', savedPlaces: [] 
+                        from: finalCity, to: finalCity, distance: 0, 
+                        isDriving: false, type: 'end', 
+                        coordinates: finalCoords, // ✅ PASAMOS LAS COORDENADAS
+                        savedPlaces: [] 
                     });
                 }
             }
@@ -203,7 +214,9 @@ export function useTripCalculator() {
         const newDay: DailyPlan = { 
             day: 0, date: '', isoDate: '', 
             from: previousDay.to, to: previousDay.to, distance: 0, isDriving: false, 
-            type: 'overnight', coordinates: previousDay.coordinates, savedPlaces: [] 
+            type: 'overnight', 
+            coordinates: previousDay.coordinates, // Aquí ya funcionaba porque copiaba del anterior
+            savedPlaces: [] 
         };
         currentItinerary.splice(index + 1, 0, newDay);
         const finalItinerary = recalculateDates(currentItinerary, startDate);
