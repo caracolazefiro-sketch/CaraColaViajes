@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TripResult, DailyPlan } from '../types';
+import { TripResult, DailyPlan, Coordinates } from '../types';
 
 // Definimos la interfaz del formulario aquí para tener tipado fuerte
 export interface TripFormData {
@@ -14,6 +14,12 @@ export interface TripFormData {
     evitarPeajes: boolean;
     vueltaACasa: boolean;
 }
+
+// Interfaz para la función de conversión (viene del hook de idioma)
+interface Converter {
+    (value: number, unit: 'km' | 'liter' | 'currency' | 'kph'): number;
+}
+
 
 // Helpers de fechas (privados del hook)
 const formatDate = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -36,7 +42,8 @@ const getCleanCityName = async (lat: number, lng: number): Promise<string> => {
     return "Punto en Ruta";
 };
 
-export function useTripCalculator() {
+// AHORA RECIBE LA FUNCIÓN 'convert'
+export function useTripCalculator(convert: Converter) {
     const [results, setResults] = useState<TripResult>({
         totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null
     });
@@ -77,7 +84,9 @@ export function useTripCalculator() {
             
             let dayCounter = 1;
             let currentDate = new Date(formData.fechaInicio);
-            const maxMeters = formData.kmMaximoDia * 1000;
+            
+            // CONVERSIÓN CRÍTICA: KM MÁXIMO debe convertirse a Metros
+            const maxMeters = convert(formData.kmMaximoDia, 'km') * 1000;
 
             // Nombre inicial limpio
             const startLoc = route.legs[0].start_location;
@@ -132,7 +141,7 @@ export function useTripCalculator() {
                 if (formData.vueltaACasa && i === outboundLegsCount - 1) {
                     let returnDistanceMeters = 0;
                     for(let k = i + 1; k < route.legs.length; k++) { returnDistanceMeters += route.legs[k].distance?.value || 0; }
-                    const daysDrivingBack = Math.ceil(returnDistanceMeters / (formData.kmMaximoDia * 1000));
+                    const daysDrivingBack = Math.ceil(returnDistanceMeters / maxMeters); // Usa maxMeters
                     
                     if (formData.fechaRegreso) {
                         const dateBackHome = new Date(formData.fechaRegreso);
@@ -142,7 +151,6 @@ export function useTripCalculator() {
                         const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
                         if (stayDays > 0) {
                             const stayCity = endLegName;
-                            // ✅ CORRECCIÓN: Capturamos las coordenadas exactas de llegada
                             const stayCoords = { lat: leg.end_location.lat(), lng: leg.end_location.lng() };
 
                             for(let d=0; d < stayDays; d++) {
@@ -150,7 +158,7 @@ export function useTripCalculator() {
                                     day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
                                     from: stayCity, to: stayCity, distance: 0, 
                                     isDriving: false, type: 'overnight', 
-                                    coordinates: stayCoords, // ✅ PASAMOS LAS COORDENADAS
+                                    coordinates: stayCoords, 
                                     savedPlaces: [] 
                                 });
                                 dayCounter++; currentDate = addDay(currentDate);
@@ -166,7 +174,6 @@ export function useTripCalculator() {
                 const stayDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 const finalLeg = route.legs[route.legs.length - 1];
                 const finalCity = await getCleanCityName(finalLeg.end_location.lat(), finalLeg.end_location.lng());
-                // ✅ CORRECCIÓN: Capturamos las coordenadas finales
                 const finalCoords = { lat: finalLeg.end_location.lat(), lng: finalLeg.end_location.lng() };
 
                 for(let i=0; i < stayDays; i++) {
@@ -175,14 +182,41 @@ export function useTripCalculator() {
                         day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
                         from: finalCity, to: finalCity, distance: 0, 
                         isDriving: false, type: 'end', 
-                        coordinates: finalCoords, // ✅ PASAMOS LAS COORDENADAS
+                        coordinates: finalCoords, 
                         savedPlaces: [] 
                     });
                 }
             }
 
-            const liters = (totalDistMeters / 1000 / 100) * formData.consumo;
-            setResults({ totalDays: dayCounter, distanceKm: totalDistMeters / 1000, totalCost: liters * formData.precioGasoil, dailyItinerary: itinerary, error: null });
+            // CÁLCULO FINAL: Conversion de KM/Liters a la unidad del usuario
+            const distanceInUserUnit = convert(totalDistMeters / 1000, 'km');
+            // Consumo en unidad Liters/100km
+            const fuelConsumptionPer100Km = formData.consumo; 
+            // Coste en unidad Euro
+            const fuelPricePerUnit = formData.precioGasoil; 
+            
+            // Calculamos los litros (KM totales / 100) * Litros/100km
+            const litersMetric = (totalDistMeters / 1000 / 100) * fuelConsumptionPer100Km;
+
+            // Coste TOTAL en EUROS (siempre se calcula en euros primero para simplificar)
+            const totalCostEuros = litersMetric * fuelPricePerUnit;
+            
+            // Convertimos LitersMetric a la unidad del usuario (Galones)
+            const litersInUserUnit = convert(litersMetric, 'liter');
+            
+            // Convertimos el Coste a la unidad del usuario (Dólares o Euros)
+            const costInUserUnit = convert(totalCostEuros, 'currency');
+
+
+            setResults({ 
+                totalDays: dayCounter, 
+                distanceKm: distanceInUserUnit, // Ya está en user unit
+                totalCost: costInUserUnit,     // Ya está en user unit
+                liters: litersInUserUnit,      // Nuevo, ya está en user unit
+                dailyItinerary: itinerary, 
+                error: null 
+            });
+
         } catch (error: any) {
             console.error(error);
             setResults(prev => ({...prev, error: "Error al calcular. Revisa las ciudades."}));
@@ -215,7 +249,7 @@ export function useTripCalculator() {
             day: 0, date: '', isoDate: '', 
             from: previousDay.to, to: previousDay.to, distance: 0, isDriving: false, 
             type: 'overnight', 
-            coordinates: previousDay.coordinates, // Aquí ya funcionaba porque copiaba del anterior
+            coordinates: previousDay.coordinates, 
             savedPlaces: [] 
         };
         currentItinerary.splice(index + 1, 0, newDay);
