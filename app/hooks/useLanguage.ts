@@ -210,12 +210,15 @@ export function useLanguage() {
         }
     }, [language]);
 
+    // FIX: Aseguramos que devuelve string, incluso si la key no existe
     const t = (key: string): string => {
         return settings.translations[key] || key;
     };
     
     const convert = (value: number, unit: 'km' | 'liter' | 'currency' | 'kph'): number => {
-        if (settings.units === 'metric') return value; 
+        if (settings.units === 'metric') {
+            return value; 
+        }
         switch (unit) {
             case 'km': return value * 0.621371; 
             case 'liter': return value * 0.264172; 
