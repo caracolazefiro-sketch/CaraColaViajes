@@ -10,7 +10,6 @@ import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
-import UserArea from './components/UserArea'; 
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
@@ -39,7 +38,7 @@ export default function Home() {
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: LIBRARIES,
-    language: 'es', // CRÍTICO: Idioma fijo para evitar errores de recarga
+    language: 'es', // IDIOMA FIJO para evitar recargas del mapa
   });
 
   // --- ESTADOS DE UI ---
@@ -169,20 +168,14 @@ export default function Home() {
       <style jsx global>{printStyles}</style>
       <div className="w-full max-w-6xl space-y-6">
         
-        <div className="w-full no-print flex justify-between items-center pb-2">
-            <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} />
-            
-            <div className="flex items-center gap-2">
-                <UserArea onLoadTrip={handleLoadCloudTrip} t={t} /> 
-                {/* SELECTOR DE IDIOMA */}
-                <button 
-                    onClick={() => setLang(language === 'es' ? 'en' : 'es')}
-                    title={language === 'es' ? 'Change to English (Imperial)' : 'Cambiar a Español (Métrico)'}
-                    className="p-1.5 rounded-full bg-white shadow-md hover:bg-gray-100 transition"
-                >
-                    <span className="text-xl">{language === 'es' ? '🇪🇸' : '🇬🇧'}</span>
-                </button>
-            </div>
+        {/* HEADER UNIFICADO (Contiene Logo, Banderas y Usuario) */}
+        <div className="w-full no-print">
+            <AppHeader 
+                onLoadTrip={handleLoadCloudTrip} 
+                t={t} 
+                setLang={setLang} 
+                language={language} 
+            />
         </div>
 
         <div className="print-only hidden text-center mb-10">
@@ -209,6 +202,7 @@ export default function Home() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
+                    {/* Mantenemos Itinerario Izquierda - Mapa Derecha */}
                     <ItineraryPanel 
                         dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
@@ -222,7 +216,6 @@ export default function Home() {
                         places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
                         onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
                         onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
-                        t={t}
                     />
                 </div>
             </div>

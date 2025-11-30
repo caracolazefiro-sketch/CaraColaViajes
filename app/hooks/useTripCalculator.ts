@@ -45,7 +45,7 @@ const getCleanCityName = async (lat: number, lng: number): Promise<string> => {
 // AHORA RECIBE LA FUNCIÓN 'convert'
 export function useTripCalculator(convert: Converter) {
     const [results, setResults] = useState<TripResult>({
-        totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null
+        totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null
     });
     const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
     const [loading, setLoading] = useState(false);
@@ -55,7 +55,7 @@ export function useTripCalculator(convert: Converter) {
         if (typeof google === 'undefined') return;
         setLoading(true);
         setDirectionsResponse(null);
-        setResults({ totalDays: null, distanceKm: null, totalCost: null, dailyItinerary: null, error: null });
+        setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
 
         const directionsService = new google.maps.DirectionsService();
         
