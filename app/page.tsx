@@ -65,7 +65,7 @@ export default function Home() {
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
-  } = useTripCalculator(convert); 
+  } = useTripCalculator(convert, settings.units); 
 
   const { 
       places, loadingPlaces, toggles, 
