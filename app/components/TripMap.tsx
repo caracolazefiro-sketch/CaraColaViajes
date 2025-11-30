@@ -8,7 +8,7 @@ import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 
-// ✅ CORRECCIÓN JSX: Eliminado atributo duplicado strokeLinecap
+// Iconos (JSX corregido)
 const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
@@ -55,26 +55,29 @@ export default function TripMap({
 
     return (
         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
-            {/* BÚSQUEDA FLOTANTE (Izquierda Arriba) */}
-            <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
+            <div className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
                     <button type="submit" className="p-2 text-gray-400 hover:text-blue-500"><IconSearch /></button>
-                    <input type="text" placeholder={searchPlaceholder} className="w-full text-xs outline-none text-gray-700" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <input 
+                        type="text" 
+                        placeholder={searchPlaceholder} 
+                        className="w-full text-xs outline-none text-gray-700"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                 </form>
                 {places.search && places.search.length > 0 && (
                     <button onClick={() => { setSearchQuery(''); onClearSearch(); }} className="p-2 text-gray-300 hover:text-red-500"><IconX /></button>
                 )}
             </div>
-
             <GoogleMap 
                 mapContainerStyle={containerStyle} center={center} zoom={6} 
                 onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}
                 options={{ 
                     zoomControl: true, streetViewControl: false, mapTypeControl: true, fullscreenControl: true,
-                    // ✅ CONTROLES MOVIDOS PARA NO CHOCAR
-                    mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_RIGHT },
-                    fullscreenControlOptions: { position: google.maps.ControlPosition.BOTTOM_RIGHT },
-                    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM }
+                    mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_LEFT },
+                    fullscreenControlOptions: { position: google.maps.ControlPosition.BOTTOM_LEFT },
+                    zoomControlOptions: { position: google.maps.ControlPosition.LEFT_TOP }
                 }}
             >
                 {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 }, suppressMarkers: false }} />}

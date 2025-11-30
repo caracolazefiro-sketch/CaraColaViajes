@@ -10,7 +10,6 @@ import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
-// UserArea NO SE IMPORTA AQUÍ, ESTÁ DENTRO DE APPHEADER
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
@@ -38,7 +37,7 @@ export default function Home() {
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: LIBRARIES,
-    language: 'es', // IDIOMA FIJO DEL MAPA BASE
+    language: 'es', // IDIOMA FIJO
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -170,7 +169,6 @@ export default function Home() {
             <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} setLang={setLang} language={language} />
         </div>
 
-        {/* TÍTULO SOLO PARA IMPRESIÓN */}
         <div className="print-only hidden text-center mb-10">
              <h1 className="text-4xl font-bold text-red-600 mb-2">{t('APP_TITLE')} 🐌</h1>
              <h2 className="text-2xl font-bold text-gray-800">{formData.origen} ➝ {formData.destino}</h2>

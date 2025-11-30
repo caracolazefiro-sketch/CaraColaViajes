@@ -36,7 +36,7 @@ export interface TripResult {
     totalDays: number | null; 
     distanceKm: number | null; 
     totalCost: number | null; 
-    liters?: number | null; 
+    liters?: number | null; // <--- AÑADIDO PARA EVITAR ERROR TS2353
     dailyItinerary: DailyPlan[] | null; 
     error: string | null; 
 }
