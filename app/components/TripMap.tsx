@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GoogleMap, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
 import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
@@ -8,7 +8,6 @@ import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 
-// Iconos (JSX corregido)
 const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
@@ -38,6 +37,33 @@ export default function TripMap({
 }: TripMapProps) {
 
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // 🧠 UX MEJORADA: Control de Zoom Manual
+    // Usamos un ref para saber si el usuario ya ha movido el mapa manualmente
+    const hasUserInteracted = useRef(false);
+
+    // Efecto para controlar el FitBounds de forma inteligente
+    useEffect(() => {
+        if (!mapInstance) return;
+
+        // CASO 1: Selección explícita de un día (Prioridad Alta)
+        if (mapBounds) {
+            mapInstance.fitBounds(mapBounds);
+            hasUserInteracted.current = false; // Reseteamos interacción al cambiar de día
+        } 
+        // CASO 2: Carga inicial de la ruta completa (Solo si no ha tocado el mapa)
+        else if (directionsResponse && !hasUserInteracted.current && selectedDayIndex === null) {
+            const routeBounds = directionsResponse.routes[0].bounds;
+            mapInstance.fitBounds(routeBounds);
+        }
+    }, [mapInstance, mapBounds, directionsResponse, selectedDayIndex]);
+
+    // Listener para detectar si el usuario mueve el mapa
+    const handleMapLoad = (map: google.maps.Map) => {
+        setMap(map);
+        map.addListener('dragstart', () => { hasUserInteracted.current = true; });
+        map.addListener('zoom_changed', () => { hasUserInteracted.current = true; });
+    };
 
     const handleSearchSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -72,7 +98,7 @@ export default function TripMap({
             </div>
             <GoogleMap 
                 mapContainerStyle={containerStyle} center={center} zoom={6} 
-                onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}
+                onLoad={handleMapLoad} // Usamos nuestro handler mejorado
                 options={{ 
                     zoomControl: true, streetViewControl: false, mapTypeControl: true, fullscreenControl: true,
                     mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_LEFT },
