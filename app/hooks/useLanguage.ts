@@ -62,6 +62,7 @@ const translations: Record<Language, TranslationMap> = {
         'FORM_VALIDATE': 'Validar',
         'LOCATION_VALIDATED': 'Ubicación validada',
         'LOCATION_NOT_FOUND': 'Google no ha podido localizar este sitio.',
+        
         'STATS_DAYS': 'días',
         'STATS_KM': 'km',
         'STATS_LITERS': 'litros',
