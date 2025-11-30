@@ -124,6 +124,14 @@ export default function Home() {
     }
   };
 
+  // EFECTO CRÍTICO DE RECENTRADOS Y ZAPATEADOS (Depende de mapBounds y selectedDayIndex)
+  useEffect(() => {
+      if (map) {
+          if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
+          else if (directionsResponse && selectedDayIndex === null) { const routeBounds = directionsResponse.routes[0].bounds; setTimeout(() => map.fitBounds(routeBounds), 500); }
+      }
+  }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]); // <<-- AÑADIDO selectedDayIndex A LAS DEPENDENCIAS
+
   const handlePlaceClick = (spot: PlaceWithDistance) => {
       if (spot.link) window.open(spot.link, '_blank');
       else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
@@ -189,7 +197,6 @@ export default function Home() {
                         setMap={setMap} mapBounds={mapBounds} directionsResponse={directionsResponse} dailyItinerary={results.dailyItinerary}
                         places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
                         onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
-                        // NUEVAS PROPS DE BÚSQUEDA
                         onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
                     />
                 </div>

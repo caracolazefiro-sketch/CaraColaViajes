@@ -8,9 +8,11 @@ import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 
+// Iconos (CORREGIDA SINTAXIS JSX)
 const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
-const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinecap="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
+const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
+
 
 interface TripMapProps {
     setMap: (map: google.maps.Map | null) => void;
@@ -55,9 +57,9 @@ export default function TripMap({
     return (
         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
             
-            {/* --- BARRA DE BÚSQUEDA FLOTANTE (Posicionada: top-4 right-4) --- */}
-            {/* Usamos right-4 para que no toque la esquina */}
-            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
+            {/* --- BARRA DE BÚSQUEDA FLOTANTE (Posicionada en superior DERECHA) --- */}
+            {/* Margen ajustado a right-12 para dar margen al botón de Pantalla Completa y Zoom */}
+            <div className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
                     <button type="submit" className="p-2 text-gray-400 hover:text-blue-500"><IconSearch /></button>
                     <input 
@@ -89,12 +91,18 @@ export default function TripMap({
                     streetViewControl: false, 
                     mapTypeControl: true,
                     fullscreenControl: true,
-                    // SOLUCIÓN: Desplazamos los controles de Google para evitar la colisión
+                    // SOLUCIÓN AL CONFLICTO: Desplazamos los controles de Google Maps
                     mapTypeControlOptions: {
-                        position: google.maps.ControlPosition.TOP_LEFT // Mueve Mapa/Satélite lejos
+                        // Mueve los botones Mapa/Satélite a la esquina superior izquierda
+                        position: google.maps.ControlPosition.TOP_LEFT 
                     },
                     fullscreenControlOptions: {
-                        position: google.maps.ControlPosition.BOTTOM_RIGHT // Mueve Pantalla Completa
+                        // Mueve el botón de Pantalla Completa a la esquina inferior izquierda
+                        position: google.maps.ControlPosition.BOTTOM_LEFT 
+                    },
+                    zoomControlOptions: {
+                        // Mueve los botones de Zoom a la esquina superior izquierda (justo debajo de Mapa/Satélite)
+                        position: google.maps.ControlPosition.LEFT_TOP
                     }
                 }}
             >
@@ -126,7 +134,8 @@ export default function TripMap({
                                     url: MARKER_ICONS[type], 
                                     scaledSize: new window.google.maps.Size(30, 30) 
                                 }}
-                                label={{ text: isSaved(spot.place_id) ? "✓" : undefined, color: "white", fontWeight: "bold", fontSize: "10px" }}
+                                // FIX TS2769: Usamos cadena vacía ('') en lugar de undefined
+                                label={{ text: isSaved(spot.place_id) ? "✓" : '', color: "white", fontWeight: "bold", fontSize: "10px" }}
                                 title={spot.name}
                                 onClick={() => setHoveredPlace(spot)}
                             />
