@@ -117,6 +117,7 @@ export default function TripForm({
     const unitLiter = convert(1, 'liter') === 1 ? 'L' : 'gal';
     const unitCurrency = convert(1, 'currency') === 1 ? '€' : '$';
     
+    // Mostramos los resultados ya convertidos usando el hook (liters ya está disponible en results debido al fix de types.ts)
     const displayKm = convert(results.distanceKm || 0, 'km').toFixed(0);
     const displayCost = convert(results.totalCost || 0, 'currency').toFixed(0);
     const displayDays = results.totalDays || '0';

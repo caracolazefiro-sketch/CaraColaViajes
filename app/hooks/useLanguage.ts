@@ -7,7 +7,7 @@ interface TranslationMap {
     [key: string]: string;
 }
 
-interface LanguageSettings {
+export interface LanguageSettings {
     lang: Language;
     units: UnitSystem;
     dateFormat: string; // DD/MM/YYYY vs MM/DD/YYYY

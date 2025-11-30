@@ -24,28 +24,21 @@ interface ItineraryPanelProps {
     onHover: (place: PlaceWithDistance | null) => void;
     onAddDay: (index: number) => void;
     onRemoveDay: (index: number) => void;
-    onSelectDay: (index: number) => void;
+    onSelectDay: (index: number | null) => void;
+    t: (key: string) => string; // Traducción
+    convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
 }
 
 export default function ItineraryPanel({
-    dailyItinerary,
-    selectedDayIndex,
-    origin,
-    destination,
-    places,
-    loadingPlaces,
-    toggles,
-    auditMode,
-    onToggle,
-    onAddPlace,
-    onRemovePlace,
-    onHover,
-    onAddDay,
-    onRemoveDay,
-    onSelectDay
+    dailyItinerary, selectedDayIndex, origin, destination, places, loadingPlaces,
+    toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
+    onAddDay, onRemoveDay, onSelectDay, t, convert
 }: ItineraryPanelProps) {
 
     if (!dailyItinerary) return null;
+
+    // Conversiones
+    const unitKm = convert(1, 'km') === 1 ? 'km' : 'mi';
 
     return (
         <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] print:h-auto print:overflow-visible">
@@ -54,91 +47,95 @@ export default function ItineraryPanel({
                 {selectedDayIndex === null ? (
                     // VISTA RESUMEN (LISTA DE DÍAS)
                     <div className="text-center pt-8 overflow-y-auto h-full p-4 print:h-auto print:overflow-visible">
-                        <h4 className="text-xl font-extrabold text-red-600 mb-1">Itinerario Completo</h4>
+                        <h4 className="text-xl font-extrabold text-red-600 mb-1">{t('ITINERARY_TITLE')}</h4>
                         <div className="text-sm font-bold text-gray-700 mb-2 bg-red-50 inline-block px-3 py-1 rounded-full">{origin} ➝ {destination}</div>
                         
                         <div className="flex justify-center mb-4 no-print">
                             <button onClick={() => window.print()} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-black transition shadow-lg">
-                                <IconPrint /> Imprimir / Guardar PDF
+                                <IconPrint /> {t('ITINERARY_PRINT')}
                             </button>
                         </div>
 
-                        <p className="text-xs text-gray-400 mb-4 no-print">Haz clic en una fila para ver detalles 👇</p>
+                        <p className="text-xs text-gray-400 mb-4 no-print">{t('CLICK_FOR_DETAILS')}</p>
                         
                         <div className="space-y-4 text-left">
-                            {dailyItinerary.map((day, index) => (
-                                <div 
-                                    key={index} 
-                                    onClick={() => onSelectDay(index)}
-                                    className="border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white print-break group"
-                                >
-                                    <div className="flex justify-between items-center mb-2">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="font-bold text-red-700 text-sm flex items-center gap-1">
-                                                {day.isDriving ? '🚐' : '🏖️'} Día {day.day}
-                                            </span>
-                                            <span className="text-xs text-gray-400 font-medium">
-                                                {day.date}
-                                            </span>
+                            {dailyItinerary.map((day, index) => {
+                                const displayDistance = convert(day.distance, 'km').toFixed(0);
+                                return (
+                                    <div 
+                                        key={index} 
+                                        onClick={() => onSelectDay(index)}
+                                        className="border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white print-break group"
+                                    >
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="font-bold text-red-700 text-sm flex items-center gap-1">
+                                                    {day.isDriving ? '🚐' : '🏖️'} {t('STATS_DAY')} {day.day}
+                                                </span>
+                                                <span className="text-xs text-gray-400 font-medium">
+                                                    {day.date}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                                    {day.isDriving ? `${displayDistance} ${unitKm}` : t('ITINERARY_RELAX')}
+                                                </span>
+                                                
+                                                <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); onAddDay(index); }}
+                                                        className="text-green-600 hover:bg-green-100 p-1.5 rounded-full text-xs font-bold border border-green-200 bg-white shadow-sm"
+                                                        title={t('ITINERARY_ADD_DAY')}
+                                                    >
+                                                        <IconPlusSm />
+                                                    </button>
+                                                    {!day.isDriving && (
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); onRemoveDay(index); }}
+                                                            className="text-red-500 hover:bg-red-100 p-1.5 rounded-full text-xs font-bold border border-red-200 bg-white shadow-sm"
+                                                            title={t('ITINERARY_REMOVE_DAY')}
+                                                        >
+                                                            <IconTrashSm />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-gray-800 font-medium mb-2">
+                                            {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                         </div>
                                         
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                {day.isDriving ? `${day.distance.toFixed(0)} km` : 'Relax'}
-                                            </span>
-                                            
-                                            {/* --- AQUÍ ESTÁN LOS BOTONES PERDIDOS --- */}
-                                            <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); onAddDay(index); }}
-                                                    className="text-green-600 hover:bg-green-100 p-1.5 rounded-full text-xs font-bold border border-green-200 bg-white shadow-sm"
-                                                    title="Añadir un día de estancia aquí"
-                                                >
-                                                    <IconPlusSm />
-                                                </button>
-                                                {!day.isDriving && (
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); onRemoveDay(index); }}
-                                                        className="text-red-500 hover:bg-red-100 p-1.5 rounded-full text-xs font-bold border border-red-200 bg-white shadow-sm"
-                                                        title="Eliminar este día"
-                                                    >
-                                                        <IconTrashSm />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            {/* ------------------------------------- */}
-                                        </div>
-                                    </div>
-                                    <div className="text-xs text-gray-800 font-medium mb-2">
-                                        {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
-                                    </div>
-                                    
-                                    {day.savedPlaces && day.savedPlaces.length > 0 && (
-                                        <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
-                                            {day.savedPlaces.map((place, i) => (
-                                                <div key={i} className="text-xs text-gray-700 flex items-start gap-2">
-                                                    <span className="font-bold text-lg leading-none">
-                                                       {place.type === 'camping' ? '🚐' : 
-                                                        place.type === 'restaurant' ? '🍳' : 
-                                                        place.type === 'water' ? '💧' :
-                                                        place.type === 'gas' ? '⛽' :
-                                                        place.type === 'supermarket' ? '🛒' :
-                                                        place.type === 'laundry' ? '🧺' :
-                                                        place.type === 'tourism' ? '📷' : '⭐'}
-                                                    </span>
-                                                    <div>
-                                                        <span className="font-bold block text-green-800">{place.name}</span>
-                                                        <span className="text-[10px] text-gray-500">{place.vicinity}</span>
+                                        {/* LISTA DE SITIOS GUARDADOS EN EL RESUMEN */}
+                                        {day.savedPlaces && day.savedPlaces.length > 0 && (
+                                            <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                                                <h6 className="text-[10px] font-bold text-green-700">{t('ITINERARY_PLAN')}:</h6>
+                                                {day.savedPlaces.map((place, i) => (
+                                                    <div key={i} className="text-xs text-gray-700 flex items-start gap-2">
+                                                        <span className="font-bold text-lg leading-none">
+                                                        {place.type === 'camping' ? '🚐' : 
+                                                            place.type === 'restaurant' ? '🍳' : 
+                                                            place.type === 'water' ? '💧' :
+                                                            place.type === 'gas' ? '⛽' :
+                                                            place.type === 'supermarket' ? '🛒' :
+                                                            place.type === 'laundry' ? '🧺' :
+                                                            place.type === 'tourism' ? '📷' : '⭐'}
+                                                        </span>
+                                                        <div>
+                                                            <span className="font-bold block text-green-800">{place.name}</span>
+                                                            <span className="text-[10px] text-gray-500">{place.vicinity}</span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
                     </div>
                 ) : (
+                    // VISTA DETALLE
                     <DaySpotsList 
                         day={dailyItinerary[selectedDayIndex]} 
                         places={places} 
@@ -149,6 +146,7 @@ export default function ItineraryPanel({
                         onAddPlace={onAddPlace} 
                         onRemovePlace={onRemovePlace} 
                         onHover={onHover}
+                        t={t} convert={convert}
                     />
                 )}
             </div>
