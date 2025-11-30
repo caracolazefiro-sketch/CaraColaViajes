@@ -263,7 +263,8 @@ export default function Home() {
                         hoveredPlace={hoveredPlace}
                         setHoveredPlace={setHoveredPlace}
                         onPlaceClick={handlePlaceClick}
-                    />
+                        onAddPlace={handleAddPlace} // <--- ¡CONECTADO!
+                    />               
                 </div>
             </div>
         )}
