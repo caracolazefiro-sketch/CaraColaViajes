@@ -1,5 +1,3 @@
-// app/constants.ts
-
 export const MARKER_ICONS: Record<string, string> = {
     camping: "https://maps.google.com/mapfiles/kml/shapes/bus.png",      
     restaurant: "https://maps.google.com/mapfiles/kml/shapes/dining.png",   
@@ -8,7 +6,8 @@ export const MARKER_ICONS: Record<string, string> = {
     supermarket: "https://maps.google.com/mapfiles/kml/shapes/shopping.png",  
     laundry: "https://maps.google.com/mapfiles/kml/shapes/laundry.png",    
     tourism: "https://maps.google.com/mapfiles/kml/shapes/camera.png",    
-    custom: "https://maps.google.com/mapfiles/kml/shapes/star.png" // ⭐ ESTRELLA AMARILLA GRANDE
+    custom: "https://maps.google.com/mapfiles/kml/shapes/star.png",
+    search: "https://maps.google.com/mapfiles/kml/shapes/open-diamond.png" // 🟣 NUEVO: Icono distintivo para búsquedas libres
 };
 
 export const ICONS_ITINERARY = {

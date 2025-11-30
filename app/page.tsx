@@ -4,19 +4,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { Coordinates, PlaceWithDistance, ServiceType } from './types';
 
-// IMPORTAMOS NUESTROS COMPONENTES VISUALES
+// COMPONENTES
 import AppHeader from './components/AppHeader';
 import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 
-// IMPORTAMOS LOS GANCHOS DE LÓGICA (HOOKS) 🧠
+// HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
 import { useTripPersistence } from './hooks/useTripPersistence';
 import { useTripPlaces } from './hooks/useTripPlaces';
 
-// --- CONFIGURACIÓN ---
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
 const printStyles = `
@@ -38,7 +37,7 @@ export default function Home() {
     language: 'es' 
   });
 
-  // --- 1. ESTADOS DE UI (Visuales puros) ---
+  // --- ESTADOS DE UI ---
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
@@ -46,7 +45,7 @@ export default function Home() {
   const [auditMode, setAuditMode] = useState(false); 
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // --- 2. ESTADOS DE DATOS (Formulario) ---
+  // --- ESTADOS DE DATOS ---
   const [formData, setFormData] = useState({
     fechaInicio: new Date().toISOString().split('T')[0],
     origen: 'Salamanca',
@@ -62,84 +61,56 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // --- 3. HOOKS DE LÓGICA ---
-  
-  // A) CEREBRO DE CÁLCULO (Rutas y Fechas)
+  // --- HOOKS ---
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
   } = useTripCalculator();
 
-  // B) CEREBRO DE LUGARES (POIs y Buscador)
   const { 
       places, loadingPlaces, toggles, 
-      searchPlaces, handleToggle, resetPlaces 
+      searchPlaces, searchByQuery, clearSearch, handleToggle, resetPlaces 
   } = useTripPlaces(map);
 
-  // C) CEREBRO DE MEMORIA (Supabase / LocalStorage)
   const { isSaving, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
-      formData, setFormData, 
-      results, setResults, 
-      currentTripId, setCurrentTripId,
-      () => {
-          // Callback para limpiar la UI al cargar un viaje
-          setSelectedDayIndex(null);
-          setMapBounds(null);
-          setForceUpdate(prev => prev + 1);
-      }
+      formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
+      () => { setSelectedDayIndex(null); setMapBounds(null); setForceUpdate(prev => prev + 1); }
   );
 
-  // --- 4. HANDLERS INTERMEDIOS (Conectores) ---
-  
+  // --- HANDLERS ---
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
-      setSelectedDayIndex(null); 
-      setCurrentTripId(null); 
-      resetPlaces(); // Reseteamos filtros al recalcular
+      setSelectedDayIndex(null); setCurrentTripId(null); resetPlaces(); 
       calculateRoute(formData);
   };
 
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => { 
       if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
       const geocoder = new google.maps.Geocoder(); 
-      try { 
-          const response = await geocoder.geocode({ address: cityName }); 
-          if (response.results.length > 0) return response.results[0].geometry.location.toJSON(); 
-      } catch (e) { } 
-      return null; 
+      try { const response = await geocoder.geocode({ address: cityName }); if (response.results.length > 0) return response.results[0].geometry.location.toJSON(); } catch (e) { } return null; 
   };
 
-  // Wrapper para el Toggle que inyecta las coordenadas del día seleccionado
   const handleToggleWrapper = (type: ServiceType) => {
       const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
       handleToggle(type, day?.coordinates);
   };
 
-  // Lógica de "Enfocar Etapa"
   const focusMapOnStage = async (dayIndex: number | null) => {
     if (dayIndex === null) {
-        setSelectedDayIndex(null); 
-        setMapBounds(null); 
-        resetPlaces();
-        setHoveredPlace(null);
-        return;
+        setSelectedDayIndex(null); setMapBounds(null); resetPlaces(); setHoveredPlace(null); return;
     }
-    
     if (typeof google === 'undefined' || !results.dailyItinerary) return;
     const dailyPlan = results.dailyItinerary[dayIndex];
     if (!dailyPlan) return;
     
-    setSelectedDayIndex(dayIndex); 
-    resetPlaces();
-    setHoveredPlace(null);
+    setSelectedDayIndex(dayIndex); resetPlaces(); setHoveredPlace(null);
 
-    // Buscar y Centrar
     if (dailyPlan.coordinates) {
         const bounds = new google.maps.LatLngBounds();
         bounds.extend({ lat: dailyPlan.coordinates.lat + 0.4, lng: dailyPlan.coordinates.lng + 0.4 });
         bounds.extend({ lat: dailyPlan.coordinates.lat - 0.4, lng: dailyPlan.coordinates.lng - 0.4 });
         setMapBounds(bounds);
-        searchPlaces(dailyPlan.coordinates, 'camping'); // Búsqueda automática inicial
+        searchPlaces(dailyPlan.coordinates, 'camping'); 
     } else {
         const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
         const coord = await geocodeCity(cleanTo);
@@ -152,14 +123,6 @@ export default function Home() {
         }
     }
   };
-
-  // Efecto para ajustar el zoom del mapa cuando cambian los límites
-  useEffect(() => {
-      if (map) {
-          if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
-          else if (directionsResponse && selectedDayIndex === null) { const routeBounds = directionsResponse.routes[0].bounds; setTimeout(() => map.fitBounds(routeBounds), 500); }
-      }
-  }, [map, mapBounds, directionsResponse, selectedDayIndex, forceUpdate]);
 
   const handlePlaceClick = (spot: PlaceWithDistance) => {
       if (spot.link) window.open(spot.link, '_blank');
@@ -194,7 +157,6 @@ export default function Home() {
       <style jsx global>{printStyles}</style>
       <div className="w-full max-w-6xl space-y-6">
         
-        {/* HEADER LIMPIO */}
         <div className="w-full no-print">
             <AppHeader onLoadTrip={handleLoadCloudTrip} />
         </div>
@@ -205,66 +167,31 @@ export default function Home() {
              <p className="text-gray-500">Itinerario generado el {new Date().toLocaleDateString()}</p>
         </div>
 
-        {/* FORMULARIO CON SUPERPODERES */}
         <TripForm 
-            formData={formData} 
-            setFormData={setFormData} 
-            loading={loading} 
-            results={results} 
-            onSubmit={handleCalculateWrapper} 
-            showWaypoints={showWaypoints} 
-            setShowWaypoints={setShowWaypoints}
-            // PASAMOS LAS ACCIONES AQUÍ
-            auditMode={auditMode} setAuditMode={setAuditMode}
-            isSaving={isSaving} onSave={handleSaveToCloud}
-            onShare={handleShareTrip} onReset={handleResetTrip}
-            currentTripId={currentTripId}
+            formData={formData} setFormData={setFormData} loading={loading} results={results} 
+            onSubmit={handleCalculateWrapper} showWaypoints={showWaypoints} setShowWaypoints={setShowWaypoints}
+            auditMode={auditMode} setAuditMode={setAuditMode} isSaving={isSaving} onSave={handleSaveToCloud}
+            onShare={handleShareTrip} onReset={handleResetTrip} currentTripId={currentTripId}
         />
 
         {results.totalCost !== null && (
             <div className="space-y-6 animate-fadeIn">
-                
-                <StageSelector 
-                    dailyItinerary={results.dailyItinerary} 
-                    selectedDayIndex={selectedDayIndex} 
-                    onSelectDay={focusMapOnStage} 
-                />
-
+                <StageSelector dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} onSelectDay={focusMapOnStage} />
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    {/* PANEL ITINERARIO (IZQUIERDA) */}
                     <ItineraryPanel 
-                        dailyItinerary={results.dailyItinerary}
-                        selectedDayIndex={selectedDayIndex}
-                        origin={formData.origen}
-                        destination={formData.destino}
-                        places={places}
-                        loadingPlaces={loadingPlaces}
-                        toggles={toggles}
-                        auditMode={auditMode}
-                        onToggle={handleToggleWrapper}
-                        onAddPlace={handleAddPlace}
-                        onRemovePlace={handleRemovePlace}
-                        onHover={setHoveredPlace}
-                        onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)}
-                        onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
+                        dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
+                        places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
+                        onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
+                        onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
                         onSelectDay={focusMapOnStage}
                     />
-
-                    {/* MAPA (DERECHA) */}
                     <TripMap 
-                        setMap={setMap}
-                        mapBounds={mapBounds}
-                        directionsResponse={directionsResponse}
-                        dailyItinerary={results.dailyItinerary}
-                        places={places}
-                        toggles={toggles}
-                        selectedDayIndex={selectedDayIndex}
-                        hoveredPlace={hoveredPlace}
-                        setHoveredPlace={setHoveredPlace}
-                        onPlaceClick={handlePlaceClick}
-                        onAddPlace={handleAddPlace} // <--- ¡CONECTADO!
-                    />               
+                        setMap={setMap} mapBounds={mapBounds} directionsResponse={directionsResponse} dailyItinerary={results.dailyItinerary}
+                        places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
+                        onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
+                        // NUEVAS PROPS DE BÚSQUEDA
+                        onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
+                    />
                 </div>
             </div>
         )}
