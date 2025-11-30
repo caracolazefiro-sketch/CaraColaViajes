@@ -1,4 +1,4 @@
-} from 'react';
+import { useState, useCallback } from 'react';
 import { Coordinates, PlaceWithDistance, ServiceType } from '../types';
 
 export function useTripPlaces(map: google.maps.Map | null) {
