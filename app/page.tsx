@@ -10,6 +10,7 @@ import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
+// UserArea NO SE IMPORTA AQUÍ, ESTÁ DENTRO DE APPHEADER
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
@@ -31,17 +32,15 @@ const printStyles = `
 `;
 
 export default function Home() {
-  // --- HOOK DE IDIOMA ---
   const { settings, t, convert, setLang, language } = useLanguage();
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: LIBRARIES,
-    language: 'es', // CRÍTICO: Idioma fijo para evitar errores de recarga
+    language: 'es', // IDIOMA FIJO DEL MAPA BASE
   });
 
-  // --- ESTADOS DE UI ---
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
@@ -49,7 +48,6 @@ export default function Home() {
   const [auditMode, setAuditMode] = useState(false); 
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // --- ESTADOS DE DATOS ---
   const [formData, setFormData] = useState({
     fechaInicio: new Date().toISOString().split('T')[0],
     origen: 'Salamanca',
@@ -65,7 +63,6 @@ export default function Home() {
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
 
-  // --- HOOKS ---
   const { 
       results, setResults, directionsResponse, setDirectionsResponse, 
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
@@ -81,7 +78,6 @@ export default function Home() {
       () => { setSelectedDayIndex(null); setMapBounds(null); setForceUpdate(prev => prev + 1); }
   );
 
-  // --- HANDLERS ---
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
       setSelectedDayIndex(null); setCurrentTripId(null); resetPlaces(); 
@@ -128,6 +124,7 @@ export default function Home() {
     }
   };
 
+  // EFECTO CRÍTICO DE FOCUS (Repintado de Zoom)
   useEffect(() => {
       if (map) {
           if (mapBounds) { setTimeout(() => map.fitBounds(mapBounds), 500); } 
@@ -168,16 +165,12 @@ export default function Home() {
       <style jsx global>{printStyles}</style>
       <div className="w-full max-w-6xl space-y-6">
         
-        {/* HEADER UNIFICADO (Contiene Logo, Banderas y Usuario) */}
+        {/* HEADER ÚNICO Y LIMPIO */}
         <div className="w-full no-print">
-            <AppHeader 
-                onLoadTrip={handleLoadCloudTrip} 
-                t={t} 
-                setLang={setLang} 
-                language={language} 
-            />
+            <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} setLang={setLang} language={language} />
         </div>
 
+        {/* TÍTULO SOLO PARA IMPRESIÓN */}
         <div className="print-only hidden text-center mb-10">
              <h1 className="text-4xl font-bold text-red-600 mb-2">{t('APP_TITLE')} 🐌</h1>
              <h2 className="text-2xl font-bold text-gray-800">{formData.origen} ➝ {formData.destino}</h2>
@@ -202,7 +195,6 @@ export default function Home() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    {/* Mantenemos Itinerario Izquierda - Mapa Derecha */}
                     <ItineraryPanel 
                         dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}

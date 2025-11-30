@@ -8,7 +8,7 @@ import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 
-// Iconos (Sintaxis JSX corregida)
+// ✅ CORRECCIÓN JSX: Eliminado atributo duplicado strokeLinecap
 const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
@@ -28,7 +28,7 @@ interface TripMapProps {
     onSearch: (query: string, lat: number, lng: number) => void;
     onClearSearch: () => void;
     mapInstance: google.maps.Map | null; 
-    t?: (key: string) => string; // Opcional para que no rompa si no se pasa
+    t?: (key: string) => string;
 }
 
 export default function TripMap({
@@ -55,93 +55,47 @@ export default function TripMap({
 
     return (
         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
-            
-            {/* --- BARRA DE BÚSQUEDA FLOTANTE (Posicionada en superior DERECHA) --- */}
-            {/* La barra se mueve a right-4 para dejar espacio al botón de Pantalla Completa que forzaremos a la esquina inferior IZQ */}
-            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
+            {/* BÚSQUEDA FLOTANTE (Izquierda Arriba) */}
+            <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
                     <button type="submit" className="p-2 text-gray-400 hover:text-blue-500"><IconSearch /></button>
-                    <input 
-                        type="text" 
-                        placeholder={searchPlaceholder} 
-                        className="w-full text-xs outline-none text-gray-700"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                    <input type="text" placeholder={searchPlaceholder} className="w-full text-xs outline-none text-gray-700" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </form>
                 {places.search && places.search.length > 0 && (
-                    <button 
-                        onClick={() => { setSearchQuery(''); onClearSearch(); }} 
-                        className="p-2 text-gray-300 hover:text-red-500"
-                        title="Borrar resultados"
-                    >
-                        <IconX />
-                    </button>
+                    <button onClick={() => { setSearchQuery(''); onClearSearch(); }} className="p-2 text-gray-300 hover:text-red-500"><IconX /></button>
                 )}
             </div>
 
             <GoogleMap 
-                mapContainerStyle={containerStyle} 
-                center={center} 
-                zoom={6} 
+                mapContainerStyle={containerStyle} center={center} zoom={6} 
                 onLoad={map => { setMap(map); if (mapBounds) map.fitBounds(mapBounds); }}
                 options={{ 
-                    zoomControl: true, 
-                    streetViewControl: false, 
-                    mapTypeControl: true,
-                    fullscreenControl: true,
-                    // SOLUCIÓN AL CONFLICTO: Desplazamos los controles de Google Maps
-                    mapTypeControlOptions: {
-                        // Mueve los botones Mapa/Satélite a la esquina superior IZQUIERDA
-                        position: google.maps.ControlPosition.TOP_LEFT 
-                    },
-                    fullscreenControlOptions: {
-                        // Mueve el botón de Pantalla Completa a la esquina inferior IZQUIERDA
-                        position: google.maps.ControlPosition.BOTTOM_LEFT 
-                    },
-                    zoomControlOptions: {
-                        // Mueve los botones de Zoom a la esquina inferior DERECHA (posición por defecto, pero ahora libre)
-                        position: google.maps.ControlPosition.RIGHT_BOTTOM
-                    }
+                    zoomControl: true, streetViewControl: false, mapTypeControl: true, fullscreenControl: true,
+                    // ✅ CONTROLES MOVIDOS PARA NO CHOCAR
+                    mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_RIGHT },
+                    fullscreenControlOptions: { position: google.maps.ControlPosition.BOTTOM_RIGHT },
+                    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM }
                 }}
             >
                 {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 }, suppressMarkers: false }} />}
-                
                 {dailyItinerary?.map((day, i) => day.coordinates && (
                     <Marker key={`itinerary-${i}`} position={day.coordinates} icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd} title={day.to} label={{ text: `${i+1}`, color: "white", fontSize: "10px", fontWeight: "bold" }} />
                 ))}
-
                 {Object.keys(places).map((key) => {
                     const type = key as ServiceType;
-                    
                     if (!toggles[type] && type !== 'search') return null;
                     if (type === 'search' && (!places.search || places.search.length === 0)) return null;
-
                     const savedDay = selectedDayIndex !== null ? dailyItinerary![selectedDayIndex] : null;
                     const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
                     let listToRender = type === 'custom' ? savedOfType : [...savedOfType, ...places[type]];
                     if (type === 'search') listToRender = places.search; 
-
                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
-                    
                     return uniqueRender.map((spot, i) => (
                         spot.geometry?.location && (
-                            <Marker 
-                                key={`${type}-${i}`} 
-                                position={spot.geometry.location} 
-                                icon={{ 
-                                    url: MARKER_ICONS[type], 
-                                    scaledSize: new window.google.maps.Size(30, 30) 
-                                }}
-                                // FIX TS2769: Usamos cadena vacía ('') en lugar de undefined para evitar el error TS2769
-                                label={{ text: isSaved(spot.place_id) ? "✓" : '', color: "white", fontWeight: "bold", fontSize: "10px" }}
-                                title={spot.name}
-                                onClick={() => setHoveredPlace(spot)}
-                            />
+                            <Marker key={`${type}-${i}`} position={spot.geometry.location} icon={{ url: MARKER_ICONS[type], scaledSize: new window.google.maps.Size(30, 30) }} label={{ text: isSaved(spot.place_id) ? "✓" : '', color: "white", fontWeight: "bold", fontSize: "10px" }} title={spot.name} onClick={() => setHoveredPlace(spot)} />
                         )
                     ));
                 })}
-
                 {hoveredPlace && hoveredPlace.geometry?.location && (
                     <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -35) }}>
                         <div className="p-0 w-[220px] overflow-hidden font-sans">
@@ -151,9 +105,7 @@ export default function TripMap({
                                 <div className="flex items-center gap-2 text-xs text-orange-500 font-bold mb-2"><span>{hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}</span></div>
                                 <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{hoveredPlace.vicinity}</p>
                                 <div className="flex gap-2">
-                                    {selectedDayIndex !== null && !isSaved(hoveredPlace.place_id) && (
-                                        <button onClick={() => { onAddPlace(hoveredPlace); setHoveredPlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>
-                                    )}
+                                    {selectedDayIndex !== null && !isSaved(hoveredPlace.place_id) && (<button onClick={() => { onAddPlace(hoveredPlace); setHoveredPlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}
                                     <button onClick={() => onPlaceClick(hoveredPlace)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold py-1.5 rounded border border-blue-200 transition-colors">Ver en Google</button>
                                 </div>
                                 {selectedDayIndex === null && <p className="text-[9px] text-red-500 mt-2 text-center italic">Selecciona un día para añadir.</p>}

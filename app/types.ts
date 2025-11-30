@@ -6,16 +6,16 @@ export interface PlaceWithDistance {
     name?: string;
     rating?: number;
     user_ratings_total?: number;
-    vicinity?: string; // Dirección o Descripción visual
+    vicinity?: string; 
     place_id?: string;
     opening_hours?: { isOpen?: () => boolean; open_now?: boolean };
-    geometry?: { location?: any; }; // Aquí guardaremos las coordenadas para el mapa
+    geometry?: { location?: any; }; 
     distanceFromCenter?: number; 
     type?: ServiceType;
     photoUrl?: string;
     types?: string[]; 
-    link?: string; // URL externa (P4N, web...)
-    isPublic?: boolean; // Control de privacidad
+    link?: string; 
+    isPublic?: boolean; 
 }
 
 export interface DailyPlan { 
@@ -31,12 +31,12 @@ export interface DailyPlan {
     savedPlaces?: PlaceWithDistance[]; 
 }
 
-// TIPOS CORREGIDOS: Añadida la propiedad 'liters'
+// ✅ CORREGIDO: Añadida propiedad 'liters'
 export interface TripResult { 
     totalDays: number | null; 
     distanceKm: number | null; 
     totalCost: number | null; 
-    liters?: number | null; // ✅ AÑADIDO PARA CALCULAR EL COMBUSTIBLE
+    liters?: number | null; 
     dailyItinerary: DailyPlan[] | null; 
     error: string | null; 
 }
