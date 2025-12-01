@@ -67,17 +67,30 @@ const ServiceList: React.FC<ServiceListProps> = ({
     type, title, colorClass, icon, markerColor, places, loading, toggles, saved, t, isSaved, onAddPlace, onRemovePlace, onHover, handlePlaceClick, handleEditStart, auditMode
 }) => {
     const isSpecialType = type === 'search' || type === 'custom';
-    const hasResults = places[type]?.length > 0 || saved.filter(s => s.type === type).length > 0;
+    const savedOfType = saved.filter(s => s.type === type);
+    const hasResults = places[type]?.length > 0 || savedOfType.length > 0;
     
-    if (!toggles[type] && type !== 'camping' && !isSpecialType) return null;
+    // Si toggle OFF y no hay lugares guardados → no mostrar nada
+    if (!toggles[type] && savedOfType.length === 0 && !isSpecialType) return null;
     if (type === 'search' && !hasResults && !toggles[type]) return null;
     if (type === 'custom' && !hasResults) return null;
 
-    const savedOfType = saved.filter(s => s.type === type);
-    let list = places[type];
-    if (type === 'custom') list = savedOfType;
-    else if (savedOfType.length > 0 && type !== 'search') list = [...savedOfType, ...list].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
-    else if (savedOfType.length > 0 && type === 'search') list = savedOfType; 
+    // Construir lista: siempre mostrar guardados, añadir búsquedas solo si toggle ON
+    let list: PlaceWithDistance[] = [];
+    if (type === 'custom') {
+        list = savedOfType;
+    } else if (savedOfType.length > 0 && toggles[type]) {
+        // Toggle ON: guardados + búsquedas
+        list = [...savedOfType, ...places[type]].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
+    } else if (savedOfType.length > 0 && !toggles[type]) {
+        // Toggle OFF: solo guardados
+        list = savedOfType;
+    } else if (toggles[type]) {
+        // Toggle ON sin guardados: solo búsquedas
+        list = places[type];
+    } else if (type === 'search') {
+        list = savedOfType;
+    }
 
     const isLoading = loading[type];
     if (type === 'custom' && list.length === 0) return null;
@@ -373,14 +386,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-4">
-                        <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center">
-                            <span>🚐</span> Spots
-                            {places.camping?.length > 0 && (
-                                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-200 text-red-800">
-                                    {places.camping.length}
-                                </span>
-                            )}
-                        </div>
+                        <ServiceButton type="camping" icon="🚐" label="Spots" toggles={toggles} onToggle={onToggle} count={places.camping?.length || 0} />
                         <ServiceButton type="water" icon="💧" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} count={places.water?.length || 0} />
                         <ServiceButton type="gas" icon="⛽" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} count={places.gas?.length || 0} />
                         <ServiceButton type="restaurant" icon="🍳" label={t('SERVICE_EAT')} toggles={toggles} onToggle={onToggle} count={places.restaurant?.length || 0} />

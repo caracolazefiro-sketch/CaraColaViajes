@@ -183,7 +183,7 @@ export default function TripMap({
                         // Lugares guardados siempre visibles
                         listToRender = [...savedOfType];
                     }
-                    if (toggles[type] || type === 'camping') {
+                    if (toggles[type]) {
                         // Añadir resultados de búsqueda si toggle ON
                         if (type === 'custom') {
                             listToRender = savedOfType;
