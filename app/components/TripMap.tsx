@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 import { GoogleMap, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
 import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
@@ -25,12 +24,11 @@ const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
         );
     }
     
+    // Usar img nativo para URLs de Google Maps PhotoService que no funcionan con Next.js Image
     return (
-        <Image 
+        <img 
             src={place.photoUrl} 
             alt={place.name || 'Lugar'} 
-            width={220} 
-            height={112} 
             className="w-full h-28 object-cover rounded-t-lg"
             onError={() => setImageError(true)}
         />
