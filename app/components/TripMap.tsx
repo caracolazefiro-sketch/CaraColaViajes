@@ -203,11 +203,10 @@ export default function TripMap({
                                 position={spot.geometry.location} 
                                 icon={{ url: MARKER_ICONS[type], scaledSize: new window.google.maps.Size(30, 30) }} 
                                 label={{ text: isSaved(spot.place_id) ? "✓" : '', color: "white", fontWeight: "bold", fontSize: "10px" }} 
-                                title={spot.name} 
-                                onClick={() => {
-                                    console.log('🖱️ Click en marcador:', spot.name);
-                                    setHoveredPlace(spot);
-                                }} 
+                                title={spot.name}
+                                onClick={() => setHoveredPlace(spot)}
+                                onMouseOver={() => setHoveredPlace(spot)}
+                                onMouseOut={() => setHoveredPlace(null)}
                             />
                         )
                     ));
