@@ -13,6 +13,30 @@ const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className=
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
 
+// Helper component for InfoWindow image with error handling
+const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
+    const [imageError, setImageError] = useState(false);
+    
+    if (!place.photoUrl || place.photoUrl.trim() === '' || imageError) {
+        return (
+            <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-4xl text-gray-300 rounded-t-lg">
+                {place.type === 'search' ? '🟣' : place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : '📍'}
+            </div>
+        );
+    }
+    
+    return (
+        <Image 
+            src={place.photoUrl} 
+            alt={place.name || 'Lugar'} 
+            width={220} 
+            height={112} 
+            className="w-full h-28 object-cover rounded-t-lg"
+            onError={() => setImageError(true)}
+        />
+    );
+};
+
 interface TripMapProps {
     setMap: (map: google.maps.Map | null) => void;
     mapBounds: google.maps.LatLngBounds | null;
@@ -168,26 +192,7 @@ export default function TripMap({
                 {hoveredPlace && hoveredPlace.geometry?.location && (
                     <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -35) }}>
                         <div className="p-0 w-[220px] overflow-hidden font-sans">
-                            {hoveredPlace.photoUrl && hoveredPlace.photoUrl.trim() !== '' ? (
-                                <Image 
-                                    src={hoveredPlace.photoUrl} 
-                                    alt={hoveredPlace.name || 'Lugar'} 
-                                    width={220} 
-                                    height={112} 
-                                    className="w-full h-28 object-cover rounded-t-lg"
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                        if (fallback) fallback.style.display = 'flex';
-                                    }}
-                                />
-                            ) : null}
-                            <div 
-                                className="w-full h-28 bg-gray-100 flex items-center justify-center text-4xl text-gray-300 rounded-t-lg"
-                                style={{ display: hoveredPlace.photoUrl && hoveredPlace.photoUrl.trim() !== '' ? 'none' : 'flex' }}
-                            >
-                                {hoveredPlace.type === 'search' ? '🟣' : hoveredPlace.type === 'camping' ? '🚐' : hoveredPlace.type === 'restaurant' ? '🍳' : '📍'}
-                            </div>
+                            <InfoWindowImage place={hoveredPlace} />
                             <div className="p-3 bg-white">
                                 <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight line-clamp-2">{hoveredPlace.name}</h6>
                                 <div className="flex items-center gap-2 text-xs text-orange-500 font-bold mb-2"><span>{hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}</span></div>
