@@ -59,14 +59,17 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     let dist = 999999;
                     if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
                     
-                    // Construir URL de foto usando photo_reference directamente
+                    // Obtener URL de foto
                     let photoUrl: string | undefined;
                     if (spot.photos && spot.photos.length > 0) {
-                        const photoRef = (spot.photos[0] as any).photo_reference;
-                        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-                        if (photoRef && apiKey) {
-                            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${apiKey}`;
+                        try {
+                            photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
+                            console.log(`[${type}] Photo for ${spot.name}:`, photoUrl);
+                        } catch (e) {
+                            console.warn(`[${type}] Error getting photo URL for`, spot.name, ':', e);
                         }
+                    } else {
+                        console.log(`[${type}] No photos available for ${spot.name}`);
                     }
                     
                     // Convertir geometry de Google Maps a nuestro formato
@@ -131,14 +134,17 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     let dist = 999999;
                     if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
                     
-                    // Construir URL de foto usando photo_reference directamente
+                    // Obtener URL de foto
                     let photoUrl: string | undefined;
                     if (spot.photos && spot.photos.length > 0) {
-                        const photoRef = (spot.photos[0] as any).photo_reference;
-                        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-                        if (photoRef && apiKey) {
-                            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${apiKey}`;
+                        try {
+                            photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
+                            console.log(`[search] Photo for ${spot.name}:`, photoUrl);
+                        } catch (e) {
+                            console.warn(`[search] Error getting photo URL for`, spot.name, ':', e);
                         }
+                    } else {
+                        console.log(`[search] No photos available for ${spot.name}`);
                     }
                     
                     // Convertir geometry de Google Maps a nuestro formato
