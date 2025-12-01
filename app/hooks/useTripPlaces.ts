@@ -97,8 +97,14 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     let razon = '';
                     
                     if (type === 'camping') {
-                        pasa = tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && /camping|area|camper|autocaravana/i.test(spot.name || ''));
-                        if (!pasa) razon = 'No es campground, rv_park ni parking con nombre camping/autocaravana';
+                        // Filtro estricto: debe ser campground/rv_park Y NO ser tienda/ferretería
+                        const esCamping = tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && /camping|area|camper|autocaravana/i.test(spot.name || ''));
+                        const esTienda = tags.includes('hardware_store') || tags.includes('store') || tags.includes('locksmith') || tags.includes('clothing_store') || tags.includes('sporting_goods_store') || tags.includes('shopping_mall');
+                        pasa = esCamping && !esTienda;
+                        if (!pasa) {
+                            if (esTienda) razon = 'Es tienda/ferretería, no camping real';
+                            else razon = 'No es campground, rv_park ni parking con nombre camping/autocaravana';
+                        }
                     } else if (type === 'gas') {
                         pasa = tags.includes('gas_station');
                         if (!pasa) razon = 'No tiene tag gas_station';
