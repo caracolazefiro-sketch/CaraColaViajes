@@ -32,9 +32,27 @@ if (process.env[supabaseVars[0]] && process.env[supabaseVars[1]]) {
 
 if (hasError) {
   if (process.env.CI) {
-    warn("CI detected: missing required env vars. Skipping failure in CI — set secrets to fully validate.");
+    // If the repository provided secrets to the workflow (they will appear
+    // in process.env), treat this run as strict and fail when missing vars.
+    const secretKeys = [
+      'GOOGLE_MAPS_API_KEY_FIXED',
+      'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY',
+      'NEXT_PUBLIC_SUPABASE_URL',
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    ];
+    const hasSecrets = secretKeys.some((k) => !!process.env[k]);
+
+    if (hasSecrets) {
+      err('CI: required environment variables appear to be configured but some are missing — failing.');
+      process.exit(1);
+    }
+
+    // No secrets provided in CI: warn but don't fail (keeps PRs green for forks).
+    warn("CI detected but no secrets provided; skipping failure. To enforce checks, add required secrets to repository settings.");
     process.exit(0);
   }
+
   process.exit(1);
 }
+
 process.exit(0);
