@@ -94,8 +94,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                         maxTemp: data.daily.temperature_2m_max[0], 
                         minTemp: data.daily.temperature_2m_min[0], 
                         rainProb: data.daily.precipitation_probability_max[0],
-                        // AGREGAMOS windSpeed con el valor de la API (o 0 como fallback seguro)
-                        windSpeed: data.daily.wind_speed_10m_max?.[0] ?? 0
+                        windSpeed: data.daily.wind_speed_10m_max?.[0] ?? 0 // Corregido el error de 'windSpeed'
                     });
                     setWeatherStatus('success');
                 } else setWeatherStatus('error');
@@ -155,7 +154,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         const newPlace: PlaceWithDistance = {
             name: customName, vicinity: customDesc, link: customLink, place_id: `custom-${Date.now()}`, 
             type: customType, rating: 0, distanceFromCenter: 0, types: ['custom'], geometry: geometry,
-            isPublic: customPublic // ESTA PROPIEDAD AHORA EXISTE EN PlaceWithDistance
+            isPublic: customPublic // Esta propiedad ahora existe en PlaceWithDistance
         };
         onAddPlace(newPlace);
         // Reset

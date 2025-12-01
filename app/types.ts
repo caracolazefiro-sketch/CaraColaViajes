@@ -16,7 +16,7 @@ export interface PlaceWithDistance {
     photoUrl?: string;
     types?: string[]; 
     link?: string; // NUEVO: Para guardar la URL exacta (P4N, web del restaurante...)
-    isPublic?: boolean; // <--- AÑADIDO: Corrige el error de DaySpotsList.tsx
+    isPublic?: boolean; // CORRECCIÓN: Permite guardar el estado de privacidad
 }
 
 export interface DailyPlan { 
@@ -45,5 +45,5 @@ export interface WeatherData {
     maxTemp: number; 
     minTemp: number; 
     rainProb: number; 
-    windSpeed: number; // <--- CORREGIDO: Necesario para el objeto de clima
+    windSpeed: number; // CORRECCIÓN: Campo requerido por DaySpotsList.tsx
 }

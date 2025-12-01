@@ -56,7 +56,7 @@ export default function TripForm({ formData, setFormData, loading, results, onSu
         const place = ref.current?.getPlace();
         if (place && place.formatted_address) {
             if (field === 'tempStop') setTempStop(place.formatted_address);
-            // FIX 1: Parámetro 'prev' tipado
+            // FIX: Parámetro 'prev' tipado
             else setFormData((prev: Record<string, any>) => ({ ...prev, [field]: place.formatted_address }));
         }
     };
@@ -69,7 +69,7 @@ export default function TripForm({ formData, setFormData, loading, results, onSu
         geocoder.geocode({ address: value }, (results, status) => {
             if (status === 'OK' && results && results[0]) {
                 const cleanAddress = results[0].formatted_address;
-                // FIX 2: Parámetro 'prev' tipado
+                // FIX: Parámetro 'prev' tipado
                 setFormData((prev: Record<string, any>) => ({ ...prev, [field]: cleanAddress }));
                 alert(`✅ Ubicación validada:\n"${cleanAddress}"`);
             } else {
@@ -254,7 +254,7 @@ export default function TripForm({ formData, setFormData, loading, results, onSu
                             <input type="checkbox" id="evitarPeajes" checked={formData.evitarPeajes} onChange={handleChange} className="text-red-600 rounded focus:ring-red-500" />
                             🚫 Evitar Peajes
                         </label>
-                        <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded font-bold text-sm hover:from-red-700 hover:shadow-lg transition transform hover:-translate-y-0.5 disabled:opacity-50">
+                        <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded font-bold text-sm hover:from-red-700 hover:-translate-y-0.5 transition disabled:opacity-50">
                             {loading ? 'Calculando Ruta...' : '🚀 Calcular Itinerario'}
                         </button>
                     </div>

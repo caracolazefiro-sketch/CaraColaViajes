@@ -42,7 +42,7 @@ interface ItineraryPanelProps {
     onSelectDay: (index: number) => void;
 }
 
-export default function ItineraryPanel({ // ESTO ARREGLA EL ERROR DE EXPORTACIÓN
+export default function ItineraryPanel({ 
     dailyItinerary,
     selectedDayIndex,
     origin,
