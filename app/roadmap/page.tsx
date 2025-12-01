@@ -226,15 +226,28 @@ export default function RoadmapPage() {
                             <textarea
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
-                                className="w-full h-[600px] p-4 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full h-[600px] p-4 border-2 border-blue-300 rounded-lg font-mono text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-600 placeholder-gray-400"
                                 placeholder="# Título
 
-- Item 1
-- Item 2"
+## Subtítulo
+
+- [ ] Tarea pendiente
+- [x] Tarea completada
+
+**Texto en negrita**
+`código`"
                             />
-                            <p className="mt-2 text-xs text-gray-500">
-                                💡 Usa Markdown: # títulos, **negrita**, - listas, `código`, etc.
-                            </p>
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-xs font-medium text-blue-900 mb-2">💡 Sintaxis Markdown:</p>
+                                <div className="grid grid-cols-2 gap-2 text-xs text-blue-800">
+                                    <div><code className="bg-white px-2 py-0.5 rounded"># Título grande</code></div>
+                                    <div><code className="bg-white px-2 py-0.5 rounded">## Subtítulo</code></div>
+                                    <div><code className="bg-white px-2 py-0.5 rounded">**Negrita**</code></div>
+                                    <div><code className="bg-white px-2 py-0.5 rounded">`código`</code></div>
+                                    <div><code className="bg-white px-2 py-0.5 rounded">- Lista</code></div>
+                                    <div><code className="bg-white px-2 py-0.5 rounded">- [ ] Checkbox</code></div>
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <div className="prose prose-blue max-w-none">
@@ -256,25 +269,40 @@ export default function RoadmapPage() {
                                 }
                                 // Listas
                                 if (line.startsWith('- ')) {
-                                    return <li key={idx} className="ml-6 text-gray-700">{line.replace('- ', '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')}</li>;
+                                    const htmlContent = line
+                                        .replace('- ', '')
+                                        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+                                        .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono text-blue-600">$1</code>');
+                                    return <li key={idx} className="ml-6 my-1 text-gray-700" dangerouslySetInnerHTML={{ __html: htmlContent }} />;
                                 }
                                 // Checkboxes
                                 if (line.includes('[ ]') || line.includes('[x]') || line.includes('[X]')) {
                                     const checked = line.includes('[x]') || line.includes('[X]');
                                     const text = line.replace(/- \[([ xX])\] /, '');
+                                    const htmlText = text
+                                        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+                                        .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono text-blue-600">$1</code>');
                                     return (
-                                        <div key={idx} className="flex items-center gap-2 ml-6 my-1">
-                                            <input type="checkbox" checked={checked} readOnly className="rounded" />
-                                            <span className={checked ? 'line-through text-gray-500' : 'text-gray-700'}>{text}</span>
+                                        <div key={idx} className="flex items-start gap-2 ml-6 my-2">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={checked} 
+                                                readOnly 
+                                                className="mt-0.5 rounded border-gray-300 text-green-600 focus:ring-green-500" 
+                                            />
+                                            <span 
+                                                className={checked ? 'line-through text-gray-400' : 'text-gray-700'}
+                                                dangerouslySetInnerHTML={{ __html: htmlText }}
+                                            />
                                         </div>
                                     );
                                 }
                                 // Párrafos normales
                                 if (line.trim()) {
-                                    return <p key={idx} className="mb-2 text-gray-700" dangerouslySetInnerHTML={{
+                                    return <p key={idx} className="mb-2 text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{
                                         __html: line
-                                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                            .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded text-sm">$1</code>')
+                                            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                                            .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono text-blue-600">$1</code>')
                                     }} />;
                                 }
                                 return <br key={idx} />;
