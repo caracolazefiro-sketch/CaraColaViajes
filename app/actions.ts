@@ -1,4 +1,4 @@
-'use server';
+ 'use server';
 
 // Definiciones de interfaces locales para el server action
 interface DailyPlan {
@@ -110,9 +110,20 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
     
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY_FIXED || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    // Prefer a server-side API key for Google Maps. If a server key is not set,
+    // fall back to the public key if available, but return a clear error when
+    // neither exists.
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY_FIXED ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-    if (!apiKey) return { error: "Clave de API no configurada." };
+    if (!apiKey) {
+        return { error: "Clave de API de Google Maps no configurada. Configure 'GOOGLE_MAPS_API_KEY_FIXED' (preferido) o 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'." };
+    }
+
+    if (!process.env.GOOGLE_MAPS_API_KEY_FIXED) {
+        // Server-side log to warn maintainers that a client key is being used as fallback.
+        // In production, set a server-only key in 'GOOGLE_MAPS_API_KEY_FIXED'.
+        console.warn("Usando clave pública de Google Maps como fallback. Configure 'GOOGLE_MAPS_API_KEY_FIXED' en entorno de servidor para producción.");
+    }
 
     const allStops = [data.origin, ...data.waypoints.filter(w => w), data.destination];
     const waypointsParam = data.waypoints.length > 0 ? `&waypoints=${data.waypoints.map(w => encodeURIComponent(w)).join('|')}` : '';

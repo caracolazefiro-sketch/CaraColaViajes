@@ -23,11 +23,24 @@ Para arrancar el proyecto en local:
     npm install
     ```
 3.  **Variables de Entorno:**
-    Crear un archivo `.env.local` en la raíz con:
+    Crear un archivo `.env.local` en la raíz con (ejemplo):
     ```env
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=TU_API_KEY_AQUI
-    NEXT_PUBLIC_GOOGLE_SEARCH_API_KEY=TU_API_KEY_AQUI (Opcional si volvemos a CSE)
-    NEXT_PUBLIC_GOOGLE_SEARCH_CX=TU_CX_ID (Opcional si volvemos a CSE)
+    # Preferible: clave de servidor para llamadas a Google desde server-side
+    GOOGLE_MAPS_API_KEY_FIXED=TU_API_KEY_SERVIDOR
+
+    # Clave pública usada por el cliente (fallback)
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=TU_API_KEY_PUBLICA
+
+    # (Opcional) variables para Supabase si las necesitas
+    NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
+    ```
+
+    Recomendación: Configure `GOOGLE_MAPS_API_KEY_FIXED` en entorno de servidor para peticiones que no deben exponer la clave.
+
+    Puedes comprobar rápidamente las variables con el script:
+    ```powershell
+    node scripts/check-env.js
     ```
 4.  **Arrancar:**
     ```bash
