@@ -82,7 +82,7 @@ export default function SharedTripPage() {
 
     useEffect(() => {
         const fetchTrip = async () => {
-            if (!params.id) return;
+            if (!params.id || !supabase) return;
             
             const { data, error } = await supabase
                 .from('trips')

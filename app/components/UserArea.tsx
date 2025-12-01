@@ -42,6 +42,7 @@ export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
     const [authMode, setAuthMode] = useState<'magic' | 'password' | 'register'>('magic');
 
     useEffect(() => {
+        if (!supabase) return;
         const checkUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             setUser(session?.user || null);
@@ -53,7 +54,9 @@ export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
     }, []);
 
     const handleMagicLogin = async (e: React.FormEvent) => {
-        e.preventDefault(); setLoading(true);
+        e.preventDefault();
+        if (!supabase) return;
+        setLoading(true);
         const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
         setLoading(false);
         if (error) alert('Error: ' + error.message);
@@ -61,29 +64,33 @@ export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
     };
 
     const handlePasswordLogin = async (e: React.FormEvent) => {
-        e.preventDefault(); setLoading(true);
+        e.preventDefault();
+        if (!supabase) return;
+        setLoading(true);
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         setLoading(false); if (error) alert('Error: ' + error.message);
     };
 
     const handleSignUp = async (e: React.FormEvent) => {
-        e.preventDefault(); setLoading(true);
+        e.preventDefault();
+        if (!supabase) return;
+        setLoading(true);
         const { error } = await supabase.auth.signUp({ email, password });
         setLoading(false);
         if (error) alert('Error: ' + error.message);
         else alert(t('ALERT_REGISTRATION_SUCCESS'));
     };
 
-    const handleLogout = async () => { await supabase.auth.signOut(); setShowTrips(false); };
+    const handleLogout = async () => { if (!supabase) return; await supabase.auth.signOut(); setShowTrips(false); };
 
     const loadMyTrips = async () => {
-        if (!user) return; setLoading(true);
+        if (!user || !supabase) return; setLoading(true);
         const { data, error } = await supabase.from('trips').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
         if (!error) { setMyTrips(data || []); setShowTrips(true); } setLoading(false);
     };
 
     const handleDeleteTrip = async (id: number) => {
-        if (!confirm(t('CONFIRM_DELETE_TRIP'))) return;
+        if (!confirm(t('CONFIRM_DELETE_TRIP')) || !supabase) return;
         const { error } = await supabase.from('trips').delete().eq('id', id);
         if (!error) setMyTrips(prev => prev.filter(t => t.id !== id));
     };
