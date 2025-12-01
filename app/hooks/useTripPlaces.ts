@@ -58,7 +58,17 @@ export function useTripPlaces(map: google.maps.Map | null) {
                 let spots = res.map(spot => {
                     let dist = 999999;
                     if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
-                    const photoUrl = spot.photos?.[0]?.getUrl({ maxWidth: 200 });
+                    
+                    // Construir URL de foto usando photo_reference directamente
+                    let photoUrl: string | undefined;
+                    if (spot.photos && spot.photos.length > 0) {
+                        const photoRef = (spot.photos[0] as any).photo_reference;
+                        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+                        if (photoRef && apiKey) {
+                            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${apiKey}`;
+                        }
+                    }
+                    
                     // Convertir geometry de Google Maps a nuestro formato
                     const geometry = spot.geometry?.location ? {
                         location: {
@@ -120,7 +130,17 @@ export function useTripPlaces(map: google.maps.Map | null) {
                  finalSpots = res.map(spot => {
                     let dist = 999999;
                     if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
-                    const photoUrl = spot.photos?.[0]?.getUrl({ maxWidth: 200 });
+                    
+                    // Construir URL de foto usando photo_reference directamente
+                    let photoUrl: string | undefined;
+                    if (spot.photos && spot.photos.length > 0) {
+                        const photoRef = (spot.photos[0] as any).photo_reference;
+                        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+                        if (photoRef && apiKey) {
+                            photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoRef}&key=${apiKey}`;
+                        }
+                    }
+                    
                     // Convertir geometry de Google Maps a nuestro formato
                     const geometry = spot.geometry?.location ? {
                         location: {

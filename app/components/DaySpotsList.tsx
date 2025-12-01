@@ -127,6 +127,15 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                                 ID: {spot.place_id}
                                             </div>
                                         )}
+                                        {spot.photoUrl ? (
+                                            <div className="text-[8px] text-green-600 font-mono">
+                                                📷 Foto disponible
+                                            </div>
+                                        ) : (
+                                            <div className="text-[8px] text-red-600 font-mono">
+                                                ❌ Sin foto
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
