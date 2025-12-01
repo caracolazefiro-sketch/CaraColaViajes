@@ -168,7 +168,26 @@ export default function TripMap({
                 {hoveredPlace && hoveredPlace.geometry?.location && (
                     <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -35) }}>
                         <div className="p-0 w-[220px] overflow-hidden font-sans">
-                            {hoveredPlace.photoUrl && hoveredPlace.photoUrl.trim() !== '' ? <Image src={hoveredPlace.photoUrl} alt={hoveredPlace.name || 'Lugar'} width={220} height={112} className="w-full h-28 object-cover rounded-t-lg" /> : <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-4xl text-gray-300">{hoveredPlace.type === 'search' ? '🟣' : '📍'}</div>}
+                            {hoveredPlace.photoUrl && hoveredPlace.photoUrl.trim() !== '' ? (
+                                <Image 
+                                    src={hoveredPlace.photoUrl} 
+                                    alt={hoveredPlace.name || 'Lugar'} 
+                                    width={220} 
+                                    height={112} 
+                                    className="w-full h-28 object-cover rounded-t-lg"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                        if (fallback) fallback.style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            <div 
+                                className="w-full h-28 bg-gray-100 flex items-center justify-center text-4xl text-gray-300 rounded-t-lg"
+                                style={{ display: hoveredPlace.photoUrl && hoveredPlace.photoUrl.trim() !== '' ? 'none' : 'flex' }}
+                            >
+                                {hoveredPlace.type === 'search' ? '🟣' : hoveredPlace.type === 'camping' ? '🚐' : hoveredPlace.type === 'restaurant' ? '🍳' : '📍'}
+                            </div>
                             <div className="p-3 bg-white">
                                 <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight line-clamp-2">{hoveredPlace.name}</h6>
                                 <div className="flex items-center gap-2 text-xs text-orange-500 font-bold mb-2"><span>{hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}</span></div>
