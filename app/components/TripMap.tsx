@@ -198,7 +198,17 @@ export default function TripMap({
                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
                     return uniqueRender.map((spot, i) => (
                         spot.geometry?.location && (
-                            <Marker key={`${type}-${i}`} position={spot.geometry.location} icon={{ url: MARKER_ICONS[type], scaledSize: new window.google.maps.Size(30, 30) }} label={{ text: isSaved(spot.place_id) ? "✓" : '', color: "white", fontWeight: "bold", fontSize: "10px" }} title={spot.name} onClick={() => setHoveredPlace(spot)} />
+                            <Marker 
+                                key={`${type}-${i}`} 
+                                position={spot.geometry.location} 
+                                icon={{ url: MARKER_ICONS[type], scaledSize: new window.google.maps.Size(30, 30) }} 
+                                label={{ text: isSaved(spot.place_id) ? "✓" : '', color: "white", fontWeight: "bold", fontSize: "10px" }} 
+                                title={spot.name} 
+                                onClick={() => {
+                                    console.log('🖱️ Click en marcador:', spot.name);
+                                    setHoveredPlace(spot);
+                                }} 
+                            />
                         )
                     ));
                 })}
