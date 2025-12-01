@@ -129,7 +129,37 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     console.log(`📋 [${type}] Primeros rechazados (máx 5):`, rechazados.slice(0, 5));
                 }
                 
-                finalSpots = spots.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
+                // Calcular score para cada lugar
+                const spotsWithScore = spots.map(spot => {
+                    const dist = spot.distanceFromCenter || 999999;
+                    const rating = spot.rating || 0;
+                    const reviews = spot.user_ratings_total || 0;
+                    const isOpen = spot.opening_hours?.open_now;
+                    
+                    // Score de distancia (40%): exponencial, mejor cerca
+                    const distanceScore = Math.max(0, 100 * Math.exp(-dist / 5000)); // Decae rápido después de 5km
+                    
+                    // Score de rating (30%): lineal sobre 5
+                    const ratingScore = rating > 0 ? (rating / 5) * 100 : 50; // Sin rating = penalización a 50
+                    
+                    // Score de reviews (20%): logarítmico
+                    const reviewsScore = reviews > 0 ? Math.min(100, Math.log10(reviews + 1) * 50) : 25;
+                    
+                    // Score de disponibilidad (10%)
+                    const openScore = isOpen === true ? 100 : isOpen === false ? 50 : 75; // desconocido = 75
+                    
+                    const totalScore = Math.round(
+                        distanceScore * 0.4 + 
+                        ratingScore * 0.3 + 
+                        reviewsScore * 0.2 + 
+                        openScore * 0.1
+                    );
+                    
+                    return { ...spot, score: totalScore };
+                });
+                
+                // Ordenar por score en lugar de solo distancia
+                finalSpots = spotsWithScore.sort((a, b) => (b.score || 0) - (a.score || 0));
             } else {
                 console.warn(`❌ [${type}] Sin resultados:`, status);
             } 

@@ -15,7 +15,8 @@ export interface PlaceWithDistance {
     photoUrl?: string;
     types?: string[]; 
     link?: string; 
-    isPublic?: boolean; 
+    isPublic?: boolean;
+    score?: number; // Score combinado de calidad/distancia
 }
 
 export interface DailyPlan { 

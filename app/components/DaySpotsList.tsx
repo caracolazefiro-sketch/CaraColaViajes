@@ -80,16 +80,35 @@ const ServiceList: React.FC<ServiceListProps> = ({
             {isLoading && <p className="text-[10px] text-gray-400 animate-pulse">{t('FORM_LOADING')}</p>}
             {!isLoading && list.length > 0 && (
                 <div className="space-y-2">
-                    {list.map((spot, idx) => (
+                    {list.map((spot, idx) => {
+                        // Calcular badges
+                        const isTop3 = idx < 3;
+                        const isExcellent = (spot.rating || 0) >= 4.5;
+                        const isPopular = (spot.user_ratings_total || 0) >= 100;
+                        const isNearby = (spot.distanceFromCenter || 999999) < 3000;
+                        
+                        return (
                         <div key={`${type}-${idx}`} className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
                             <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>{idx + 1}</div>
                             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
                                 <div className="flex items-center gap-1 flex-wrap">
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
+                                    {/* Badges visuales */}
+                                    {isTop3 && <span className="text-[10px]" title="Top 3 mejores">🏆</span>}
+                                    {isExcellent && <span className="text-[10px]" title="Excelente valoración">💎</span>}
+                                    {isPopular && <span className="text-[10px]" title="Muy popular">🔥</span>}
+                                    {isNearby && <span className="text-[10px]" title="Muy cerca">📍</span>}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}
+                                    {spot.user_ratings_total ? <span className="text-[9px] text-gray-500">({spot.user_ratings_total})</span> : null}
                                     <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
+                                    {spot.distanceFromCenter !== undefined && (
+                                        <span className="text-[9px] text-gray-500">• {(spot.distanceFromCenter / 1000).toFixed(1)}km</span>
+                                    )}
+                                    {spot.score !== undefined && (
+                                        <span className="text-[9px] font-bold text-blue-600 ml-auto">[{spot.score}]</span>
+                                    )}
                                 </div>
                                 {auditMode && (
                                     <div className="mt-1 pt-1 border-t border-gray-200 space-y-0.5">
@@ -107,6 +126,11 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                             {spot.user_ratings_total !== undefined && (
                                                 <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-mono border border-orange-200">
                                                     reviews: {spot.user_ratings_total}
+                                                </span>
+                                            )}
+                                            {spot.score !== undefined && (
+                                                <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-mono border border-green-200">
+                                                    score: {spot.score}/100
                                                 </span>
                                             )}
                                         </div>
@@ -150,7 +174,8 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                 <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : t('MAP_ADD')}</button>
                             )}
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
             {!isLoading && list.length === 0 && type !== 'custom' && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
