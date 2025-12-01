@@ -83,8 +83,9 @@ export default function SharedTripPage() {
     useEffect(() => {
         const fetchTrip = async () => {
             if (!params.id || !supabase) return;
+            const client = supabase;
             
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('trips')
                 .select('*')
                 .eq('id', params.id)
@@ -110,8 +111,9 @@ export default function SharedTripPage() {
 
     const handleCloneTrip = async () => {
         if (!trip || !supabase) return;
+        const client = supabase;
         
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await client.auth.getSession();
         if (!session) {
             if(confirm("Necesitas tener una cuenta en CaraCola para copiar este viaje.\n\n¿Ir a la página principal para entrar/registrarte?")) {
                 router.push('/'); 
@@ -127,7 +129,7 @@ export default function SharedTripPage() {
             // sin importar lo que hubiera en la memoria original.
             const safePayload = sanitizeTripData(trip.trip_data);
 
-            const { error } = await supabase
+            const { error } = await client
                 .from('trips')
                 .insert([{ 
                     name: newName, 
