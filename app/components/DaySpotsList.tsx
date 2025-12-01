@@ -86,13 +86,49 @@ const ServiceList: React.FC<ServiceListProps> = ({
                             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
                                 <div className="flex items-center gap-1 flex-wrap">
                                     <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
-                                    {auditMode && spot.type && (
-                                        <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono border border-blue-200">
-                                            {spot.type}
-                                        </span>
-                                    )}
                                 </div>
-                                <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
+                                <div className="flex items-center gap-2">
+                                    {spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}
+                                    <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
+                                </div>
+                                {auditMode && (
+                                    <div className="mt-1 pt-1 border-t border-gray-200 space-y-0.5">
+                                        <div className="flex gap-1 flex-wrap text-[9px]">
+                                            {spot.type && (
+                                                <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono border border-blue-200">
+                                                    type: {spot.type}
+                                                </span>
+                                            )}
+                                            {spot.distanceFromCenter !== undefined && (
+                                                <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-mono border border-purple-200">
+                                                    dist: {Math.round(spot.distanceFromCenter)}m
+                                                </span>
+                                            )}
+                                            {spot.user_ratings_total !== undefined && (
+                                                <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-mono border border-orange-200">
+                                                    reviews: {spot.user_ratings_total}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {spot.types && spot.types.length > 0 && (
+                                            <div className="text-[8px] text-gray-500 font-mono">
+                                                Google types: {spot.types.slice(0, 3).join(', ')}
+                                            </div>
+                                        )}
+                                        {spot.opening_hours !== undefined && (
+                                            <div className="text-[8px] font-mono">
+                                                <span className={spot.opening_hours.open_now ? 'text-green-600' : 'text-red-600'}>
+                                                    {spot.opening_hours.open_now ? '🟢 Abierto' : '🔴 Cerrado'}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {spot.place_id && (
+                                            <div className="text-[8px] text-gray-400 font-mono truncate">
+                                                ID: {spot.place_id}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             {type === 'custom' || type === 'search' ? (
                                 <div className="flex gap-1">
