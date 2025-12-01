@@ -67,8 +67,9 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     };
 
     const handleShareTrip = async () => {
-        if (!currentTripId) return alert("Guarda el viaje primero.");
-        const { error } = await supabase.from('trips').update({ is_public: true }).eq('id', currentTripId);
+        if (!currentTripId || !supabase) return alert("Guarda el viaje primero.");
+        const client = supabase;
+        const { error } = await client.from('trips').update({ is_public: true }).eq('id', currentTripId);
         if (error) return alert("Error: " + error.message);
         
         const shareUrl = `${window.location.origin}/share/${currentTripId}`;
@@ -81,8 +82,9 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     };
 
     const handleSaveToCloud = async () => {
-        if (!results.dailyItinerary) return;
-        const { data: { session } } = await supabase.auth.getSession();
+        if (!results.dailyItinerary || !supabase) return;
+        const client = supabase;
+        const { data: { session } } = await client.auth.getSession();
         if (!session) return alert("Inicia sesión para guardar.");
 
         setIsSaving(true);
@@ -93,17 +95,17 @@ export function useTripPersistence<T extends Record<string, string | number | bo
             if (currentTripId) {
                 const overwrite = confirm(`¿Sobrescribir viaje existente (ID: ${currentTripId})?\nCancelar = Guardar copia nueva`);
                 if (overwrite) {
-                    const { error } = await supabase.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId);
+                    const { error } = await client.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId);
                     if (error) throw error;
                     alert("✅ Actualizado correctamente.");
                 } else {
-                    const { data, error } = await supabase.from('trips').insert([{ name: tripName + " (Copia)", trip_data: tripPayload, user_id: session.user.id }]).select();
+                    const { data, error } = await client.from('trips').insert([{ name: tripName + " (Copia)", trip_data: tripPayload, user_id: session.user.id }]).select();
                     if (error) throw error;
                     if (data && data[0]) setCurrentTripId(data[0].id);
                     alert("✅ Copia guardada.");
                 }
             } else {
-                const { data, error } = await supabase.from('trips').insert([{ name: tripName, trip_data: tripPayload, user_id: session.user.id }]).select();
+                const { data, error } = await client.from('trips').insert([{ name: tripName, trip_data: tripPayload, user_id: session.user.id }]).select();
                 if (error) throw error;
                 if (data && data[0]) setCurrentTripId(data[0].id);
                 alert("✅ Viaje nuevo guardado.");
