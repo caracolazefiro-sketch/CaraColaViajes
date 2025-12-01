@@ -88,27 +88,48 @@ const ServiceList: React.FC<ServiceListProps> = ({
                         const isNearby = (spot.distanceFromCenter || 999999) < 3000;
                         
                         return (
-                        <div key={`${type}-${idx}`} className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
-                            <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>{idx + 1}</div>
+                        <div key={`${type}-${idx}`} className={`group bg-white p-3 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-3 shadow-sm`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
+                            <div className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold text-white ${markerColor}`}>{idx + 1}</div>
                             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
-                                <div className="flex items-center gap-1 flex-wrap">
-                                    <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
-                                    {/* Badges visuales */}
-                                    {isTop3 && <span className="text-[10px]" title="Top 3 mejores">🏆</span>}
-                                    {isExcellent && <span className="text-[10px]" title="Excelente valoración">💎</span>}
-                                    {isPopular && <span className="text-[10px]" title="Muy popular">🔥</span>}
-                                    {isNearby && <span className="text-[10px]" title="Muy cerca">📍</span>}
+                                {/* Nombre + Badges */}
+                                <div className="flex items-start gap-2 mb-1">
+                                    <h6 className="text-sm font-bold text-gray-800 flex-1 leading-tight">{spot.name}</h6>
+                                    <div className="flex gap-1 flex-shrink-0">
+                                        {isTop3 && <span className="text-sm" title="Top 3 mejores">🏆</span>}
+                                        {isExcellent && <span className="text-sm" title="Excelente valoración">💎</span>}
+                                        {isPopular && <span className="text-sm" title="Muy popular">🔥</span>}
+                                        {isNearby && <span className="text-sm" title="Muy cerca">📍</span>}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}
-                                    {spot.user_ratings_total ? <span className="text-[9px] text-gray-500">({spot.user_ratings_total})</span> : null}
-                                    <span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span>
+                                
+                                {/* Línea de métricas principales */}
+                                <div className="flex items-center gap-3 mb-1 flex-wrap">
+                                    {spot.rating !== undefined && (
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs font-bold text-orange-500">★</span>
+                                            <span className="text-xs font-bold text-gray-800">{spot.rating}</span>
+                                        </div>
+                                    )}
+                                    {spot.user_ratings_total !== undefined && (
+                                        <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                            reviews: {spot.user_ratings_total}
+                                        </span>
+                                    )}
                                     {spot.distanceFromCenter !== undefined && (
-                                        <span className="text-[9px] text-gray-500">• {(spot.distanceFromCenter / 1000).toFixed(1)}km</span>
+                                        <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-medium">
+                                            dist: {(spot.distanceFromCenter / 1000).toFixed(1)}km
+                                        </span>
                                     )}
                                     {spot.score !== undefined && (
-                                        <span className="text-[9px] font-bold text-blue-600 ml-auto">[{spot.score}]</span>
+                                        <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded border border-green-300">
+                                            score: {spot.score}/100
+                                        </span>
                                     )}
+                                </div>
+                                
+                                {/* Dirección */}
+                                <div className="text-[10px] text-gray-500 truncate">
+                                    {spot.vicinity?.split(',').slice(0, 2).join(', ')}
                                 </div>
                                 {auditMode && (
                                     <div className="mt-1 pt-1 border-t border-gray-200 space-y-0.5">
