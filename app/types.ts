@@ -1,21 +1,22 @@
+// app/types.ts
 export interface Coordinates { lat: number; lng: number; }
 
-export type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism' | 'custom' | 'search';
+export type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism' | 'custom';
 
 export interface PlaceWithDistance {
     name?: string;
     rating?: number;
     user_ratings_total?: number;
-    vicinity?: string; 
+    vicinity?: string; // Dirección o Descripción visual
     place_id?: string;
     opening_hours?: { isOpen?: () => boolean; open_now?: boolean };
-    geometry?: { location?: any; }; 
+    geometry?: { location?: any; }; // Aquí guardaremos las coordenadas para el mapa
     distanceFromCenter?: number; 
     type?: ServiceType;
     photoUrl?: string;
     types?: string[]; 
-    link?: string; 
-    isPublic?: boolean; 
+    link?: string; // NUEVO: Para guardar la URL exacta (P4N, web del restaurante...)
+    isPublic?: boolean; // <--- AÑADIDO: Corrige el error de DaySpotsList.tsx
 }
 
 export interface DailyPlan { 
@@ -26,9 +27,7 @@ export interface DailyPlan {
     to: string; 
     distance: number; 
     isDriving: boolean; 
-    // ✅ NUEVO: Coordenadas de inicio para el clima en ruta
-    startCoordinates?: Coordinates; 
-    coordinates?: Coordinates; // Coordenadas de destino
+    coordinates?: Coordinates; 
     type: 'overnight' | 'tactical' | 'start' | 'end';
     savedPlaces?: PlaceWithDistance[]; 
 }
@@ -37,16 +36,14 @@ export interface TripResult {
     totalDays: number | null; 
     distanceKm: number | null; 
     totalCost: number | null; 
-    liters?: number | null; 
     dailyItinerary: DailyPlan[] | null; 
     error: string | null; 
 }
 
-// ✅ MEJORA: Datos climáticos extendidos (Viento y Nieve)
 export interface WeatherData { 
     code: number; 
     maxTemp: number; 
     minTemp: number; 
     rainProb: number; 
-    windSpeed: number; // Nuevo: Velocidad viento km/h
+    windSpeed: number; // <--- CORREGIDO: Necesario para el objeto de clima
 }

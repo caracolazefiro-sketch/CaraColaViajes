@@ -9,15 +9,9 @@ import ElevationChart from './ElevationChart';
 import { 
     Trash2, Mountain, Plus, ExternalLink, MapPin, Pencil, Lock, Eye, 
     Tent, Droplet, Fuel, ShoppingCart, WashingMachine, Utensils, 
-    Landmark, Star, Search, ChevronUp, ChevronDown, 
-    Calendar, Map, Wallet, Truck, UtensilsCrossed 
+    Landmark, Star, CarFront
 } from 'lucide-react';
 // ----------------------------
-
-// ICONOS ANTIGUOS ELIMINADOS
-// const IconTrash = () => (...);
-// const IconMountain = () => (...);
-// etc.
 
 // HELPER: Mapea ServiceType a icono de Lucide
 const getServiceIconComponent = (type: ServiceType, sizeClass: string = "h-4 w-4") => {
@@ -34,7 +28,6 @@ const getServiceIconComponent = (type: ServiceType, sizeClass: string = "h-4 w-4
         default: return <Star {...defaultProps} />;
     }
 };
-
 
 // JERARQUÍA DE ORDEN
 const CATEGORY_ORDER: Record<string, number> = {
@@ -92,10 +85,18 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
             if (diffDays < 0 || diffDays > 14) { setWeatherStatus('far_future'); return; }
             if (!day.coordinates) return;
             try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${day.coordinates.lat}&longitude=${day.coordinates.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
+                // SOLICITAMOS wind_speed_10m_max
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${day.coordinates.lat}&longitude=${day.coordinates.lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=auto&start_date=${day.isoDate}&end_date=${day.isoDate}`);
                 const data = await res.json();
                 if (data.daily) {
-                    setWeather({ code: data.daily.weather_code[0], maxTemp: data.daily.temperature_2m_max[0], minTemp: data.daily.temperature_2m_min[0], rainProb: data.daily.precipitation_probability_max[0] });
+                    setWeather({ 
+                        code: data.daily.weather_code[0], 
+                        maxTemp: data.daily.temperature_2m_max[0], 
+                        minTemp: data.daily.temperature_2m_min[0], 
+                        rainProb: data.daily.precipitation_probability_max[0],
+                        // AGREGAMOS windSpeed con el valor de la API (o 0 como fallback seguro)
+                        windSpeed: data.daily.wind_speed_10m_max?.[0] ?? 0
+                    });
                     setWeatherStatus('success');
                 } else setWeatherStatus('error');
             } catch (e) { setWeatherStatus('error'); }
@@ -154,7 +155,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         const newPlace: PlaceWithDistance = {
             name: customName, vicinity: customDesc, link: customLink, place_id: `custom-${Date.now()}`, 
             type: customType, rating: 0, distanceFromCenter: 0, types: ['custom'], geometry: geometry,
-            isPublic: customPublic // GUARDAMOS SI ES PÚBLICO O NO
+            isPublic: customPublic // ESTA PROPIEDAD AHORA EXISTE EN PlaceWithDistance
         };
         onAddPlace(newPlace);
         // Reset
@@ -183,13 +184,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
         else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
     };
 
-    const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
+    const ServiceButton = ({ type, label }: { type: ServiceType, label: string }) => (
         <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
             <span>{getServiceIconComponent(type, "h-3 w-3")}</span> {label}
         </button>
     );
 
-    const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
+    const ServiceList = ({ type, title, colorClass, markerColor }: { type: ServiceType, title: string, colorClass: string, markerColor: string }) => {
         if (!toggles[type] && type !== 'camping') return null; 
         const savedOfType = saved.find(s => s.type === type);
         let list = places[type];
@@ -238,7 +239,25 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
     return (
         <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
             
-            {/* ... (omito parte superior) ... */}
+            <div className="flex justify-between items-start">
+                <div>
+                    <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
+                        {day.isDriving ? 'Etapa de Conducción' : 'Día de Estancia'}
+                    </h4>
+                    <p className="text-md font-semibold text-gray-800">
+                        {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 font-mono">{day.date}</p>
+                </div>
+                {/* Weather Data */}
+                <div className="bg-white/80 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[80px]">
+                    {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">Cargando...</div>}
+                    {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 días</div>}
+                    {weatherStatus === 'success' && weather && (
+                        <><div className="text-2xl">{getWeatherIcon(weather.code)}</div><div className="text-xs font-bold text-gray-800">{Math.round(weather.maxTemp)}° <span className="text-gray-400">/ {Math.round(weather.minTemp)}°</span></div><div className="text-[10px] text-blue-600 font-bold">💧 {weather.rainProb}%</div></>
+                    )}
+                </div>
+            </div>
 
             {saved.length > 0 && (
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">
@@ -280,7 +299,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
             {showCustomForm && (
                 <form onSubmit={handleSaveCustom} className="bg-gray-100 p-3 rounded-lg mb-4 border border-gray-300 animate-fadeIn">
                     <div className="space-y-2">
-                        {/* ... (otros campos del formulario) ... */}
                         <div className="grid grid-cols-2 gap-2">
                             <input type="text" placeholder="Nombre (ej: Taller)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
                             <select value={customType} onChange={e => setCustomType(e.target.value as ServiceType)} className="w-full p-2 text-xs rounded border border-gray-300 bg-white outline-none">
@@ -324,28 +342,27 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({ day, places, loading, toggl
                 </form>
             )}
 
-            {/* ... El resto del código del mapa y botones sigue igual ... */}
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-4">
-                        <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span><Tent className="h-3 w-3" /></span> Spots</div>
-                        <ServiceButton type="water" icon="💧" label="Aguas" />
-                        <ServiceButton type="gas" icon="⛽" label="Gas" />
-                        <ServiceButton type="restaurant" icon="🍳" label="Comer" />
-                        <ServiceButton type="supermarket" icon="🛒" label="Super" />
-                        <ServiceButton type="laundry" icon="🧺" label="Lavar" />
-                        <ServiceButton type="tourism" icon="📷" label="Turismo" />
-                        <ServiceButton type="custom" icon="⭐" label="Otros" />
+                        <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span><CarFront className="h-3 w-3" /></span> Spots</div>
+                        <ServiceButton type="water" label="Aguas" />
+                        <ServiceButton type="gas" label="Gas" />
+                        <ServiceButton type="restaurant" label="Comer" />
+                        <ServiceButton type="supermarket" label="Super" />
+                        <ServiceButton type="laundry" label="Lavar" />
+                        <ServiceButton type="tourism" label="Turismo" />
+                        <ServiceButton type="custom" label="Otros" />
                     </div>
                     <div className="space-y-2">
-                        <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
-                        <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" />
-                        <ServiceList type="gas" title="Gasolineras" colorClass="text-orange-600" icon="⛽" markerColor="bg-orange-500" />
-                        <ServiceList type="restaurant" title="Restaurantes" colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" />
-                        <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
-                        <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
-                        <ServiceList type="tourism" title="Turismo y Visitas" colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
-                        <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" />
+                        <ServiceList type="camping" title="Áreas y Campings" colorClass="text-red-800" markerColor="bg-red-600" />
+                        <ServiceList type="water" title="Cambio de Aguas" colorClass="text-cyan-600" markerColor="bg-cyan-500" />
+                        <ServiceList type="gas" title="Gasolineras" colorClass="text-orange-600" markerColor="bg-orange-500" />
+                        <ServiceList type="restaurant" title="Restaurantes" colorClass="text-blue-800" markerColor="bg-blue-600" />
+                        <ServiceList type="supermarket" title="Supermercados" colorClass="text-green-700" markerColor="bg-green-600" />
+                        <ServiceList type="laundry" title="Lavanderías" colorClass="text-purple-700" markerColor="bg-purple-600" />
+                        <ServiceList type="tourism" title="Turismo y Visitas" colorClass="text-yellow-600" markerColor="bg-yellow-500" />
+                        <ServiceList type="custom" title="Sitios Personalizados" colorClass="text-gray-600" markerColor="bg-gray-400" />
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (

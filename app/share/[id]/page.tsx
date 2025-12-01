@@ -1,3 +1,4 @@
+// app/share/[id]/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -5,18 +6,18 @@ import { useParams, useRouter } from 'next/navigation';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
 // Importamos desde dos niveles arriba (../../)
 import { supabase } from '../../supabase'; 
-import { MARKER_ICONS } from '../../constants';
-import { PlaceWithDistance, DailyPlan } from '../../types';
+import { MARKER_ICONS, ICONS_ITINERARY } from '../../constants';
+import { PlaceWithDistance, DailyPlan, ServiceType } from '../../types';
+// --- NUEVOS ICONOS LUCIDE ---
+import { Copy } from 'lucide-react';
+// ----------------------------
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
-// Icono Copiar
-const IconCopy = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>);
-
 export default function SharedTripPage() {
-    const params = useParams(); 
+    const params = useParams(); // Recupera el ID de la URL (ej: 15)
     const router = useRouter();
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
@@ -33,29 +34,11 @@ export default function SharedTripPage() {
     const [activeDay, setActiveDay] = useState<number | null>(null);
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
 
-    // --- FUNCIÓN DE LIMPIEZA (Reusable) ---
-    const sanitizeTripData = (originalData: any) => {
-        // Hacemos una copia profunda para no mutar referencias
-        const cleanData = JSON.parse(JSON.stringify(originalData));
-        
-        // Filtramos estrictamente el itinerario
-        cleanData.results.dailyItinerary = cleanData.results.dailyItinerary.map((day: DailyPlan) => ({
-            ...day,
-            savedPlaces: day.savedPlaces?.filter(p => {
-                // Si NO es custom (es público por defecto: Gasolineras, etc), se queda.
-                if (p.type !== 'custom') return true;
-                // Si ES custom, SOLO pasa si tiene el flag isPublic explícito
-                return p.isPublic === true;
-            }) || []
-        }));
-
-        return cleanData;
-    };
-
     useEffect(() => {
         const fetchTrip = async () => {
             if (!params.id) return;
             
+            // 1. Pedir el viaje a Supabase
             const { data, error } = await supabase
                 .from('trips')
                 .select('*')
@@ -68,12 +51,25 @@ export default function SharedTripPage() {
                 return;
             }
 
-            // Aplicamos limpieza para la visualización local
-            data.trip_data = sanitizeTripData(data.trip_data);
+            // --- 2. EL SANITIZER (PROTOCOLO TÍA PEPITA) ---
+            // Filtramos los sitios para proteger la privacidad
+            const sanitizedItinerary = data.trip_data.results.dailyItinerary.map((day: DailyPlan) => ({
+                ...day,
+                savedPlaces: day.savedPlaces?.filter(p => {
+                    // Si NO es custom, se muestra siempre (Gasolinera, Camping...)
+                    if (p.type !== 'custom') return true;
+                    // Si ES custom, SOLO se muestra si el usuario marcó "Hacer público"
+                    return p.isPublic === true;
+                }) || []
+            }));
+
+            // Actualizamos los datos locales con la versión limpia
+            data.trip_data.results.dailyItinerary = sanitizedItinerary;
             
             setTrip(data);
             setLoading(false);
             
+            // Calcular la línea azul del mapa
             calculateRouteForMap(data.trip_data.formData, data.trip_data.results.dailyItinerary);
         };
 
@@ -84,6 +80,7 @@ export default function SharedTripPage() {
         if (typeof google === 'undefined') return;
         const directionsService = new google.maps.DirectionsService();
         
+        // Reconstruir waypoints
         const waypoints = itinerary
             .filter((day: any) => day.type === 'tactical')
             .map((day: any) => ({ location: day.coordinates, stopover: true }));
@@ -91,7 +88,7 @@ export default function SharedTripPage() {
         try {
             const result = await directionsService.route({
                 origin: formData.origen,
-                destination: formData.destination,
+                destination: formData.destino,
                 waypoints: waypoints,
                 travelMode: google.maps.TravelMode.DRIVING,
                 avoidTolls: formData.evitarPeajes,
@@ -103,6 +100,7 @@ export default function SharedTripPage() {
     const handleCloneTrip = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
+            // Si no está logueado, le mandamos a la home para que entre
             if(confirm("Necesitas tener una cuenta en CaraCola para copiar este viaje.\n\n¿Ir a la página principal para entrar/registrarte?")) {
                 router.push('/'); 
             }
@@ -112,24 +110,20 @@ export default function SharedTripPage() {
         if (confirm(`¿Quieres copiar el viaje "${trip.name}" a tu colección de 'Mis Viajes'?`)) {
             const newName = `Copia de ${trip.name}`;
             
-            // 🛡️ SEGURIDAD CRÍTICA:
-            // Aseguramos que lo que se guarda en la DB es la versión limpia,
-            // sin importar lo que hubiera en la memoria original.
-            const safePayload = sanitizeTripData(trip.trip_data);
-
+            // Insertamos la copia en SU cuenta
             const { error } = await supabase
                 .from('trips')
                 .insert([{ 
                     name: newName, 
-                    trip_data: safePayload, // Usamos el payload sanitizado
+                    trip_data: trip.trip_data, 
                     user_id: session.user.id 
                 }]);
 
             if (error) {
                 alert("Error al copiar: " + error.message);
             } else {
-                alert("✅ ¡Viaje copiado! Ya es tuyo y es seguro.");
-                router.push('/'); 
+                alert("✅ ¡Viaje copiado! Ya es tuyo.");
+                router.push('/'); // Le llevamos a su panel
             }
         }
     };
@@ -142,6 +136,7 @@ export default function SharedTripPage() {
         <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
             <div className="w-full max-w-6xl space-y-6">
                 
+                {/* HEADER PÚBLICO (Bonito y limpio) */}
                 <div className="bg-white rounded-xl shadow-lg p-6 text-center border border-red-100 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500"></div>
                     <div className="flex justify-center mb-2">
@@ -157,14 +152,18 @@ export default function SharedTripPage() {
                         onClick={handleCloneTrip}
                         className="bg-gray-900 text-white px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:bg-black transform hover:-translate-y-0.5 transition flex items-center gap-2 mx-auto"
                     >
-                        <IconCopy /> COPIAR A MIS VIAJES
+                        <Copy className="h-5 w-5" /> COPIAR A MIS VIAJES
                     </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    {/* MAPA (SOLO LECTURA) */}
                     <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative">
                         <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (directionsResponse) map.fitBounds(directionsResponse.routes[0].bounds); }}>
                             {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 } }} />}
+                            
+                            {/* Pintamos los marcadores del día activo (o todos si no hay selección) */}
                             {trip.trip_data.results.dailyItinerary.map((day: any, dIdx: number) => (
                                 (activeDay === null || activeDay === dIdx) && day.savedPlaces?.map((spot: any, i: number) => (
                                     spot.geometry?.location && (
@@ -180,6 +179,7 @@ export default function SharedTripPage() {
                                     )
                                 ))
                             ))}
+
                             {hoveredPlace && hoveredPlace.geometry?.location && (
                                 <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)}>
                                     <div className="p-1">
@@ -191,6 +191,7 @@ export default function SharedTripPage() {
                         </GoogleMap>
                     </div>
 
+                    {/* LISTA DE DÍAS (RESUMEN) */}
                     <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] overflow-y-auto">
                         <div className="p-4 space-y-4">
                             <h3 className="font-bold text-gray-700 text-sm border-b pb-2 sticky top-0 bg-white z-10">Itinerario Detallado</h3>
@@ -208,12 +209,17 @@ export default function SharedTripPage() {
                                         {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                     </div>
                                     
+                                    {/* SITIOS (YA FILTRADOS) */}
                                     {day.savedPlaces && day.savedPlaces.length > 0 ? (
                                         <div className="space-y-1 mt-2 pt-2 border-t border-red-100">
                                             {day.savedPlaces.map((place, i) => (
                                                 <div key={i} className="flex items-center gap-2 text-[10px] text-green-800">
                                                     <span className="text-base">
-                                                        {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : '📍'}
+                                                        {place.type === 'camping' ? '🚐' : 
+                                                         place.type === 'restaurant' ? '🍳' : 
+                                                         place.type === 'water' ? '💧' :
+                                                         place.type === 'gas' ? '⛽' :
+                                                         place.type === 'custom' ? '⭐' : '📍'}
                                                     </span>
                                                     <span className="truncate">{place.name}</span>
                                                 </div>
