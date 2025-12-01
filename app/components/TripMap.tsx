@@ -173,12 +173,28 @@ export default function TripMap({
                 
                 {Object.keys(places).map((key) => {
                     const type = key as ServiceType;
-                    if (!toggles[type] && type !== 'search') return null;
-                    if (type === 'search' && (!places.search || places.search.length === 0)) return null;
                     const savedDay = selectedDayIndex !== null ? dailyItinerary![selectedDayIndex] : null;
                     const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
-                    let listToRender = type === 'custom' ? savedOfType : [...savedOfType, ...places[type]];
-                    if (type === 'search') listToRender = places.search; 
+                    
+                    // Mostrar lugares guardados SIEMPRE, incluso si toggle OFF
+                    // Mostrar resultados de búsqueda solo si toggle ON
+                    let listToRender: PlaceWithDistance[] = [];
+                    if (savedOfType.length > 0) {
+                        // Lugares guardados siempre visibles
+                        listToRender = [...savedOfType];
+                    }
+                    if (toggles[type] || type === 'camping') {
+                        // Añadir resultados de búsqueda si toggle ON
+                        if (type === 'custom') {
+                            listToRender = savedOfType;
+                        } else if (type === 'search') {
+                            listToRender = places.search || [];
+                        } else {
+                            listToRender = [...savedOfType, ...places[type]];
+                        }
+                    }
+                    
+                    if (type === 'search' && listToRender.length === 0) return null;
                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
                     return uniqueRender.map((spot, i) => (
                         spot.geometry?.location && (

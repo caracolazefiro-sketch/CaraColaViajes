@@ -27,13 +27,21 @@ interface ServiceButtonProps {
     label: string;
     toggles: Record<ServiceType, boolean>;
     onToggle: (type: ServiceType) => void;
+    count?: number;
 }
 
-const ServiceButton: React.FC<ServiceButtonProps> = ({ type, icon, label, toggles, onToggle }) => (
-    <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-        <span>{icon}</span> {label}
-    </button>
-);
+const ServiceButton: React.FC<ServiceButtonProps> = ({ type, icon, label, toggles, onToggle, count = 0 }) => {
+    return (
+        <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+            <span>{icon}</span> {label}
+            {count > 0 && (
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${toggles[type] ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                    {count}
+                </span>
+            )}
+        </button>
+    );
+};
 
 interface ServiceListProps {
     type: ServiceType;
@@ -355,7 +363,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
             )}
 
             {!showForm ? (
-                <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-black transition shadow-sm">
+                <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1.5 hover:bg-black transition shadow-sm">
                     <IconPlus /> {t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}
                 </button>
             ) : (
@@ -365,14 +373,21 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-4">
-                        <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span>🚐</span> Spots</div>
-                        <ServiceButton type="water" icon="💧" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} />
-                        <ServiceButton type="gas" icon="⛽" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} />
-                        <ServiceButton type="restaurant" icon="🍳" label={t('SERVICE_EAT')} toggles={toggles} onToggle={onToggle} />
-                        <ServiceButton type="supermarket" icon="🛒" label={t('SERVICE_SUPERMARKET')} toggles={toggles} onToggle={onToggle} />
-                        <ServiceButton type="laundry" icon="🧺" label={t('SERVICE_LAUNDRY')} toggles={toggles} onToggle={onToggle} />
-                        <ServiceButton type="tourism" icon="📷" label={t('SERVICE_TOURISM')} toggles={toggles} onToggle={onToggle} />
-                        <ServiceButton type="custom" icon="⭐" label={t('SERVICE_CUSTOM')} toggles={toggles} onToggle={onToggle} />
+                        <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center">
+                            <span>🚐</span> Spots
+                            {places.camping?.length > 0 && (
+                                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-200 text-red-800">
+                                    {places.camping.length}
+                                </span>
+                            )}
+                        </div>
+                        <ServiceButton type="water" icon="💧" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} count={places.water?.length || 0} />
+                        <ServiceButton type="gas" icon="⛽" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} count={places.gas?.length || 0} />
+                        <ServiceButton type="restaurant" icon="🍳" label={t('SERVICE_EAT')} toggles={toggles} onToggle={onToggle} count={places.restaurant?.length || 0} />
+                        <ServiceButton type="supermarket" icon="🛒" label={t('SERVICE_SUPERMARKET')} toggles={toggles} onToggle={onToggle} count={places.supermarket?.length || 0} />
+                        <ServiceButton type="laundry" icon="🧺" label={t('SERVICE_LAUNDRY')} toggles={toggles} onToggle={onToggle} count={places.laundry?.length || 0} />
+                        <ServiceButton type="tourism" icon="📷" label={t('SERVICE_TOURISM')} toggles={toggles} onToggle={onToggle} count={places.tourism?.length || 0} />
+                        <ServiceButton type="custom" icon="⭐" label={t('SERVICE_CUSTOM')} toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'custom').length} />
                     </div>
                     <div className="space-y-2">
                         <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
