@@ -108,6 +108,15 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     } else if (type === 'gas') {
                         pasa = tags.includes('gas_station');
                         if (!pasa) razon = 'No tiene tag gas_station';
+                    } else if (type === 'restaurant') {
+                        // Filtro: debe ser restaurant/café Y NO ser hotel/alojamiento
+                        const esRestaurante = tags.includes('restaurant') || tags.includes('cafe') || tags.includes('meal_takeaway') || tags.includes('meal_delivery');
+                        const esHotel = tags.includes('lodging') || tags.includes('hotel') || tags.includes('motel') || tags.includes('resort');
+                        pasa = esRestaurante && !esHotel;
+                        if (!pasa) {
+                            if (esHotel) razon = 'Es hotel/alojamiento con restaurante, no restaurante independiente';
+                            else razon = 'No es restaurant, cafe ni meal_takeaway';
+                        }
                     } else if (type === 'supermarket') {
                         pasa = tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
                         if (!pasa) razon = 'No es supermarket, grocery ni convenience_store';
