@@ -16,7 +16,7 @@ export interface PlaceWithDistance {
     photoUrl?: string;
     types?: string[]; 
     link?: string; // NUEVO: Para guardar la URL exacta (P4N, web del restaurante...)
-    isPublic?: boolean; // CORRECCIÓN 1: Para guardar el estado de privacidad
+    isPublic?: boolean; // Se deja opcional para evitar errores al cargar datos antiguos
 }
 
 export interface DailyPlan { 
@@ -36,7 +36,7 @@ export interface TripResult {
     totalDays: number | null; 
     distanceKm: number | null; 
     totalCost: number | null; 
-    liters: number | null; // <--- CORRECCIÓN CLAVE: Propiedad faltante
+    liters: number | null; 
     dailyItinerary: DailyPlan[] | null; 
     error: string | null; 
 }
@@ -46,5 +46,5 @@ export interface WeatherData {
     maxTemp: number; 
     minTemp: number; 
     rainProb: number; 
-    windSpeed: number; // CORRECCIÓN 3: Propiedad requerida por DaySpotsList
+    windSpeed: number; 
 }
