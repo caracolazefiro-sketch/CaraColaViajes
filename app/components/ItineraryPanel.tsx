@@ -140,7 +140,8 @@ export default function ItineraryPanel({
                         day={dailyItinerary[selectedDayIndex]} 
                         places={places} 
                         loading={loadingPlaces} 
-                        toggles={toggles} 
+                        toggles={toggles}
+                        auditMode={auditMode}
                         onToggle={onToggle} 
                         onAddPlace={onAddPlace} 
                         onRemovePlace={onRemovePlace} 
