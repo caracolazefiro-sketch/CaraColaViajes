@@ -2,9 +2,10 @@
 
 import React from 'react';
 import UserArea from './UserArea';
+import type { TripData } from '../hooks/useTripPersistence';
 
 interface AppHeaderProps {
-    onLoadTrip: (data: any, id: number) => void;
+    onLoadTrip: (data: TripData, id: number) => void;
     t: (key: string) => string;
     setLang: (lang: 'es' | 'en') => void;
     language: 'es' | 'en';

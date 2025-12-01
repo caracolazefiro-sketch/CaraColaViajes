@@ -3,9 +3,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { TripResult } from '../types';
 
-export function useTripPersistence(
-    formData: any,
-    setFormData: (data: any) => void,
+export interface TripData {
+    formData: Record<string, string | number | boolean>;
+    results: TripResult;
+    tripId?: number;
+}
+
+export function useTripPersistence<T extends Record<string, string | number | boolean>>(
+    formData: T,
+    setFormData: (data: T | ((prev: T) => T)) => void,
     results: TripResult,
     setResults: (results: TripResult) => void,
     currentTripId: number | null,
@@ -26,7 +32,7 @@ export function useTripPersistence(
                     if (parsed.formData) setFormData(parsed.formData);
                     if (parsed.results) setResults(parsed.results);
                     if (parsed.tripId) setCurrentTripId(parsed.tripId);
-                } catch (e) { console.error("Error leyendo caché:", e); }
+                } catch (e: unknown) { console.error("Error leyendo caché:", e); }
             }
             setIsInitialized(true);
         }
@@ -49,9 +55,9 @@ export function useTripPersistence(
         }
     };
 
-    const handleLoadCloudTrip = (tripData: any, tripId: number) => {
+    const handleLoadCloudTrip = (tripData: TripData, tripId: number) => {
         if (tripData) {
-            setFormData(tripData.formData);
+            setFormData(tripData.formData as T);
             setResults(tripData.results);
             setCurrentTripId(tripId);
             // Limpiamos la UI (mapa, selección...)
@@ -69,7 +75,7 @@ export function useTripPersistence(
         try {
             await navigator.clipboard.writeText(shareUrl);
             alert(`🔗 Enlace copiado:\n\n${shareUrl}`);
-        } catch (err) {
+        } catch {
             prompt("Copia este enlace:", shareUrl);
         }
     };
@@ -102,8 +108,9 @@ export function useTripPersistence(
                 if (data && data[0]) setCurrentTripId(data[0].id);
                 alert("✅ Viaje nuevo guardado.");
             }
-        } catch (error: any) {
-            alert("❌ Error: " + error.message);
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            alert("❌ Error: " + msg);
         } finally {
             setIsSaving(false);
         }

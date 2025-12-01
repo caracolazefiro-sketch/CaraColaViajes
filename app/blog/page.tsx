@@ -20,7 +20,7 @@ export default function BlogPage() {
 
     return (
         <main style={{ maxWidth: '900px', margin: '2rem auto' }}>
-            <h1>Artículos Recientes de Chema's Blog</h1>
+            <h1>Artículos Recientes de Chema&apos;s Blog</h1>
             
             {/* Bucle .map() para mostrar cada artículo */}
             {articulos.map((articulo) => (

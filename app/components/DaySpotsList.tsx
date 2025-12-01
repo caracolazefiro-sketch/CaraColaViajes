@@ -16,10 +16,93 @@ const IconLink = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w
 const IconEdit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>);
 const IconLock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>);
 const IconEye = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>);
-const IconWind = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 
 const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
+};
+
+interface ServiceButtonProps {
+    type: ServiceType;
+    icon: string;
+    label: string;
+    toggles: Record<ServiceType, boolean>;
+    onToggle: (type: ServiceType) => void;
+}
+
+const ServiceButton: React.FC<ServiceButtonProps> = ({ type, icon, label, toggles, onToggle }) => (
+    <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+        <span>{icon}</span> {label}
+    </button>
+);
+
+interface ServiceListProps {
+    type: ServiceType;
+    title: string;
+    colorClass: string;
+    icon: string;
+    markerColor: string;
+    places: Record<ServiceType, PlaceWithDistance[]>;
+    loading: Record<ServiceType, boolean>;
+    toggles: Record<ServiceType, boolean>;
+    saved: PlaceWithDistance[];
+    t: (key: string) => string;
+    isSaved: (id?: string) => boolean;
+    onAddPlace: (place: PlaceWithDistance) => void;
+    onRemovePlace: (placeId: string) => void;
+    onHover: (place: PlaceWithDistance | null) => void;
+    handlePlaceClick: (spot: PlaceWithDistance) => void;
+    handleEditStart: (place: PlaceWithDistance) => void;
+}
+
+const ServiceList: React.FC<ServiceListProps> = ({
+    type, title, colorClass, icon, markerColor, places, loading, toggles, saved, t, isSaved, onAddPlace, onRemovePlace, onHover, handlePlaceClick, handleEditStart
+}) => {
+    const isSpecialType = type === 'search' || type === 'custom';
+    const hasResults = places[type]?.length > 0 || saved.filter(s => s.type === type).length > 0;
+    
+    if (!toggles[type] && type !== 'camping' && !isSpecialType) return null;
+    if (type === 'search' && !hasResults && !toggles[type]) return null;
+    if (type === 'custom' && !hasResults) return null;
+
+    const savedOfType = saved.filter(s => s.type === type);
+    let list = places[type];
+    if (type === 'custom') list = savedOfType;
+    else if (savedOfType.length > 0 && type !== 'search') list = [...savedOfType, ...list].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
+    else if (savedOfType.length > 0 && type === 'search') list = savedOfType; 
+
+    const isLoading = loading[type];
+    if (type === 'custom' && list.length === 0) return null;
+
+    return (
+        <div className="animate-fadeIn mt-4">
+            <h5 className={`text-xs font-bold ${colorClass} mb-2 border-b border-gray-100 pb-1 flex justify-between items-center`}><span className="flex items-center gap-1"><span>{icon}</span> {title}</span>{!isLoading && <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{list.length}</span>}</h5>
+            {isLoading && <p className="text-[10px] text-gray-400 animate-pulse">{t('FORM_LOADING')}</p>}
+            {!isLoading && list.length > 0 && (
+                <div className="space-y-2">
+                    {list.map((spot, idx) => (
+                        <div key={`${type}-${idx}`} className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
+                            <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>{idx + 1}</div>
+                            <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
+                                <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
+                                <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
+                            </div>
+                            {type === 'custom' || type === 'search' ? (
+                                <div className="flex gap-1">
+                                    {type === 'custom' && (
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
+                                </div>
+                            ) : (
+                                <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : t('MAP_ADD')}</button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+            {!isLoading && list.length === 0 && type !== 'custom' && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
+        </div>
+    );
 };
 
 interface DaySpotsListProps { 
@@ -27,7 +110,6 @@ interface DaySpotsListProps {
     places: Record<ServiceType, PlaceWithDistance[]>;
     loading: Record<ServiceType, boolean>;
     toggles: Record<ServiceType, boolean>;
-    auditMode: boolean; 
     onToggle: (type: ServiceType) => void;
     onAddPlace: (place: PlaceWithDistance) => void;
     onRemovePlace: (placeId: string) => void;
@@ -37,7 +119,7 @@ interface DaySpotsListProps {
 }
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
-    day, places, loading, toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover, t, convert 
+    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert 
 }) => {
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
@@ -84,61 +166,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     const handlePlaceClick = (spot: PlaceWithDistance) => {
         if (spot.link) window.open(spot.link, '_blank');
         else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
-    };
-
-    const ServiceButton = ({ type, icon, label }: { type: ServiceType, icon: string, label: string }) => (
-        <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-            <span>{icon}</span> {label}
-        </button>
-    );
-
-    const ServiceList = ({ type, title, colorClass, icon, markerColor }: { type: ServiceType, title: string, colorClass: string, icon: string, markerColor: string }) => {
-        const isSpecialType = type === 'search' || type === 'custom';
-        const hasResults = places[type]?.length > 0 || saved.filter(s => s.type === type).length > 0;
-        
-        if (!toggles[type] && type !== 'camping' && !isSpecialType) return null;
-        if (type === 'search' && !hasResults && !toggles[type]) return null;
-        if (type === 'custom' && !hasResults) return null;
-
-        const savedOfType = saved.filter(s => s.type === type);
-        let list = places[type];
-        if (type === 'custom') list = savedOfType;
-        else if (savedOfType.length > 0 && type !== 'search') list = [...savedOfType, ...list].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
-        else if (savedOfType.length > 0 && type === 'search') list = savedOfType; 
-
-        const isLoading = loading[type];
-        if (type === 'custom' && list.length === 0) return null;
-
-        return (
-            <div className="animate-fadeIn mt-4">
-                <h5 className={`text-xs font-bold ${colorClass} mb-2 border-b border-gray-100 pb-1 flex justify-between items-center`}><span className="flex items-center gap-1"><span>{icon}</span> {title}</span>{!isLoading && <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{list.length}</span>}</h5>
-                {isLoading && <p className="text-[10px] text-gray-400 animate-pulse">{t('FORM_LOADING')}</p>}
-                {!isLoading && list.length > 0 && (
-                    <div className="space-y-2">
-                        {list.map((spot, idx) => (
-                            <div key={`${type}-${idx}`} className={`group bg-white p-2 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-2 items-center shadow-sm`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
-                                <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${markerColor}`}>{idx + 1}</div>
-                                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
-                                    <h6 className="text-xs font-bold text-gray-800 truncate">{spot.name}</h6>
-                                    <div className="flex items-center gap-2">{spot.rating ? <span className="text-[10px] font-bold text-orange-500">★ {spot.rating}</span> : null}<span className="text-[10px] text-gray-400 truncate">{spot.vicinity?.split(',')[0]}</span></div>
-                                </div>
-                                {type === 'custom' || type === 'search' ? (
-                                    <div className="flex gap-1">
-                                        {type === 'custom' && (
-                                            <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
-                                        )}
-                                        <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
-                                    </div>
-                                ) : (
-                                    <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : t('MAP_ADD')}</button>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
-                {!isLoading && list.length === 0 && type !== 'custom' && <p className="text-[10px] text-gray-400 italic">Sin resultados.</p>}
-            </div>
-        );
     };
 
     return (
@@ -239,24 +266,24 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-4">
                         <div className="px-2 py-1.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-bold border border-red-200 flex items-center gap-1 cursor-default shadow-sm justify-center"><span>🚐</span> Spots</div>
-                        <ServiceButton type="water" icon="💧" label={t('SERVICE_WATER')} />
-                        <ServiceButton type="gas" icon="⛽" label={t('SERVICE_GAS')} />
-                        <ServiceButton type="restaurant" icon="🍳" label={t('SERVICE_EAT')} />
-                        <ServiceButton type="supermarket" icon="🛒" label={t('SERVICE_SUPERMARKET')} />
-                        <ServiceButton type="laundry" icon="🧺" label={t('SERVICE_LAUNDRY')} />
-                        <ServiceButton type="tourism" icon="📷" label={t('SERVICE_TOURISM')} />
-                        <ServiceButton type="custom" icon="⭐" label={t('SERVICE_CUSTOM')} />
+                        <ServiceButton type="water" icon="💧" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} />
+                        <ServiceButton type="gas" icon="⛽" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} />
+                        <ServiceButton type="restaurant" icon="🍳" label={t('SERVICE_EAT')} toggles={toggles} onToggle={onToggle} />
+                        <ServiceButton type="supermarket" icon="🛒" label={t('SERVICE_SUPERMARKET')} toggles={toggles} onToggle={onToggle} />
+                        <ServiceButton type="laundry" icon="🧺" label={t('SERVICE_LAUNDRY')} toggles={toggles} onToggle={onToggle} />
+                        <ServiceButton type="tourism" icon="📷" label={t('SERVICE_TOURISM')} toggles={toggles} onToggle={onToggle} />
+                        <ServiceButton type="custom" icon="⭐" label={t('SERVICE_CUSTOM')} toggles={toggles} onToggle={onToggle} />
                     </div>
                     <div className="space-y-2">
-                        <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" />
-                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" />
-                        <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" icon="⛽" markerColor="bg-orange-500" />
-                        <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" />
-                        <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" />
-                        <ServiceList type="laundry" title={t('SERVICE_LAUNDRY')} colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" />
-                        <ServiceList type="tourism" title={t('SERVICE_TOURISM')} colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" />
-                        <ServiceList type="custom" title={t('SERVICE_CUSTOM')} colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" />
-                        <ServiceList type="search" title={t('SERVICE_SEARCH')} colorClass="text-purple-600" icon="🔎" markerColor="bg-purple-500" />
+                        <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" icon="⛽" markerColor="bg-orange-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="laundry" title={t('SERVICE_LAUNDRY')} colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="tourism" title={t('SERVICE_TOURISM')} colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="custom" title={t('SERVICE_CUSTOM')} colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
+                        <ServiceList type="search" title={t('SERVICE_SEARCH')} colorClass="text-purple-600" icon="🔎" markerColor="bg-purple-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} />
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (

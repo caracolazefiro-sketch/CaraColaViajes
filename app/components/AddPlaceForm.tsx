@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PlaceWithDistance, ServiceType } from '../types';
 
 // Iconos locales
@@ -14,31 +14,14 @@ interface AddPlaceFormProps {
 }
 
 export default function AddPlaceForm({ initialData, rawCityName, onSave, onCancel }: AddPlaceFormProps) {
-    const [customName, setCustomName] = useState('');
-    const [customDesc, setCustomDesc] = useState(''); 
-    const [customLink, setCustomLink] = useState('');
-    const [customLat, setCustomLat] = useState('');
-    const [customLng, setCustomLng] = useState('');
-    const [customType, setCustomType] = useState<ServiceType>('custom');
-    const [customPublic, setCustomPublic] = useState(false);
-    const [geocoding, setGeocoding] = useState(false);
-
-    // Cargar datos si estamos editando
-    useEffect(() => {
-        if (initialData) {
-            setCustomName(initialData.name || '');
-            setCustomDesc(initialData.vicinity || '');
-            setCustomLink(initialData.link || '');
-            setCustomType(initialData.type || 'custom');
-            setCustomPublic(initialData.isPublic || false);
-            if (initialData.geometry?.location) {
-                setCustomLat(initialData.geometry.location.lat().toString());
-                setCustomLng(initialData.geometry.location.lng().toString());
-            }
-        }
-    }, [initialData]);
-
-    const handleGeocodeAddress = () => {
+    const [customName, setCustomName] = useState(initialData?.name || '');
+    const [customDesc, setCustomDesc] = useState(initialData?.vicinity || '');
+    const [customLink, setCustomLink] = useState(initialData?.link || '');
+    const [customLat, setCustomLat] = useState(initialData?.geometry?.location ? String(initialData.geometry.location.lat) : '');
+    const [customLng, setCustomLng] = useState(initialData?.geometry?.location ? String(initialData.geometry.location.lng) : '');
+    const [customType, setCustomType] = useState<ServiceType>(initialData?.type || 'custom');
+    const [customPublic, setCustomPublic] = useState(initialData?.isPublic || false);
+    const [geocoding, setGeocoding] = useState(false);    const handleGeocodeAddress = () => {
         if (!customDesc) { alert("Escribe una dirección o nombre de lugar primero."); return; }
         if (typeof google === 'undefined') return;
         setGeocoding(true);
@@ -58,8 +41,13 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         let geometry = undefined;
-        if (customLat && customLng && typeof google !== 'undefined') {
-             geometry = { location: new google.maps.LatLng(parseFloat(customLat), parseFloat(customLng)) };
+        if (customLat && customLng) {
+             geometry = { 
+                location: { 
+                    lat: parseFloat(customLat), 
+                    lng: parseFloat(customLng) 
+                } 
+            };
         }
         const newPlace: PlaceWithDistance = {
             name: customName, 

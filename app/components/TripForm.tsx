@@ -22,9 +22,51 @@ const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 const IconShare = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>);
 
+interface ActionButtonsProps {
+    auditMode: boolean;
+    setAuditMode: (v: boolean) => void;
+    results: TripResult;
+    currentTripId: number | null;
+    isSaving: boolean;
+    onSave: () => void;
+    onShare: () => void;
+    onReset: () => void;
+    t: (key: string) => string;
+}
+
+const ActionButtons: React.FC<ActionButtonsProps> = ({
+    auditMode, setAuditMode, results, currentTripId, isSaving, onSave, onShare, onReset, t
+}) => (
+    <div className="flex items-center gap-1">
+        <button onClick={(e) => { e.stopPropagation(); setAuditMode(!auditMode); }} className={`p-1.5 rounded transition ${auditMode ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`} title={t('HEADER_AUDIT')}><IconAudit /></button>
+        {results.totalDays && (
+            <>
+                {currentTripId && (
+                    <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="p-1.5 rounded text-green-600 hover:bg-green-50 transition" title={t('ACTION_SHARE')}><IconShare /></button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); onSave(); }} disabled={isSaving} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" title={t('ACTION_SAVE')}><IconCloud /></button>
+                <button onClick={(e) => { e.stopPropagation(); onReset(); }} className="p-1.5 rounded text-red-500 hover:bg-red-50 transition" title={t('ACTION_DELETE')}><IconReset /></button>
+            </>
+        )}
+    </div>
+);
+
+interface FormData {
+    fechaInicio: string;
+    fechaRegreso: string;
+    origen: string;
+    destino: string;
+    etapas: string;
+    precioGasoil: number;
+    consumo: number;
+    kmMaximoDia: number;
+    evitarPeajes: boolean;
+    vueltaACasa: boolean;
+}
+
 interface TripFormProps {
-    formData: any;
-    setFormData: (data: any) => void;
+    formData: FormData;
+    setFormData: (data: FormData | ((prev: FormData) => FormData)) => void;
     loading: boolean;
     results: TripResult;
     onSubmit: (e: React.FormEvent) => void;
@@ -55,8 +97,12 @@ export default function TripForm({
     const destRef = useRef<google.maps.places.Autocomplete | null>(null);
     const stopRef = useRef<google.maps.places.Autocomplete | null>(null);
 
+    // Auto-colapsar cuando se completen los resultados (sólo una vez)
+    const hasCollapsedRef = useRef(false);
     useEffect(() => {
-        if (!loading && results.totalDays !== null) {
+        if (!loading && results.totalDays !== null && !hasCollapsedRef.current) {
+            hasCollapsedRef.current = true;
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsExpanded(false);
         }
     }, [loading, results.totalDays]);
@@ -65,8 +111,8 @@ export default function TripForm({
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
-        let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
-        setFormData({ ...formData, [id]: finalValue });
+        const finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+        setFormData({ ...formData, [id]: finalValue } as FormData);
     };
 
     const handleToggleWaypoints = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,11 +122,11 @@ export default function TripForm({
     };
 
     const onPlaceChanged = (field: 'origen' | 'destino' | 'tempStop') => {
-        let ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
+        const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
         const place = ref.current?.getPlace();
         if (place && place.formatted_address) {
             if (field === 'tempStop') setTempStop(place.formatted_address);
-            else setFormData((prev: any) => ({ ...prev, [field]: place.formatted_address }));
+            else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
         }
     };
 
@@ -92,7 +138,7 @@ export default function TripForm({
         geocoder.geocode({ address: value }, (results, status) => {
             if (status === 'OK' && results && results[0]) {
                 const cleanAddress = results[0].formatted_address;
-                setFormData((prev: any) => ({ ...prev, [field]: cleanAddress }));
+                setFormData((prev: FormData) => ({ ...prev, [field]: cleanAddress }));
                 alert(`✅ ${t('LOCATION_VALIDATED')}:\n"${cleanAddress}"`);
             } else {
                 alert(`❌ ${t('LOCATION_NOT_FOUND')}`);
@@ -126,22 +172,6 @@ export default function TripForm({
     const maxKmValue = convert(formData.kmMaximoDia, 'km').toFixed(0);
     const maxRangeValue = convert(1000, 'km').toFixed(0);
     const minRangeValue = convert(100, 'km').toFixed(0);
-
-    // --- COMPONENTE DE BOTONES DE ACCIÓN (Reutilizable) ---
-    const ActionButtons = () => (
-        <div className="flex items-center gap-1">
-            <button onClick={(e) => { e.stopPropagation(); setAuditMode(!auditMode); }} className={`p-1.5 rounded transition ${auditMode ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`} title={t('HEADER_AUDIT')}><IconAudit /></button>
-            {results.totalDays && (
-                <>
-                    {currentTripId && (
-                        <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="p-1.5 rounded text-green-600 hover:bg-green-50 transition" title={t('ACTION_SHARE')}><IconShare /></button>
-                    )}
-                    <button onClick={(e) => { e.stopPropagation(); onSave(); }} disabled={isSaving} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" title={t('ACTION_SAVE')}><IconCloud /></button>
-                    <button onClick={(e) => { e.stopPropagation(); onReset(); }} className="p-1.5 rounded text-red-500 hover:bg-red-50 transition" title={t('ACTION_DELETE')}><IconReset /></button>
-                </>
-            )}
-        </div>
-    );
 
     // --- MODO RESUMEN (DASHBOARD ULTRA-COMPACTO) ---
     if (!isExpanded && results.totalDays) {
@@ -181,7 +211,7 @@ export default function TripForm({
 
                 {/* 3. ACCIONES + EDITAR (Derecha) */}
                 <div className="hidden md:flex items-center gap-2">
-                    <ActionButtons />
+                    <ActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
                     <div className="w-px h-6 bg-gray-200"></div>
                     <div className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">
                         <span>{t('DASHBOARD_EDIT')}</span>
@@ -200,7 +230,7 @@ export default function TripForm({
                     {t('FORM_TITLE')}
                 </h2>
                 <div className="flex items-center gap-4">
-                    <ActionButtons /> 
+                    <ActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
                     {results.totalDays && <IconChevronUp />}
                 </div>
             </div>

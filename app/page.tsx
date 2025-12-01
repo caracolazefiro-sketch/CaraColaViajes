@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { PlaceWithDistance, ServiceType } from './types';
 
@@ -44,8 +44,7 @@ export default function Home() {
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
-  const [auditMode, setAuditMode] = useState(false); 
-  const [forceUpdate, setForceUpdate] = useState(0);
+  const [auditMode, setAuditMode] = useState(false);
 
   const [formData, setFormData] = useState({
     fechaInicio: new Date().toISOString().split('T')[0],
@@ -63,7 +62,7 @@ export default function Home() {
   const [showWaypoints, setShowWaypoints] = useState(true);
 
   const { 
-      results, setResults, directionsResponse, setDirectionsResponse, 
+      results, setResults, directionsResponse,
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
   } = useTripCalculator(convert, settings.units); 
 
@@ -74,7 +73,7 @@ export default function Home() {
 
   const { isSaving, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
       formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
-      () => { setSelectedDayIndex(null); setMapBounds(null); setForceUpdate(prev => prev + 1); }
+      () => { setSelectedDayIndex(null); setMapBounds(null); }
   );
 
   const handleCalculateWrapper = (e: React.FormEvent) => {
@@ -86,7 +85,7 @@ export default function Home() {
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => { 
       if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null; 
       const geocoder = new google.maps.Geocoder(); 
-      try { const response = await geocoder.geocode({ address: cityName }); if (response.results.length > 0) return response.results[0].geometry.location.toJSON(); } catch (e) { } return null; 
+      try { const response = await geocoder.geocode({ address: cityName }); if (response.results.length > 0) return response.results[0].geometry.location.toJSON(); } catch { } return null; 
   };
 
   const handleToggleWrapper = (type: ServiceType) => {

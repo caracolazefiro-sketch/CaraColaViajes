@@ -62,7 +62,6 @@ export function useWeather(
                 setWeather(endData);
                 
                 // Determinar riesgo global
-                let risk: 'good' | 'caution' | 'danger' = 'good';
                 const checkRisk = (w: WeatherData) => {
                     // Viento > 40km/h o Lluvia > 80% o Nieve (códigos 71-77, 85-86)
                     if (w.windSpeed > 40 || w.rainProb > 80 || (w.code >= 71 && w.code <= 77)) return 'danger';

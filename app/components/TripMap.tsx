@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { GoogleMap, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
 import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
@@ -167,7 +168,7 @@ export default function TripMap({
                 {hoveredPlace && hoveredPlace.geometry?.location && (
                     <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -35) }}>
                         <div className="p-0 w-[220px] overflow-hidden font-sans">
-                            {hoveredPlace.photoUrl ? <img src={hoveredPlace.photoUrl} alt={hoveredPlace.name} className="w-full h-28 object-cover rounded-t-lg" /> : <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-4xl text-gray-300">{hoveredPlace.type === 'search' ? '🟣' : '📍'}</div>}
+                            {hoveredPlace.photoUrl && hoveredPlace.photoUrl.trim() !== '' ? <Image src={hoveredPlace.photoUrl} alt={hoveredPlace.name || 'Lugar'} width={220} height={112} className="w-full h-28 object-cover rounded-t-lg" /> : <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-4xl text-gray-300">{hoveredPlace.type === 'search' ? '🟣' : '📍'}</div>}
                             <div className="p-3 bg-white">
                                 <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight line-clamp-2">{hoveredPlace.name}</h6>
                                 <div className="flex items-center gap-2 text-xs text-orange-500 font-bold mb-2"><span>{hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}</span></div>

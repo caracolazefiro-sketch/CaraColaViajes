@@ -141,7 +141,6 @@ export default function ItineraryPanel({
                         places={places} 
                         loading={loadingPlaces} 
                         toggles={toggles} 
-                        auditMode={auditMode} 
                         onToggle={onToggle} 
                         onAddPlace={onAddPlace} 
                         onRemovePlace={onRemovePlace} 

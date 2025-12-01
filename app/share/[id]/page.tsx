@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
 // Importamos desde dos niveles arriba (../../)
 import { supabase } from '../../supabase'; 
 import { MARKER_ICONS } from '../../constants';
-import { PlaceWithDistance, DailyPlan } from '../../types';
+import { PlaceWithDistance, DailyPlan, TripResult } from '../../types';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -25,16 +26,24 @@ export default function SharedTripPage() {
         language: 'es'
     });
 
-    const [trip, setTrip] = useState<any>(null);
+    type SharedTrip = {
+        id: number;
+        name: string;
+        trip_data: {
+            formData: Record<string, string | number | boolean>;
+            results: TripResult;
+        };
+    } | null;
+
+    const [trip, setTrip] = useState<SharedTrip>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [map, setMap] = useState<google.maps.Map | null>(null);
     const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
     const [activeDay, setActiveDay] = useState<number | null>(null);
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
 
     // --- FUNCIÓN DE LIMPIEZA (Reusable) ---
-    const sanitizeTripData = (originalData: any) => {
+    const sanitizeTripData = (originalData: { formData: Record<string, string | number | boolean>; results: TripResult }) => {
         // Hacemos una copia profunda para no mutar referencias
         const cleanData = JSON.parse(JSON.stringify(originalData));
         
@@ -50,6 +59,25 @@ export default function SharedTripPage() {
         }));
 
         return cleanData;
+    };
+
+    const calculateRouteForMap = async (formData: Record<string, string | number | boolean>, itinerary: DailyPlan[] | null) => {
+        if (typeof google === 'undefined') return;
+        const directionsService = new google.maps.DirectionsService();
+        const waypoints = (itinerary || [])
+            .filter((day: DailyPlan) => day.type === 'tactical')
+            .map((day: DailyPlan) => ({ location: day.coordinates, stopover: true }));
+
+        try {
+            const result = await directionsService.route({
+                origin: formData.origen as string,
+                destination: formData.destino as string,
+                waypoints: waypoints,
+                travelMode: google.maps.TravelMode.DRIVING,
+                avoidTolls: formData.evitarPeajes as boolean,
+            });
+            setDirectionsResponse(result);
+        } catch (e: unknown) { console.error("Error mapa share", e); }
     };
 
     useEffect(() => {
@@ -80,27 +108,9 @@ export default function SharedTripPage() {
         fetchTrip();
     }, [params.id]);
 
-    const calculateRouteForMap = async (formData: any, itinerary: any) => {
-        if (typeof google === 'undefined') return;
-        const directionsService = new google.maps.DirectionsService();
-        
-        const waypoints = itinerary
-            .filter((day: any) => day.type === 'tactical')
-            .map((day: any) => ({ location: day.coordinates, stopover: true }));
-
-        try {
-            const result = await directionsService.route({
-                origin: formData.origen,
-                destination: formData.destination,
-                waypoints: waypoints,
-                travelMode: google.maps.TravelMode.DRIVING,
-                avoidTolls: formData.evitarPeajes,
-            });
-            setDirectionsResponse(result);
-        } catch (e) { console.error("Error mapa share", e); }
-    };
-
     const handleCloneTrip = async () => {
+        if (!trip) return;
+        
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
             if(confirm("Necesitas tener una cuenta en CaraCola para copiar este viaje.\n\n¿Ir a la página principal para entrar/registrarte?")) {
@@ -135,7 +145,8 @@ export default function SharedTripPage() {
     };
 
     if (loading) return <div className="flex justify-center items-center h-screen text-red-600 font-bold animate-pulse">Cargando ruta compartida... 🐌</div>;
-    if (error) return <div className="flex flex-col justify-center items-center h-screen gap-4"><p className="text-gray-500 font-bold">{error}</p><a href="/" className="text-blue-500 underline">Volver al inicio</a></div>;
+    if (error) return <div className="flex flex-col justify-center items-center h-screen gap-4"><p className="text-gray-500 font-bold">{error}</p><Link href="/" className="text-blue-500 underline">Volver al inicio</Link></div>;
+    if (!trip) return null;
     if (!isLoaded) return null;
 
     return (
@@ -149,8 +160,8 @@ export default function SharedTripPage() {
                     </div>
                     <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 mb-2">{trip.name}</h1>
                     <div className="flex justify-center gap-4 text-gray-500 text-xs mb-6 font-mono">
-                        <span className="flex items-center gap-1">🗓️ {trip.trip_data.results.totalDays} Días</span>
-                        <span className="flex items-center gap-1">📍 {Math.round(trip.trip_data.results.distanceKm)} km</span>
+                        <span className="flex items-center gap-1">🗓️ {trip.trip_data.results.totalDays || 0} Días</span>
+                        <span className="flex items-center gap-1">📍 {Math.round(trip.trip_data.results.distanceKm || 0)} km</span>
                     </div>
                     
                     <button 
@@ -163,16 +174,16 @@ export default function SharedTripPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative">
-                        <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={map => { setMap(map); if (directionsResponse) map.fitBounds(directionsResponse.routes[0].bounds); }}>
+                        <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={(mapInstance) => { if (directionsResponse) mapInstance.fitBounds(directionsResponse.routes[0].bounds); }}>
                             {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 } }} />}
-                            {trip.trip_data.results.dailyItinerary.map((day: any, dIdx: number) => (
-                                (activeDay === null || activeDay === dIdx) && day.savedPlaces?.map((spot: any, i: number) => (
-                                    spot.geometry?.location && (
+                            {(trip.trip_data.results.dailyItinerary || []).map((day: DailyPlan, dIdx: number) => (
+                                        (activeDay === null || activeDay === dIdx) && day.savedPlaces?.map((spot: PlaceWithDistance, i: number) => (
+                                            spot.geometry?.location && (
                                         <Marker 
                                             key={`${dIdx}-${i}`}
                                             position={spot.geometry.location}
                                             icon={{
-                                                url: MARKER_ICONS[spot.type] || MARKER_ICONS.custom,
+                                                url: (spot.type && MARKER_ICONS[spot.type]) || MARKER_ICONS.custom,
                                                 scaledSize: new window.google.maps.Size(30, 30)
                                             }}
                                             onClick={() => setHoveredPlace(spot)}
@@ -194,7 +205,7 @@ export default function SharedTripPage() {
                     <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] overflow-y-auto">
                         <div className="p-4 space-y-4">
                             <h3 className="font-bold text-gray-700 text-sm border-b pb-2 sticky top-0 bg-white z-10">Itinerario Detallado</h3>
-                            {trip.trip_data.results.dailyItinerary.map((day: DailyPlan, index: number) => (
+                            {(trip.trip_data.results.dailyItinerary || []).map((day: DailyPlan, index: number) => (
                                 <div 
                                     key={index} 
                                     onClick={() => setActiveDay(index === activeDay ? null : index)}

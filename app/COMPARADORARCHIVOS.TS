@@ -94,8 +94,8 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string): 
         if (data.status === 'OK' && data.results?.[0]) {
             // Buscamos la localidad o el municipio
             const comp = data.results[0].address_components;
-            const locality = comp.find((c: any) => c.types.includes('locality'))?.long_name;
-            const admin2 = comp.find((c: any) => c.types.includes('administrative_area_level_2'))?.long_name; // Provincia
+            const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
+            const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name; // Provincia
             return locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
         }
     } catch (e) {
@@ -134,7 +134,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         
         // --- CÁLCULO DE DISTANCIA TOTAL ---
         let totalDistanceMeters = 0;
-        route.legs.forEach((leg: any) => { totalDistanceMeters += leg.distance.value; });
+        route.legs.forEach((leg: { distance: { value: number } }) => { totalDistanceMeters += leg.distance.value; });
         const distanceKm = totalDistanceMeters / 1000;
         
         // --- EL CORTADOR DE SALAMI (Slicing Algorithm V2) ---
@@ -308,8 +308,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         
         return { distanceKm, mapUrl, dailyItinerary };
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Server Action Error:", e);
-        return { error: e.message || "Error al calcular la ruta." };
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: msg || "Error al calcular la ruta." };
     }
 }

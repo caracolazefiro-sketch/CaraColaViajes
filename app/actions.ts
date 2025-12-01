@@ -43,9 +43,15 @@ function formatDate(date: Date): string {
 }
 
 // Algoritmo de decodificación de Polyline
-function decodePolyline(encoded: string) {
-    const poly = [];
-    let index = 0, len = encoded.length;
+interface LatLng {
+    lat: number;
+    lng: number;
+}
+
+function decodePolyline(encoded: string): LatLng[] {
+        const poly: LatLng[] = [];
+        let index = 0;
+        const len = encoded.length;
     let lat = 0, lng = 0;
 
     while (index < len) {
@@ -99,8 +105,8 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
         if (data.status === 'OK' && data.results?.[0]) {
             const comp = data.results[0].address_components;
-            const locality = comp.find((c: any) => c.types.includes('locality'))?.long_name;
-            const admin2 = comp.find((c: any) => c.types.includes('administrative_area_level_2'))?.long_name; 
+            const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
+            const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
             return locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
         }
     } catch (e) { console.error("Geocode error", e); }
@@ -140,7 +146,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         const route = directionsResult.routes[0];
         
         let totalDistanceMeters = 0;
-        route.legs.forEach((leg: any) => { totalDistanceMeters += leg.distance.value; });
+        route.legs.forEach((leg: { distance: { value: number } }) => { totalDistanceMeters += leg.distance.value; });
         const distanceKm = totalDistanceMeters / 1000;
         
         // Estructura temporal para guardar paradas con sus coordenadas de inicio y fin
@@ -286,11 +292,12 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             waypoints: finalWaypointsForMap.join('|'), 
             mode: data.travel_mode,
         };
-        const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as any).toString()}`;
+        const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
         
         return { distanceKm, mapUrl, dailyItinerary };
 
-    } catch (e: any) {
-        return { error: e.message || "Error al calcular la ruta." };
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { error: msg || "Error al calcular la ruta." };
     }
 }

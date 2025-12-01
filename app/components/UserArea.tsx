@@ -2,24 +2,38 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { TripResult } from '../types';
 
 // Iconos
 const IconBug = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>);
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
 
 // ✅ INTERFAZ ACTUALIZADA CON t
+interface TripData {
+    formData: Record<string, string | number | boolean>;
+    results: {
+        totalDays: number | null;
+        distanceKm: number | null;
+        totalCost: number | null;
+        liters?: number | null;
+        dailyItinerary: TripResult['dailyItinerary'];
+        error: string | null;
+    };
+}
+
 interface UserAreaProps {
-    onLoadTrip: (tripData: any, tripId: number) => void;
-    t: (key: string) => string; 
+    onLoadTrip: (tripData: TripData, tripId: number) => void;
+    t: (key: string) => string;
 }
 
 export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
-    const [user, setUser] = useState<any>(null);
+    interface AppUser { id: string; email?: string }
+    const [user, setUser] = useState<AppUser | null>(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [showTrips, setShowTrips] = useState(false);
-    const [myTrips, setMyTrips] = useState<any[]>([]);
+    const [myTrips, setMyTrips] = useState<Array<{ id: number; name: string; created_at: string; trip_data: TripData }>>([]);
     const [authMode, setAuthMode] = useState<'magic' | 'password' | 'register'>('magic');
 
     useEffect(() => {
@@ -28,10 +42,9 @@ export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
             setUser(session?.user || null);
         };
         checkUser();
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        supabase.auth.onAuthStateChange((event, session) => {
             setUser(session?.user || null);
         });
-        return () => { authListener.subscription.unsubscribe(); };
     }, []);
 
     const handleMagicLogin = async (e: React.FormEvent) => {
@@ -70,7 +83,7 @@ export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
         if (!error) setMyTrips(prev => prev.filter(t => t.id !== id));
     };
 
-    const handleCopyDebugData = (e: React.MouseEvent, trip: any) => {
+    const handleCopyDebugData = (e: React.MouseEvent, trip: { trip_data: TripData; created_at: string; name: string; id: number }) => {
         e.stopPropagation();
         const debugData = JSON.stringify(trip.trip_data, null, 2);
         navigator.clipboard.writeText(debugData)

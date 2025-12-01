@@ -9,7 +9,7 @@ export interface PlaceWithDistance {
     vicinity?: string; 
     place_id?: string;
     opening_hours?: { isOpen?: () => boolean; open_now?: boolean };
-    geometry?: { location?: any; }; 
+    geometry?: { location?: Coordinates; }; 
     distanceFromCenter?: number; 
     type?: ServiceType;
     photoUrl?: string;

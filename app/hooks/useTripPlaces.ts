@@ -59,7 +59,14 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     let dist = 999999;
                     if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
                     const photoUrl = spot.photos?.[0]?.getUrl({ maxWidth: 200 });
-                    return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry: spot.geometry, distanceFromCenter: dist, type, opening_hours: spot.opening_hours as any, user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
+                    // Convertir geometry de Google Maps a nuestro formato
+                    const geometry = spot.geometry?.location ? {
+                        location: {
+                            lat: spot.geometry.location.lat(),
+                            lng: spot.geometry.location.lng()
+                        }
+                    } : undefined;
+                    return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type, opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
                 });
                 // Filtros del Portero
                 spots = spots.filter(spot => {
@@ -114,11 +121,18 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     let dist = 999999;
                     if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
                     const photoUrl = spot.photos?.[0]?.getUrl({ maxWidth: 200 });
+                    // Convertir geometry de Google Maps a nuestro formato
+                    const geometry = spot.geometry?.location ? {
+                        location: {
+                            lat: spot.geometry.location.lat(),
+                            lng: spot.geometry.location.lng()
+                        }
+                    } : undefined;
                     return { 
                         name: spot.name, rating: spot.rating, vicinity: spot.formatted_address, 
-                        place_id: spot.place_id, geometry: spot.geometry, distanceFromCenter: dist, 
+                        place_id: spot.place_id, geometry, distanceFromCenter: dist, 
                         type: 'search' as ServiceType, 
-                        opening_hours: spot.opening_hours as any, user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types 
+                        opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types 
                     };
                 });
             } else {

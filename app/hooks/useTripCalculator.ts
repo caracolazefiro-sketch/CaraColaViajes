@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TripResult, DailyPlan, Coordinates } from '../types';
+import { TripResult, DailyPlan } from '../types';
 
 export interface TripFormData {
     fechaInicio: string;
@@ -43,9 +43,10 @@ const getCleanCityName = async (lat: number, lng: number, attempt = 1): Promise<
                    comps.find(c => c.types.includes("administrative_area_level_1"))?.long_name || // Región
                    "Punto en Ruta";
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         // 🛡️ ESTRATEGIA ANTI-BLOQUEO: Si Google dice "OVER_QUERY_LIMIT", esperamos y reintentamos.
-        if (e.code === 'OVER_QUERY_LIMIT' && attempt <= 3) {
+        const err = e as { code?: string };
+        if (err.code === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             console.warn(`Rate limit hit. Retrying city name... (Attempt ${attempt})`);
             await sleep(1000 * attempt); // Espera progresiva: 1s, 2s, 3s
             return getCleanCityName(lat, lng, attempt + 1);
@@ -143,7 +144,7 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
 
                 // Cierre del Leg
                 await sleep(200); // Pausa también aquí
-                let endLegName = await getCleanCityName(leg.end_location.lat(), leg.end_location.lng());
+                const endLegName = await getCleanCityName(leg.end_location.lat(), leg.end_location.lng());
 
                 if (legAccumulator > 0 || segmentStartName !== endLegName) {
                     const isFinalDest = i === route.legs.length - 1;
@@ -226,7 +227,7 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                 error: null 
             });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
             setResults(prev => ({...prev, error: "Error al calcular. Revisa las ciudades."}));
         } finally {
