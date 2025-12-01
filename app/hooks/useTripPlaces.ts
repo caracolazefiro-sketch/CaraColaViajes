@@ -35,16 +35,16 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
         const service = new google.maps.places.PlacesService(map);
         const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        let keywords = ''; let radius = 10000; 
+        let placeType = ''; let radius = 10000; 
 
         switch(type) {
-            case 'camping': keywords = 'camping OR "area autocaravanas" OR "rv park" OR "parking caravanas"'; radius = 20000; break;
-            case 'restaurant': keywords = 'restaurante OR comida OR bar'; radius = 5000; break;
-            case 'water': keywords = '"punto limpio autocaravanas" OR "rv dump station" OR "area servicio autocaravanas"'; radius = 15000; break;
-            case 'gas': keywords = 'gasolinera OR "estacion servicio"'; radius = 10000; break;
-            case 'supermarket': keywords = 'supermercado OR "tienda alimentacion"'; radius = 5000; break;
-            case 'laundry': keywords = 'lavanderia OR "laundry"'; radius = 10000; break;
-            case 'tourism': keywords = 'turismo OR monumento OR museo OR "punto interes"'; radius = 10000; break;
+            case 'camping': placeType = 'campground'; radius = 30000; break;
+            case 'restaurant': placeType = 'restaurant'; radius = 10000; break;
+            case 'water': placeType = 'campground'; radius = 25000; break; // No hay tipo específico, usamos campground
+            case 'gas': placeType = 'gas_station'; radius = 20000; break;
+            case 'supermarket': placeType = 'supermarket'; radius = 15000; break;
+            case 'laundry': placeType = 'laundry'; radius = 20000; break;
+            case 'tourism': placeType = 'tourist_attraction'; radius = 15000; break;
         }
 
         setLoadingPlaces(prev => ({...prev, [type]: true}));
@@ -52,10 +52,10 @@ export function useTripPlaces(map: google.maps.Map | null) {
         console.log(`🔍 [${type}] Búsqueda iniciada:`, {
             location: `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`,
             radius: `${radius}m (${(radius/1000).toFixed(1)}km)`,
-            keywords
+            type: placeType
         });
         
-        service.nearbySearch({ location: centerPoint, radius, keyword: keywords }, (res, status) => {
+        service.nearbySearch({ location: centerPoint, radius, type: placeType }, (res, status) => {
             setLoadingPlaces(prev => ({...prev, [type]: false}));
             
             console.log(`📊 [${type}] Respuesta de Google:`, {
