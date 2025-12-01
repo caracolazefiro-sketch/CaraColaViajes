@@ -109,7 +109,7 @@ export default function SharedTripPage() {
     }, [params.id]);
 
     const handleCloneTrip = async () => {
-        if (!trip) return;
+        if (!trip || !supabase) return;
         
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
@@ -164,12 +164,14 @@ export default function SharedTripPage() {
                         <span className="flex items-center gap-1">📍 {Math.round(trip.trip_data.results.distanceKm || 0)} km</span>
                     </div>
                     
-                    <button 
-                        onClick={handleCloneTrip}
-                        className="bg-gray-900 text-white px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:bg-black transform hover:-translate-y-0.5 transition flex items-center gap-2 mx-auto"
-                    >
-                        <IconCopy /> COPIAR A MIS VIAJES
-                    </button>
+                    {supabase && (
+                        <button 
+                            onClick={handleCloneTrip}
+                            className="bg-gray-900 text-white px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:bg-black transform hover:-translate-y-0.5 transition flex items-center gap-2 mx-auto"
+                        >
+                            <IconCopy /> COPIAR A MIS VIAJES
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -27,6 +27,11 @@ interface UserAreaProps {
 }
 
 export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
+    // If Supabase is not configured, don't render the auth UI
+    if (!supabase) {
+        return null;
+    }
+
     interface AppUser { id: string; email?: string }
     const [user, setUser] = useState<AppUser | null>(null);
     const [email, setEmail] = useState('');
