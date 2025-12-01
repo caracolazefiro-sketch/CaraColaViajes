@@ -49,8 +49,19 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
         setLoadingPlaces(prev => ({...prev, [type]: true}));
         
+        console.log(`🔍 [${type}] Búsqueda iniciada:`, {
+            location: `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`,
+            radius: `${radius}m (${(radius/1000).toFixed(1)}km)`,
+            keywords
+        });
+        
         service.nearbySearch({ location: centerPoint, radius, keyword: keywords }, (res, status) => {
             setLoadingPlaces(prev => ({...prev, [type]: false}));
+            
+            console.log(`📊 [${type}] Respuesta de Google:`, {
+                status,
+                resultadosBrutos: res?.length || 0
+            });
             
             let finalSpots: PlaceWithDistance[] = [];
 
@@ -64,12 +75,9 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     if (spot.photos && spot.photos.length > 0) {
                         try {
                             photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                            console.log(`[${type}] Photo for ${spot.name}:`, photoUrl);
                         } catch (e) {
                             console.warn(`[${type}] Error getting photo URL for`, spot.name, ':', e);
                         }
-                    } else {
-                        console.log(`[${type}] No photos available for ${spot.name}`);
                     }
                     
                     // Convertir geometry de Google Maps a nuestro formato
@@ -82,20 +90,58 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type, opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
                 });
                 // Filtros del Portero
+                const rechazados: {name: string, types: string[], razon: string}[] = [];
                 spots = spots.filter(spot => {
                     const tags = spot.types || [];
-                    if (type === 'camping') return tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && /camping|area|camper|autocaravana/i.test(spot.name || ''));
-                    if (type === 'gas') return tags.includes('gas_station');
-                    if (type === 'supermarket') return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
-                    if (type === 'laundry') return tags.includes('laundry') && !tags.includes('lodging');
-                    return true;
+                    let pasa = true;
+                    let razon = '';
+                    
+                    if (type === 'camping') {
+                        pasa = tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && /camping|area|camper|autocaravana/i.test(spot.name || ''));
+                        if (!pasa) razon = 'No es campground, rv_park ni parking con nombre camping/autocaravana';
+                    } else if (type === 'gas') {
+                        pasa = tags.includes('gas_station');
+                        if (!pasa) razon = 'No tiene tag gas_station';
+                    } else if (type === 'supermarket') {
+                        pasa = tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
+                        if (!pasa) razon = 'No es supermarket, grocery ni convenience_store';
+                    } else if (type === 'laundry') {
+                        pasa = tags.includes('laundry') && !tags.includes('lodging');
+                        if (!pasa) razon = tags.includes('laundry') ? 'Es lodging (hotel con lavandería)' : 'No tiene tag laundry';
+                    }
+                    
+                    if (!pasa) {
+                        rechazados.push({ name: spot.name || 'Sin nombre', types: tags, razon });
+                    }
+                    
+                    return pasa;
                 });
+                
+                const filtrados = res.length - spots.length;
+                console.log(`🚫 [${type}] Filtrado del Portero:`, {
+                    recibidos: res.length,
+                    rechazados: filtrados,
+                    aceptados: spots.length,
+                    porcentajeRechazo: `${((filtrados/res.length)*100).toFixed(1)}%`
+                });
+                
+                if (rechazados.length > 0) {
+                    console.log(`📋 [${type}] Primeros rechazados (máx 5):`, rechazados.slice(0, 5));
+                }
+                
                 finalSpots = spots.sort((a, b) => (a.distanceFromCenter || 0) - (b.distanceFromCenter || 0));
+            } else {
+                console.warn(`❌ [${type}] Sin resultados:`, status);
             } 
             
             // 3. GUARDAR RESULTADO EN CACHÉ (Incluso si está vacío, para no reintentar a lo tonto)
             placesCache.current[cacheKey] = finalSpots;
             setPlaces(prev => ({...prev, [type]: finalSpots}));
+            
+            console.log(`✅ [${type}] Búsqueda completada:`, {
+                resultadosFinales: finalSpots.length,
+                cacheKey
+            });
         });
     }, [map]);
 
@@ -124,8 +170,19 @@ export function useTripPlaces(map: google.maps.Map | null) {
             query: query
         };
 
+        console.log(`🔍 [search] Búsqueda textSearch iniciada:`, {
+            query,
+            location: `${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}`,
+            radius: '20km'
+        });
+
         service.textSearch(request, (res, status) => {
             setLoadingPlaces(prev => ({...prev, search: false}));
+            
+            console.log(`📊 [search] Respuesta de Google:`, {
+                status,
+                resultados: res?.length || 0
+            });
             
             let finalSpots: PlaceWithDistance[] = [];
 
@@ -139,12 +196,9 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     if (spot.photos && spot.photos.length > 0) {
                         try {
                             photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                            console.log(`[search] Photo for ${spot.name}:`, photoUrl);
                         } catch (e) {
                             console.warn(`[search] Error getting photo URL for`, spot.name, ':', e);
                         }
-                    } else {
-                        console.log(`[search] No photos available for ${spot.name}`);
                     }
                     
                     // Convertir geometry de Google Maps a nuestro formato
@@ -167,11 +221,17 @@ export function useTripPlaces(map: google.maps.Map | null) {
                 if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
                     alert("No se encontraron resultados para: " + query);
                 }
+                console.warn(`❌ [search] Sin resultados:`, status);
             }
 
             // Guardar en caché y actualizar estado
             placesCache.current[cacheKey] = finalSpots;
-            setPlaces(prev => ({...prev, search: finalSpots})); 
+            setPlaces(prev => ({...prev, search: finalSpots}));
+            
+            console.log(`✅ [search] Búsqueda completada:`, {
+                resultadosFinales: finalSpots.length,
+                cacheKey
+            });
         });
     }, [map]);
 
