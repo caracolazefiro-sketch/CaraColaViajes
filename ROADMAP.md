@@ -136,7 +136,21 @@ Esta funcionalidad permite al usuario modificar cualquier parada técnica del vi
 
 ## ✅ COMPLETADO (Últimas implementaciones)
 
-### v0.6 - Ajuste Manual de Etapas ⭐ FEATURE DESTACADA (Dic 2025) 🆕
+### v0.7 - Iconografía Profesional SVG (Dic 2025) 🆕
+- ✅ **Reemplazo completo de emojis por Lucide Icons**
+  - Botones de acción: 🔍 → Search icon, ⚙️ → Settings icon
+  - Badges de calidad: 🏆💎🔥📍 → Trophy/Gem/Flame/MapPin con colores
+  - Logo: 🐌 → imagen logo.jpg en título print
+- ✅ **Tooltips informativos mejorados**
+  - "Buscar Servicios": Explica funcionalidad y ahorro de tiempo
+  - "Ajustar Parada": Describe recálculo automático y casos de uso
+  - Educación del usuario integrada en la UI
+- ✅ **Consistencia visual total**
+  - 100% iconografía Lucide React
+  - Escalable y profesional
+  - Colores coherentes por tipo de badge
+
+### v0.6 - Ajuste Manual de Etapas ⭐ FEATURE DESTACADA (Dic 2025)
 - ✅ **Sistema completo de ajuste de paradas técnicas**
   - Botón ⚙️ en cada día de conducción del itinerario
   - Modal con Google Places Autocomplete
