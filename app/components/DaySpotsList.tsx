@@ -460,10 +460,10 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         {/* Botón Añadir Sitio como parte del grid */}
                         <button 
                             onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
-                            className="px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200"
+                            className="px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md"
                         >
-                            <div className="p-1 rounded-full bg-white/20">
-                                <IconPlus />
+                            <div className="p-1 rounded-full bg-gray-100">
+                                <IconPlus className="text-gray-600" />
                             </div>
                             <span className="text-[10px] leading-tight text-center">{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
                         </button>
