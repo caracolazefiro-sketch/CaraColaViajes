@@ -146,9 +146,16 @@ export function useTripPersistence<T extends Record<string, string | number | bo
         const confirmed = window.confirm("¿Borrar viaje y empezar de cero?");
         console.log('🗑️ Usuario confirmó:', confirmed);
         if (confirmed) {
-            console.log('🗑️ Limpiando localStorage y recargando...');
+            console.log('🗑️ Limpiando localStorage...');
+            const beforeRemove = localStorage.getItem('caracola_trip_v1');
+            console.log('🗑️ Contenido ANTES de borrar:', beforeRemove ? 'EXISTS' : 'NULL');
+            
             localStorage.removeItem('caracola_trip_v1');
-            window.location.reload();
+            
+            const afterRemove = localStorage.getItem('caracola_trip_v1');
+            console.log('🗑️ Contenido DESPUÉS de borrar:', afterRemove ? 'STILL EXISTS (ERROR!)' : 'NULL (correcto)');
+            console.log('🗑️ ⏸️  RELOAD DESACTIVADO PARA DEBUG - Refresca manualmente para ver cambios');
+            // window.location.reload(); // TEMPORALMENTE COMENTADO PARA DEBUG
         }
     };
 
