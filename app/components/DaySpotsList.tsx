@@ -422,17 +422,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 </div>
             )}
 
-            <button 
-                onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
-                className="w-full mt-3 mb-2 px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex items-center justify-center gap-2 shadow-sm hover:scale-105 active:scale-95 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200"
-            >
-                <div className="p-1 rounded-full bg-white/20">
-                    <IconPlus />
-                </div>
-                <span>{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
-            </button>
-
-            {/* MODAL POPUP PARA EL FORMULARIO */}
+            {/* MODAL POPUP PARA EL FORMULARIO */
             {showForm && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleFormCancel}>
                     <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -467,6 +457,16 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         {saved.filter(s => s.type === 'found').length > 0 && (
                             <ServiceButton type="found" label="Encontrados" toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'found').length} />
                         )}
+                        {/* Botón Añadir Sitio como parte del grid */}
+                        <button 
+                            onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
+                            className="px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200"
+                        >
+                            <div className="p-1 rounded-full bg-white/20">
+                                <IconPlus />
+                            </div>
+                            <span className="text-[10px] leading-tight text-center">{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
+                        </button>
                     </div>
                     <div className="space-y-2">
                         <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
@@ -495,7 +495,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             <div className="relative">
                                 <button 
                                     onClick={clearElevation} 
-                                    className="absolute top-2 right-2 z-10 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all hover:scale-110"
+                                    className="absolute top-2 left-2 z-10 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all hover:scale-110"
                                     title={isImperial ? 'Close' : 'Cerrar'}
                                 >
                                     ✕
