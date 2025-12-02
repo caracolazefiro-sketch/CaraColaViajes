@@ -89,7 +89,9 @@ export function useTripPersistence<T extends Record<string, string | number | bo
 
         setIsSaving(true);
         // Usar el nombre personalizado del viaje o generar uno automático
-        const tripName = formData.tripName || `${formData.origen.split(',')[0]} → ${formData.destino.split(',')[0]} (${formData.fechaInicio})`;
+        const origenStr = String(formData.origen || '');
+        const destinoStr = String(formData.destino || '');
+        const tripName = formData.tripName || `${origenStr.split(',')[0]} → ${destinoStr.split(',')[0]} (${formData.fechaInicio})`;
         const tripPayload = { formData, results };
 
         try {
