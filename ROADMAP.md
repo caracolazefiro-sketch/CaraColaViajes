@@ -1,5 +1,50 @@
 # CaraColaViajes - Roadmap & Ideas
 
+## 🚀 PRÓXIMAS MEJORAS - Mapa y Servicios (Diciembre 2025)
+
+### 🎨 Mejoras visuales e interacción con mapa
+1. **Filtros de servicios más visuales** 
+   - Reemplazar checkboxes por iconos grandes con toggle (estilo botones)
+   - Cada servicio con su icono característico y color
+   - Estado activo/inactivo visualmente claro
+   - Efecto hover y feedback táctil
+
+2. **Búsqueda por etapa específica**
+   - Click en un día del itinerario → busca servicios cerca de ese punto
+   - Indicador visual de "buscando en día X"
+   - Centrar mapa automáticamente
+
+3. **Radio de búsqueda ajustable**
+   - Slider para cambiar cuántos km alrededor buscar (5km - 50km)
+   - Círculo visual en el mapa mostrando el radio
+   - Actualización en tiempo real
+
+4. **Info window mejorado**
+   - Foto del lugar prominente
+   - Rating con estrellas visuales (ya implementado ✅)
+   - Botón "Guardar" / "Añadir a favoritos"
+   - Distancia desde punto de ruta
+
+5. **Lista lateral de lugares encontrados**
+   - Panel con scroll mostrando todos los resultados
+   - Ordenable por distancia/rating
+   - Click en item → centra mapa y abre info
+
+6. **Filtro por rating mínimo**
+   - Solo mostrar lugares con X estrellas o más
+   - Slider o botones rápidos (3+, 4+, 4.5+)
+
+7. **Mejoras en marcadores**
+   - Diferenciar mejor saved vs search markers
+   - Clusters para muchos resultados
+   - Animación al añadir/quitar
+
+8. **Persistencia de servicios encontrados**
+   - Guardar qué servicios encontraste interesantes para cada viaje
+   - Recuperar al reabrir el viaje
+
+---
+
 ## 🎯 VERSIÓN PREMIUM (Futuras features de pago)
 
 ### 📞 Información extendida de lugares

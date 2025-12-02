@@ -33,11 +33,34 @@ interface ServiceButtonProps {
 
 const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0 }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
+    const isActive = toggles[type];
+    
     return (
-        <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-            {Icon && <Icon size={14} />} {label}
+        <button 
+            onClick={() => onToggle(type)} 
+            className={`relative px-4 py-3 rounded-xl text-sm font-bold border-2 transition-all flex flex-col items-center gap-2 shadow-md hover:scale-105 active:scale-95 ${
+                isActive 
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200' 
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-lg'
+            }`}
+        >
+            {/* Icono grande */}
+            {Icon && (
+                <div className={`p-2 rounded-full ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>
+                    <Icon size={24} className={isActive ? 'text-white' : 'text-gray-600'} />
+                </div>
+            )}
+            
+            {/* Label */}
+            <span className="text-xs leading-tight text-center">{label}</span>
+            
+            {/* Contador de resultados */}
             {count > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${toggles[type] ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                <span className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold shadow-md ${
+                    isActive 
+                        ? 'bg-red-500 text-white' 
+                        : 'bg-gray-600 text-white'
+                }`}>
                     {count}
                 </span>
             )}
@@ -415,7 +438,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    {/* Grid de botones de servicios mejorado */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
                         <ServiceButton type="camping" label="Spots" toggles={toggles} onToggle={onToggle} count={places.camping?.length || 0} />
                         <ServiceButton type="water" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} count={places.water?.length || 0} />
                         <ServiceButton type="gas" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} count={places.gas?.length || 0} />
