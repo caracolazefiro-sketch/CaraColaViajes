@@ -33,10 +33,9 @@ const UpcomingTripsNotification: React.FC<UpcomingTripsNotificationProps> = ({ o
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
-            // Verificar si ya se mostró hoy
-            const dismissedDate = localStorage.getItem('upcomingTripsDismissed');
-            const today = new Date().toDateString();
-            if (dismissedDate === today) return;
+            // Verificar si fue cerrada en esta sesión (no por día, sino por sesión)
+            const dismissedInSession = sessionStorage.getItem('upcomingTripsDismissed');
+            if (dismissedInSession === 'true') return;
 
             try {
                 const { data: trips, error } = await supabase
@@ -80,7 +79,7 @@ const UpcomingTripsNotification: React.FC<UpcomingTripsNotificationProps> = ({ o
     const handleDismiss = () => {
         setIsVisible(false);
         setIsDismissed(true);
-        localStorage.setItem('upcomingTripsDismissed', new Date().toDateString());
+        sessionStorage.setItem('upcomingTripsDismissed', 'true');
     };
 
     const handleLoadTrip = (tripId: number) => {
