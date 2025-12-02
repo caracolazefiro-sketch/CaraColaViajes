@@ -164,8 +164,8 @@ export default function TripForm({
     
     // Calcular distancia total sumando días del itinerario (igual que ItineraryPanel para consistencia)
     const totalDistance = results.dailyItinerary?.reduce((sum, day) => sum + day.distance, 0) || results.distanceKm || 0;
-    const displayKm = convert(totalDistance, 'km').toFixed(0);
-    const displayCost = convert(results.totalCost || 0, 'currency').toFixed(0);
+    const displayKm = totalDistance ? convert(totalDistance, 'km').toFixed(0) : '0';
+    const displayCost = results.totalCost ? convert(results.totalCost, 'currency').toFixed(0) : '0';
     const displayDays = results.totalDays || '0';
     
     // Rango de KM MÁXIMO (Ajustado a la conversión)
