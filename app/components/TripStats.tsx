@@ -16,7 +16,7 @@ interface TripStatsProps {
 }
 
 export default function TripStats({ days, distance, cost, liters }: TripStatsProps) {
-    if (days === null) return null;
+    if (days === null || distance === null || cost === null || liters === null) return null;
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 no-print">
@@ -26,15 +26,15 @@ export default function TripStats({ days, distance, cost, liters }: TripStatsPro
             </div>
             <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100">
                 <div className="p-2 bg-blue-50 rounded-full"><IconMap /></div>
-                <div><p className="text-xl font-extrabold text-gray-800">{distance?.toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Km</p></div>
+                <div><p className="text-xl font-extrabold text-gray-800">{distance.toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Km</p></div>
             </div>
             <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100">
                 <div className="p-2 bg-purple-50 rounded-full"><IconFuel /></div>
-                <div><p className="text-xl font-extrabold text-gray-800">{liters?.toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Litros</p></div>
+                <div><p className="text-xl font-extrabold text-gray-800">{liters.toFixed(0)}</p><p className="text-[10px] text-gray-500 font-bold uppercase">Litros</p></div>
             </div>
             <div className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-3 border border-gray-100">
                 <div className="p-2 bg-green-50 rounded-full"><IconWallet /></div>
-                <div><p className="text-xl font-extrabold text-green-600">{cost?.toFixed(0)} €</p><p className="text-[10px] text-gray-500 font-bold uppercase">Coste</p></div>
+                <div><p className="text-xl font-extrabold text-green-600">{cost.toFixed(0)} €</p><p className="text-[10px] text-gray-500 font-bold uppercase">Coste</p></div>
             </div>
         </div>
     );
