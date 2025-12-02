@@ -137,8 +137,9 @@ export default function Home() {
     setSelectedDayIndex(dayIndex);
     setHoveredPlace(null);
     
-    // Limpiar filtros de búsqueda previos (mantener solo servicios guardados)
+    // Limpiar TODOS los filtros (incluyendo toggles de servicios)
     clearSearch();
+    resetPlaces(); // Esto limpia todos los marcadores de búsqueda
 
     // Determinar las coordenadas de búsqueda
     let searchCoords: Coordinates | undefined = dailyPlan.coordinates;
@@ -188,6 +189,8 @@ export default function Home() {
     showToast('Recalculando ruta...', 'info');
     
     try {
+      console.log('🔧 Ajustando día', adjustingDayIndex, 'a:', newDestination);
+      
       // 1. Actualizar la etapa ajustada
       const updatedItinerary = [...results.dailyItinerary];
       updatedItinerary[adjustingDayIndex] = {
@@ -199,6 +202,7 @@ export default function Home() {
       // 2. Preparar datos para recálculo
       // Si es la última etapa, solo actualizar el destino final
       if (adjustingDayIndex === updatedItinerary.length - 1) {
+        console.log('✅ Última etapa - solo actualizar destino');
         setResults({ ...results, dailyItinerary: updatedItinerary });
         showToast('Parada actualizada correctamente', 'success');
         setAdjustModalOpen(false);
@@ -207,6 +211,7 @@ export default function Home() {
       }
 
       // 3. Si es etapa intermedia, recalcular desde ahí hasta el final
+      console.log('🔄 Recalculando desde día', adjustingDayIndex);
       const { getDirectionsAndCost } = await import('./actions');
       
       const adjustedDayOrigin = updatedItinerary[adjustingDayIndex].from;
@@ -217,6 +222,8 @@ export default function Home() {
       for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
         waypoints.push(updatedItinerary[i].to);
       }
+
+      console.log('📍 Origen:', adjustedDayOrigin, '| Destino:', finalDestination, '| Waypoints:', waypoints);
 
       const recalcResult = await getDirectionsAndCost({
         origin: adjustedDayOrigin,
@@ -229,9 +236,14 @@ export default function Home() {
       });
 
       if (recalcResult.error || !recalcResult.dailyItinerary) {
-        showToast('Error al recalcular ruta: ' + recalcResult.error, 'error');
+        console.error('❌ Error recalculando:', recalcResult.error);
+        showToast('Error: ' + (recalcResult.error || 'No se pudo recalcular'), 'error');
+        setAdjustModalOpen(false);
+        setAdjustingDayIndex(null);
         return;
       }
+
+      console.log('✅ Recalculado, fusionando itinerarios...');
 
       // 4. Fusionar: mantener días anteriores, reemplazar desde adjustingDayIndex
       const preservedDays = updatedItinerary.slice(0, adjustingDayIndex);
@@ -247,6 +259,8 @@ export default function Home() {
         }))
       ];
 
+      console.log('📊 Itinerario final:', finalItinerary.length, 'días');
+
       setResults({ 
         ...results, 
         dailyItinerary: finalItinerary
@@ -254,8 +268,8 @@ export default function Home() {
       
       showToast('Ruta recalculada correctamente', 'success');
     } catch (error) {
-      console.error('Error recalculando:', error);
-      showToast('Error al recalcular ruta', 'error');
+      console.error('💥 Error recalculando:', error);
+      showToast('Error al recalcular ruta: ' + (error instanceof Error ? error.message : 'Error desconocido'), 'error');
     }
     
     setAdjustModalOpen(false);
