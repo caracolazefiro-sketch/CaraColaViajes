@@ -2,15 +2,15 @@ import { useState, useCallback, useRef } from 'react';
 import { Coordinates, PlaceWithDistance, ServiceType } from '../types';
 
 export function useTripPlaces(map: google.maps.Map | null) {
-    // AÑADIDO 'search' AL ESTADO INICIAL
+    // AÑADIDO 'search' y 'found' AL ESTADO INICIAL
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
-        camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: []
+        camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: []
     });
     const [loadingPlaces, setLoadingPlaces] = useState<Record<ServiceType, boolean>>({
-        camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false
+        camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false
     });
     const [toggles, setToggles] = useState<Record<ServiceType, boolean>>({
-        camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true, search: true
+        camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true, search: false, found: false
     });
 
     // 💰 CACHÉ EN MEMORIA (Ahorro de API Calls)
@@ -20,7 +20,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
     // BÚSQUEDA ESTÁNDAR (Categorías)
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
         if (!map || typeof google === 'undefined') return;
-        if (type === 'custom' || type === 'search') return; // 'search' va por otro lado
+        if (type === 'custom' || type === 'search' || type === 'found') return; // 'search' y 'found' van por otro lado
 
         // 1. GENERAR CLAVE DE CACHÉ
         // Redondeamos coords para que pequeños movimientos no invaliden la caché innecesariamente
@@ -149,7 +149,8 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     const dist = spot.distanceFromCenter || 999999;
                     const rating = spot.rating || 0;
                     const reviews = spot.user_ratings_total || 0;
-                    const isOpen = spot.opening_hours?.open_now;
+                    // Usar optional chaining sin acceder a open_now deprecado
+                    const isOpen = spot.opening_hours ? undefined : undefined; // Ignoramos open_now deprecado
                     
                     // Score de distancia (40%): exponencial, mejor cerca
                     const distanceScore = Math.max(0, 100 * Math.exp(-dist / 5000)); // Decae rápido después de 5km
@@ -160,8 +161,8 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     // Score de reviews (20%): logarítmico
                     const reviewsScore = reviews > 0 ? Math.min(100, Math.log10(reviews + 1) * 50) : 25;
                     
-                    // Score de disponibilidad (10%)
-                    const openScore = isOpen === true ? 100 : isOpen === false ? 50 : 75; // desconocido = 75
+                    // Score de disponibilidad (10%) - neutral por defecto al no usar API deprecada
+                    const openScore = 75; // Valor neutral al no tener info de apertura
                     
                     const totalScore = Math.round(
                         distanceScore * 0.4 + 
@@ -298,8 +299,8 @@ export function useTripPlaces(map: google.maps.Map | null) {
     const resetPlaces = () => {
         // Opcional: Podríamos limpiar la caché aquí si quisiéramos forzar recarga al cambiar de viaje
         // placesCache.current = {}; 
-        setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true, search: false });
-        setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [] });
+        setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true, search: false, found: false });
+        setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: [] });
     };
 
     return { 

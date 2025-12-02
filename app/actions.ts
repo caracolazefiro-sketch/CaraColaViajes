@@ -168,74 +168,86 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         for (let i = 0; i < route.legs.length; i++) {
             const leg = route.legs[i];
             const nextStopName = allStops[i + 1]; 
+            let legDistanceMeters = 0;
 
+            // Calcular la distancia total de este leg
             for (const step of leg.steps) {
-                const stepDist = step.distance.value;
+                legDistanceMeters += step.distance.value;
+            }
 
-                if (dayAccumulatorMeters + stepDist < maxMeters) {
-                    dayAccumulatorMeters += stepDist;
-                } else {
-                    let metersNeeded = maxMeters - dayAccumulatorMeters;
-                    let metersLeftInStep = stepDist;
-                    const path = decodePolyline(step.polyline.points);
-                    let currentPathIndex = 0;
+            // CAMBIO: Si llegar al waypoint excede el límite, crear paradas tácticas
+            if (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0) {
+                // Necesitamos dividir esta leg en múltiples días
+                for (const step of leg.steps) {
+                    const stepDist = step.distance.value;
 
-                    while (metersLeftInStep >= metersNeeded) {
-                        let distWalked = 0;
-                        let stopCoords = path[currentPathIndex]; 
+                    if (dayAccumulatorMeters + stepDist < maxMeters) {
+                        dayAccumulatorMeters += stepDist;
+                    } else {
+                        let metersNeeded = maxMeters - dayAccumulatorMeters;
+                        let metersLeftInStep = stepDist;
+                        const path = decodePolyline(step.polyline.points);
+                        let currentPathIndex = 0;
 
-                        for (let p = currentPathIndex; p < path.length - 1; p++) {
-                            const segment = getDistanceFromLatLonInM(path[p].lat, path[p].lng, path[p+1].lat, path[p+1].lng);
-                            if (distWalked + segment >= metersNeeded) {
-                                stopCoords = path[p+1];
-                                currentPathIndex = p + 1;
-                                metersLeftInStep -= metersNeeded;
-                                break;
+                        while (metersLeftInStep >= metersNeeded) {
+                            let distWalked = 0;
+                            let stopCoords = path[currentPathIndex]; 
+
+                            for (let p = currentPathIndex; p < path.length - 1; p++) {
+                                const segment = getDistanceFromLatLonInM(path[p].lat, path[p].lng, path[p+1].lat, path[p+1].lng);
+                                if (distWalked + segment >= metersNeeded) {
+                                    stopCoords = path[p+1];
+                                    currentPathIndex = p + 1;
+                                    metersLeftInStep -= metersNeeded;
+                                    break;
+                                }
+                                distWalked += segment;
                             }
-                            distWalked += segment;
+
+                            await sleep(200); 
+                            const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
+                            const stopName = `📍 Parada Táctica: ${stopNameRaw}`;
+
+                            allDrivingStops.push({
+                                from: currentLegStartName,
+                                to: stopName,
+                                distance: data.kmMaximoDia,
+                                startCoords: currentLegStartCoords,
+                                endCoords: stopCoords
+                            });
+                            
+                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
+
+                            currentLegStartName = stopNameRaw; 
+                            currentLegStartCoords = stopCoords;
+                            dayAccumulatorMeters = 0;
+                            metersNeeded = maxMeters; 
                         }
-
-                        await sleep(200); 
-                        const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
-                        const stopName = `📍 Parada Táctica: ${stopNameRaw}`;
-
-                        allDrivingStops.push({
-                            from: currentLegStartName,
-                            to: stopName,
-                            distance: data.kmMaximoDia,
-                            startCoords: currentLegStartCoords, // ✅ Guardamos inicio
-                            endCoords: stopCoords               // ✅ Guardamos fin
-                        });
-                        
-                        finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
-
-                        // Preparamos siguiente día
-                        currentLegStartName = stopNameRaw; 
-                        currentLegStartCoords = stopCoords; // ✅ El fin de hoy es el inicio de mañana
-                        dayAccumulatorMeters = 0;
-                        metersNeeded = maxMeters; 
+                        dayAccumulatorMeters += metersLeftInStep;
                     }
-                    dayAccumulatorMeters += metersLeftInStep;
                 }
+            } else {
+                // NUEVO: El waypoint cabe en el día actual, añadimos toda la distancia
+                dayAccumulatorMeters += legDistanceMeters;
             }
 
-            if (dayAccumulatorMeters > 0 || currentLegStartName !== nextStopName) {
-                const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
-                
-                allDrivingStops.push({
-                    from: currentLegStartName,
-                    to: nextStopName,
-                    distance: dayAccumulatorMeters / 1000,
-                    startCoords: currentLegStartCoords, // ✅
-                    endCoords: legEndCoords             // ✅
-                });
+            // FORZAR: Cada waypoint es fin de etapa obligatorio
+            const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
+            
+            allDrivingStops.push({
+                from: currentLegStartName,
+                to: nextStopName,
+                distance: dayAccumulatorMeters / 1000,
+                startCoords: currentLegStartCoords,
+                endCoords: legEndCoords
+            });
 
-                if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
+            if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
 
-                currentLegStartName = nextStopName;
-                currentLegStartCoords = legEndCoords; // ✅
-                dayAccumulatorMeters = 0; 
-            }
+            // Preparar para el siguiente waypoint
+            currentLegStartName = nextStopName;
+            currentLegStartCoords = legEndCoords;
+            dayAccumulatorMeters = 0; 
         }
 
         // --- CONSTRUCCIÓN DEL ITINERARIO ---

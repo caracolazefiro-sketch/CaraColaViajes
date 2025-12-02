@@ -10,12 +10,15 @@ import TripForm from './components/TripForm';
 import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
+import ToastContainer from './components/ToastContainer';
+import UpcomingTripsNotification from './components/UpcomingTripsNotification';
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
 import { useTripPersistence } from './hooks/useTripPersistence';
 import { useTripPlaces } from './hooks/useTripPlaces';
 import { useLanguage } from './hooks/useLanguage';
+import { useToast } from './hooks/useToast';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
@@ -32,6 +35,7 @@ const printStyles = `
 
 export default function Home() {
   const { settings, t, convert, setLang, language } = useLanguage();
+  const { toasts, showToast, dismissToast } = useToast();
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -47,6 +51,7 @@ export default function Home() {
   const [auditMode, setAuditMode] = useState(false);
 
   const [formData, setFormData] = useState({
+    tripName: '',
     fechaInicio: new Date().toISOString().split('T')[0],
     origen: 'Salamanca',
     fechaRegreso: '',
@@ -78,6 +83,16 @@ export default function Home() {
 
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
+      
+      // Auto-generar nombre del viaje si está vacío
+      if (!formData.tripName) {
+          const origen = formData.origen.split(',')[0];
+          const destino = formData.destino.split(',')[0];
+          const fecha = new Date(formData.fechaInicio).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+          const autoName = `${origen} → ${destino} (${fecha})`;
+          setFormData({ ...formData, tripName: autoName });
+      }
+      
       setSelectedDayIndex(null); setCurrentTripId(null); resetPlaces(); 
       calculateRoute(formData);
   };
@@ -148,10 +163,21 @@ export default function Home() {
       const updatedItinerary = [...results.dailyItinerary]; 
       const currentDay = updatedItinerary[selectedDayIndex]; 
       if (!currentDay.savedPlaces) currentDay.savedPlaces = []; 
-      if (!currentDay.savedPlaces.some(p => p.place_id === place.place_id)) { 
-          currentDay.savedPlaces.push(place); 
-          setResults({ ...results, dailyItinerary: updatedItinerary }); 
-      } 
+      
+      // Verificar duplicado
+      if (currentDay.savedPlaces.some(p => p.place_id === place.place_id)) {
+          showToast(`"${place.name}" ya está guardado en este día`, 'warning');
+          return;
+      }
+      
+      // Si es del buscador (search) o encontrado en mapa (found), marcarlo como privado por defecto
+      // PERO respetar la elección explícita del usuario si ya estableció isPublic
+      const placeToAdd = (place.type === 'search' || place.type === 'found') 
+          ? { ...place, isPublic: place.isPublic ?? false } 
+          : place;
+      currentDay.savedPlaces.push(placeToAdd); 
+      setResults({ ...results, dailyItinerary: updatedItinerary });
+      showToast(`"${place.name}" añadido correctamente`, 'success');
   };
 
   const handleRemovePlace = (placeId: string) => { 
@@ -177,7 +203,7 @@ export default function Home() {
 
         <div className="print-only hidden text-center mb-10">
              <h1 className="text-4xl font-bold text-red-600 mb-2">{t('APP_TITLE')} 🐌</h1>
-             <h2 className="text-2xl font-bold text-gray-800">{formData.origen} ➝ {formData.destino}</h2>
+             <h2 className="text-2xl font-bold text-gray-800">{formData?.origen || ''} ➝ {formData?.destino || ''}</h2>
              <p className="text-gray-500">{t('ITINERARY_GENERATED_ON')} {new Date().toLocaleDateString()}</p>
         </div>
 
@@ -189,7 +215,7 @@ export default function Home() {
             t={t} convert={convert}
         />
 
-        {results.totalCost !== null && (
+        {results?.totalCost !== null && results?.totalCost !== undefined && (
             <div className="space-y-6 animate-fadeIn">
                 
                 <StageSelector 
@@ -201,6 +227,7 @@ export default function Home() {
                     
                     <ItineraryPanel 
                         dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
+                        tripName={formData.tripName}
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
                         onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                         onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
@@ -217,6 +244,9 @@ export default function Home() {
                 </div>
             </div>
         )}
+        
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <UpcomingTripsNotification onLoadTrip={handleLoadCloudTrip} />
       </div>
     </main>
   );

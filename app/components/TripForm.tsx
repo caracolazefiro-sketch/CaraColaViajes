@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Autocomplete } from '@react-google-maps/api';
 import { TripResult } from '../types';
+import { Truck } from 'lucide-react';
 
 // Iconos
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
@@ -52,6 +53,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 );
 
 interface FormData {
+    tripName: string;
     fechaInicio: string;
     fechaRegreso: string;
     origen: string;
@@ -97,12 +99,9 @@ export default function TripForm({
     const destRef = useRef<google.maps.places.Autocomplete | null>(null);
     const stopRef = useRef<google.maps.places.Autocomplete | null>(null);
 
-    // Auto-colapsar cuando se completen los resultados (sólo una vez)
-    const hasCollapsedRef = useRef(false);
+    // Auto-colapsar cuando se completen los resultados
     useEffect(() => {
-        if (!loading && results.totalDays !== null && !hasCollapsedRef.current) {
-            hasCollapsedRef.current = true;
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (!loading && results.totalDays !== null) {
             setIsExpanded(false);
         }
     }, [loading, results.totalDays]);
@@ -163,8 +162,9 @@ export default function TripForm({
     const unitLiter = convert(1, 'liter') === 1 ? 'L' : 'gal';
     const unitCurrency = convert(1, 'currency') === 1 ? '€' : '$';
     
-    // Mostramos los resultados ya convertidos usando el hook (liters ya está disponible en results debido al fix de types.ts)
-    const displayKm = convert(results.distanceKm || 0, 'km').toFixed(0);
+    // Calcular distancia total sumando días del itinerario (igual que ItineraryPanel para consistencia)
+    const totalDistance = results.dailyItinerary?.reduce((sum, day) => sum + day.distance, 0) || results.distanceKm || 0;
+    const displayKm = convert(totalDistance, 'km').toFixed(0);
     const displayCost = convert(results.totalCost || 0, 'currency').toFixed(0);
     const displayDays = results.totalDays || '0';
     
@@ -175,20 +175,29 @@ export default function TripForm({
 
     // --- MODO RESUMEN (DASHBOARD ULTRA-COMPACTO) ---
     if (!isExpanded && results.totalDays) {
+        const displayTripName = formData.tripName || `${formData.origen?.split(',')[0] || 'Origen'} → ${formData.destino?.split(',')[0] || 'Destino'}`;
+        
         return (
             <div 
                 className="bg-white rounded-xl shadow-md border border-gray-200 no-print cursor-pointer hover:shadow-lg hover:border-red-300 transition-all duration-300 flex flex-col md:flex-row items-center justify-between p-2 gap-2 md:gap-4" 
                 onClick={() => setIsExpanded(true)}
             >
-                {/* 1. RUTA (Izquierda) */}
+                {/* 1. NOMBRE DEL VIAJE / RUTA (Izquierda) */}
                 <div className="flex items-center gap-2 overflow-hidden w-full md:w-auto px-2">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-800 font-bold truncate">
-                        <span className="text-red-600">🏁</span> 
-                        <span>{formData.origen.split(',')[0]}</span> 
-                        <span className="text-gray-400 text-xs">➝</span> 
-                        <span>{formData.destino.split(',')[0]}</span>
+                    <Truck size={18} className="text-red-600 flex-shrink-0" />
+                    <div className="flex flex-col overflow-hidden">
+                        <div className="text-sm text-gray-800 font-bold truncate">
+                            {displayTripName}
+                        </div>
+                        {formData.tripName && (
+                            <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                                <span>{formData.origen?.split(',')[0] || 'Origen'}</span>
+                                <span className="text-gray-400">➝</span>
+                                <span>{formData.destino?.split(',')[0] || 'Destino'}</span>
+                            </div>
+                        )}
                     </div>
-                    {formData.vueltaACasa && <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-full font-bold">{t('FORM_ROUND_TRIP_SHORT')}</span>}
+                    {formData.vueltaACasa && <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">{t('FORM_ROUND_TRIP_SHORT')}</span>}
                 </div>
 
                 {/* 2. DATOS (Centro - Integrados) */}
@@ -236,6 +245,20 @@ export default function TripForm({
             </div>
 
             <form onSubmit={onSubmit} className="p-5 text-sm">
+                {/* NOMBRE DEL VIAJE */}
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{t('FORM_TRIP_NAME')}</label>
+                    <input 
+                        type="text" 
+                        id="tripName" 
+                        value={formData.tripName} 
+                        onChange={handleChange} 
+                        placeholder={`${formData.origen?.split(',')[0] || 'Origen'} → ${formData.destino?.split(',')[0] || 'Destino'} ${formData.fechaInicio ? `(${new Date(formData.fechaInicio).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })})` : ''}`}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-2 focus:ring-red-500 outline-none text-base font-semibold text-gray-800 placeholder:text-gray-400 placeholder:font-normal" 
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">💡 Dale un nombre memorable a tu viaje (opcional)</p>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     
                     {/* FECHAS */}

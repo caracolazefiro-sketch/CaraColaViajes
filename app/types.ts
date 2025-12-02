@@ -1,6 +1,6 @@
 export interface Coordinates { lat: number; lng: number; }
 
-export type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism' | 'custom' | 'search';
+export type ServiceType = 'camping' | 'restaurant' | 'water' | 'gas' | 'supermarket' | 'laundry' | 'tourism' | 'custom' | 'search' | 'found';
 
 export interface PlaceWithDistance {
     name?: string;
@@ -16,6 +16,7 @@ export interface PlaceWithDistance {
     types?: string[]; 
     link?: string; 
     isPublic?: boolean;
+    note?: string;
     score?: number; // Score combinado de calidad/distancia
 }
 

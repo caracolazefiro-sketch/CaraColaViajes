@@ -17,6 +17,7 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
     const [customName, setCustomName] = useState(initialData?.name || '');
     const [customDesc, setCustomDesc] = useState(initialData?.vicinity || '');
     const [customLink, setCustomLink] = useState(initialData?.link || '');
+    const [customNote, setCustomNote] = useState(initialData?.note || '');
     const [customLat, setCustomLat] = useState(initialData?.geometry?.location ? String(initialData.geometry.location.lat) : '');
     const [customLng, setCustomLng] = useState(initialData?.geometry?.location ? String(initialData.geometry.location.lng) : '');
     const [customType, setCustomType] = useState<ServiceType>(initialData?.type || 'custom');
@@ -50,22 +51,23 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
             };
         }
         const newPlace: PlaceWithDistance = {
+            place_id: initialData?.place_id || `custom-${Date.now()}`, // Mantener place_id si existe
+            ...initialData, // Preservar datos originales (rating, user_ratings_total, photoUrl, types, etc.)
+            // Sobrescribir con los valores del formulario (estos tienen prioridad)
             name: customName, 
             vicinity: customDesc, 
-            link: customLink, 
-            place_id: `custom-${Date.now()}`, 
+            link: customLink,
+            note: customNote || undefined,
             type: customType, 
-            rating: 0, 
-            distanceFromCenter: 0, 
-            types: ['custom'], 
             geometry: geometry,
-            isPublic: customPublic
+            isPublic: customPublic // IMPORTANTE: va después del spread para sobrescribir
         };
+        console.log('💾 Guardando lugar:', { name: newPlace.name, type: newPlace.type, isPublic: newPlace.isPublic });
         onSave(newPlace);
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-gray-100 p-3 rounded-lg mb-4 border border-gray-300 animate-fadeIn">
+        <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                     <input type="text" placeholder="Nombre (ej: Taller)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
@@ -77,6 +79,8 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
                         <option value="gas">⛽ Gasolinera</option>
                         <option value="supermarket">🛒 Super</option>
                         <option value="tourism">📷 Turismo</option>
+                        <option value="search">🔍 Buscado</option>
+                        <option value="found">📍 Encontrado</option>
                     </select>
                 </div>
                 <div className="flex gap-2">
@@ -86,6 +90,13 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
                     </button>
                 </div>
                 <input type="text" placeholder="Link URL (Opcional)" value={customLink} onChange={e => setCustomLink(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
+                <textarea 
+                    placeholder="Nota personal (ej: llevar flores a tía María)" 
+                    value={customNote} 
+                    onChange={e => setCustomNote(e.target.value)} 
+                    className="w-full p-2 text-xs rounded border border-gray-300 outline-none resize-none" 
+                    rows={2}
+                />
                 <div className="grid grid-cols-2 gap-2">
                     <input type="text" placeholder="Latitud" value={customLat} onChange={e => setCustomLat(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />
                     <input type="text" placeholder="Longitud" value={customLng} onChange={e => setCustomLng(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none bg-gray-50" />

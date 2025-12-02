@@ -5,8 +5,10 @@ import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import { getWeatherIcon } from '../constants';
 import ElevationChart from './ElevationChart';
 import AddPlaceForm from './AddPlaceForm';
+import StarRating from './StarRating';
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
+import { ServiceIcons } from './ServiceIcons';
 
 // Iconos
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
@@ -23,17 +25,17 @@ const CATEGORY_ORDER: Record<string, number> = {
 
 interface ServiceButtonProps {
     type: ServiceType;
-    icon: string;
     label: string;
     toggles: Record<ServiceType, boolean>;
     onToggle: (type: ServiceType) => void;
     count?: number;
 }
 
-const ServiceButton: React.FC<ServiceButtonProps> = ({ type, icon, label, toggles, onToggle, count = 0 }) => {
+const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0 }) => {
+    const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     return (
         <button onClick={() => onToggle(type)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 shadow-sm justify-center ${toggles[type] ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-            <span>{icon}</span> {label}
+            {Icon && <Icon size={14} />} {label}
             {count > 0 && (
                 <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${toggles[type] ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'}`}>
                     {count}
@@ -47,7 +49,6 @@ interface ServiceListProps {
     type: ServiceType;
     title: string;
     colorClass: string;
-    icon: string;
     markerColor: string;
     places: Record<ServiceType, PlaceWithDistance[]>;
     loading: Record<ServiceType, boolean>;
@@ -64,8 +65,9 @@ interface ServiceListProps {
 }
 
 const ServiceList: React.FC<ServiceListProps> = ({
-    type, title, colorClass, icon, markerColor, places, loading, toggles, saved, t, isSaved, onAddPlace, onRemovePlace, onHover, handlePlaceClick, handleEditStart, auditMode
+    type, title, colorClass, markerColor, places, loading, toggles, saved, t, isSaved, onAddPlace, onRemovePlace, onHover, handlePlaceClick, handleEditStart, auditMode
 }) => {
+    const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isSpecialType = type === 'search' || type === 'custom';
     const savedOfType = saved.filter(s => s.type === type);
     const hasResults = places[type]?.length > 0 || savedOfType.length > 0;
@@ -77,7 +79,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
 
     // Construir lista: siempre mostrar guardados, añadir búsquedas solo si toggle ON
     let list: PlaceWithDistance[] = [];
-    if (type === 'custom') {
+    if (type === 'custom' || type === 'search' || type === 'found') {
         list = savedOfType;
     } else if (savedOfType.length > 0 && toggles[type]) {
         // Toggle ON: guardados + búsquedas
@@ -88,16 +90,14 @@ const ServiceList: React.FC<ServiceListProps> = ({
     } else if (toggles[type]) {
         // Toggle ON sin guardados: solo búsquedas
         list = places[type];
-    } else if (type === 'search') {
-        list = savedOfType;
     }
 
     const isLoading = loading[type];
-    if (type === 'custom' && list.length === 0) return null;
+    if ((type === 'custom' || type === 'search' || type === 'found') && list.length === 0) return null;
 
     return (
         <div className="animate-fadeIn mt-4">
-            <h5 className={`text-xs font-bold ${colorClass} mb-2 border-b border-gray-100 pb-1 flex justify-between items-center`}><span className="flex items-center gap-1"><span>{icon}</span> {title}</span>{!isLoading && <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{list.length}</span>}</h5>
+            <h5 className={`text-xs font-bold ${colorClass} mb-2 border-b border-gray-100 pb-1 flex justify-between items-center`}><span className="flex items-center gap-1">{Icon && <Icon size={14} />} {title}</span>{!isLoading && <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{list.length}</span>}</h5>
             {isLoading && <p className="text-[10px] text-gray-400 animate-pulse">{t('FORM_LOADING')}</p>}
             {!isLoading && list.length > 0 && (
                 <div className="space-y-2">
@@ -126,10 +126,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                 {/* Línea de métricas principales */}
                                 <div className="flex items-center gap-3 mb-1 flex-wrap">
                                     {spot.rating !== undefined && (
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-xs font-bold text-orange-500">★</span>
-                                            <span className="text-xs font-bold text-gray-800">{spot.rating}</span>
-                                        </div>
+                                        <StarRating rating={spot.rating} size={12} />
                                     )}
                                     {spot.user_ratings_total !== undefined && (
                                         <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
@@ -152,6 +149,14 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                 <div className="text-[10px] text-gray-500 truncate">
                                     {spot.vicinity?.split(',').slice(0, 2).join(', ')}
                                 </div>
+                                
+                                {/* Nota personal (si existe) */}
+                                {spot.note && (
+                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700 italic">
+                                        💡 {spot.note}
+                                    </div>
+                                )}
+                                
                                 {auditMode && (
                                     <div className="mt-1 pt-1 border-t border-gray-200 space-y-0.5">
                                         <div className="flex gap-1 flex-wrap text-[9px]">
@@ -205,9 +210,12 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                     </div>
                                 )}
                             </div>
-                            {type === 'custom' || type === 'search' ? (
-                                <div className="flex gap-1">
-                                    {type === 'custom' && (
+                            {type === 'custom' || type === 'search' || type === 'found' ? (
+                                <div className="flex gap-1 items-center">
+                                    {(type === 'custom' || type === 'search' || type === 'found') && (
+                                        <span title={spot.isPublic === false ? "Private" : "Public"}>{spot.isPublic === false ? <IconLock /> : <IconEye />}</span>
+                                    )}
+                                    {(type === 'custom' || type === 'search' || type === 'found') && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
                                     <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
@@ -269,11 +277,16 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     const handleEditStart = (place: PlaceWithDistance) => {
         if (!place.place_id) return;
         setPlaceToEdit(place);
-        onRemovePlace(place.place_id); 
         setShowForm(true);
+        // NO borramos aquí - esperamos a que guarde
     };
 
     const handleFormSave = (place: PlaceWithDistance) => {
+        console.log('📥 Recibiendo en handleFormSave:', { name: place.name, type: place.type, isPublic: place.isPublic });
+        // Si estamos editando, primero borramos el original
+        if (placeToEdit && placeToEdit.place_id) {
+            onRemovePlace(placeToEdit.place_id);
+        }
         onAddPlace(place);
         setShowForm(false);
         setPlaceToEdit(null);
@@ -282,6 +295,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     const handleFormCancel = () => {
         setShowForm(false);
         setPlaceToEdit(null);
+        // No hacemos nada más - el lugar sigue en la lista
     };
 
     const handlePlaceClick = (spot: PlaceWithDistance) => {
@@ -349,11 +363,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 <div className="bg-white p-3 rounded-lg border border-green-500 shadow-md animate-fadeIn mt-2">
                     <h5 className="text-xs font-bold text-green-800 mb-2 flex items-center gap-1 border-b border-green-200 pb-1"><span>✅</span> {t('ITINERARY_PLAN')}:</h5>
                     <div className="space-y-1">
-                        {saved.map((place, i) => (
+                        {saved.map((place, i) => {
+                            const Icon = ServiceIcons[place.type as keyof typeof ServiceIcons] || ServiceIcons.custom;
+                            return (
                             <div key={i} className="flex justify-between items-center text-xs bg-green-50 p-1.5 rounded cursor-pointer hover:bg-green-100" onMouseEnter={() => onHover(place)} onMouseLeave={() => onHover(null)} onClick={() => handlePlaceClick(place)}>
                                 <div className="truncate flex-1 mr-2 flex items-center gap-2">
-                                    <span className="font-bold text-lg">
-                                       {place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : place.type === 'water' ? '💧' : place.type === 'gas' ? '⛽' : place.type === 'supermarket' ? '🛒' : place.type === 'laundry' ? '🧺' : place.type === 'tourism' ? '📷' : '⭐'}
+                                    <span className="text-gray-600">
+                                        <Icon size={16} />
                                     </span>
                                     <div>
                                         <span className="font-medium text-green-900 truncate block">{place.name}</span>
@@ -361,50 +377,75 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     </div>
                                 </div>
                                 <div className="flex gap-1 items-center">
-                                    {place.type === 'custom' && (
-                                        <span title={place.isPublic ? "Public" : "Private"}>{place.isPublic ? <IconEye /> : <IconLock />}</span>
+                                    {(place.type === 'custom' || place.type === 'search' || place.type === 'found') && (
+                                        <span title={place.isPublic === false ? "Private" : "Public"}>{place.isPublic === false ? <IconLock /> : <IconEye />}</span>
                                     )}
-                                    {place.type === 'custom' && (
+                                    {(place.type === 'custom' || place.type === 'search' || place.type === 'found') && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditStart(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
                                     <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
 
-            {!showForm ? (
-                <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1.5 hover:bg-black transition shadow-sm">
-                    <IconPlus /> {t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}
-                </button>
-            ) : (
-                <AddPlaceForm initialData={placeToEdit} rawCityName={rawCityName} onSave={handleFormSave} onCancel={handleFormCancel} />
+            <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1.5 hover:bg-black transition shadow-sm">
+                <IconPlus /> {t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}
+            </button>
+
+            {/* MODAL POPUP PARA EL FORMULARIO */}
+            {showForm && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleFormCancel}>
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="sticky top-0 bg-gradient-to-r from-red-600 to-red-700 text-white p-4 rounded-t-xl flex justify-between items-center">
+                            <h3 className="font-bold text-lg">
+                                {placeToEdit ? (isImperial ? 'Edit Place' : 'Editar Lugar') : (isImperial ? 'Add Place' : 'Añadir Sitio')}
+                            </h3>
+                            <button onClick={handleFormCancel} className="text-white hover:text-gray-200 text-2xl leading-none">&times;</button>
+                        </div>
+                        <div className="p-4">
+                            <AddPlaceForm initialData={placeToEdit} rawCityName={rawCityName} onSave={handleFormSave} onCancel={handleFormCancel} />
+                        </div>
+                    </div>
+                </div>
             )}
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     <div className="flex flex-wrap gap-2 mb-4">
-                        <ServiceButton type="camping" icon="🚐" label="Spots" toggles={toggles} onToggle={onToggle} count={places.camping?.length || 0} />
-                        <ServiceButton type="water" icon="💧" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} count={places.water?.length || 0} />
-                        <ServiceButton type="gas" icon="⛽" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} count={places.gas?.length || 0} />
-                        <ServiceButton type="restaurant" icon="🍳" label={t('SERVICE_EAT')} toggles={toggles} onToggle={onToggle} count={places.restaurant?.length || 0} />
-                        <ServiceButton type="supermarket" icon="🛒" label={t('SERVICE_SUPERMARKET')} toggles={toggles} onToggle={onToggle} count={places.supermarket?.length || 0} />
-                        <ServiceButton type="laundry" icon="🧺" label={t('SERVICE_LAUNDRY')} toggles={toggles} onToggle={onToggle} count={places.laundry?.length || 0} />
-                        <ServiceButton type="tourism" icon="📷" label={t('SERVICE_TOURISM')} toggles={toggles} onToggle={onToggle} count={places.tourism?.length || 0} />
-                        <ServiceButton type="custom" icon="⭐" label={t('SERVICE_CUSTOM')} toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'custom').length} />
+                        <ServiceButton type="camping" label="Spots" toggles={toggles} onToggle={onToggle} count={places.camping?.length || 0} />
+                        <ServiceButton type="water" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} count={places.water?.length || 0} />
+                        <ServiceButton type="gas" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} count={places.gas?.length || 0} />
+                        <ServiceButton type="restaurant" label={t('SERVICE_EAT')} toggles={toggles} onToggle={onToggle} count={places.restaurant?.length || 0} />
+                        <ServiceButton type="supermarket" label={t('SERVICE_SUPERMARKET')} toggles={toggles} onToggle={onToggle} count={places.supermarket?.length || 0} />
+                        <ServiceButton type="laundry" label={t('SERVICE_LAUNDRY')} toggles={toggles} onToggle={onToggle} count={places.laundry?.length || 0} />
+                        <ServiceButton type="tourism" label={t('SERVICE_TOURISM')} toggles={toggles} onToggle={onToggle} count={places.tourism?.length || 0} />
+                        <ServiceButton type="custom" label={t('SERVICE_CUSTOM')} toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'custom').length} />
+                        {saved.filter(s => s.type === 'search').length > 0 && (
+                            <ServiceButton type="search" label="Buscados" toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'search').length} />
+                        )}
+                        {saved.filter(s => s.type === 'found').length > 0 && (
+                            <ServiceButton type="found" label="Encontrados" toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'found').length} />
+                        )}
                     </div>
                     <div className="space-y-2">
-                        <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" icon="🚐" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" icon="💧" markerColor="bg-cyan-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" icon="⛽" markerColor="bg-orange-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" icon="🍳" markerColor="bg-blue-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" icon="🛒" markerColor="bg-green-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="laundry" title={t('SERVICE_LAUNDRY')} colorClass="text-purple-700" icon="🧺" markerColor="bg-purple-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="tourism" title={t('SERVICE_TOURISM')} colorClass="text-yellow-600" icon="📷" markerColor="bg-yellow-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="custom" title={t('SERVICE_CUSTOM')} colorClass="text-gray-600" icon="⭐" markerColor="bg-gray-400" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
-                        <ServiceList type="search" title={t('SERVICE_SEARCH')} colorClass="text-purple-600" icon="🔎" markerColor="bg-purple-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" markerColor="bg-cyan-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" markerColor="bg-orange-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" markerColor="bg-blue-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" markerColor="bg-green-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="laundry" title={t('SERVICE_LAUNDRY')} colorClass="text-purple-700" markerColor="bg-purple-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="tourism" title={t('SERVICE_TOURISM')} colorClass="text-yellow-600" markerColor="bg-yellow-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        <ServiceList type="custom" title={t('SERVICE_CUSTOM')} colorClass="text-gray-600" markerColor="bg-gray-400" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        {saved.filter(s => s.type === 'search').length > 0 && (
+                            <ServiceList type="search" title="Buscados" colorClass="text-blue-600" markerColor="bg-blue-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        )}
+                        {saved.filter(s => s.type === 'found').length > 0 && (
+                            <ServiceList type="found" title="Encontrados" colorClass="text-teal-600" markerColor="bg-teal-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} />
+                        )}
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
                         {!elevationData && !loadingElevation && (

@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleMap, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
-import { MARKER_ICONS, ICONS_ITINERARY } from '../constants';
+import { ICONS_ITINERARY } from '../constants';
+import { createMarkerIcon, ServiceIcons } from './ServiceIcons';
+import StarRating from './StarRating';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -17,9 +19,10 @@ const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
     const [imageError, setImageError] = useState(false);
     
     if (!place.photoUrl || place.photoUrl.trim() === '' || imageError) {
+        const Icon = ServiceIcons[place.type as keyof typeof ServiceIcons] || ServiceIcons.custom;
         return (
-            <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-4xl text-gray-300 rounded-t-lg">
-                {place.type === 'search' ? '🟣' : place.type === 'camping' ? '🚐' : place.type === 'restaurant' ? '🍳' : '📍'}
+            <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 rounded-t-lg">
+                <Icon size={48} />
             </div>
         );
     }
@@ -60,6 +63,7 @@ export default function TripMap({
 }: TripMapProps) {
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [clickedGooglePlace, setClickedGooglePlace] = useState<PlaceWithDistance | null>(null);
     
     // CONTROL DE INTERACCIÓN (SISTEMA VS HUMANO)
     const hasUserInteracted = useRef(false);
@@ -76,6 +80,52 @@ export default function TripMap({
         map.addListener('zoom_changed', () => { 
             if (!isProgrammaticMove.current) {
                 hasUserInteracted.current = true; 
+            }
+        });
+
+        // Listener para clicks en POIs de Google Maps
+        map.addListener('click', (e: google.maps.MapMouseEvent | google.maps.IconMouseEvent) => {
+            // @ts-ignore - placeId existe en IconMouseEvent
+            if (e.placeId) {
+                e.stop(); // Prevenir el InfoWindow por defecto de Google
+                
+                const service = new google.maps.places.PlacesService(map);
+                // @ts-ignore
+                service.getDetails({ placeId: e.placeId }, (place, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                        // Convertir a nuestro formato
+                        const lat = place.geometry?.location?.lat();
+                        const lng = place.geometry?.location?.lng();
+                        
+                        if (lat && lng) {
+                            let photoUrl: string | undefined;
+                            if (place.photos && place.photos.length > 0) {
+                                try {
+                                    photoUrl = place.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
+                                } catch (err) {
+                                    console.warn('Error getting photo URL:', err);
+                                }
+                            }
+
+                            const placeData: PlaceWithDistance = {
+                                place_id: place.place_id || '',
+                                name: place.name || 'Lugar sin nombre',
+                                vicinity: place.formatted_address || place.vicinity || '',
+                                geometry: {
+                                    location: { lat, lng }
+                                },
+                                rating: place.rating,
+                                user_ratings_total: place.user_ratings_total,
+                                type: 'found', // Marcado como "found" - descubierto en el mapa
+                                types: place.types,
+                                photoUrl,
+                                distanceFromCenter: 0 // No calculamos distancia para clicks en mapa
+                            };
+
+                            setClickedGooglePlace(placeData);
+                        }
+                    }
+                });
             }
         });
     };
@@ -147,7 +197,15 @@ export default function TripMap({
             </div>
             <GoogleMap 
                 mapContainerStyle={containerStyle} center={center} zoom={6} 
-                onLoad={handleMapLoad} 
+                onLoad={handleMapLoad}
+                onClick={(e) => {
+                    // Solo cerrar InfoWindow si NO es un click en POI de Google
+                    // @ts-ignore
+                    if (!e.placeId) {
+                        setHoveredPlace(null);
+                        setClickedGooglePlace(null);
+                    }
+                }}
                 options={{ 
                     zoomControl: true, streetViewControl: false, mapTypeControl: true, fullscreenControl: true,
                     mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_LEFT },
@@ -196,33 +254,65 @@ export default function TripMap({
                     
                     if (type === 'search' && listToRender.length === 0) return null;
                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
-                    return uniqueRender.map((spot, i) => (
-                        spot.geometry?.location && (
+                    return uniqueRender.map((spot, i) => {
+                        const saved = isSaved(spot.place_id);
+                        return spot.geometry?.location && (
                             <Marker 
                                 key={`${type}-${i}`} 
                                 position={spot.geometry.location} 
-                                icon={{ url: MARKER_ICONS[type], scaledSize: new window.google.maps.Size(30, 30) }} 
-                                label={{ text: isSaved(spot.place_id) ? "✓" : '', color: "white", fontWeight: "bold", fontSize: "10px" }} 
+                                icon={{ url: createMarkerIcon(type), scaledSize: new window.google.maps.Size(24, 24) }} 
+                                label={saved ? { 
+                                    text: "✓", 
+                                    color: "#16A34A", 
+                                    fontWeight: "bold", 
+                                    fontSize: "16px",
+                                    className: "marker-label"
+                                } : undefined}
                                 title={spot.name}
                                 onClick={() => setHoveredPlace(spot)}
                                 onMouseOver={() => setHoveredPlace(spot)}
-                                onMouseOut={() => setHoveredPlace(null)}
                             />
-                        )
-                    ));
+                        );
+                    });
                 })}
                 
                 {hoveredPlace && hoveredPlace.geometry?.location && (
-                    <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -35) }}>
+                    <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -20) }}>
                         <div className="p-0 w-[220px] overflow-hidden font-sans">
                             <InfoWindowImage place={hoveredPlace} />
                             <div className="p-3 bg-white">
                                 <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight line-clamp-2">{hoveredPlace.name}</h6>
-                                <div className="flex items-center gap-2 text-xs text-orange-500 font-bold mb-2"><span>{hoveredPlace.rating ? `★ ${hoveredPlace.rating}` : 'Sin valoración'}</span></div>
+                                {hoveredPlace.rating ? (
+                                    <div className="mb-2"><StarRating rating={hoveredPlace.rating} showNumber size={14} /></div>
+                                ) : (
+                                    <div className="text-xs text-gray-400 mb-2">Sin valoración</div>
+                                )}
                                 <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{hoveredPlace.vicinity}</p>
                                 <div className="flex gap-2">
                                     {selectedDayIndex !== null && !isSaved(hoveredPlace.place_id) && (<button onClick={() => { onAddPlace(hoveredPlace); setHoveredPlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}
                                     <button onClick={() => onPlaceClick(hoveredPlace)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold py-1.5 rounded border border-blue-200 transition-colors">Ver en Google</button>
+                                </div>
+                                {selectedDayIndex === null && <p className="text-[9px] text-red-500 mt-2 text-center italic">Selecciona un día para añadir.</p>}
+                            </div>
+                        </div>
+                    </InfoWindow>
+                )}
+
+                {clickedGooglePlace && clickedGooglePlace.geometry?.location && (
+                    <InfoWindow position={clickedGooglePlace.geometry.location} onCloseClick={() => setClickedGooglePlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, 0) }}>
+                        <div className="p-0 w-[220px] overflow-hidden font-sans">
+                            <InfoWindowImage place={clickedGooglePlace} />
+                            <div className="p-3 bg-white">
+                                <h6 className="font-bold text-sm text-gray-800 mb-1 leading-tight line-clamp-2">{clickedGooglePlace.name}</h6>
+                                {clickedGooglePlace.rating ? (
+                                    <div className="mb-2"><StarRating rating={clickedGooglePlace.rating} showNumber size={14} /></div>
+                                ) : (
+                                    <div className="text-xs text-gray-400 mb-2">Sin valoración</div>
+                                )}
+                                <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{clickedGooglePlace.vicinity}</p>
+                                <div className="flex gap-2">
+                                    {selectedDayIndex !== null && !isSaved(clickedGooglePlace.place_id) && (<button onClick={() => { onAddPlace(clickedGooglePlace); setClickedGooglePlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}
+                                    <button onClick={() => onPlaceClick(clickedGooglePlace)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold py-1.5 rounded border border-blue-200 transition-colors">Ver en Google</button>
                                 </div>
                                 {selectedDayIndex === null && <p className="text-[9px] text-red-500 mt-2 text-center italic">Selecciona un día para añadir.</p>}
                             </div>
