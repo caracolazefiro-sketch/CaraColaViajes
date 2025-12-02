@@ -43,7 +43,7 @@ export default function ItineraryPanel({
     // Conversiones y cálculos
     const unitKm = convert(1, 'km') === 1 ? 'km' : 'mi';
     const totalDistance = dailyItinerary.reduce((sum, day) => sum + day.distance, 0);
-    const displayTotalKm = convert(totalDistance, 'km').toFixed(0);
+    const displayTotalKm = totalDistance ? convert(totalDistance, 'km').toFixed(0) : '0';
     const firstDate = dailyItinerary[0]?.date;
     const lastDate = dailyItinerary[dailyItinerary.length - 1]?.date;
 
@@ -110,7 +110,7 @@ export default function ItineraryPanel({
                         <div className="p-4 space-y-3"
 >
                             {dailyItinerary.map((day, index) => {
-                                const displayDistance = convert(day.distance, 'km').toFixed(0);
+                                const displayDistance = day.distance ? convert(day.distance, 'km').toFixed(0) : '0';
                                 return (
                                     <div 
                                         key={index} 
