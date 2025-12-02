@@ -142,7 +142,11 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     // 3. ACCIONES (Handlers)
 
     const handleResetTrip = () => {
-        if (confirm("¿Borrar viaje y empezar de cero?")) {
+        console.log('🗑️ handleResetTrip llamado');
+        const confirmed = window.confirm("¿Borrar viaje y empezar de cero?");
+        console.log('🗑️ Usuario confirmó:', confirmed);
+        if (confirmed) {
+            console.log('🗑️ Limpiando localStorage y recargando...');
             localStorage.removeItem('caracola_trip_v1');
             window.location.reload();
         }

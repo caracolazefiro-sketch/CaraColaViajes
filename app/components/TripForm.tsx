@@ -46,7 +46,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="p-1.5 rounded text-green-600 hover:bg-green-50 transition" title={t('ACTION_SHARE')}><IconShare /></button>
                 )}
                 <button onClick={(e) => { e.stopPropagation(); onSave(); }} disabled={isSaving} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" title={t('ACTION_SAVE')}><IconCloud /></button>
-                <button onClick={(e) => { e.stopPropagation(); onReset(); }} className="p-1.5 rounded text-red-500 hover:bg-red-50 transition" title={t('ACTION_DELETE')}><IconReset /></button>
+                <button 
+                    onClick={(e) => { 
+                        console.log('🗑️ Botón Reset clickeado'); 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        onReset(); 
+                    }} 
+                    className="p-1.5 rounded text-red-500 hover:bg-red-50 transition" 
+                    title={t('ACTION_DELETE')}
+                >
+                    <IconReset />
+                </button>
             </>
         )}
     </div>
