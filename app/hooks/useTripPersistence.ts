@@ -21,11 +21,25 @@ export function useTripPersistence<T extends Record<string, string | number | bo
 ) {
     const [isSaving, setIsSaving] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
 
-    // 1. CARGA INICIAL (LocalStorage)
+    // Obtener el user_id de Supabase
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const savedData = localStorage.getItem('caracola_trip_v1');
+        const getUserId = async () => {
+            if (!supabase) return;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+                setUserId(session.user.id);
+            }
+        };
+        getUserId();
+    }, []);
+
+    // 1. CARGA INICIAL (LocalStorage con user_id)
+    useEffect(() => {
+        if (typeof window !== 'undefined' && userId) {
+            const storageKey = `caracola_trip_v1_${userId}`;
+            const savedData = localStorage.getItem(storageKey);
             if (savedData) {
                 try {
                     const parsed = JSON.parse(savedData);
@@ -36,15 +50,16 @@ export function useTripPersistence<T extends Record<string, string | number | bo
             }
             setIsInitialized(true);
         }
-    }, []);
+    }, [userId]);
 
-    // 2. AUTOGUARDADO (LocalStorage)
+    // 2. AUTOGUARDADO (LocalStorage con user_id)
     useEffect(() => {
-        if (isInitialized && typeof window !== 'undefined') {
+        if (isInitialized && typeof window !== 'undefined' && userId) {
+            const storageKey = `caracola_trip_v1_${userId}`;
             const dataToSave = { formData, results, tripId: currentTripId };
-            localStorage.setItem('caracola_trip_v1', JSON.stringify(dataToSave));
+            localStorage.setItem(storageKey, JSON.stringify(dataToSave));
         }
-    }, [formData, results, currentTripId, isInitialized]);
+    }, [formData, results, currentTripId, isInitialized, userId]);
 
     // 3. ACCIONES (Handlers)
 
