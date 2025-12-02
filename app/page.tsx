@@ -133,6 +133,9 @@ export default function Home() {
     // Seleccionar esa etapa y centrar el mapa
     setSelectedDayIndex(dayIndex);
     setHoveredPlace(null);
+    
+    // Limpiar filtros de búsqueda previos (mantener solo servicios guardados)
+    clearSearch();
 
     // Determinar las coordenadas de búsqueda
     let searchCoords: Coordinates | undefined = dailyPlan.coordinates;

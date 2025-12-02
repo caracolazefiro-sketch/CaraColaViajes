@@ -1,0 +1,15 @@
+{
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "none",
+  "workbench.activityBar.location": "hidden",
+  "workbench.statusBar.visible": false,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "git.autofetch": false,
+  "extensions.autoUpdate": false,
+  "telemetry.telemetryLevel": "off",
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/node_modules/**": true,
+    "**/.next/**": true
+  }
+}
