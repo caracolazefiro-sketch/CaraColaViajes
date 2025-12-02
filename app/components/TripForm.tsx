@@ -169,7 +169,7 @@ export default function TripForm({
     const displayDays = results.totalDays || '0';
     
     // Rango de KM MÁXIMO (Ajustado a la conversión)
-    const maxKmValue = convert(formData.kmMaximoDia, 'km').toFixed(0);
+    const maxKmValue = formData.kmMaximoDia ? convert(formData.kmMaximoDia, 'km').toFixed(0) : '400';
     const maxRangeValue = convert(1000, 'km').toFixed(0);
     const minRangeValue = convert(100, 'km').toFixed(0);
 
