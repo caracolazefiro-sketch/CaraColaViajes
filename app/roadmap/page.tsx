@@ -101,6 +101,34 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
 ## ✅ COMPLETADO (Últimas implementaciones)
 
+### v0.5 - Sistema de Colaboración & Tooling (Dic 2025) 🆕
+- ✅ **Chat de desarrollo en tiempo real** (Supabase Realtime)
+  - Mensajes instantáneos entre desarrolladores
+  - Avatares con colores únicos por usuario
+  - Timestamps relativos
+  - Accesible en \`/dev-chat\` (solo dev/preview)
+- ✅ **Migraciones de base de datos**
+  - Tabla \`dev_messages\` con RLS
+  - Tabla \`roadmap_comments\` para colaboración futura
+  - Realtime habilitado
+- ✅ **Configuración completa de VS Code**
+  - Extensiones recomendadas (ESLint, Prettier, Tailwind, GitLens)
+  - Settings optimizados para Next.js/TypeScript
+  - Tareas predefinidas (dev, build, lint, clean)
+  - Configuraciones de debug (server, client, full-stack)
+  - Snippets personalizados (Next.js, Supabase, Tailwind)
+  - Documentación en \`.vscode/README.md\`
+- ✅ **Onboarding para nuevos desarrolladores**
+  - Guía interactiva HTML (\`SETUP_CARMEN.html\`)
+  - Quick reference Markdown (\`SETUP_CARMEN.md\`)
+  - Setup paso a paso con troubleshooting
+- ✅ **Mejoras de código**
+  - TypeScript: 0 errores
+  - ESLint: Errores críticos resueltos
+  - Hooks en orden correcto
+  - Types de Supabase en lugar de \`any\`
+  - Links de Next.js en lugar de \`<a>\`
+
 ### v0.4 - Filtros Visuales de Servicios (Dic 2024)
 - ✅ Botones con iconos grandes reemplazando checkboxes
 - ✅ Gradientes azules para estado activo
@@ -108,6 +136,7 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 - ✅ Animaciones hover y active (scale)
 - ✅ Grid responsivo optimizado para escritorio
 - ✅ Diseño 50% más compacto tras feedback usuario
+- ✅ Botón "Añadir Sitio" con estilo consistente
 
 ### v0.3 - Sistema de Puntuación Inteligente (Dic 2024)
 - ✅ Algoritmo scoring multi-factor (distancia, rating, reviews, disponibilidad)
@@ -132,6 +161,7 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 ---
 
 **Última actualización:** 2 Diciembre 2025
+**Autor última sección:** Chema (v0.5 - Colaboración & Tooling)
 `;
 
 export default function RoadmapPage() {
