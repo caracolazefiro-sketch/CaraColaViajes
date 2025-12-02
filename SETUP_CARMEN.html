@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenida Carmen - Setup CaraColaViajes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .welcome-box {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .welcome-box h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .step {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s;
+        }
+        
+        .step:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-right: 15px;
+            float: left;
+        }
+        
+        .step h3 {
+            color: #1f2937;
+            margin-bottom: 15px;
+            padding-top: 5px;
+        }
+        
+        .code-block {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 0.9em;
+        }
+        
+        .code-block .comment {
+            color: #6b7280;
+        }
+        
+        .code-block .command {
+            color: #10b981;
+        }
+        
+        .env-example {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .warning {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .info {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .resources {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .resource-card {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .resource-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+        }
+        
+        .resource-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .emoji {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .footer {
+            background: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 2px solid #e5e7eb;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+            }
+            
+            .step:hover {
+                border-color: #e5e7eb;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 ¡Bienvenida al Equipo, Carmen!</h1>
+            <p>Setup completo para CaraColaViajes</p>
+        </div>
+        
+        <div class="content">
+            <div class="welcome-box">
+                <h2>👋 Hola Carmen,</h2>
+                <p>Estamos encantados de tenerte en el equipo de desarrollo de <strong>CaraColaViajes</strong>. Esta guía te llevará paso a paso para configurar tu entorno de desarrollo local y empezar a colaborar con Chema.</p>
+                <p style="margin-top: 10px;">📧 Si tienes cualquier pregunta, usa el <strong>chat de desarrollo</strong> (/dev-chat) una vez configurado todo, o contacta directamente con Chema.</p>
+            </div>
+            
+            <div class="info">
+                <strong>⏱️ Tiempo estimado:</strong> 15-20 minutos<br>
+                <strong>🎯 Objetivo:</strong> Tener el proyecto corriendo localmente y poder usar el chat de desarrollo
+            </div>
+            
+            <!-- PASO 1 -->
+            <div class="step">
+                <span class="step-number">1</span>
+                <h3>📋 Verifica los Pre-requisitos</h3>
+                <p>Asegúrate de tener instalado en tu ordenador:</p>
+                <ul style="margin-left: 60px; margin-top: 10px;">
+                    <li><strong>Node.js</strong> versión 18 o superior - <a href="https://nodejs.org/" target="_blank">Descargar aquí</a></li>
+                    <li><strong>Git</strong> - <a href="https://git-scm.com/downloads" target="_blank">Descargar aquí</a></li>
+                    <li><strong>Visual Studio Code</strong> (recomendado) - <a href="https://code.visualstudio.com/" target="_blank">Descargar aquí</a></li>
+                </ul>
+                
+                <div class="code-block">
+<span class="comment"># Verifica las versiones instaladas:</span>
+<span class="command">node --version</span>  <span class="comment"># Debe mostrar v18 o superior</span>
+<span class="command">npm --version</span>   <span class="comment"># Debe mostrar 8.x o superior</span>
+<span class="command">git --version</span>   <span class="comment"># Debe mostrar 2.x o superior</span>
+                </div>
+            </div>
+            
+            <!-- PASO 2 -->
+            <div class="step">
+                <span class="step-number">2</span>
+                <h3>📥 Clona el Repositorio</h3>
+                <p>Abre tu terminal (PowerShell en Windows, Terminal en Mac/Linux) y ejecuta:</p>
+                
+                <div class="code-block">
+<span class="command">git clone https://github.com/caracolazefiro-sketch/CaraColaViajes.git</span>
+<span class="command">cd CaraColaViajes</span>
+<span class="command">git checkout pruebas</span>  <span class="comment"># Branch de desarrollo</span>
+                </div>
+                
+                <div class="success">
+                    ✅ <strong>Consejo:</strong> El branch <code>pruebas</code> es donde trabajamos antes de pasar cambios a producción. Siempre crea tus branches desde aquí.
+                </div>
+            </div>
+            
+            <!-- PASO 3 -->
+            <div class="step">
+                <span class="step-number">3</span>
+                <h3>📦 Instala las Dependencias</h3>
+                <p>Dentro de la carpeta del proyecto, instala todas las dependencias de Node.js:</p>
+                
+                <div class="code-block">
+<span class="command">npm install</span>
+                </div>
+                
+                <p style="margin-top: 15px;">Esto puede tardar un par de minutos. Descargará todas las librerías necesarias (Next.js, React, Supabase, etc.).</p>
+            </div>
+            
+            <!-- PASO 4 -->
+            <div class="step">
+                <span class="step-number">4</span>
+                <h3>🔑 Configura las Variables de Entorno</h3>
+                <p><strong>¡IMPORTANTE!</strong> Necesitas las credenciales de Chema para este paso.</p>
+                
+                <p style="margin-top: 15px;">Crea un archivo llamado <code>.env.local</code> en la raíz del proyecto con este contenido:</p>
+                
+                <div class="env-example">
+<pre style="margin: 0; font-family: monospace; font-size: 0.9em;">
+# Google Maps API (pide a Chema)
+GOOGLE_MAPS_API_KEY_FIXED=tu_api_key_aqui
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=tu_api_key_aqui
+
+# Supabase (pide a Chema)
+NEXT_PUBLIC_SUPABASE_URL=https://...supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhb...tu_key_aqui
+</pre>
+                </div>
+                
+                <div class="warning">
+                    ⚠️ <strong>NUNCA</strong> subas este archivo a Git. Ya está en .gitignore, pero ten cuidado.
+                </div>
+            </div>
+            
+            <!-- PASO 5 -->
+            <div class="step">
+                <span class="step-number">5</span>
+                <h3>🗄️ Ejecuta las Migraciones de Base de Datos</h3>
+                <p>Para que el chat funcione, necesitas crear las tablas en Supabase:</p>
+                
+                <ol style="margin-left: 60px; margin-top: 15px; line-height: 1.8;">
+                    <li>Ve a <a href="https://supabase.com/dashboard" target="_blank"><strong>Supabase Dashboard</strong></a> (pide acceso a Chema si no lo tienes)</li>
+                    <li>En el menú lateral, haz click en <strong>"SQL Editor"</strong></li>
+                    <li>Abre el archivo <code>supabase/migrations/002_dev_collaboration.sql</code> del proyecto</li>
+                    <li>Copia todo el contenido y pégalo en el editor SQL de Supabase</li>
+                    <li>Haz click en <strong>"Run"</strong> o presiona <kbd>Ctrl+Enter</kbd></li>
+                    <li>Deberías ver: <code>"Migración completada exitosamente ✅"</code></li>
+                </ol>
+                
+                <div class="success">
+                    ✅ Esto crea las tablas <code>dev_messages</code> y <code>roadmap_comments</code> necesarias para el chat y los comentarios.
+                </div>
+            </div>
+            
+            <!-- PASO 6 -->
+            <div class="step">
+                <span class="step-number">6</span>
+                <h3>🚀 Arranca el Proyecto</h3>
+                <p>¡Ya casi estás! Ejecuta el servidor de desarrollo:</p>
+                
+                <div class="code-block">
+<span class="command">npm run dev</span>
+                </div>
+                
+                <p style="margin-top: 15px;">Espera unos segundos y deberías ver algo como:</p>
+                
+                <div class="code-block">
+<span style="color: #10b981;">✓ Ready in 2.3s</span>
+<span style="color: #3b82f6;">○ Local:   http://localhost:3000</span>
+                </div>
+                
+                <div class="success">
+                    ✅ Abre tu navegador en <strong>http://localhost:3000</strong> y deberías ver la aplicación funcionando!
+                </div>
+            </div>
+            
+            <!-- PASO 7 -->
+            <div class="step">
+                <span class="step-number">7</span>
+                <h3>👤 Crea tu Cuenta y Prueba el Chat</h3>
+                <p>Ahora que todo está configurado:</p>
+                
+                <ol style="margin-left: 60px; margin-top: 15px; line-height: 1.8;">
+                    <li>En la app, haz click en <strong>"Iniciar Sesión"</strong></li>
+                    <li>Regístrate con tu email (<code>carmenmsg@gmail.com</code>)</li>
+                    <li>Verifica tu email (Supabase te enviará un link)</li>
+                    <li>Una vez dentro, verás dos botones nuevos en el header: 💬 <strong>Chat</strong> y 🗺️ <strong>Roadmap</strong></li>
+                    <li>Haz click en <strong>💬 Chat</strong></li>
+                    <li>¡Envía tu primer mensaje a Chema!</li>
+                </ol>
+                
+                <div class="info">
+                    💡 El chat es en <strong>tiempo real</strong>. Cuando Chema escriba, verás sus mensajes aparecer automáticamente sin recargar la página.
+                </div>
+            </div>
+            
+            <!-- PASO 8 -->
+            <div class="step">
+                <span class="step-number">8</span>
+                <h3>🌿 Workflow de Git (Para tu primer cambio)</h3>
+                <p>Cuando quieras hacer cambios en el código:</p>
+                
+                <div class="code-block">
+<span class="comment"># 1. Asegúrate de estar en pruebas y actualizado</span>
+<span class="command">git checkout pruebas</span>
+<span class="command">git pull origin pruebas</span>
+
+<span class="comment"># 2. Crea tu branch de feature</span>
+<span class="command">git checkout -b feature/mi-nueva-feature</span>
+
+<span class="comment"># 3. Haz tus cambios en el código...</span>
+
+<span class="comment"># 4. Guarda tus cambios</span>
+<span class="command">git add .</span>
+<span class="command">git commit -m "feat: descripción de tu cambio"</span>
+
+<span class="comment"># 5. Sube tu branch</span>
+<span class="command">git push origin feature/mi-nueva-feature</span>
+
+<span class="comment"># 6. Ve a GitHub y crea un Pull Request hacia 'pruebas'</span>
+                </div>
+                
+                <div class="warning">
+                    ⚠️ <strong>Nunca</strong> hagas commit directamente en <code>pruebas</code> o <code>main</code>. Siempre trabaja en branches de feature.
+                </div>
+            </div>
+            
+            <h2 style="margin-top: 50px; margin-bottom: 20px; color: #667eea;">📚 Recursos Útiles</h2>
+            
+            <div class="resources">
+                <div class="resource-card">
+                    <div class="emoji">📖</div>
+                    <h4>Next.js Docs</h4>
+                    <p style="font-size: 0.9em; color: #6b7280;">Framework del proyecto</p>
+                    <a href="https://nextjs.org/docs" target="_blank" class="button" style="font-size: 0.9em; margin-top: 10px;">Ver Docs</a>
+                </div>
+                
+                <div class="resource-card">
+                    <div class="emoji">🗄️</div>
+                    <h4>Supabase Docs</h4>
+                    <p style="font-size: 0.9em; color: #6b7280;">Base de datos y auth</p>
+                    <a href="https://supabase.com/docs" target="_blank" class="button" style="font-size: 0.9em; margin-top: 10px;">Ver Docs</a>
+                </div>
+                
+                <div class="resource-card">
+                    <div class="emoji">🗺️</div>
+                    <h4>Google Maps API</h4>
+                    <p style="font-size: 0.9em; color: #6b7280;">Mapas y lugares</p>
+                    <a href="https://developers.google.com/maps/documentation/javascript" target="_blank" class="button" style="font-size: 0.9em; margin-top: 10px;">Ver Docs</a>
+                </div>
+                
+                <div class="resource-card">
+                    <div class="emoji">🎨</div>
+                    <h4>Tailwind CSS</h4>
+                    <p style="font-size: 0.9em; color: #6b7280;">Framework de estilos</p>
+                    <a href="https://tailwindcss.com/docs" target="_blank" class="button" style="font-size: 0.9em; margin-top: 10px;">Ver Docs</a>
+                </div>
+            </div>
+            
+            <h2 style="margin-top: 50px; margin-bottom: 20px; color: #667eea;">🐛 Solución de Problemas</h2>
+            
+            <div class="step">
+                <h4 style="color: #ef4444;">❌ Error: "Supabase no configurado"</h4>
+                <p>→ Verifica que el archivo <code>.env.local</code> existe y tiene las credenciales correctas.</p>
+                <p>→ Reinicia el servidor: <code>Ctrl+C</code> y luego <code>npm run dev</code></p>
+            </div>
+            
+            <div class="step">
+                <h4 style="color: #ef4444;">❌ Error: "Cannot find module"</h4>
+                <p>→ Borra las carpetas <code>node_modules</code> y <code>.next</code></p>
+                <p>→ Ejecuta <code>npm install</code> de nuevo</p>
+            </div>
+            
+            <div class="step">
+                <h4 style="color: #ef4444;">❌ Error en migraciones SQL</h4>
+                <p>→ Asegúrate de estar en el proyecto correcto en Supabase Dashboard</p>
+                <p>→ Verifica que copiaste TODO el contenido del archivo SQL</p>
+                <p>→ Si sigue fallando, contacta con Chema</p>
+            </div>
+            
+            <div class="step">
+                <h4 style="color: #ef4444;">❌ No veo los botones de Chat y Roadmap</h4>
+                <p>→ Son solo visibles en desarrollo local y en el ambiente de pruebas de Vercel</p>
+                <p>→ En producción no aparecen (es intencional)</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p style="font-size: 1.2em; font-weight: bold; color: #667eea; margin-bottom: 10px;">¿Listo para empezar? 🚀</p>
+            <p>Una vez configurado todo, ve al chat (/dev-chat) y saluda a Chema</p>
+            <p style="margin-top: 20px; color: #6b7280; font-size: 0.9em;">
+                Documento generado el 2 de Diciembre de 2025<br>
+                CaraColaViajes - Equipo de Desarrollo
+            </p>
+        </div>
+    </div>
+</body>
+</html>
