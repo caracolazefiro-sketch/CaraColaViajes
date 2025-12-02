@@ -22,6 +22,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     const [isSaving, setIsSaving] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [hasLoadedUserData, setHasLoadedUserData] = useState(false);
+    const [previousUserId, setPreviousUserId] = useState<string | null>(null);
 
     // Obtener el user_id y cargar datos en un solo efecto
     useEffect(() => {
@@ -31,6 +32,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                 setCurrentTripId(null);
                 setUserId(null);
+                setPreviousUserId(null);
                 setHasLoadedUserData(true);
                 return;
             }
@@ -40,7 +42,17 @@ export function useTripPersistence<T extends Record<string, string | number | bo
             if (session?.user?.id) {
                 // Usuario logueado: cargar su viaje guardado
                 const currentUserId = session.user.id;
+                
+                // Si cambió el usuario, limpiar el estado primero
+                if (previousUserId && previousUserId !== currentUserId) {
+                    setFormData({} as T);
+                    setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
+                    setCurrentTripId(null);
+                    if (resetUiState) resetUiState();
+                }
+                
                 setUserId(currentUserId);
+                setPreviousUserId(currentUserId);
                 
                 if (typeof window !== 'undefined') {
                     const storageKey = `caracola_trip_v1_${currentUserId}`;
@@ -62,11 +74,60 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                 setCurrentTripId(null);
                 setUserId(null);
+                setPreviousUserId(null);
                 setHasLoadedUserData(true);
             }
         };
         
         initializeUser();
+
+        // Escuchar cambios de autenticación
+        if (supabase) {
+            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session?.user?.id) {
+                    const newUserId = session.user.id;
+                    
+                    // Si es un usuario diferente, limpiar primero
+                    if (previousUserId && previousUserId !== newUserId) {
+                        setFormData({} as T);
+                        setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
+                        setCurrentTripId(null);
+                        if (resetUiState) resetUiState();
+                    }
+                    
+                    setUserId(newUserId);
+                    setPreviousUserId(newUserId);
+                    
+                    // Cargar datos del nuevo usuario
+                    if (typeof window !== 'undefined') {
+                        const storageKey = `caracola_trip_v1_${newUserId}`;
+                        const savedData = localStorage.getItem(storageKey);
+                        if (savedData) {
+                            try {
+                                const parsed = JSON.parse(savedData);
+                                if (parsed.formData) setFormData(parsed.formData);
+                                if (parsed.results) setResults(parsed.results);
+                                if (parsed.tripId) setCurrentTripId(parsed.tripId);
+                            } catch (e: unknown) { 
+                                console.error("Error leyendo caché:", e); 
+                            }
+                        }
+                    }
+                    setHasLoadedUserData(true);
+                } else if (event === 'SIGNED_OUT') {
+                    // Limpiar todo al hacer logout
+                    setFormData({} as T);
+                    setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
+                    setCurrentTripId(null);
+                    setUserId(null);
+                    if (resetUiState) resetUiState();
+                }
+            });
+
+            return () => {
+                subscription.unsubscribe();
+            };
+        }
     }, []);
 
     // 2. AUTOGUARDADO (LocalStorage con user_id)
