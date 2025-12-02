@@ -49,16 +49,17 @@ async function syncRoadmap() {
     
     console.log('📤 Sincronizando con Supabase...');
     
-    // Usar fetch nativo (Node.js 18+) o implementar con https
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/roadmap?id=eq.main`, {
-      method: 'PATCH',
+    // Usar upsert para asegurar que actualiza o crea
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/roadmap`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Prefer': 'return=representation'
+        'Prefer': 'resolution=merge-duplicates,return=representation'
       },
       body: JSON.stringify({
+        id: 'main',
         content: content,
         updated_at: new Date().toISOString()
       })
@@ -71,38 +72,16 @@ async function syncRoadmap() {
     
     const result = await response.json();
     
-    if (!result || result.length === 0) {
-      console.log('⚠️  No se encontró registro existente, creando nuevo...');
-      
-      const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/roadmap`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({
-          id: 'main',
-          content: content,
-          updated_at: new Date().toISOString()
-        })
-      });
-      
-      if (!insertResponse.ok) {
-        const error = await insertResponse.text();
-        throw new Error(`Error al insertar: ${error}`);
-      }
-      
-      console.log('✅ Nuevo registro creado en Supabase');
-    } else {
-      console.log('✅ ROADMAP actualizado en Supabase');
-    }
-    
+    console.log('✅ ROADMAP actualizado en Supabase');
     console.log('');
     console.log('🎉 Sincronización completada con éxito');
     console.log(`📊 ${content.length} caracteres sincronizados`);
     console.log(`🕐 ${new Date().toLocaleString()}`);
+    console.log('');
+    console.log('🔍 Verificación:');
+    console.log(`   ID: ${result[0]?.id || result.id}`);
+    console.log(`   Longitud en DB: ${result[0]?.content?.length || result.content?.length} chars`);
+    console.log(`   Updated at: ${result[0]?.updated_at || result.updated_at}`);
     
   } catch (error) {
     console.error('❌ Error durante la sincronización:');
