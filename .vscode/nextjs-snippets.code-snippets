@@ -1,0 +1,151 @@
+{
+  "Next.js Page": {
+    "prefix": "npage",
+    "body": [
+      "export default function ${1:PageName}() {",
+      "    return (",
+      "        <div className=\"${2:container}\">",
+      "            <h1>${3:Page Title}</h1>",
+      "            $0",
+      "        </div>",
+      "    );",
+      "}"
+    ],
+    "description": "Next.js page component"
+  },
+  "Next.js Client Component": {
+    "prefix": "nclient",
+    "body": [
+      "'use client';",
+      "",
+      "import { useState } from 'react';",
+      "",
+      "export default function ${1:ComponentName}() {",
+      "    const [${2:state}, set${2/(.*)/${1:/capitalize}/}] = useState($3);",
+      "",
+      "    return (",
+      "        <div className=\"${4:container}\">",
+      "            $0",
+      "        </div>",
+      "    );",
+      "}"
+    ],
+    "description": "Next.js client component with useState"
+  },
+  "Next.js Server Action": {
+    "prefix": "naction",
+    "body": [
+      "'use server';",
+      "",
+      "export async function ${1:actionName}(${2:params}) {",
+      "    try {",
+      "        $0",
+      "        return { success: true };",
+      "    } catch (error) {",
+      "        console.error('${1:actionName} error:', error);",
+      "        return { success: false, error: error.message };",
+      "    }",
+      "}"
+    ],
+    "description": "Next.js server action"
+  },
+  "React Hook": {
+    "prefix": "rhook",
+    "body": [
+      "import { useState, useEffect } from 'react';",
+      "",
+      "export function use${1:HookName}() {",
+      "    const [${2:state}, set${2/(.*)/${1:/capitalize}/}] = useState($3);",
+      "",
+      "    useEffect(() => {",
+      "        $0",
+      "    }, []);",
+      "",
+      "    return { ${2:state}, set${2/(.*)/${1:/capitalize}/} };",
+      "}"
+    ],
+    "description": "Custom React Hook"
+  },
+  "Supabase Query": {
+    "prefix": "sbquery",
+    "body": [
+      "const { data, error } = await supabase",
+      "    .from('${1:table}')",
+      "    .select('${2:*}')",
+      "    ${3:.eq('column', value)}$0;",
+      "",
+      "if (error) {",
+      "    console.error('Error:', error);",
+      "    return;",
+      "}"
+    ],
+    "description": "Supabase query"
+  },
+  "Supabase Insert": {
+    "prefix": "sbinsert",
+    "body": [
+      "const { data, error } = await supabase",
+      "    .from('${1:table}')",
+      "    .insert({",
+      "        ${2:column}: ${3:value}$0",
+      "    });",
+      "",
+      "if (error) {",
+      "    console.error('Error:', error);",
+      "}"
+    ],
+    "description": "Supabase insert"
+  },
+  "Tailwind Container": {
+    "prefix": "twcontainer",
+    "body": [
+      "<div className=\"container mx-auto px-4${1: py-8}\">",
+      "    $0",
+      "</div>"
+    ],
+    "description": "Tailwind container"
+  },
+  "Tailwind Grid": {
+    "prefix": "twgrid",
+    "body": [
+      "<div className=\"grid grid-cols-${1:1} md:grid-cols-${2:2} lg:grid-cols-${3:3} gap-${4:4}\">",
+      "    $0",
+      "</div>"
+    ],
+    "description": "Tailwind responsive grid"
+  },
+  "Tailwind Flex": {
+    "prefix": "twflex",
+    "body": [
+      "<div className=\"flex ${1:items-center} ${2:justify-between} gap-${3:4}\">",
+      "    $0",
+      "</div>"
+    ],
+    "description": "Tailwind flexbox"
+  },
+  "Try-Catch Block": {
+    "prefix": "tryc",
+    "body": [
+      "try {",
+      "    $0",
+      "} catch (error) {",
+      "    console.error('${1:Error}:', error);",
+      "}"
+    ],
+    "description": "Try-catch block"
+  },
+  "Console Log": {
+    "prefix": "cl",
+    "body": [
+      "console.log('${1:label}:', $0);"
+    ],
+    "description": "Console log"
+  },
+  "Console Error": {
+    "prefix": "ce",
+    "body": [
+      "console.error('${1:label}:', $0);"
+    ],
+    "description": "Console error"
+  }
+}
