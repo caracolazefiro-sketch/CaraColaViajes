@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "test:run": "vitest --run"
+    "test:run": "vitest --run",
+    "sync-roadmap": "node scripts/sync-roadmap.js"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.7",
