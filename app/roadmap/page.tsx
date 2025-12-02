@@ -184,9 +184,11 @@ export default function RoadmapPage() {
         }
 
         try {
+            console.log('🔄 Cargando ROADMAP desde Supabase...');
+            
             const { data, error } = await supabase
                 .from('roadmap')
-                .select('content')
+                .select('content, updated_at')
                 .eq('id', 'main')
                 .single();
 
@@ -194,13 +196,18 @@ export default function RoadmapPage() {
                 if (error.code === 'PGRST116') {
                     // No existe registro, se creará al guardar
                     setMessage('📝 Usando contenido inicial');
+                    console.log('⚠️ No existe registro en Supabase');
                 } else {
                     console.error('Error loading roadmap:', error);
                     setMessage('❌ Error al cargar: ' + error.message);
                 }
             } else if (data?.content) {
+                console.log(`✅ ROADMAP cargado: ${data.content.length} caracteres`);
+                console.log(`📅 Actualizado: ${data.updated_at}`);
+                console.log(`🔍 Preview: ${data.content.substring(0, 100)}...`);
+                
                 setContent(data.content);
-                setMessage('✅ Cargado desde Supabase');
+                setMessage(`✅ Cargado desde Supabase (${new Date(data.updated_at).toLocaleString()})`);
             }
         } catch (err) {
             console.error('Error:', err);
@@ -265,6 +272,18 @@ export default function RoadmapPage() {
                             </p>
                         </div>
                         <div className="flex gap-3">
+                            {!editing && (
+                                <button
+                                    onClick={() => {
+                                        setLoading(true);
+                                        loadContent();
+                                    }}
+                                    disabled={loading}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                                >
+                                    🔄 Recargar
+                                </button>
+                            )}
                             {editing ? (
                                 <>
                                     <button
