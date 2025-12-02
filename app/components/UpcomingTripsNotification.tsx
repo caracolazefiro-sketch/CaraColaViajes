@@ -25,6 +25,7 @@ const UpcomingTripsNotification: React.FC<UpcomingTripsNotificationProps> = ({ o
     const [upcomingTrips, setUpcomingTrips] = useState<UpcomingTrip[]>([]);
     const [isVisible, setIsVisible] = useState(false);
     const [isDismissed, setIsDismissed] = useState(false);
+    const [sessionChecked, setSessionChecked] = useState(0); // Contador para forzar re-check
 
     useEffect(() => {
         const checkUpcomingTrips = async () => {
@@ -74,7 +75,23 @@ const UpcomingTripsNotification: React.FC<UpcomingTripsNotificationProps> = ({ o
         };
 
         checkUpcomingTrips();
-    }, []);
+
+        // Escuchar cambios de sesión para re-chequear
+        if (supabase) {
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+                if (event === 'SIGNED_IN') {
+                    // Usuario acaba de loguearse, forzar re-check
+                    sessionStorage.removeItem('upcomingTripsDismissed');
+                    setIsDismissed(false);
+                    setSessionChecked(prev => prev + 1);
+                }
+            });
+
+            return () => {
+                subscription.unsubscribe();
+            };
+        }
+    }, [sessionChecked]);
 
     const handleDismiss = () => {
         setIsVisible(false);

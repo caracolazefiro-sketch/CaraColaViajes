@@ -20,62 +20,63 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     resetUiState?: () => void
 ) {
     const [isSaving, setIsSaving] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
+    const [hasLoadedUserData, setHasLoadedUserData] = useState(false);
 
-    // Obtener el user_id de Supabase
+    // Obtener el user_id y cargar datos en un solo efecto
     useEffect(() => {
-        const getUserId = async () => {
+        const initializeUser = async () => {
             if (!supabase) {
+                // Sin Supabase, limpiar todo
+                setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
+                setCurrentTripId(null);
                 setUserId(null);
-                setIsInitialized(true);
+                setHasLoadedUserData(true);
                 return;
             }
             
             const { data: { session } } = await supabase.auth.getSession();
+            
             if (session?.user?.id) {
-                setUserId(session.user.id);
-            } else {
-                // Si no hay sesión, limpiar el estado y marcar como inicializado
-                setUserId(null);
-                setIsInitialized(true);
-            }
-        };
-        getUserId();
-    }, []);
-
-    // 1. CARGA INICIAL (LocalStorage con user_id)
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            if (userId) {
                 // Usuario logueado: cargar su viaje guardado
-                const storageKey = `caracola_trip_v1_${userId}`;
-                const savedData = localStorage.getItem(storageKey);
-                if (savedData) {
-                    try {
-                        const parsed = JSON.parse(savedData);
-                        if (parsed.formData) setFormData(parsed.formData);
-                        if (parsed.results) setResults(parsed.results);
-                        if (parsed.tripId) setCurrentTripId(parsed.tripId);
-                    } catch (e: unknown) { console.error("Error leyendo caché:", e); }
+                const currentUserId = session.user.id;
+                setUserId(currentUserId);
+                
+                if (typeof window !== 'undefined') {
+                    const storageKey = `caracola_trip_v1_${currentUserId}`;
+                    const savedData = localStorage.getItem(storageKey);
+                    if (savedData) {
+                        try {
+                            const parsed = JSON.parse(savedData);
+                            if (parsed.formData) setFormData(parsed.formData);
+                            if (parsed.results) setResults(parsed.results);
+                            if (parsed.tripId) setCurrentTripId(parsed.tripId);
+                        } catch (e: unknown) { 
+                            console.error("Error leyendo caché:", e); 
+                        }
+                    }
                 }
-                setIsInitialized(true);
-            } else if (isInitialized) {
-                // Sin usuario: limpiar estado (pantalla virgen)
+                setHasLoadedUserData(true);
+            } else {
+                // Sin sesión: limpiar todo (pantalla virgen)
                 setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                 setCurrentTripId(null);
+                setUserId(null);
+                setHasLoadedUserData(true);
             }
-        }
-    }, [userId, isInitialized]);
+        };
+        
+        initializeUser();
+    }, []);
 
     // 2. AUTOGUARDADO (LocalStorage con user_id)
     useEffect(() => {
-        if (isInitialized && typeof window !== 'undefined' && userId) {
+        if (hasLoadedUserData && typeof window !== 'undefined' && userId) {
             const storageKey = `caracola_trip_v1_${userId}`;
             const dataToSave = { formData, results, tripId: currentTripId };
             localStorage.setItem(storageKey, JSON.stringify(dataToSave));
         }
-    }, [formData, results, currentTripId, isInitialized, userId]);
+    }, [formData, results, currentTripId, hasLoadedUserData, userId]);
 
     // 3. ACCIONES (Handlers)
 
