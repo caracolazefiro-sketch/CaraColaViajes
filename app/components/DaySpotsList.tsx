@@ -422,7 +422,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 </div>
             )}
 
-            {/* MODAL POPUP PARA EL FORMULARIO */
+            {/* MODAL POPUP PARA EL FORMULARIO */}
             {showForm && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleFormCancel}>
                     <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
