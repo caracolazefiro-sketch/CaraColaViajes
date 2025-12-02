@@ -38,25 +38,25 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
     return (
         <button 
             onClick={() => onToggle(type)} 
-            className={`relative px-4 py-3 rounded-xl text-sm font-bold border-2 transition-all flex flex-col items-center gap-2 shadow-md hover:scale-105 active:scale-95 ${
+            className={`relative px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 ${
                 isActive 
                     ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200' 
-                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-lg'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md'
             }`}
         >
-            {/* Icono grande */}
+            {/* Icono */}
             {Icon && (
-                <div className={`p-2 rounded-full ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>
-                    <Icon size={24} className={isActive ? 'text-white' : 'text-gray-600'} />
+                <div className={`p-1 rounded-full ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>
+                    <Icon size={16} className={isActive ? 'text-white' : 'text-gray-600'} />
                 </div>
             )}
             
             {/* Label */}
-            <span className="text-xs leading-tight text-center">{label}</span>
+            <span className="text-[10px] leading-tight text-center">{label}</span>
             
             {/* Contador de resultados */}
             {count > 0 && (
-                <span className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold shadow-md ${
+                <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
                     isActive 
                         ? 'bg-red-500 text-white' 
                         : 'bg-gray-600 text-white'
@@ -438,8 +438,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
-                    {/* Grid de botones de servicios mejorado */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+                    {/* Grid de botones de servicios compacto */}
+                    <div className="grid grid-cols-4 gap-2 mb-4">
                         <ServiceButton type="camping" label="Spots" toggles={toggles} onToggle={onToggle} count={places.camping?.length || 0} />
                         <ServiceButton type="water" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} count={places.water?.length || 0} />
                         <ServiceButton type="gas" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} count={places.gas?.length || 0} />
