@@ -85,12 +85,12 @@ export default function TripMap({
 
         // Listener para clicks en POIs de Google Maps
         map.addListener('click', (e: google.maps.MapMouseEvent | google.maps.IconMouseEvent) => {
-            // @ts-ignore - placeId existe en IconMouseEvent
+            // @ts-expect-error - placeId existe en IconMouseEvent
             if (e.placeId) {
                 e.stop(); // Prevenir el InfoWindow por defecto de Google
                 
                 const service = new google.maps.places.PlacesService(map);
-                // @ts-ignore
+                // @ts-expect-error - Type mismatch in Google Maps API
                 service.getDetails({ placeId: e.placeId }, (place, status) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK && place) {
                         // Convertir a nuestro formato
@@ -200,7 +200,7 @@ export default function TripMap({
                 onLoad={handleMapLoad}
                 onClick={(e) => {
                     // Solo cerrar InfoWindow si NO es un click en POI de Google
-                    // @ts-ignore
+                    // @ts-expect-error - placeId not in standard types
                     if (!e.placeId) {
                         setHoveredPlace(null);
                         setClickedGooglePlace(null);

@@ -214,7 +214,7 @@ export default function Home() {
       <div className="w-full max-w-6xl space-y-6">
         
         <div className="w-full no-print">
-            <AppHeader onLoadTrip={handleLoadCloudTrip} t={t} setLang={setLang} language={language} />
+            <AppHeader onLoadTrip={handleLoadCloudTrip} currentTripId={currentTripId} t={t} setLang={setLang} language={language} />
         </div>
 
         <div className="print-only hidden text-center mb-10">

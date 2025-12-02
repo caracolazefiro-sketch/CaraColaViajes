@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { supabase } from '../supabase';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel, User } from '@supabase/supabase-js';
 
 interface DevMessage {
     id: string;
@@ -17,7 +18,7 @@ interface DevMessage {
 export default function DevChatPage() {
     const [messages, setMessages] = useState<DevMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -172,12 +173,12 @@ export default function DevChatPage() {
                     <p className="text-gray-300 mb-6">
                         Necesitas iniciar sesión para acceder al chat del equipo.
                     </p>
-                    <a 
+                    <Link 
                         href="/"
                         className="inline-block px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
                     >
                         Volver al inicio
-                    </a>
+                    </Link>
                 </div>
             </div>
         );
@@ -209,12 +210,12 @@ export default function DevChatPage() {
                             Comunicación interna del equipo
                         </p>
                     </div>
-                    <a 
+                    <Link 
                         href="/"
                         className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition text-sm"
                     >
                         ← Volver
-                    </a>
+                    </Link>
                 </div>
             </div>
 

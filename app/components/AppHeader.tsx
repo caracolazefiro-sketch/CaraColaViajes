@@ -6,13 +6,14 @@ import type { TripData } from '../hooks/useTripPersistence';
 
 interface AppHeaderProps {
     onLoadTrip: (data: TripData, id: number) => void;
+    currentTripId: number | null;
     t: (key: string) => string;
     setLang: (lang: 'es' | 'en') => void;
     language: 'es' | 'en';
 }
 
 export default function AppHeader({ 
-    onLoadTrip, t, setLang, language 
+    onLoadTrip, currentTripId, t, setLang, language 
 }: AppHeaderProps) {
     return (
         <div className="relative mb-6 no-print w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 py-3 shadow-sm">
@@ -56,7 +57,7 @@ export default function AppHeader({
                     <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
 
                     {/* ÁREA DE USUARIO (Le pasamos 't' para que traduzca el login) */}
-                    <UserArea onLoadTrip={onLoadTrip} t={t} /> 
+                    <UserArea onLoadTrip={onLoadTrip} currentTripId={currentTripId} t={t} /> 
                 </div>
             </div>
         </div>

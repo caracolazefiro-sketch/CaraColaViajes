@@ -23,15 +23,12 @@ interface TripData {
 
 interface UserAreaProps {
     onLoadTrip: (tripData: TripData, tripId: number) => void;
+    currentTripId: number | null;
+    onOpenDashboard?: () => void;
     t: (key: string) => string;
 }
 
-export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
-    // If Supabase is not configured, don't render the auth UI
-    if (!supabase) {
-        return null;
-    }
-
+export default function UserArea({ currentTripId, onOpenDashboard, t, onLoadTrip }: UserAreaProps) {
     interface AppUser { id: string; email?: string }
     const [user, setUser] = useState<AppUser | null>(null);
     const [email, setEmail] = useState('');
@@ -40,6 +37,11 @@ export default function UserArea({ onLoadTrip, t }: UserAreaProps) {
     const [showTrips, setShowTrips] = useState(false);
     const [myTrips, setMyTrips] = useState<Array<{ id: number; name: string; created_at: string; trip_data: TripData }>>([]);
     const [authMode, setAuthMode] = useState<'magic' | 'password' | 'register'>('magic');
+
+    // If Supabase is not configured, don't render the auth UI
+    if (!supabase) {
+        return null;
+    }
 
     useEffect(() => {
         if (!supabase) return;
