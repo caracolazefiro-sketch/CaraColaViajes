@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { PlaceWithDistance, ServiceType } from './types';
+import { PlaceWithDistance, ServiceType, Coordinates } from './types';
 import { supabase } from './supabase';
 
 // COMPONENTES
@@ -122,6 +122,52 @@ export default function Home() {
   const handleToggleWrapper = (type: ServiceType) => {
       const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
       handleToggle(type, day?.coordinates);
+  };
+
+  // Nueva función: Buscar servicios cerca de una etapa específica
+  const handleSearchNearDay = async (dayIndex: number) => {
+    if (typeof google === 'undefined' || !results.dailyItinerary) return;
+    const dailyPlan = results.dailyItinerary[dayIndex];
+    if (!dailyPlan || !dailyPlan.isDriving) return;
+
+    // Seleccionar esa etapa y centrar el mapa
+    setSelectedDayIndex(dayIndex);
+    setHoveredPlace(null);
+
+    // Determinar las coordenadas de búsqueda
+    let searchCoords: Coordinates | undefined = dailyPlan.coordinates;
+
+    // Si no hay coordenadas, intentar geocodificar
+    if (!searchCoords) {
+      const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
+      const geocoded = await geocodeCity(cleanTo);
+      searchCoords = geocoded ? { lat: geocoded.lat, lng: geocoded.lng } : undefined;
+    }
+
+    if (searchCoords) {
+      // Centrar el mapa en esa etapa
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend({ lat: searchCoords.lat + 0.4, lng: searchCoords.lng + 0.4 });
+      bounds.extend({ lat: searchCoords.lat - 0.4, lng: searchCoords.lng - 0.4 });
+      setMapBounds(bounds);
+
+      // Buscar servicios activos en esa ubicación
+      const activeTypes = Object.entries(toggles)
+        .filter(([_, isActive]) => isActive)
+        .map(([type]) => type as ServiceType);
+
+      // Si no hay ninguno activo, activar 'camping' por defecto
+      if (activeTypes.length === 0) {
+        searchPlaces(searchCoords, 'camping');
+      } else {
+        // Buscar todos los tipos activos
+        activeTypes.forEach(type => {
+          if (type !== 'custom' && type !== 'search' && type !== 'found') {
+            searchPlaces(searchCoords!, type);
+          }
+        });
+      }
+    }
   };
 
   const focusMapOnStage = async (dayIndex: number | null) => {
@@ -247,7 +293,7 @@ export default function Home() {
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
                         onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                         onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
-                        onSelectDay={focusMapOnStage} t={t} convert={convert}
+                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} t={t} convert={convert}
                     />
 
                     <TripMap 

@@ -73,6 +73,11 @@ export default function TripMap({
     const handleMapLoad = (map: google.maps.Map) => {
         setMap(map);
         
+        // Añadir control de escala (regla de kilómetros)
+        map.setOptions({
+            scaleControl: true
+        });
+        
         map.addListener('dragstart', () => { 
             hasUserInteracted.current = true; 
         });

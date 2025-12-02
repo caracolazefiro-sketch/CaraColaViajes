@@ -28,6 +28,7 @@ interface ItineraryPanelProps {
     onAddDay: (index: number) => void;
     onRemoveDay: (index: number) => void;
     onSelectDay: (index: number | null) => void;
+    onSearchNearDay: (dayIndex: number) => void; // Nueva prop
     t: (key: string) => string; // Traducción
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
 }
@@ -35,7 +36,7 @@ interface ItineraryPanelProps {
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
-    onAddDay, onRemoveDay, onSelectDay, t, convert
+    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, t, convert
 }: ItineraryPanelProps) {
 
     if (!dailyItinerary) return null;
@@ -131,6 +132,17 @@ export default function ItineraryPanel({
                                                 <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                                                     {day.isDriving ? `${displayDistance} ${unitKm}` : t('ITINERARY_RELAX')}
                                                 </span>
+                                                
+                                                {/* Botón buscar servicios cerca de esta etapa */}
+                                                {day.isDriving && day.coordinates && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onSearchNearDay(index); }}
+                                                        className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-full text-xs font-bold border border-blue-200 bg-white shadow-sm transition-all hover:scale-105"
+                                                        title="Buscar servicios cerca de esta etapa"
+                                                    >
+                                                        🔍
+                                                    </button>
+                                                )}
                                                 
                                                 <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                     <button 
