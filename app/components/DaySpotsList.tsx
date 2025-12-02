@@ -276,7 +276,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     const { routeWeather, weatherStatus } = useWeather(day.coordinates, day.isoDate, day.startCoordinates);
-    const { elevationData, loadingElevation, calculateElevation } = useElevation();
+    const { elevationData, loadingElevation, calculateElevation, clearElevation } = useElevation();
 
     const [showForm, setShowForm] = useState(false);
     const [placeToEdit, setPlaceToEdit] = useState<PlaceWithDistance | null>(null);
@@ -336,7 +336,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                     <p className="text-md font-semibold text-gray-800">
                         {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1 font-mono">{day.date}</p>
+                    <div className="flex justify-between items-center mt-1">
+                        <p className="text-xs text-gray-500 font-mono">{day.date}</p>
+                        {day.isDriving && (
+                            <p className="text-xs text-red-600 font-bold ml-4">
+                                {convert(day.distance, 'km').toFixed(0)} {isImperial ? 'mi' : 'km'}
+                            </p>
+                        )}
+                    </div>
                 </div>
                 
                 {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA + TEMPERATURA */}
@@ -415,8 +422,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 </div>
             )}
 
-            <button onClick={() => { setPlaceToEdit(null); setShowForm(true); }} className="w-full mt-3 mb-2 bg-gray-800 text-white text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1.5 hover:bg-black transition shadow-sm">
-                <IconPlus /> {t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}
+            <button 
+                onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
+                className="w-full mt-3 mb-2 px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex items-center justify-center gap-2 shadow-sm hover:scale-105 active:scale-95 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200"
+            >
+                <div className="p-1 rounded-full bg-white/20">
+                    <IconPlus />
+                </div>
+                <span>{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
             </button>
 
             {/* MODAL POPUP PARA EL FORMULARIO */}
@@ -478,7 +491,18 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             </button>
                         )}
                         {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">{t('FORM_LOADING')}</p>}
-                        {elevationData && <ElevationChart data={elevationData} />}
+                        {elevationData && (
+                            <div className="relative">
+                                <button 
+                                    onClick={clearElevation} 
+                                    className="absolute top-2 right-2 z-10 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all hover:scale-110"
+                                    title={isImperial ? 'Close' : 'Cerrar'}
+                                >
+                                    ✕
+                                </button>
+                                <ElevationChart data={elevationData} />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

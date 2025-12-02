@@ -35,5 +35,9 @@ export function useElevation() {
         });
     };
 
-    return { elevationData, loadingElevation, calculateElevation };
+    const clearElevation = () => {
+        setElevationData(null);
+    };
+
+    return { elevationData, loadingElevation, calculateElevation, clearElevation };
 }
