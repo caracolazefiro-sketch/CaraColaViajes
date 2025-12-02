@@ -3,11 +3,13 @@
 ## 🚀 PRÓXIMAS MEJORAS - Mapa y Servicios (Diciembre 2025)
 
 ### 🎨 Mejoras visuales e interacción con mapa
-1. **Filtros de servicios más visuales** 
-   - Reemplazar checkboxes por iconos grandes con toggle (estilo botones)
-   - Cada servicio con su icono característico y color
-   - Estado activo/inactivo visualmente claro
-   - Efecto hover y feedback táctil
+1. **✅ Filtros de servicios más visuales** (COMPLETADO)
+   - ✅ Reemplazar checkboxes por iconos grandes con toggle (estilo botones)
+   - ✅ Cada servicio con su icono característico y color
+   - ✅ Estado activo/inactivo visualmente claro
+   - ✅ Efecto hover y feedback táctil
+   - ✅ Contador de resultados por servicio
+   - ✅ Diseño responsivo y optimizado para escritorio
 
 2. **Búsqueda por etapa específica**
    - Click en un día del itinerario → busca servicios cerca de ese punto
@@ -93,6 +95,14 @@
 ---
 
 ## ✅ COMPLETADO (Últimas implementaciones)
+
+### v0.4 - Filtros Visuales de Servicios (Dic 2024)
+- ✅ Botones con iconos grandes reemplazando checkboxes
+- ✅ Gradientes azules para estado activo
+- ✅ Contador de resultados por servicio
+- ✅ Animaciones hover y active (scale)
+- ✅ Grid responsivo optimizado para escritorio
+- ✅ Diseño 50% más compacto tras feedback usuario
 
 ### v0.3 - Sistema de Puntuación Inteligente (Dic 2024)
 - ✅ Algoritmo scoring multi-factor (distancia, rating, reviews, disponibilidad)

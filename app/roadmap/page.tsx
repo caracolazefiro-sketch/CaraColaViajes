@@ -5,6 +5,53 @@ import { supabase } from '../supabase';
 
 const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
+## 🚀 PRÓXIMAS MEJORAS - Mapa y Servicios (Diciembre 2025)
+
+### 🎨 Mejoras visuales e interacción con mapa
+1. **✅ Filtros de servicios más visuales** (COMPLETADO)
+   - ✅ Reemplazar checkboxes por iconos grandes con toggle (estilo botones)
+   - ✅ Cada servicio con su icono característico y color
+   - ✅ Estado activo/inactivo visualmente claro
+   - ✅ Efecto hover y feedback táctil
+   - ✅ Contador de resultados por servicio
+   - ✅ Diseño responsivo y optimizado para escritorio
+
+2. **Búsqueda por etapa específica**
+   - Click en un día del itinerario → busca servicios cerca de ese punto
+   - Indicador visual de "buscando en día X"
+   - Centrar mapa automáticamente
+
+3. **Radio de búsqueda ajustable**
+   - Slider para cambiar cuántos km alrededor buscar (5km - 50km)
+   - Círculo visual en el mapa mostrando el radio
+   - Actualización en tiempo real
+
+4. **Info window mejorado**
+   - Foto del lugar prominente
+   - Rating con estrellas visuales (ya implementado ✅)
+   - Botón "Guardar" / "Añadir a favoritos"
+   - Distancia desde punto de ruta
+
+5. **Lista lateral de lugares encontrados**
+   - Panel con scroll mostrando todos los resultados
+   - Ordenable por distancia/rating
+   - Click en item → centra mapa y abre info
+
+6. **Filtro por rating mínimo**
+   - Solo mostrar lugares con X estrellas o más
+   - Slider o botones rápidos (3+, 4+, 4.5+)
+
+7. **Mejoras en marcadores**
+   - Diferenciar mejor saved vs search markers
+   - Clusters para muchos resultados
+   - Animación al añadir/quitar
+
+8. **Persistencia de servicios encontrados**
+   - Guardar qué servicios encontraste interesantes para cada viaje
+   - Recuperar al reabrir el viaje
+
+---
+
 ## 🎯 VERSIÓN PREMIUM (Futuras features de pago)
 
 ### 📞 Información extendida de lugares
@@ -54,6 +101,14 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
 ## ✅ COMPLETADO (Últimas implementaciones)
 
+### v0.4 - Filtros Visuales de Servicios (Dic 2024)
+- ✅ Botones con iconos grandes reemplazando checkboxes
+- ✅ Gradientes azules para estado activo
+- ✅ Contador de resultados por servicio
+- ✅ Animaciones hover y active (scale)
+- ✅ Grid responsivo optimizado para escritorio
+- ✅ Diseño 50% más compacto tras feedback usuario
+
 ### v0.3 - Sistema de Puntuación Inteligente (Dic 2024)
 - ✅ Algoritmo scoring multi-factor (distancia, rating, reviews, disponibilidad)
 - ✅ Badges visuales (🏆 💎 🔥 📍)
@@ -76,7 +131,7 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
 ---
 
-**Última actualización:** 1 Diciembre 2025
+**Última actualización:** 2 Diciembre 2025
 `;
 
 export default function RoadmapPage() {
