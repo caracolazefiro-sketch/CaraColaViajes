@@ -13,6 +13,7 @@ import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 import ToastContainer from './components/ToastContainer';
 import UpcomingTripsNotification from './components/UpcomingTripsNotification';
+import AdjustStageModal from './components/AdjustStageModal';
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
@@ -47,7 +48,9 @@ export default function Home() {
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null); 
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null); 
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [adjustingDayIndex, setAdjustingDayIndex] = useState<number | null>(null); 
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
   const [auditMode, setAuditMode] = useState(false);
 
@@ -173,6 +176,92 @@ export default function Home() {
     }
   };
 
+  // Nueva función: Ajustar destino de una etapa
+  const handleAdjustDay = (dayIndex: number) => {
+    setAdjustingDayIndex(dayIndex);
+    setAdjustModalOpen(true);
+  };
+
+  const handleConfirmAdjust = async (newDestination: string, newCoordinates: { lat: number; lng: number }) => {
+    if (adjustingDayIndex === null || !results.dailyItinerary) return;
+    
+    showToast('Recalculando ruta...', 'info');
+    
+    try {
+      // 1. Actualizar la etapa ajustada
+      const updatedItinerary = [...results.dailyItinerary];
+      updatedItinerary[adjustingDayIndex] = {
+        ...updatedItinerary[adjustingDayIndex],
+        to: newDestination,
+        coordinates: newCoordinates
+      };
+
+      // 2. Preparar datos para recálculo
+      // Si es la última etapa, solo actualizar el destino final
+      if (adjustingDayIndex === updatedItinerary.length - 1) {
+        setResults({ ...results, dailyItinerary: updatedItinerary });
+        showToast('Parada actualizada correctamente', 'success');
+        setAdjustModalOpen(false);
+        setAdjustingDayIndex(null);
+        return;
+      }
+
+      // 3. Si es etapa intermedia, recalcular desde ahí hasta el final
+      const { getDirectionsAndCost } = await import('./actions');
+      
+      const adjustedDayOrigin = updatedItinerary[adjustingDayIndex].from;
+      const finalDestination = formData.destino;
+      
+      // Construir waypoints: nuevo destino + destinos de días siguientes
+      const waypoints: string[] = [newDestination];
+      for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
+        waypoints.push(updatedItinerary[i].to);
+      }
+
+      const recalcResult = await getDirectionsAndCost({
+        origin: adjustedDayOrigin,
+        destination: finalDestination,
+        waypoints,
+        travel_mode: 'driving',
+        kmMaximoDia: formData.kmMaximoDia,
+        fechaInicio: updatedItinerary[adjustingDayIndex].date,
+        fechaRegreso: formData.fechaRegreso
+      });
+
+      if (recalcResult.error || !recalcResult.dailyItinerary) {
+        showToast('Error al recalcular ruta: ' + recalcResult.error, 'error');
+        return;
+      }
+
+      // 4. Fusionar: mantener días anteriores, reemplazar desde adjustingDayIndex
+      const preservedDays = updatedItinerary.slice(0, adjustingDayIndex);
+      const newCalculatedDays = recalcResult.dailyItinerary;
+      
+      // Ajustar números de día
+      const finalItinerary = [
+        ...preservedDays,
+        ...newCalculatedDays.map((day: any, idx: number) => ({
+          ...day,
+          day: preservedDays.length + idx + 1,
+          savedPlaces: updatedItinerary[adjustingDayIndex + idx]?.savedPlaces || [] // Mantener lugares guardados si existen
+        }))
+      ];
+
+      setResults({ 
+        ...results, 
+        dailyItinerary: finalItinerary
+      });
+      
+      showToast('Ruta recalculada correctamente', 'success');
+    } catch (error) {
+      console.error('Error recalculando:', error);
+      showToast('Error al recalcular ruta', 'error');
+    }
+    
+    setAdjustModalOpen(false);
+    setAdjustingDayIndex(null);
+  };
+
   const focusMapOnStage = async (dayIndex: number | null) => {
     // CASO: Volver a la Vista General
     if (dayIndex === null) {
@@ -296,7 +385,7 @@ export default function Home() {
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
                         onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                         onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
-                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} t={t} convert={convert}
+                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
                     />
 
                     <TripMap 
@@ -312,6 +401,17 @@ export default function Home() {
         
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         <UpcomingTripsNotification onLoadTrip={handleLoadTripFromNotification} />
+        
+        {/* Modal para ajustar etapa */}
+        {adjustModalOpen && adjustingDayIndex !== null && results.dailyItinerary && (
+          <AdjustStageModal
+            isOpen={adjustModalOpen}
+            dayIndex={adjustingDayIndex}
+            currentDestination={results.dailyItinerary[adjustingDayIndex].to}
+            onClose={() => { setAdjustModalOpen(false); setAdjustingDayIndex(null); }}
+            onConfirm={handleConfirmAdjust}
+          />
+        )}
       </div>
     </main>
   );

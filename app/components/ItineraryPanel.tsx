@@ -29,6 +29,7 @@ interface ItineraryPanelProps {
     onRemoveDay: (index: number) => void;
     onSelectDay: (index: number | null) => void;
     onSearchNearDay: (dayIndex: number) => void; // Nueva prop
+    onAdjustDay: (dayIndex: number) => void; // Nueva prop - Ajustar destino
     t: (key: string) => string; // Traducción
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
 }
@@ -36,7 +37,7 @@ interface ItineraryPanelProps {
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
-    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, t, convert
+    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert
 }: ItineraryPanelProps) {
 
     if (!dailyItinerary) return null;
@@ -141,6 +142,17 @@ export default function ItineraryPanel({
                                                         title="Buscar servicios cerca de esta etapa"
                                                     >
                                                         🔍
+                                                    </button>
+                                                )}
+                                                
+                                                {/* Botón ajustar destino de esta etapa */}
+                                                {day.isDriving && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onAdjustDay(index); }}
+                                                        className="text-orange-600 hover:bg-orange-100 p-1.5 rounded-full text-xs font-bold border border-orange-200 bg-white shadow-sm transition-all hover:scale-105"
+                                                        title="Ajustar parada técnica de esta etapa"
+                                                    >
+                                                        ⚙️
                                                     </button>
                                                 )}
                                                 
