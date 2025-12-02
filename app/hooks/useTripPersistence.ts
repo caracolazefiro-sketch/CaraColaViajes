@@ -147,15 +147,32 @@ export function useTripPersistence<T extends Record<string, string | number | bo
         console.log('🗑️ Usuario confirmó:', confirmed);
         if (confirmed) {
             console.log('🗑️ Limpiando localStorage...');
-            const beforeRemove = localStorage.getItem('caracola_trip_v1');
-            console.log('🗑️ Contenido ANTES de borrar:', beforeRemove ? 'EXISTS' : 'NULL');
             
-            localStorage.removeItem('caracola_trip_v1');
+            // Borrar ambas claves: con y sin userId
+            const storageKeyWithUser = userId ? `caracola_trip_v1_${userId}` : null;
+            const storageKeyLegacy = 'caracola_trip_v1';
             
-            const afterRemove = localStorage.getItem('caracola_trip_v1');
-            console.log('🗑️ Contenido DESPUÉS de borrar:', afterRemove ? 'STILL EXISTS (ERROR!)' : 'NULL (correcto)');
-            console.log('🗑️ ⏸️  RELOAD DESACTIVADO PARA DEBUG - Refresca manualmente para ver cambios');
-            // window.location.reload(); // TEMPORALMENTE COMENTADO PARA DEBUG
+            console.log('🗑️ Keys a borrar:', { storageKeyWithUser, storageKeyLegacy });
+            
+            const beforeWithUser = storageKeyWithUser ? localStorage.getItem(storageKeyWithUser) : null;
+            const beforeLegacy = localStorage.getItem(storageKeyLegacy);
+            console.log('🗑️ Contenido ANTES:', { 
+                withUser: beforeWithUser ? 'EXISTS' : 'NULL',
+                legacy: beforeLegacy ? 'EXISTS' : 'NULL'
+            });
+            
+            if (storageKeyWithUser) localStorage.removeItem(storageKeyWithUser);
+            localStorage.removeItem(storageKeyLegacy);
+            
+            const afterWithUser = storageKeyWithUser ? localStorage.getItem(storageKeyWithUser) : null;
+            const afterLegacy = localStorage.getItem(storageKeyLegacy);
+            console.log('🗑️ Contenido DESPUÉS:', { 
+                withUser: afterWithUser ? 'STILL EXISTS (ERROR!)' : 'NULL',
+                legacy: afterLegacy ? 'STILL EXISTS (ERROR!)' : 'NULL'
+            });
+            
+            console.log('🗑️ Recargando página...');
+            window.location.reload();
         }
     };
 
