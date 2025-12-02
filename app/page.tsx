@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { PlaceWithDistance, ServiceType } from './types';
+import { supabase } from './supabase';
 
 // COMPONENTES
 import AppHeader from './components/AppHeader';
@@ -80,6 +81,21 @@ export default function Home() {
       formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
       () => { setSelectedDayIndex(null); setMapBounds(null); }
   );
+
+  // Wrapper para cargar viaje desde notificación (solo con tripId)
+  const handleLoadTripFromNotification = async (tripId: number) => {
+      if (!supabase) return;
+      
+      const { data: trip } = await supabase
+          .from('trips')
+          .select('*')
+          .eq('id', tripId)
+          .single();
+      
+      if (trip && trip.trip_data) {
+          handleLoadCloudTrip(trip.trip_data, trip.id);
+      }
+  };
 
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
@@ -246,7 +262,7 @@ export default function Home() {
         )}
         
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-        <UpcomingTripsNotification onLoadTrip={handleLoadCloudTrip} />
+        <UpcomingTripsNotification onLoadTrip={handleLoadTripFromNotification} />
       </div>
     </main>
   );
