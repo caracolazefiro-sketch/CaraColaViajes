@@ -26,10 +26,19 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     // Obtener el user_id de Supabase
     useEffect(() => {
         const getUserId = async () => {
-            if (!supabase) return;
+            if (!supabase) {
+                setUserId(null);
+                setIsInitialized(true);
+                return;
+            }
+            
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user?.id) {
                 setUserId(session.user.id);
+            } else {
+                // Si no hay sesión, limpiar el estado y marcar como inicializado
+                setUserId(null);
+                setIsInitialized(true);
             }
         };
         getUserId();
@@ -37,20 +46,27 @@ export function useTripPersistence<T extends Record<string, string | number | bo
 
     // 1. CARGA INICIAL (LocalStorage con user_id)
     useEffect(() => {
-        if (typeof window !== 'undefined' && userId) {
-            const storageKey = `caracola_trip_v1_${userId}`;
-            const savedData = localStorage.getItem(storageKey);
-            if (savedData) {
-                try {
-                    const parsed = JSON.parse(savedData);
-                    if (parsed.formData) setFormData(parsed.formData);
-                    if (parsed.results) setResults(parsed.results);
-                    if (parsed.tripId) setCurrentTripId(parsed.tripId);
-                } catch (e: unknown) { console.error("Error leyendo caché:", e); }
+        if (typeof window !== 'undefined') {
+            if (userId) {
+                // Usuario logueado: cargar su viaje guardado
+                const storageKey = `caracola_trip_v1_${userId}`;
+                const savedData = localStorage.getItem(storageKey);
+                if (savedData) {
+                    try {
+                        const parsed = JSON.parse(savedData);
+                        if (parsed.formData) setFormData(parsed.formData);
+                        if (parsed.results) setResults(parsed.results);
+                        if (parsed.tripId) setCurrentTripId(parsed.tripId);
+                    } catch (e: unknown) { console.error("Error leyendo caché:", e); }
+                }
+                setIsInitialized(true);
+            } else if (isInitialized) {
+                // Sin usuario: limpiar estado (pantalla virgen)
+                setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
+                setCurrentTripId(null);
             }
-            setIsInitialized(true);
         }
-    }, [userId]);
+    }, [userId, isInitialized]);
 
     // 2. AUTOGUARDADO (LocalStorage con user_id)
     useEffect(() => {
