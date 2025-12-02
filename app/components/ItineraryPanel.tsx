@@ -4,7 +4,7 @@ import React from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import DaySpotsList from './DaySpotsList';
 import { ServiceIcons } from './ServiceIcons';
-import { Printer, Plus, Trash2, Truck } from 'lucide-react';
+import { Printer, Plus, Trash2, Truck, Search, Settings } from 'lucide-react';
 
 // Iconos locales con Lucide
 const IconPrint = () => <Printer size={16} />;
@@ -138,10 +138,10 @@ export default function ItineraryPanel({
                                                 {day.isDriving && day.coordinates && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onSearchNearDay(index); }}
-                                                        className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-full text-xs font-bold border border-blue-200 bg-white shadow-sm transition-all hover:scale-105"
-                                                        title="Buscar servicios cerca de esta etapa"
+                                                        className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-full border border-blue-200 bg-white shadow-sm transition-all hover:scale-105"
+                                                        title="🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."
                                                     >
-                                                        🔍
+                                                        <Search className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 
@@ -149,10 +149,10 @@ export default function ItineraryPanel({
                                                 {day.isDriving && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onAdjustDay(index); }}
-                                                        className="text-orange-600 hover:bg-orange-100 p-1.5 rounded-full text-xs font-bold border border-orange-200 bg-white shadow-sm transition-all hover:scale-105"
-                                                        title="Ajustar parada técnica de esta etapa"
+                                                        className="text-orange-600 hover:bg-orange-100 p-1.5 rounded-full border border-orange-200 bg-white shadow-sm transition-all hover:scale-105"
+                                                        title="⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."
                                                     >
-                                                        ⚙️
+                                                        <Settings className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 

@@ -8,6 +8,7 @@ import AddPlaceForm from './AddPlaceForm';
 import StarRating from './StarRating';
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
+import { Trophy, Gem, Flame, MapPin } from 'lucide-react';
 import { ServiceIcons } from './ServiceIcons';
 
 // Iconos
@@ -142,10 +143,10 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                 <div className="flex items-start gap-2 mb-1">
                                     <h6 className="text-sm font-bold text-gray-800 flex-1 leading-tight">{spot.name}</h6>
                                     <div className="flex gap-1 flex-shrink-0">
-                                        {isTop3 && <span className="text-sm" title="Top 3 mejores">🏆</span>}
-                                        {isExcellent && <span className="text-sm" title="Excelente valoración">💎</span>}
-                                        {isPopular && <span className="text-sm" title="Muy popular">🔥</span>}
-                                        {isNearby && <span className="text-sm" title="Muy cerca">📍</span>}
+                                        {isTop3 && <span className="text-yellow-500" title="Top 3 mejores"><Trophy className="h-4 w-4" /></span>}
+                                        {isExcellent && <span className="text-purple-500" title="Excelente valoración"><Gem className="h-4 w-4" /></span>}
+                                        {isPopular && <span className="text-orange-500" title="Muy popular"><Flame className="h-4 w-4" /></span>}
+                                        {isNearby && <span className="text-blue-500" title="Muy cerca"><MapPin className="h-4 w-4" /></span>}
                                     </div>
                                 </div>
                                 

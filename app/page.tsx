@@ -370,7 +370,10 @@ export default function Home() {
         </div>
 
         <div className="print-only hidden text-center mb-10">
-             <h1 className="text-4xl font-bold text-red-600 mb-2">{t('APP_TITLE')} 🐌</h1>
+             <h1 className="text-4xl font-bold text-red-600 mb-2 flex items-center justify-center gap-2">
+                <img src="/logo.jpg" alt="CaraCola" className="h-10 w-10 inline-block" />
+                {t('APP_TITLE')}
+             </h1>
              <h2 className="text-2xl font-bold text-gray-800">{formData?.origen || ''} ➝ {formData?.destino || ''}</h2>
              <p className="text-gray-500">{t('ITINERARY_GENERATED_ON')} {new Date().toLocaleDateString()}</p>
         </div>

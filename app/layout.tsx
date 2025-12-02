@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Entorno Pruebas 🐌 | Planificador de Rutas Camper",
+  title: "Entorno Pruebas | CaraCola Viajes - Planificador de Rutas Camper",
   description: "Calcula tu ruta en autocaravana, encuentra áreas de pernocta y controla tus gastos de viaje.",
   icons: {
     icon: '/logo.jpg',
