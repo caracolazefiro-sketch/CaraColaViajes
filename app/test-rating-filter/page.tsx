@@ -279,9 +279,9 @@ export default function TestRatingFilterPage() {
 
                       {/* Badges */}
                       <div className="flex gap-2 flex-shrink-0">
-                        {isTop3 && <Trophy className="text-yellow-500" size={20} title="Top 3" />}
-                        {isExcellent && <Gem className="text-purple-500" size={20} title="4.5+" />}
-                        {place.user_ratings_total >= 100 && <Flame className="text-orange-500" size={20} title="Muy popular" />}
+                        {isTop3 && <span title="Top 3"><Trophy className="text-yellow-500" size={20} /></span>}
+                        {isExcellent && <span title="4.5+"><Gem className="text-purple-500" size={20} /></span>}
+                        {place.user_ratings_total >= 100 && <span title="Muy popular"><Flame className="text-orange-500" size={20} /></span>}
                         <div
                           className={`px-2 py-1 rounded text-xs font-bold ${
                             passesRating ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
