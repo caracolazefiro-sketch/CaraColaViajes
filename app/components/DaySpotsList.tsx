@@ -127,9 +127,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
         const filteredResults = filterAndSort(searchResults);
         
         // Recombinar: guardados sin filtrar + búsquedas filtradas
-        if (type === 'custom' || type === 'search' || type === 'found') {
-            list = savedOfType;
-        } else if (savedOfType.length > 0 && toggles[type]) {
+        if (savedOfType.length > 0 && toggles[type]) {
             list = [...savedOfType, ...filteredResults].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
         } else if (savedOfType.length > 0 && !toggles[type]) {
             list = savedOfType;
