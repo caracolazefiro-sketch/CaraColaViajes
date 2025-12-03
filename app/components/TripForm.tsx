@@ -208,7 +208,7 @@ export default function TripForm({
                             </div>
                         )}
                     </div>
-                    {formData.vueltaACasa && <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">{t('FORM_ROUND_TRIP_SHORT')}</span>}
+                    {formData.vueltaACasa && <span className="text-[9px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">{t('FORM_ROUND_TRIP_SHORT')}</span>}
                 </div>
 
                 {/* 2. DATOS (Centro - Integrados) */}
@@ -311,8 +311,8 @@ export default function TripForm({
                             {t('FORM_WAYPOINTS_TITLE')}
                         </label>
 
-                        <label className="flex items-center gap-2 cursor-pointer text-blue-800 font-bold text-xs select-none border-l pl-6 border-red-200">
-                            <input type="checkbox" id="vueltaACasa" checked={formData.vueltaACasa || false} onChange={handleChange} className="text-blue-600 rounded focus:ring-blue-500" />
+                        <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs select-none border-l pl-6 border-red-200">
+                            <input type="checkbox" id="vueltaACasa" checked={formData.vueltaACasa || false} onChange={handleChange} className="text-red-600 rounded focus:ring-red-500" />
                             {t('FORM_ROUND_TRIP')}
                         </label>
                     </div>

@@ -54,18 +54,22 @@ export default function Home() {
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
   const [auditMode, setAuditMode] = useState(false);
 
-  const [formData, setFormData] = useState({
-    tripName: '',
-    fechaInicio: new Date().toISOString().split('T')[0],
-    origen: 'Salamanca',
-    fechaRegreso: '',
-    destino: 'Punta Umbria',
-    etapas: 'Valencia',
-    consumo: 10.0,
-    precioGasoil: 1.60,
-    kmMaximoDia: 400,
-    evitarPeajes: false,
-    vueltaACasa: false,
+  const [formData, setFormData] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return {
+      tripName: '',
+      fechaInicio: tomorrow.toISOString().split('T')[0],
+      origen: '',
+      fechaRegreso: '',
+      destino: '',
+      etapas: '',
+      consumo: 12.5,
+      precioGasoil: 1.35,
+      kmMaximoDia: 300,
+      evitarPeajes: false,
+      vueltaACasa: false,
+    };
   });
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(true);
