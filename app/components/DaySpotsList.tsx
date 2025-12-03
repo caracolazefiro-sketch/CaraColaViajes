@@ -73,7 +73,7 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
     );
 };
 
-interface ServiceSectionProps {
+interface ServiceListProps {
     type: ServiceType;
     title: string;
     colorClass: string;
