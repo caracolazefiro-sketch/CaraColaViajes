@@ -18,7 +18,7 @@ const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4"
 // Helper component for InfoWindow image with error handling
 const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
     const [imageError, setImageError] = useState(false);
-    
+
     if (!place.photoUrl || place.photoUrl.trim() === '' || imageError) {
         const Icon = ServiceIcons[place.type as keyof typeof ServiceIcons] || ServiceIcons.custom;
         return (
@@ -27,12 +27,12 @@ const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
             </div>
         );
     }
-    
+
     // Usar img nativo para URLs de Google Maps PhotoService que no funcionan con Next.js Image
     return (
-        <img 
-            src={place.photoUrl} 
-            alt={place.name || 'Lugar'} 
+        <img
+            src={place.photoUrl}
+            alt={place.name || 'Lugar'}
             className="w-full h-28 object-cover rounded-t-lg"
             onError={() => setImageError(true)}
         />
@@ -64,14 +64,14 @@ interface TripMapProps {
 }
 
 export default function TripMap({
-    setMap, mapBounds, directionsResponse, dailyItinerary, places, toggles, 
+    setMap, mapBounds, directionsResponse, dailyItinerary, places, toggles,
     selectedDayIndex, hoveredPlace, setHoveredPlace, onPlaceClick, onAddPlace,
     onSearch, onClearSearch, mapInstance, t, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }: TripMapProps) {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [clickedGooglePlace, setClickedGooglePlace] = useState<PlaceWithDistance | null>(null);
-    
+
     // CONTROL DE INTERACCIÓN (SISTEMA VS HUMANO)
     const hasUserInteracted = useRef(false);
     const isProgrammaticMove = useRef(false);
@@ -79,14 +79,14 @@ export default function TripMap({
     // Listener para el mapa
     const handleMapLoad = (map: google.maps.Map) => {
         setMap(map);
-        
-        map.addListener('dragstart', () => { 
-            hasUserInteracted.current = true; 
+
+        map.addListener('dragstart', () => {
+            hasUserInteracted.current = true;
         });
-        
-        map.addListener('zoom_changed', () => { 
+
+        map.addListener('zoom_changed', () => {
             if (!isProgrammaticMove.current) {
-                hasUserInteracted.current = true; 
+                hasUserInteracted.current = true;
             }
         });
 
@@ -95,7 +95,7 @@ export default function TripMap({
             // @ts-expect-error - placeId existe en IconMouseEvent
             if (e.placeId) {
                 e.stop(); // Prevenir el InfoWindow por defecto de Google
-                
+
                 const service = new google.maps.places.PlacesService(map);
                 // @ts-expect-error - Type mismatch in Google Maps API
                 service.getDetails({ placeId: e.placeId }, (place, status) => {
@@ -103,7 +103,7 @@ export default function TripMap({
                         // Convertir a nuestro formato
                         const lat = place.geometry?.location?.lat();
                         const lng = place.geometry?.location?.lng();
-                        
+
                         if (lat && lng) {
                             let photoUrl: string | undefined;
                             if (place.photos && place.photos.length > 0) {
@@ -144,14 +144,14 @@ export default function TripMap({
         const applyBounds = (bounds: google.maps.LatLngBounds) => {
             isProgrammaticMove.current = true;
             mapInstance.fitBounds(bounds);
-            
+
             // Pequeño timeout para liberar el candado
             setTimeout(() => {
                 isProgrammaticMove.current = false;
                 // Si hemos forzado un movimiento (ej: Botón General), reseteamos la "memoria" de interacción
                 // para que futuros cambios automáticos sigan funcionando hasta que el usuario toque de nuevo.
                 if (mapBounds || selectedDayIndex === null) {
-                    hasUserInteracted.current = false; 
+                    hasUserInteracted.current = false;
                 }
             }, 800);
         };
@@ -159,7 +159,7 @@ export default function TripMap({
         // CASO 1: Límites explícitos (Día específico o General forzado)
         if (mapBounds) {
             applyBounds(mapBounds);
-        } 
+        }
         // CASO 2: Carga inicial o reset suave (Solo si no ha tocado el mapa)
         else if (directionsResponse && !hasUserInteracted.current && selectedDayIndex === null) {
             const routeBounds = directionsResponse.routes[0].bounds;
@@ -190,9 +190,9 @@ export default function TripMap({
             <div className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
                     <button type="submit" className="p-2 text-gray-400 hover:text-blue-500"><IconSearch /></button>
-                    <input 
-                        type="text" 
-                        placeholder={searchPlaceholder} 
+                    <input
+                        type="text"
+                        placeholder={searchPlaceholder}
                         className="w-full text-xs outline-none text-gray-700"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -205,8 +205,8 @@ export default function TripMap({
 
             {/* Filter Sliders - En línea única en parte BAJA del mapa (usando SOLO SVG) */}
 
-            <GoogleMap 
-                mapContainerStyle={containerStyle} center={center} zoom={6} 
+            <GoogleMap
+                mapContainerStyle={containerStyle} center={center} zoom={6}
                 onLoad={handleMapLoad}
                 onClick={(e) => {
                     // Solo cerrar InfoWindow si NO es un click en POI de Google
@@ -216,10 +216,10 @@ export default function TripMap({
                         setClickedGooglePlace(null);
                     }
                 }}
-                options={{ 
-                    zoomControl: true, 
-                    streetViewControl: false, 
-                    mapTypeControl: true, 
+                options={{
+                    zoomControl: true,
+                    streetViewControl: false,
+                    mapTypeControl: true,
                     fullscreenControl: true,
                     scaleControl: true,
                     mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_LEFT },
@@ -228,31 +228,31 @@ export default function TripMap({
                 }}
             >
                 {directionsResponse && (
-                    <DirectionsRenderer 
+                    <DirectionsRenderer
                         key={routeKey} // 🔑 CLAVE MAESTRA: Fuerza repintado si cambia la ruta
-                        directions={directionsResponse} 
-                        options={{ 
-                            polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 }, 
+                        directions={directionsResponse}
+                        options={{
+                            polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 },
                             suppressMarkers: false,
                             preserveViewport: true // 🛑 PROHIBIDO TOCAR EL ZOOM: Nosotros mandamos
-                        }} 
+                        }}
                     />
                 )}
-                
+
                 {dailyItinerary?.map((day, i) => day.coordinates && (
                     <Marker key={`itinerary-${i}`} position={day.coordinates} icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd} title={day.to} label={{ text: `${i+1}`, color: "white", fontSize: "10px", fontWeight: "bold" }} />
                 ))}
-                
+
                 {Object.keys(places).map((key) => {
                     const type = key as ServiceType;
                     const savedDay = selectedDayIndex !== null ? dailyItinerary![selectedDayIndex] : null;
                     const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
-                    
+
                     // Mostrar lugares guardados SIEMPRE, incluso si toggle OFF (sin filtrado)
                     // Mostrar resultados de búsqueda solo si toggle ON (CON filtrado)
                     let listToRender: PlaceWithDistance[] = [];
                     let searchResults: PlaceWithDistance[] = [];
-                    
+
                     if (savedOfType.length > 0) {
                         // Lugares guardados siempre visibles SIN filtrado
                         listToRender = [...savedOfType];
@@ -266,25 +266,25 @@ export default function TripMap({
                         } else {
                             searchResults = places[type] || [];
                         }
-                        
+
                         // 🔥 APLICAR FILTRADO SOLO a resultados de búsqueda (NO a lugares guardados)
                         const filteredSearchResults = filterAndSort(searchResults, minRating, searchRadius, sortBy);
                         listToRender = [...savedOfType, ...filteredSearchResults];
                     }
-                    
+
                     if (type === 'search' && listToRender.length === 0) return null;
                     const uniqueRender = listToRender.filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
                     return uniqueRender.map((spot, i) => {
                         const saved = isSaved(spot.place_id);
                         return spot.geometry?.location && (
-                            <Marker 
-                                key={`${type}-${i}`} 
-                                position={spot.geometry.location} 
-                                icon={{ url: createMarkerIcon(type), scaledSize: new window.google.maps.Size(24, 24) }} 
-                                label={saved ? { 
-                                    text: "✓", 
-                                    color: "#16A34A", 
-                                    fontWeight: "bold", 
+                            <Marker
+                                key={`${type}-${i}`}
+                                position={spot.geometry.location}
+                                icon={{ url: createMarkerIcon(type), scaledSize: new window.google.maps.Size(24, 24) }}
+                                label={saved ? {
+                                    text: "✓",
+                                    color: "#16A34A",
+                                    fontWeight: "bold",
                                     fontSize: "16px",
                                     className: "marker-label"
                                 } : undefined}
@@ -295,7 +295,7 @@ export default function TripMap({
                         );
                     });
                 })}
-                
+
                 {hoveredPlace && hoveredPlace.geometry?.location && (
                     <InfoWindow position={hoveredPlace.geometry.location} onCloseClick={() => setHoveredPlace(null)} options={{ disableAutoPan: false, pixelOffset: new google.maps.Size(0, -20) }}>
                         <div className="p-0 w-[220px] overflow-hidden font-sans">
