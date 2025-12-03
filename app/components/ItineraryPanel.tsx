@@ -32,12 +32,17 @@ interface ItineraryPanelProps {
     onAdjustDay: (dayIndex: number) => void; // Nueva prop - Ajustar destino
     t: (key: string) => string; // Traducción
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
+    // 🔥 NUEVOS PROPS PARA FILTRADO
+    minRating?: number;
+    searchRadius?: number;
+    sortBy?: 'score' | 'distance' | 'rating';
 }
 
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
-    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert
+    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert,
+    minRating = 0, searchRadius = 50, sortBy = 'score'
 }: ItineraryPanelProps) {
 
     if (!dailyItinerary) return null;
@@ -217,6 +222,9 @@ export default function ItineraryPanel({
                         onAddPlace={onAddPlace} 
                         onRemovePlace={onRemovePlace} 
                         onHover={onHover}
+                        minRating={minRating}
+                        searchRadius={searchRadius}
+                        sortBy={sortBy}
                         t={t} convert={convert}
                     />
                 )}

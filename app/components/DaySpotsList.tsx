@@ -8,7 +8,7 @@ import AddPlaceForm from './AddPlaceForm';
 import StarRating from './StarRating';
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
-import { useSearchFilters } from '../hooks/useSearchFilters';
+import { filterAndSort } from '../hooks/useSearchFilters';
 import { Trophy, Gem, Flame, MapPin, Star } from 'lucide-react';
 import { ServiceIcons } from './ServiceIcons';
 
@@ -90,11 +90,13 @@ interface ServiceListProps {
     handlePlaceClick: (spot: PlaceWithDistance) => void;
     handleEditStart: (place: PlaceWithDistance) => void;
     auditMode: boolean;
-    filterAndSort?: (places: PlaceWithDistance[]) => PlaceWithDistance[];
+    minRating: number;
+    searchRadius: number;
+    sortBy: 'score' | 'distance' | 'rating';
 }
 
 const ServiceList: React.FC<ServiceListProps> = ({
-    type, title, colorClass, markerColor, places, loading, toggles, saved, t, isSaved, onAddPlace, onRemovePlace, onHover, handlePlaceClick, handleEditStart, auditMode, filterAndSort
+    type, title, colorClass, markerColor, places, loading, toggles, saved, t, isSaved, onAddPlace, onRemovePlace, onHover, handlePlaceClick, handleEditStart, auditMode, minRating, searchRadius, sortBy
 }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isSpecialType = type === 'search' || type === 'custom';
@@ -122,9 +124,10 @@ const ServiceList: React.FC<ServiceListProps> = ({
     }
 
     // 🎚️ APLICAR FILTROS Y ORDENACIÓN (solo a búsquedas, no a guardados)
-    if (filterAndSort && type !== 'custom' && type !== 'search' && type !== 'found') {
+    // 🔥 AHORA: Usamos la función pura filterAndSort con parámetros explícitos
+    if (type !== 'custom' && type !== 'search' && type !== 'found') {
         const searchResults = places[type] || [];
-        const filteredResults = filterAndSort(searchResults);
+        const filteredResults = filterAndSort(searchResults, minRating, searchRadius, sortBy);
         
         // Recombinar: guardados sin filtrar + búsquedas filtradas
         if (savedOfType.length > 0 && toggles[type]) {
@@ -289,16 +292,20 @@ interface DaySpotsListProps {
     t: (key: string) => string;
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number;
     auditMode: boolean;
+    // 🔥 NUEVOS PROPS PARA FILTRADO (desde page.tsx)
+    minRating?: number;
+    searchRadius?: number;
+    sortBy?: 'score' | 'distance' | 'rating';
 }
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
-    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert, auditMode 
+    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert, auditMode, minRating = 0, searchRadius = 50, sortBy = 'score'
 }) => {
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     const { routeWeather, weatherStatus } = useWeather(day.coordinates, day.isoDate, day.startCoordinates);
     const { elevationData, loadingElevation, calculateElevation, clearElevation } = useElevation();
-    const { minRating, setMinRating, searchRadius, setSearchRadius, sortBy, setSortBy, filterAndSort } = useSearchFilters();
+    // 🔥 Ya NO creamos nuestro propio hook; usamos props recibidos de page.tsx
 
     const [showForm, setShowForm] = useState(false);
     const [placeToEdit, setPlaceToEdit] = useState<PlaceWithDistance | null>(null);
@@ -463,73 +470,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
-                    {/* 🎚️ CONTROLES DE FILTRADO */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 p-3 bg-white/50 rounded-lg border border-gray-200">
-                        {/* Slider Rating Mínimo */}
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                                <Star size={12} className="text-yellow-500" /> {t('MAP_RATING')} Mín
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <input 
-                                    type="range" 
-                                    min="0" 
-                                    max="5" 
-                                    step="0.5" 
-                                    value={minRating} 
-                                    onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                                    className="flex-1 h-2 bg-yellow-200 rounded-lg appearance-none cursor-pointer"
-                                    style={{
-                                        background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #e5e7eb ${(minRating / 5) * 100}%, #e5e7eb 100%)`
-                                    }}
-                                />
-                                <span className="text-xs font-bold text-yellow-600 bg-yellow-100 px-2 py-1 rounded min-w-[40px] text-center">
-                                    {minRating.toFixed(1)}⭐
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Slider Radio de Búsqueda */}
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                                📏 Radio (km)
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <input 
-                                    type="range" 
-                                    min="5" 
-                                    max="50" 
-                                    step="5" 
-                                    value={searchRadius} 
-                                    onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                                    className="flex-1 h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
-                                    style={{
-                                        background: `linear-gradient(to right, #60a5fa 0%, #60a5fa ${((searchRadius - 5) / 45) * 100}%, #e5e7eb ${((searchRadius - 5) / 45) * 100}%, #e5e7eb 100%)`
-                                    }}
-                                />
-                                <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded min-w-[40px] text-center">
-                                    {searchRadius}km
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Dropdown Ordenación */}
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                                🔄 Ordenar por
-                            </label>
-                            <select 
-                                value={sortBy} 
-                                onChange={(e) => setSortBy(e.target.value as any)}
-                                className="px-2 py-1 text-xs border border-gray-300 rounded bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="score">Score (nuestro)</option>
-                                <option value="distance">Distancia</option>
-                                <option value="rating">Rating</option>
-                            </select>
-                        </div>
-                    </div>
-
                     {/* Grid de botones de servicios compacto */}
                     <div className="grid grid-cols-4 gap-2 mb-4">
                         <ServiceButton type="camping" label="Spots" toggles={toggles} onToggle={onToggle} count={places.camping?.length || 0} />
@@ -558,16 +498,16 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         </button>
                     </div>
                     <div className="space-y-2">
-                        <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
-                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" markerColor="bg-cyan-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
-                        <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" markerColor="bg-orange-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
-                        <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" markerColor="bg-blue-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
-                        <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" markerColor="bg-green-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
-                        <ServiceList type="laundry" title={t('SERVICE_LAUNDRY')} colorClass="text-purple-700" markerColor="bg-purple-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
-                        <ServiceList type="tourism" title={t('SERVICE_TOURISM')} colorClass="text-yellow-600" markerColor="bg-yellow-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
-                        <ServiceList type="custom" title={t('SERVICE_CUSTOM')} colorClass="text-gray-600" markerColor="bg-gray-400" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
+                        <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
+                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" markerColor="bg-cyan-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
+                        <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" markerColor="bg-orange-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
+                        <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" markerColor="bg-blue-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
+                        <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" markerColor="bg-green-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
+                        <ServiceList type="laundry" title={t('SERVICE_LAUNDRY')} colorClass="text-purple-700" markerColor="bg-purple-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
+                        <ServiceList type="tourism" title={t('SERVICE_TOURISM')} colorClass="text-yellow-600" markerColor="bg-yellow-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
+                        <ServiceList type="custom" title={t('SERVICE_CUSTOM')} colorClass="text-gray-600" markerColor="bg-gray-400" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         {saved.filter(s => s.type === 'search').length > 0 && (
-                            <ServiceList type="search" title="Buscados" colorClass="text-blue-600" markerColor="bg-blue-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
+                            <ServiceList type="search" title="Buscados" colorClass="text-blue-600" markerColor="bg-blue-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         )}
                         {saved.filter(s => s.type === 'found').length > 0 && (
                             <ServiceList type="found" title="Encontrados" colorClass="text-teal-600" markerColor="bg-teal-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />

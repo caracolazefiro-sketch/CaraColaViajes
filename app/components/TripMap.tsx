@@ -6,6 +6,7 @@ import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
 import { ICONS_ITINERARY } from '../constants';
 import { createMarkerIcon, ServiceIcons } from './ServiceIcons';
 import StarRating from './StarRating';
+import { filterAndSort } from '../hooks/useSearchFilters';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -202,64 +203,7 @@ export default function TripMap({
                 )}
             </div>
 
-            {/* Filter Sliders - Flotantes en esquina superior derecha */}
-            {setMinRating && setSearchRadius && setSortBy && (
-                <div className="absolute top-4 right-72 z-10 bg-white rounded-lg shadow-xl p-3 border border-gray-200 space-y-2 w-56 transition-opacity opacity-90 hover:opacity-100">
-                    {/* Rating Slider */}
-                    <div className="space-y-1">
-                        <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-gray-700">⭐ Rating</label>
-                            <span className="text-xs font-bold text-yellow-600">{minRating.toFixed(1)}</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="5"
-                            step="0.5"
-                            value={minRating}
-                            onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                            className="w-full h-1.5 bg-gray-300 rounded appearance-none cursor-pointer"
-                            style={{
-                                background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #e5e7eb ${(minRating / 5) * 100}%, #e5e7eb 100%)`,
-                            }}
-                        />
-                    </div>
-
-                    {/* Radio Slider */}
-                    <div className="space-y-1">
-                        <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-gray-700">📍 Radio</label>
-                            <span className="text-xs font-bold text-blue-600">{searchRadius}km</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="5"
-                            max="50"
-                            step="5"
-                            value={searchRadius}
-                            onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                            className="w-full h-1.5 bg-gray-300 rounded appearance-none cursor-pointer"
-                            style={{
-                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((searchRadius - 5) / 45) * 100}%, #e5e7eb ${((searchRadius - 5) / 45) * 100}%, #e5e7eb 100%)`,
-                            }}
-                        />
-                    </div>
-
-                    {/* Sort Dropdown */}
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-700">Sort</label>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as 'score' | 'distance' | 'rating')}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500"
-                        >
-                            <option value="score">📊 Score</option>
-                            <option value="distance">📍 Dist</option>
-                            <option value="rating">⭐ Rate</option>
-                        </select>
-                    </div>
-                </div>
-            )}
+            {/* Filter Sliders - En línea única en parte BAJA del mapa (usando SOLO SVG) */}
 
             <GoogleMap 
                 mapContainerStyle={containerStyle} center={center} zoom={6} 
@@ -304,22 +248,28 @@ export default function TripMap({
                     const savedDay = selectedDayIndex !== null ? dailyItinerary![selectedDayIndex] : null;
                     const savedOfType = savedDay?.savedPlaces?.filter(s => s.type === type) || [];
                     
-                    // Mostrar lugares guardados SIEMPRE, incluso si toggle OFF
-                    // Mostrar resultados de búsqueda solo si toggle ON
+                    // Mostrar lugares guardados SIEMPRE, incluso si toggle OFF (sin filtrado)
+                    // Mostrar resultados de búsqueda solo si toggle ON (CON filtrado)
                     let listToRender: PlaceWithDistance[] = [];
+                    let searchResults: PlaceWithDistance[] = [];
+                    
                     if (savedOfType.length > 0) {
-                        // Lugares guardados siempre visibles
+                        // Lugares guardados siempre visibles SIN filtrado
                         listToRender = [...savedOfType];
                     }
                     if (toggles[type]) {
-                        // Añadir resultados de búsqueda si toggle ON
+                        // Obtener resultados de búsqueda sin procesar
                         if (type === 'custom') {
-                            listToRender = savedOfType;
+                            searchResults = savedOfType;
                         } else if (type === 'search') {
-                            listToRender = places.search || [];
+                            searchResults = places.search || [];
                         } else {
-                            listToRender = [...savedOfType, ...places[type]];
+                            searchResults = places[type] || [];
                         }
+                        
+                        // 🔥 APLICAR FILTRADO SOLO a resultados de búsqueda (NO a lugares guardados)
+                        const filteredSearchResults = filterAndSort(searchResults, minRating, searchRadius, sortBy);
+                        listToRender = [...savedOfType, ...filteredSearchResults];
                     }
                     
                     if (type === 'search' && listToRender.length === 0) return null;
@@ -390,6 +340,59 @@ export default function TripMap({
                     </InfoWindow>
                 )}
             </GoogleMap>
+
+            {/* Filter Controls - Línea única en la PARTE BAJA del mapa (SOLO SVG) */}
+            {setMinRating && setSearchRadius && setSortBy && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-gray-900 bg-opacity-85 rounded-lg shadow-2xl p-3 border border-gray-600 flex items-center gap-4 w-fit transition-opacity opacity-95 hover:opacity-100 backdrop-blur-sm">
+                    {/* Rating Slider */}
+                    <div className="flex flex-col items-center gap-1">
+                        <label className="text-xs font-bold text-yellow-400">⭐ Rating: {minRating.toFixed(1)}</label>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5"
+                            step="0.5"
+                            value={minRating}
+                            onChange={(e) => setMinRating(parseFloat(e.target.value))}
+                            className="w-32 h-1.5 bg-gray-600 rounded appearance-none cursor-pointer"
+                            style={{
+                                background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #4b5563 ${(minRating / 5) * 100}%, #4b5563 100%)`,
+                            }}
+                        />
+                    </div>
+
+                    {/* Radio Slider */}
+                    <div className="flex flex-col items-center gap-1">
+                        <label className="text-xs font-bold text-blue-400">📍 Radio: {searchRadius}km</label>
+                        <input
+                            type="range"
+                            min="5"
+                            max="50"
+                            step="5"
+                            value={searchRadius}
+                            onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+                            className="w-32 h-1.5 bg-gray-600 rounded appearance-none cursor-pointer"
+                            style={{
+                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((searchRadius - 5) / 45) * 100}%, #4b5563 ${((searchRadius - 5) / 45) * 100}%, #4b5563 100%)`,
+                            }}
+                        />
+                    </div>
+
+                    {/* Sort Dropdown */}
+                    <div className="flex flex-col items-center gap-1">
+                        <label className="text-xs font-bold text-purple-400">Ordenar</label>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as 'score' | 'distance' | 'rating')}
+                            className="px-2 py-1 bg-gray-700 border border-gray-500 rounded text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        >
+                            <option value="score">📊 Score</option>
+                            <option value="distance">📍 Distancia</option>
+                            <option value="rating">⭐ Valoración</option>
+                        </select>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

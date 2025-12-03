@@ -411,6 +411,7 @@ export default function Home() {
                         onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                         onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
                         onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
+                        minRating={minRating} searchRadius={searchRadius} sortBy={sortBy}
                     />
 
                     <TripMap 
@@ -427,8 +428,7 @@ export default function Home() {
         
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         <UpcomingTripsNotification onLoadTrip={handleLoadTripFromNotification} />
-        
-        {/* Modal para ajustar etapa */}
+                {/* Modal para ajustar etapa */}
         {adjustModalOpen && adjustingDayIndex !== null && results.dailyItinerary && (
           <AdjustStageModal
             isOpen={adjustModalOpen}
