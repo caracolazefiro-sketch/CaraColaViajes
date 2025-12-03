@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Calendar, MapPin } from 'lucide-react';
+import { IconX, IconCalendar, IconMapPin } from '../lib/svgIcons';
 import { supabase } from '../supabase';
 
 interface UpcomingTrip {
@@ -115,7 +115,7 @@ const UpcomingTripsNotification: React.FC<UpcomingTripsNotificationProps> = ({ o
             <div className="bg-white rounded-xl shadow-2xl border-2 border-red-500 p-4 max-w-sm">
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <Calendar className="text-red-600" size={20} />
+                        <IconCalendar className="text-red-600" size={20} />
                         <h3 className="font-bold text-gray-800">
                             🚐 {upcomingTrips.length === 1 ? 'Próximo viaje' : `${upcomingTrips.length} próximos viajes`}
                         </h3>
@@ -125,7 +125,7 @@ const UpcomingTripsNotification: React.FC<UpcomingTripsNotificationProps> = ({ o
                         className="text-gray-400 hover:text-gray-600 transition"
                         aria-label="Cerrar"
                     >
-                        <X size={18} />
+                        <IconX size={18} />
                     </button>
                 </div>
 
@@ -140,7 +140,7 @@ const UpcomingTripsNotification: React.FC<UpcomingTripsNotificationProps> = ({ o
                                 {trip.name}
                             </div>
                             <div className="flex items-center gap-2 text-xs text-gray-600">
-                                <MapPin size={12} />
+                                <IconMapPin size={12} />
                                 <span>
                                     {trip.trip_data?.formData?.origen?.split(',')[0]} → {trip.trip_data?.formData?.destino?.split(',')[0]}
                                 </span>

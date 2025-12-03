@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { IconX } from '../lib/svgIcons';
 
 interface AdjustStageModalProps {
     isOpen: boolean;
@@ -78,7 +78,7 @@ export default function AdjustStageModal({
                         onClick={handleClose}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                        <X size={20} className="text-gray-500" />
+                        <IconX size={20} className="text-gray-500" />
                     </button>
                 </div>
 

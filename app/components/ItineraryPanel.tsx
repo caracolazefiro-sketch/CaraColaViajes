@@ -4,12 +4,12 @@ import React from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import DaySpotsList from './DaySpotsList';
 import { ServiceIcons } from './ServiceIcons';
-import { Printer, Plus, Trash2, Truck, Search, Settings } from 'lucide-react';
+import { IconPrinter, IconPlus, IconTrash2, IconTruck, IconSearch, IconSettings } from '../lib/svgIcons';
 
-// Iconos locales con Lucide
-const IconPrint = () => <Printer size={16} />;
-const IconPlusSm = () => <Plus size={16} />;
-const IconTrashSm = () => <Trash2 size={16} />;
+// Iconos locales
+const IconPrint = () => <IconPrinter size={16} />;
+const IconPlusSm = () => <IconPlus size={16} />;
+const IconTrashSm = () => <IconTrash2 size={16} />;
 
 interface ItineraryPanelProps {
     dailyItinerary: DailyPlan[] | null;
@@ -66,7 +66,7 @@ export default function ItineraryPanel({
                         <div className="bg-gradient-to-br from-blue-50 via-white to-red-50 border-b border-gray-200 p-4 pb-3">
                             {tripName && (
                                 <div className="flex items-center justify-center gap-2 mb-3">
-                                    <Truck size={20} className="text-red-600" />
+                                    <IconTruck size={20} className="text-red-600" />
                                     <h3 className="text-lg font-bold text-gray-800">{tripName}</h3>
                                 </div>
                             )}
@@ -108,7 +108,7 @@ export default function ItineraryPanel({
 
                             {/* Botón imprimir minimalista */}
                             <div className="flex justify-center items-center gap-1.5 text-gray-600 hover:text-gray-900 cursor-pointer transition no-print mb-2" onClick={() => window.print()}>
-                                <Printer size={16} />
+                                <IconPrint />
                                 <span className="text-xs font-semibold">PDF</span>
                             </div>
                         </div>
@@ -146,7 +146,7 @@ export default function ItineraryPanel({
                                                         className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-full border border-blue-200 bg-white shadow-sm transition-all hover:scale-105"
                                                         title="🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."
                                                     >
-                                                        <Search className="h-4 w-4" />
+                                                        <IconSearch className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 
@@ -157,7 +157,7 @@ export default function ItineraryPanel({
                                                         className="text-orange-600 hover:bg-orange-100 p-1.5 rounded-full border border-orange-200 bg-white shadow-sm transition-all hover:scale-105"
                                                         title="⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."
                                                     >
-                                                        <Settings className="h-4 w-4" />
+                                                        <IconSettings className="h-4 w-4" />
                                                     </button>
                                                 )}
                                                 

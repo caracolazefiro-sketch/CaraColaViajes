@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
+import { IconCheckCircle, IconXCircle, IconAlertCircle, IconInfo, IconX } from '../lib/svgIcons';
 import { Toast as ToastType } from '../hooks/useToast';
 
 interface ToastContainerProps {
@@ -11,14 +11,14 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) =>
     const getIcon = (type: ToastType['type']) => {
         switch (type) {
             case 'success':
-                return <CheckCircle size={20} className="text-green-600" />;
+                return <IconCheckCircle size={20} className="text-green-600" />;
             case 'error':
-                return <XCircle size={20} className="text-red-600" />;
+                return <IconXCircle size={20} className="text-red-600" />;
             case 'warning':
-                return <AlertCircle size={20} className="text-yellow-600" />;
+                return <IconAlertCircle size={20} className="text-yellow-600" />;
             case 'info':
             default:
-                return <Info size={20} className="text-blue-600" />;
+                return <IconInfo size={20} className="text-blue-600" />;
         }
     };
 
@@ -56,7 +56,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) =>
                         className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
                         aria-label="Cerrar"
                     >
-                        <X size={18} />
+                        <IconX size={18} />
                     </button>
                 </div>
             ))}

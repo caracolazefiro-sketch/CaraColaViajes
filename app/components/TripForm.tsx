@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Autocomplete } from '@react-google-maps/api';
 import { TripResult } from '../types';
-import { Truck } from 'lucide-react';
+import { IconTruck } from '../lib/svgIcons';
 
 // Iconos
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
@@ -195,7 +195,7 @@ export default function TripForm({
             >
                 {/* 1. NOMBRE DEL VIAJE / RUTA (Izquierda) */}
                 <div className="flex items-center gap-2 overflow-hidden w-full md:w-auto px-2">
-                    <Truck size={18} className="text-red-600 flex-shrink-0" />
+                    <IconTruck size={18} className="text-red-600 flex-shrink-0" />
                     <div className="flex flex-col overflow-hidden">
                         <div className="text-sm text-gray-800 font-bold truncate">
                             {displayTripName}

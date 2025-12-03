@@ -1,17 +1,20 @@
-// Iconos SVG Lucide para servicios - Implementación directa sin dependencias
-import { Moon, Droplet, Fuel, UtensilsCrossed, ShoppingCart, WashingMachine, Camera, Star, Search, MapPin } from 'lucide-react';
+// Iconos SVG para servicios - Implementación directa sin dependencias de Lucide
+import {
+    IconMoon, IconDroplet, IconFuel, IconUtensilsCrossed, IconShoppingCart,
+    IconWashingMachine, IconCamera, IconStar, IconSearch, IconMapPin
+} from '../lib/svgIcons';
 
 export const ServiceIcons = {
-    camping: Moon,
-    water: Droplet,
-    gas: Fuel,
-    restaurant: UtensilsCrossed,
-    supermarket: ShoppingCart,
-    laundry: WashingMachine,
-    tourism: Camera,
-    custom: Star,
-    search: Search,
-    found: MapPin,
+    camping: IconMoon,
+    water: IconDroplet,
+    gas: IconFuel,
+    restaurant: IconUtensilsCrossed,
+    supermarket: IconShoppingCart,
+    laundry: IconWashingMachine,
+    tourism: IconCamera,
+    custom: IconStar,
+    search: IconSearch,
+    found: IconMapPin,
 } as const;
 
 export type ServiceIconType = keyof typeof ServiceIcons;

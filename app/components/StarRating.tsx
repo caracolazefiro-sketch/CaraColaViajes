@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, StarHalf } from 'lucide-react';
+import { IconStar } from '../lib/svgIcons';
 
 interface StarRatingProps {
     rating: number;
@@ -17,21 +17,21 @@ const StarRating: React.FC<StarRatingProps> = ({ rating, showNumber = false, siz
         <div className={`flex items-center gap-1 ${className}`}>
             <div className="flex items-center text-yellow-500">
                 {[...Array(fullStars)].map((_, i) => (
-                    <Star key={`full-${i}`} size={size} fill="currentColor" strokeWidth={0} />
+                    <IconStar key={`full-${i}`} size={size} filled className="text-yellow-500" />
                 ))}
                 {hasHalfStar && (
                     <div className="relative">
-                        <Star size={size} className="text-gray-300" fill="currentColor" strokeWidth={0} />
-                        <StarHalf 
-                            size={size} 
-                            className="absolute top-0 left-0 text-yellow-500" 
-                            fill="currentColor" 
-                            strokeWidth={0} 
-                        />
+                        <IconStar size={size} className="text-gray-300" />
+                        <div 
+                            className="absolute top-0 left-0 overflow-hidden w-1/2" 
+                            style={{width: `${size/2}px`}}
+                        >
+                            <IconStar size={size} className="text-yellow-500" />
+                        </div>
                     </div>
                 )}
                 {[...Array(emptyStars)].map((_, i) => (
-                    <Star key={`empty-${i}`} size={size} className="text-gray-300" fill="currentColor" strokeWidth={0} />
+                    <IconStar key={`empty-${i}`} size={size} className="text-gray-300" />
                 ))}
             </div>
             {showNumber && (

@@ -67,3 +67,44 @@ body {
     animation: slideIn 0.3s ease-out;
 }
 
+/* --- SLIDERS CON PUNTO ROJO --- */
+.slider-thumb-red::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #DC2626;
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(220, 38, 38, 0.6);
+    transition: all 0.2s ease;
+}
+
+.slider-thumb-red::-webkit-slider-thumb:hover {
+    width: 18px;
+    height: 18px;
+    box-shadow: 0 0 8px rgba(220, 38, 38, 0.8);
+}
+
+.slider-thumb-red::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #DC2626;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 4px rgba(220, 38, 38, 0.6);
+    transition: all 0.2s ease;
+}
+
+.slider-thumb-red::-moz-range-thumb:hover {
+    width: 18px;
+    height: 18px;
+    box-shadow: 0 0 8px rgba(220, 38, 38, 0.8);
+}
+
+.slider-thumb-red::-moz-range-track {
+    background: transparent;
+    border: none;
+}
+
