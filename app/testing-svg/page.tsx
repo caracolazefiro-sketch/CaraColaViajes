@@ -1,4 +1,4 @@
-import TestingSVGPage from './testing-svg';
+import TestingSVGPage from '../testing-svg';
 
 export default function TestingSVGRoute() {
   return <TestingSVGPage />;

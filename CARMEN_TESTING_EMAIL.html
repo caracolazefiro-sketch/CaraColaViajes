@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing CaraColaViajes - Invitation para CARMEN</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.95;
+        }
+        .section {
+            margin-bottom: 30px;
+            border-left: 4px solid #ea580c;
+            padding: 0 0 0 20px;
+        }
+        .section h2 {
+            color: #ea580c;
+            font-size: 20px;
+            margin-top: 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+            color: white;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .cta-button:hover {
+            opacity: 0.9;
+        }
+        .highlight {
+            background-color: #fef3c7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .steps {
+            list-style: none;
+            padding: 0;
+        }
+        .steps li {
+            padding: 10px 0 10px 35px;
+            position: relative;
+            font-size: 15px;
+        }
+        .steps li:before {
+            content: attr(data-number);
+            position: absolute;
+            left: 0;
+            top: 8px;
+            background: #ea580c;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .focus-areas {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .focus-areas ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .focus-areas li {
+            margin: 8px 0;
+        }
+        .focus-areas strong {
+            color: #0369a1;
+        }
+        .footer {
+            background-color: #f9f5f0;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+        .link {
+            color: #ea580c;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
+        .warning {
+            background-color: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Testing CaraColaViajes v0.7</h1>
+            <p>Te necesitamos para mejorar la experiencia de usuario</p>
+        </div>
+
+        <div class="section">
+            <h2>👋 Hola CARMEN,</h2>
+            <p>
+                ¡Tenemos una misión especial para ti! Ya tienes acceso a la versión de testing de <strong>CaraColaViajes</strong>, 
+                y queremos que <strong>pruebes todas las funcionalidades</strong> desde el punto de vista del usuario.
+            </p>
+            <p>
+                Tu feedback es <strong>crítico</strong> para que mejoremos la interfaz, la velocidad y la experiencia general. 
+                No necesitas conocimientos técnicos, solo ser honesta con lo que funciona bien y lo que confunde.
+            </p>
+        </div>
+
+        <div class="highlight">
+            <strong>⏱️ Tiempo estimado:</strong> 20-30 minutos<br>
+            <strong>📊 Objetivo:</strong> Crear 3-5 viajes diferentes y explorar todas las funciones
+        </div>
+
+        <div class="section">
+            <h2>🚀 Cómo empezar</h2>
+            <p>Haz clic en el botón abajo para acceder a la página de testing:</p>
+            <center>
+                <a href="https://cara-cola-viajes-git-testing-caracola.vercel.app/testing-features" class="cta-button">
+                    Ir a Testing Features →
+                </a>
+            </center>
+            <p style="text-align: center; color: #666; font-size: 14px; margin-top: 15px;">
+                O copia y pega en tu navegador:<br>
+                <code style="background: #f0f0f0; padding: 8px 12px; border-radius: 4px; display: inline-block;">
+                    https://cara-cola-viajes-git-testing-caracola.vercel.app/testing-features
+                </code>
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>✨ Qué vas a encontrar</h2>
+            <p>La página de testing tiene:</p>
+            <ul class="steps">
+                <li data-number="1"><strong>Instrucciones claras</strong> para crear tu primer viaje</li>
+                <li data-number="2"><strong>Checklist interactivo</strong> de 8 pruebas específicas</li>
+                <li data-number="3"><strong>Guía de qué evaluar:</strong> Intuición, velocidad, diseño, errores, ideas</li>
+                <li data-number="4"><strong>Template de feedback</strong> para que envíes tu reporte</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>📝 Pruebas que te pedimos</h2>
+            <ol style="margin: 0; padding-left: 20px;">
+                <li style="margin: 10px 0;"><strong>Crea tu primer viaje:</strong> Madrid → Barcelona (grandes ciudades para evitar errores)</li>
+                <li style="margin: 10px 0;"><strong>Ajusta parámetros:</strong> Cambia fecha, consumo, precio. ¿La app recalcula rápido?</li>
+                <li style="margin: 10px 0;"><strong>Explora el mapa:</strong> Haz zoom, arrastra. ¿Es intuitivo? ¿Ves los marcadores?</li>
+                <li style="margin: 10px 0;"><strong>Agrega POI:</strong> Busca restaurantes y hoteles en un día. ¿Funciona bien?</li>
+                <li style="margin: 10px 0;"><strong>Usa "Vuelta a Casa":</strong> Haz clic en un día y usa el botón rojo. ¿Qué pasa?</li>
+                <li style="margin: 10px 0;"><strong>Crea otro viaje:</strong> Valencia → Málaga. ¿Los datos antiguos se borran?</li>
+                <li style="margin: 10px 0;"><strong>Prueba todos los campos:</strong> Origen, destino, fecha, consumo, precio, km máx.</li>
+                <li style="margin: 10px 0;"><strong>Guarda y recarga:</strong> Crea un viaje, guárdalo. Recarga la página. ¿Reaparece?</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>🔍 Enfócate en estos aspectos (UX)</h2>
+            <div class="focus-areas">
+                <div><strong style="color: #ea580c;">💡 ¿Es intuitiva?</strong><br>
+                ¿Entiendes qué hacer sin ayuda? ¿Los botones son claros? ¿Necesitarías instrucciones?</div>
+                
+                <div style="margin-top: 15px;"><strong style="color: #ea580c;">⚡ ¿Va rápido?</strong><br>
+                ¿La app responde instantáneamente? ¿Hay delays o lag?</div>
+                
+                <div style="margin-top: 15px;"><strong style="color: #ea580c;">🎨 ¿Se ve bien?</strong><br>
+                ¿Colores, iconos y layout te parecen agradables y profesionales?</div>
+                
+                <div style="margin-top: 15px;"><strong style="color: #ea580c;">❌ ¿Hay errores?</strong><br>
+                ¿Algo no funcionó como esperabas? ¿Los mensajes de error son claros?</div>
+                
+                <div style="margin-top: 15px;"><strong style="color: #ea580c;">💭 ¿Qué cambiarías?</strong><br>
+                ¿Ideas de mejora? ¿Funciones que falten? ¿Algo que te moleste?</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📧 Cómo enviar tu feedback</h2>
+            <p>Cuando termines, <strong>copia y pega este template</strong> en un email y envíalo a:</p>
+            <highlight style="background: #f5f5f5; padding: 10px; border-radius: 4px; font-weight: bold;">
+                📧 <span class="link">tu-email-caracola@domain.com</span>
+            </highlight>
+
+            <p style="margin-top: 20px; font-size: 14px; color: #666;"><strong>Template:</strong></p>
+            <div style="background: #f9f5f0; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 13px; line-height: 1.8;">
+                <strong style="color: #ea580c;">Subject: Testing CaraColaViajes - Feedback CARMEN</strong>
+                <br><br>
+                Hola,
+                <br><br>
+                Completé el testing. Aquí está mi feedback:
+                <br><br>
+                <strong>✅ Lo que me gustó:</strong>
+                <br>
+                [Describe qué te pareció bien, intuitivo, agradable]
+                <br><br>
+                <strong>⚠️ Lo que confunde o molesta:</strong>
+                <br>
+                [Describe cualquier aspecto confuso, lento o frustante]
+                <br><br>
+                <strong>❌ Errores encontrados:</strong>
+                <br>
+                [Describe si algo no funcionó. Ejemplo: "Cuando escribo 'Madrid' en origen, aparece error ZERO_RESULTS"]
+                <br><br>
+                <strong>💡 Ideas de mejora:</strong>
+                <br>
+                [Sugerencias, funciones que falten, cambios de diseño]
+                <br><br>
+                <strong>🔄 Pruebas completadas:</strong>
+                <br>
+                [8/8 ✅ o 5/8 ⚠️ (explica por qué)]
+                <br><br>
+                Gracias,<br>
+                CARMEN
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>⚙️ Notas técnicas</h2>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li style="margin: 8px 0;"><strong>Navegadores:</strong> Chrome, Edge, Firefox, Safari (mejor con versión reciente)</li>
+                <li style="margin: 8px 0;"><strong>Desktop:</strong> App funciona perfectamente en computadora</li>
+                <li style="margin: 8px 0;"><strong>Guardado automático:</strong> Tu viaje se guarda en el navegador</li>
+                <li style="margin: 8px 0;"><strong>Sin cookies perdidas:</strong> No borres cookies si quieres guardar tu viaje</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Si encuentras un error:</strong><br>
+            Anota exactamente qué hiciste cuando pasó el error. Abre DevTools (tecla F12) y copia el mensaje de error que aparece en la consola. Eso nos ayuda mucho a encontrar el problema.
+        </div>
+
+        <div class="section">
+            <h2>🎯 Lo más importante</h2>
+            <p>
+                <strong>Sé honesta.</strong> No es un examen. Queremos saber qué realmente piensas. 
+                Si algo no te parece intuitivo, dilo. Si ves algo que está roto, cuéntanos. 
+                Tu feedback honesto es <strong>exactamente lo que necesitamos</strong> para mejorar.
+            </p>
+        </div>
+
+        <center>
+            <a href="https://cara-cola-viajes-git-testing-caracola.vercel.app/testing-features" class="cta-button">
+                Ir a Testing Features →
+            </a>
+        </center>
+
+        <div class="footer">
+            <p><strong>¡Gracias por tu tiempo y feedback CARMEN! 🙏</strong></p>
+            <p>Tu opinión es valiosa y nos ayuda a crear una mejor experiencia para todos.</p>
+            <p style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+                CaraColaViajes v0.7 | Testing Platform
+            </p>
+        </div>
+    </div>
+</body>
+</html>
