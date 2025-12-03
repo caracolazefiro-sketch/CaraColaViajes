@@ -343,10 +343,10 @@ export default function TripMap({
 
             {/* Filter Controls - Línea única en la PARTE BAJA del mapa (SOLO SVG) */}
             {setMinRating && setSearchRadius && setSortBy && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-gray-900 bg-opacity-85 rounded-lg shadow-2xl p-3 border border-gray-600 flex items-center gap-4 w-fit transition-opacity opacity-95 hover:opacity-100 backdrop-blur-sm">
-                    {/* Rating Slider */}
-                    <div className="flex flex-col items-center gap-1">
-                        <label className="text-xs font-bold text-yellow-400">⭐ Rating: {minRating.toFixed(1)}</label>
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-transparent rounded-lg p-3 flex items-center gap-6 w-fit">
+                    {/* Rating Slider - DELGADA */}
+                    <div className="flex flex-col items-center gap-2">
+                        <label className="text-xs font-bold text-yellow-400">⭐ {minRating.toFixed(1)}</label>
                         <input
                             type="range"
                             min="0"
@@ -354,16 +354,16 @@ export default function TripMap({
                             step="0.5"
                             value={minRating}
                             onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                            className="w-32 h-1.5 bg-gray-600 rounded appearance-none cursor-pointer"
+                            className="w-32 h-0.5 bg-gray-600 rounded appearance-none cursor-pointer"
                             style={{
-                                background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #4b5563 ${(minRating / 5) * 100}%, #4b5563 100%)`,
+                                background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, rgba(75,85,99,0.3) ${(minRating / 5) * 100}%, rgba(75,85,99,0.3) 100%)`,
                             }}
                         />
                     </div>
 
-                    {/* Radio Slider */}
-                    <div className="flex flex-col items-center gap-1">
-                        <label className="text-xs font-bold text-blue-400">📍 Radio: {searchRadius}km</label>
+                    {/* Radio Slider - DELGADA */}
+                    <div className="flex flex-col items-center gap-2">
+                        <label className="text-xs font-bold text-blue-400">📍 {searchRadius}km</label>
                         <input
                             type="range"
                             min="5"
@@ -371,25 +371,61 @@ export default function TripMap({
                             step="5"
                             value={searchRadius}
                             onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                            className="w-32 h-1.5 bg-gray-600 rounded appearance-none cursor-pointer"
+                            className="w-32 h-0.5 bg-gray-600 rounded appearance-none cursor-pointer"
                             style={{
-                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((searchRadius - 5) / 45) * 100}%, #4b5563 ${((searchRadius - 5) / 45) * 100}%, #4b5563 100%)`,
+                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.3) ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.3) 100%)`,
                             }}
                         />
                     </div>
 
-                    {/* Sort Dropdown */}
-                    <div className="flex flex-col items-center gap-1">
-                        <label className="text-xs font-bold text-purple-400">Ordenar</label>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as 'score' | 'distance' | 'rating')}
-                            className="px-2 py-1 bg-gray-700 border border-gray-500 rounded text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-purple-400"
+                    {/* Sort - Radio Buttons con SVG */}
+                    <div className="flex items-center gap-2 bg-white bg-opacity-5 backdrop-blur-sm px-3 py-2 rounded-lg border border-gray-400 border-opacity-20">
+                        <label className="text-xs font-bold text-gray-300 mr-2">Ordenar:</label>
+                        
+                        {/* Score */}
+                        <button
+                            onClick={() => setSortBy('score')}
+                            className={`flex items-center gap-1 px-2 py-1 rounded transition-all ${
+                                sortBy === 'score'
+                                    ? 'bg-purple-500 bg-opacity-80 text-white'
+                                    : 'bg-transparent text-gray-300 hover:text-gray-100'
+                            }`}
                         >
-                            <option value="score">📊 Score</option>
-                            <option value="distance">📍 Distancia</option>
-                            <option value="rating">⭐ Valoración</option>
-                        </select>
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            <span className="text-xs font-semibold">Score</span>
+                        </button>
+
+                        {/* Distance */}
+                        <button
+                            onClick={() => setSortBy('distance')}
+                            className={`flex items-center gap-1 px-2 py-1 rounded transition-all ${
+                                sortBy === 'distance'
+                                    ? 'bg-blue-500 bg-opacity-80 text-white'
+                                    : 'bg-transparent text-gray-300 hover:text-gray-100'
+                            }`}
+                        >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            <span className="text-xs font-semibold">Dist.</span>
+                        </button>
+
+                        {/* Rating */}
+                        <button
+                            onClick={() => setSortBy('rating')}
+                            className={`flex items-center gap-1 px-2 py-1 rounded transition-all ${
+                                sortBy === 'rating'
+                                    ? 'bg-yellow-500 bg-opacity-80 text-white'
+                                    : 'bg-transparent text-gray-300 hover:text-gray-100'
+                            }`}
+                        >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            <span className="text-xs font-semibold">Rate</span>
+                        </button>
                     </div>
                 </div>
             )}
