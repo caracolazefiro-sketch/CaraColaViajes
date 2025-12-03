@@ -40,8 +40,10 @@ const IconPin = ({ className = 'h-5 w-5' }) => (
   </svg>
 );
 
+type ChecklistKey = 'search' | 'settings' | 'badges' | 'responsive' | 'print' | 'colors';
+
 export default function SVGTestingContextPage() {
-  const [checklist, setChecklist] = useState({
+  const [checklist, setChecklist] = useState<Record<ChecklistKey, boolean>>({
     search: false,
     settings: false,
     badges: false,
@@ -50,7 +52,7 @@ export default function SVGTestingContextPage() {
     colors: false,
   });
 
-  const toggleCheck = (key) => {
+  const toggleCheck = (key: ChecklistKey) => {
     setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
