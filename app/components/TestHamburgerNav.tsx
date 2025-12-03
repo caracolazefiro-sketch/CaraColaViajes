@@ -122,8 +122,10 @@ export default function TestHamburgerNav() {
               <div className="space-y-2">
                 {testItems.map((item) => (
                   <div key={item.href} className="group">
-                    <Link
+                    <a
                       href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={() => setIsOpen(false)}
                       className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50 hover:bg-blue-600/50 transition-all group/link"
                     >
@@ -132,7 +134,7 @@ export default function TestHamburgerNav() {
                       {item.completed && (
                         <CheckCircle size={16} className="text-green-400" />
                       )}
-                    </Link>
+                    </a>
                     {!item.completed && (
                       <button
                         onClick={() => deleteTest(item.href)}
@@ -156,15 +158,17 @@ export default function TestHamburgerNav() {
               </h3>
               <div className="space-y-2">
                 {docItems.map((item) => (
-                  <Link
+                  <a
                     key={item.href}
                     href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     onClick={() => setIsOpen(false)}
                     className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/50 hover:bg-purple-600/50 transition-all"
                   >
                     <span>{item.icon}</span>
                     <span className="font-medium text-sm">{item.label}</span>
-                  </Link>
+                  </a>
                 ))}
               </div>
             </div>

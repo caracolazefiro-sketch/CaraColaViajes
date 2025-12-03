@@ -121,74 +121,64 @@ export default function TestRatingFilterPage() {
           <p className="text-gray-600">Validación completa del filtro de valoración mínima (≥3⭐), radio de búsqueda y ordenación</p>
         </div>
 
-        {/* Control Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Control Panel - COMPACTO */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
           {/* Rating Slider */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <label className="flex items-center gap-2 mb-3">
-              <Star className="text-yellow-500" size={20} />
-              <span className="font-bold text-gray-800">Valoración Mínima</span>
+          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow p-4 border-l-4 border-yellow-500">
+            <label className="flex items-center gap-2 mb-2">
+              <Star className="text-yellow-600" size={16} />
+              <span className="font-bold text-sm text-gray-800">Rating Min</span>
+              <span className="ml-auto text-lg font-bold text-yellow-600">{minRating.toFixed(1)}⭐</span>
             </label>
-            <div className="mb-4">
-              <input
-                type="range"
-                min="0"
-                max="5"
-                step="0.5"
-                value={minRating}
-                onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #e5e7eb ${(minRating / 5) * 100}%, #e5e7eb 100%)`,
-                }}
-              />
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-yellow-600">{minRating.toFixed(1)}</div>
-              <div className="text-sm text-gray-500">⭐ mínimas</div>
-            </div>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.5"
+              value={minRating}
+              onChange={(e) => setMinRating(parseFloat(e.target.value))}
+              className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer slider-yellow"
+              style={{
+                background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #e5e7eb ${(minRating / 5) * 100}%, #e5e7eb 100%)`,
+              }}
+            />
           </div>
 
           {/* Search Radius */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <label className="flex items-center gap-2 mb-3">
-              <MapPin className="text-blue-500" size={20} />
-              <span className="font-bold text-gray-800">Radio de Búsqueda</span>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow p-4 border-l-4 border-blue-500">
+            <label className="flex items-center gap-2 mb-2">
+              <MapPin className="text-blue-600" size={16} />
+              <span className="font-bold text-sm text-gray-800">Radio Búsqueda</span>
+              <span className="ml-auto text-lg font-bold text-blue-600">{searchRadius}km</span>
             </label>
-            <div className="mb-4">
-              <input
-                type="range"
-                min="5"
-                max="50"
-                step="5"
-                value={searchRadius}
-                onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, #60a5fa 0%, #60a5fa ${((searchRadius - 5) / 45) * 100}%, #e5e7eb ${((searchRadius - 5) / 45) * 100}%, #e5e7eb 100%)`,
-                }}
-              />
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">{searchRadius}</div>
-              <div className="text-sm text-gray-500">km máximo</div>
-            </div>
+            <input
+              type="range"
+              min="5"
+              max="50"
+              step="5"
+              value={searchRadius}
+              onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((searchRadius - 5) / 45) * 100}%, #e5e7eb ${((searchRadius - 5) / 45) * 100}%, #e5e7eb 100%)`,
+              }}
+            />
           </div>
 
           {/* Sort Options */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <label className="flex items-center gap-2 mb-3">
-              <Trophy className="text-purple-500" size={20} />
-              <span className="font-bold text-gray-800">Ordenar Por</span>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow p-4 border-l-4 border-purple-500">
+            <label className="flex items-center gap-2 mb-2">
+              <Trophy className="text-purple-600" size={16} />
+              <span className="font-bold text-sm text-gray-800">Ordenar</span>
             </label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold"
+              className="w-full px-3 py-2 bg-white border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-sm"
             >
-              <option value="score">📊 Puntuación (rating × reviews)</option>
-              <option value="distance">📍 Distancia (más cerca primero)</option>
-              <option value="rating">⭐ Valoración (mejor primero)</option>
+              <option value="score">📊 Puntuación</option>
+              <option value="distance">📍 Distancia</option>
+              <option value="rating">⭐ Valoración</option>
             </select>
           </div>
         </div>

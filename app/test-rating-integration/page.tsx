@@ -149,13 +149,14 @@ export default function TestRatingIntegrationPage() {
           <p className="text-gray-600">Validación de filtro en TODOS los tipos de servicios (camping, water, gas, restaurant, etc.)</p>
         </div>
 
-        {/* Control Panel */}
+        {/* Control Panel - COMPACTO */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
           {/* Rating Slider */}
-          <div className="bg-white rounded-lg shadow-lg p-4">
-            <label className="flex items-center gap-2 mb-3">
-              <Star className="text-yellow-500" size={18} />
-              <span className="font-bold text-sm text-gray-800">Min Rating</span>
+          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow p-3 border-l-4 border-yellow-500">
+            <label className="flex items-center gap-2 mb-2">
+              <Star className="text-yellow-600" size={14} />
+              <span className="font-bold text-xs text-gray-800">Rating</span>
+              <span className="ml-auto text-sm font-bold text-yellow-600">{minRating.toFixed(1)}⭐</span>
             </label>
             <input
               type="range"
@@ -164,18 +165,19 @@ export default function TestRatingIntegrationPage() {
               step="0.5"
               value={minRating}
               onChange={(e) => setMinRating(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg"
+              className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #e5e7eb ${(minRating / 5) * 100}%, #e5e7eb 100%)`,
+              }}
             />
-            <div className="text-center mt-2">
-              <div className="text-2xl font-bold text-yellow-600">{minRating.toFixed(1)}⭐</div>
-            </div>
           </div>
 
           {/* Search Radius */}
-          <div className="bg-white rounded-lg shadow-lg p-4">
-            <label className="flex items-center gap-2 mb-3">
-              <MapPin className="text-blue-500" size={18} />
-              <span className="font-bold text-sm text-gray-800">Radio</span>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow p-3 border-l-4 border-blue-500">
+            <label className="flex items-center gap-2 mb-2">
+              <MapPin className="text-blue-600" size={14} />
+              <span className="font-bold text-xs text-gray-800">Radio</span>
+              <span className="ml-auto text-sm font-bold text-blue-600">{searchRadius}km</span>
             </label>
             <input
               type="range"
@@ -184,20 +186,20 @@ export default function TestRatingIntegrationPage() {
               step="5"
               value={searchRadius}
               onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg"
+              className="w-full h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((searchRadius - 5) / 45) * 100}%, #e5e7eb ${((searchRadius - 5) / 45) * 100}%, #e5e7eb 100%)`,
+              }}
             />
-            <div className="text-center mt-2">
-              <div className="text-2xl font-bold text-blue-600">{searchRadius}km</div>
-            </div>
           </div>
 
           {/* Sort Options */}
-          <div className="bg-white rounded-lg shadow-lg p-4">
-            <label className="text-sm font-bold text-gray-800 mb-2 block">Ordenar</label>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow p-3 border-l-4 border-purple-500">
+            <label className="text-xs font-bold text-gray-800 mb-1 block">Ordenar</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-full px-2 py-2 border border-gray-300 rounded text-sm font-semibold"
+              className="w-full px-2 py-1 bg-white border-2 border-purple-300 rounded text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500"
             >
               <option value="score">📊 Score</option>
               <option value="distance">📍 Distance</option>
@@ -206,12 +208,12 @@ export default function TestRatingIntegrationPage() {
           </div>
 
           {/* Run Test Button */}
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg shadow-lg p-4 flex items-end">
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg shadow p-3 flex items-end">
             <button
               onClick={runTests}
-              className="w-full bg-white text-green-600 font-bold py-3 rounded-lg hover:bg-green-50 transition-all shadow-md hover:shadow-lg"
+              className="w-full bg-white text-green-600 font-bold py-2 rounded text-sm hover:bg-green-50 transition-all shadow-md hover:shadow-lg"
             >
-              🚀 RUN TESTS
+              🚀 TEST
             </button>
           </div>
         </div>
