@@ -1,23 +1,11 @@
 {
   "recommendations": [
-    // Esenciales para TypeScript/Next.js
     "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
-    
-    // Tailwind CSS
-    "bradlc.vscode-tailwindcss",
-    "heybourn.headwind",
-    
-    // React/Next.js
-    "dsznajder.es7-react-js-snippets",
-    
-    // TypeScript mejorado
-    "yoavbls.pretty-ts-errors",
-    
-    // Git
-    "eamodio.gitlens",
-    
-    // Utilidades
+    "esbenp.prettier-vscode"
+  ],
+  "unwantedRecommendations": []
+}
+
     "christian-kohler.path-intellisense",
     "formulahendry.auto-rename-tag",
     "naumovs.color-highlight",

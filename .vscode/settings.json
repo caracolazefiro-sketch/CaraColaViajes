@@ -128,5 +128,15 @@
   "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.wordWrap": "on"
-  }
+  },
+
+  // ===== 🔒 SEGURIDAD: Bloquear instalación de extensiones y popups =====
+  "extensions.ignoreRecommendations": true,
+  "extensions.autoUpdate": false,
+  "extensions.recommendations": [],
+  "workbench.tips.enabled": false,
+  "workbench.startupEditor": "none",
+  "welcomePage.walkthroughs.openOnInstall": false,
+  "update.enableWindowsBackgroundUpdates": false
 }
+
