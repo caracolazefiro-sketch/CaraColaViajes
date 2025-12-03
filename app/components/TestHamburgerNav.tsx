@@ -2,7 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, FileText, Compass, CheckCircle, Trash2 } from 'lucide-react';
+
+// SVG Icons - TODO SOLO SVG
+const IconMenu = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>;
+const IconX = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>;
+const IconCompass = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zm-3.5-6l-4 6.5H12l3 4h2l-4-6 2-4.5z"/></svg>;
+const IconFile = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>;
+const IconCheck = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>;
 
 interface NavItem {
   label: string;
@@ -40,19 +46,19 @@ const navItems: NavItem[] = [
   {
     label: 'Onboarding',
     href: '/onboarding',
-    icon: <Compass size={18} />,
+    icon: <IconCompass />,
     category: 'docs',
   },
   {
     label: 'Manifiesto',
     href: '/manifesto',
-    icon: <FileText size={18} />,
+    icon: <IconFile />,
     category: 'docs',
   },
   {
     label: 'Roadmap',
     href: '/roadmap',
-    icon: <CheckCircle size={18} />,
+    icon: <IconCheck />,
     category: 'docs',
   },
 ];
@@ -82,7 +88,7 @@ export default function TestHamburgerNav() {
         className="fixed top-4 right-4 z-50 p-2 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95"
         title="Menú de navegación"
       >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
+        {isOpen ? <IconX /> : <IconMenu />}
       </button>
 
       {/* Overlay */}
@@ -132,7 +138,7 @@ export default function TestHamburgerNav() {
                       <span className="text-lg">{item.icon}</span>
                       <span className="flex-1 font-medium text-sm">{item.label}</span>
                       {item.completed && (
-                        <CheckCircle size={16} className="text-green-400" />
+                        <span className="text-green-400"><IconCheck /></span>
                       )}
                     </a>
                     {!item.completed && (
@@ -141,7 +147,7 @@ export default function TestHamburgerNav() {
                         className="ml-3 mt-1 text-xs text-red-300 hover:text-red-200 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
                         title="Marcar para eliminación"
                       >
-                        <Trash2 size={12} /> Eliminar
+                        🗑️ Eliminar
                       </button>
                     )}
                   </div>
