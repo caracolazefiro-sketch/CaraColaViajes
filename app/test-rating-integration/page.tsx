@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Star, MapPin, Trophy, Gem, Flame, CheckCircle, XCircle } from 'lucide-react';
-import TestHamburgerNav from '../components/TestHamburgerNav';
 
 /**
  * PÁGINA DE TEST: Rating Filter Integration v0.8
@@ -143,7 +142,6 @@ export default function TestRatingIntegrationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100 p-6">
-      <TestHamburgerNav />
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
