@@ -344,12 +344,12 @@ export default function TripMap({
             {/* Filter Controls - Línea única con ROJO + Tooltip */}
             {setMinRating && setSearchRadius && setSortBy && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-transparent rounded-lg p-3 flex items-center gap-6 w-fit group">
-                    {/* Tooltip Info */}
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gray-900 text-white text-xs rounded px-3 py-2 whitespace-nowrap pointer-events-none z-20">
-                        <p className="font-bold mb-1">Filtros Activos:</p>
-                        <p>⭐ Rating: mín {minRating.toFixed(1)} de 5</p>
-                        <p>📍 Radio: hasta {searchRadius}km</p>
-                        <p>📊 Ordenar por: {sortBy === 'score' ? 'Relevancia' : sortBy === 'distance' ? 'Distancia' : 'Puntuación'}</p>
+                    {/* Tooltip Info - Posicionado a mitad del mapa, izquierda */}
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white bg-opacity-95 text-gray-800 text-xs rounded-lg px-4 py-3 whitespace-nowrap pointer-events-none z-20 shadow-md border border-gray-200">
+                        <p className="font-bold mb-2 text-gray-900">Filtros Activos:</p>
+                        <p className="text-gray-700">⭐ Rating: mín {minRating.toFixed(1)} de 5</p>
+                        <p className="text-gray-700">📍 Radio: hasta {searchRadius}km</p>
+                        <p className="text-gray-700">📊 Ordenar por: {sortBy === 'score' ? 'Relevancia' : sortBy === 'distance' ? 'Distancia' : 'Puntuación'}</p>
                     </div>
 
                     {/* Rating Slider - ROJO DEGRADADO */}
