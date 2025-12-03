@@ -52,14 +52,20 @@ interface TripMapProps {
     onAddPlace: (place: PlaceWithDistance) => void;
     onSearch: (query: string, lat: number, lng: number) => void;
     onClearSearch: () => void;
-    mapInstance: google.maps.Map | null; 
+    mapInstance: google.maps.Map | null;
+    minRating?: number;
+    setMinRating?: (rating: number) => void;
+    searchRadius?: number;
+    setSearchRadius?: (radius: number) => void;
+    sortBy?: 'score' | 'distance' | 'rating';
+    setSortBy?: (sort: 'score' | 'distance' | 'rating') => void;
     t?: (key: string) => string;
 }
 
 export default function TripMap({
     setMap, mapBounds, directionsResponse, dailyItinerary, places, toggles, 
     selectedDayIndex, hoveredPlace, setHoveredPlace, onPlaceClick, onAddPlace,
-    onSearch, onClearSearch, mapInstance, t
+    onSearch, onClearSearch, mapInstance, t, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }: TripMapProps) {
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -195,6 +201,66 @@ export default function TripMap({
                     <button onClick={() => { setSearchQuery(''); onClearSearch(); }} className="p-2 text-gray-300 hover:text-red-500"><IconX /></button>
                 )}
             </div>
+
+            {/* Filter Sliders - Flotantes en esquina superior derecha */}
+            {setMinRating && setSearchRadius && setSortBy && (
+                <div className="absolute top-4 right-72 z-10 bg-white rounded-lg shadow-xl p-3 border border-gray-200 space-y-2 w-56 transition-opacity opacity-90 hover:opacity-100">
+                    {/* Rating Slider */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                            <label className="text-xs font-bold text-gray-700">⭐ Rating</label>
+                            <span className="text-xs font-bold text-yellow-600">{minRating.toFixed(1)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5"
+                            step="0.5"
+                            value={minRating}
+                            onChange={(e) => setMinRating(parseFloat(e.target.value))}
+                            className="w-full h-1.5 bg-gray-300 rounded appearance-none cursor-pointer"
+                            style={{
+                                background: `linear-gradient(to right, #fbbf24 0%, #fbbf24 ${(minRating / 5) * 100}%, #e5e7eb ${(minRating / 5) * 100}%, #e5e7eb 100%)`,
+                            }}
+                        />
+                    </div>
+
+                    {/* Radio Slider */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between items-center">
+                            <label className="text-xs font-bold text-gray-700">📍 Radio</label>
+                            <span className="text-xs font-bold text-blue-600">{searchRadius}km</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="5"
+                            max="50"
+                            step="5"
+                            value={searchRadius}
+                            onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+                            className="w-full h-1.5 bg-gray-300 rounded appearance-none cursor-pointer"
+                            style={{
+                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((searchRadius - 5) / 45) * 100}%, #e5e7eb ${((searchRadius - 5) / 45) * 100}%, #e5e7eb 100%)`,
+                            }}
+                        />
+                    </div>
+
+                    {/* Sort Dropdown */}
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-700">Sort</label>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as 'score' | 'distance' | 'rating')}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        >
+                            <option value="score">📊 Score</option>
+                            <option value="distance">📍 Dist</option>
+                            <option value="rating">⭐ Rate</option>
+                        </select>
+                    </div>
+                </div>
+            )}
+
             <GoogleMap 
                 mapContainerStyle={containerStyle} center={center} zoom={6} 
                 onLoad={handleMapLoad}

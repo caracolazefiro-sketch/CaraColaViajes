@@ -21,6 +21,7 @@ import { useTripPersistence } from './hooks/useTripPersistence';
 import { useTripPlaces } from './hooks/useTripPlaces';
 import { useLanguage } from './hooks/useLanguage';
 import { useToast } from './hooks/useToast';
+import { useSearchFilters } from './hooks/useSearchFilters';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
 
@@ -83,6 +84,9 @@ export default function Home() {
       places, loadingPlaces, toggles, 
       searchPlaces, searchByQuery, clearSearch, handleToggle, resetPlaces 
   } = useTripPlaces(map);
+
+  // Hook para filtros de búsqueda (rating, radio, sort)
+  const { minRating, setMinRating, searchRadius, setSearchRadius, sortBy, setSortBy } = useSearchFilters();
 
   const { isSaving, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
       formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
@@ -414,6 +418,7 @@ export default function Home() {
                         places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
                         onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
                         onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
+                        minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
                         t={t}
                     />
                 </div>
