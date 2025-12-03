@@ -510,7 +510,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             <ServiceList type="search" title="Buscados" colorClass="text-blue-600" markerColor="bg-blue-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         )}
                         {saved.filter(s => s.type === 'found').length > 0 && (
-                            <ServiceList type="found" title="Encontrados" colorClass="text-teal-600" markerColor="bg-teal-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} filterAndSort={filterAndSort} />
+                            <ServiceList type="found" title="Encontrados" colorClass="text-teal-600" markerColor="bg-teal-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         )}
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
