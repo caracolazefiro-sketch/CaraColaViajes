@@ -30,6 +30,7 @@ interface ItineraryPanelProps {
     onSelectDay: (index: number | null) => void;
     onSearchNearDay: (dayIndex: number) => void; // Nueva prop
     onAdjustDay: (dayIndex: number) => void; // Nueva prop - Ajustar destino
+    onRemoveWaypoint?: (dayIndex: number) => void; // Nueva prop - Eliminar waypoint
     t: (key: string) => string; // Traducción
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
     // 🔥 NUEVOS PROPS PARA FILTRADO
@@ -44,7 +45,7 @@ interface ItineraryPanelProps {
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
-    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert,
+    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, onRemoveWaypoint, t, convert,
     minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }: ItineraryPanelProps) {
 
@@ -146,10 +147,10 @@ export default function ItineraryPanel({
                                                 {day.isDriving && day.coordinates && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onSearchNearDay(index); }}
-                                                        className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-full border border-blue-200 bg-white shadow-sm transition-all hover:scale-105"
-                                                        title="🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."
+                                                        className="text-blue-600 hover:bg-blue-100 p-1 rounded-full border border-blue-200 bg-white shadow-sm transition-all hover:scale-110"
+                                                        title="🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa."
                                                     >
-                                                        <IconSearch className="h-4 w-4" />
+                                                        <IconSearch className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
                                                 
@@ -157,17 +158,28 @@ export default function ItineraryPanel({
                                                 {day.isDriving && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onAdjustDay(index); }}
-                                                        className="text-orange-600 hover:bg-orange-100 p-1.5 rounded-full border border-orange-200 bg-white shadow-sm transition-all hover:scale-105"
-                                                        title="⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."
+                                                        className="text-orange-600 hover:bg-orange-100 p-1 rounded-full border border-orange-200 bg-white shadow-sm transition-all hover:scale-110"
+                                                        title="⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula el viaje."
                                                     >
-                                                        <IconSettings className="h-4 w-4" />
+                                                        <IconSettings className="h-3.5 w-3.5" />
+                                                    </button>
+                                                )}
+                                                
+                                                {/* Botón eliminar waypoint */}
+                                                {day.isDriving && onRemoveWaypoint && index > 0 && index < dailyItinerary.length - 1 && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onRemoveWaypoint(index); }}
+                                                        className="text-red-600 hover:bg-red-100 p-1 rounded-full border border-red-200 bg-white shadow-sm transition-all hover:scale-110"
+                                                        title="🗑️ Eliminar Parada: Quita esta parada intermedia del itinerario y recalcula la ruta."
+                                                    >
+                                                        <IconTrashSm />
                                                     </button>
                                                 )}
                                                 
                                                 <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); onAddDay(index); }}
-                                                        className="text-green-600 hover:bg-green-100 p-1.5 rounded-full text-xs font-bold border border-green-200 bg-white shadow-sm"
+                                                        className="text-green-600 hover:bg-green-100 p-1 rounded-full text-xs font-bold border border-green-200 bg-white shadow-sm"
                                                         title={t('ITINERARY_ADD_DAY')}
                                                     >
                                                         <IconPlusSm />
@@ -175,7 +187,7 @@ export default function ItineraryPanel({
                                                     {!day.isDriving && (
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); onRemoveDay(index); }}
-                                                            className="text-red-500 hover:bg-red-100 p-1.5 rounded-full text-xs font-bold border border-red-200 bg-white shadow-sm"
+                                                            className="text-red-500 hover:bg-red-100 p-1 rounded-full text-xs font-bold border border-red-200 bg-white shadow-sm"
                                                             title={t('ITINERARY_REMOVE_DAY')}
                                                         >
                                                             <IconTrashSm />

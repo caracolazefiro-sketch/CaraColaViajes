@@ -284,6 +284,69 @@ export default function Home() {
     setAdjustingDayIndex(null);
   };
 
+  // Nueva función: Eliminar waypoint/parada intermedia
+  const handleRemoveWaypoint = async (dayIndex: number) => {
+    if (!results.dailyItinerary || dayIndex === 0 || dayIndex >= results.dailyItinerary.length - 1) {
+      showToast('No se puede eliminar esta parada', 'error');
+      return;
+    }
+
+    showToast('Eliminando parada y recalculando...', 'info');
+
+    try {
+      console.log('🗑️ Eliminando parada del día', dayIndex);
+
+      // 1. Construir waypoints sin el día eliminado
+      const updatedItinerary = [...results.dailyItinerary];
+      const waypoints: string[] = [];
+      
+      // Recoger todos los waypoints excepto el que se elimina
+      for (let i = 1; i < updatedItinerary.length - 1; i++) {
+        if (i !== dayIndex) {
+          waypoints.push(updatedItinerary[i].to);
+        }
+      }
+
+      console.log('📍 Recalculando sin waypoint eliminado. Waypoints restantes:', waypoints);
+
+      // 2. Recalcular toda la ruta
+      const { getDirectionsAndCost } = await import('./actions');
+      const recalcResult = await getDirectionsAndCost({
+        origin: formData.origen,
+        destination: formData.destino,
+        waypoints,
+        travel_mode: 'driving',
+        kmMaximoDia: formData.kmMaximoDia,
+        fechaInicio: formData.fechaInicio,
+        fechaRegreso: formData.fechaRegreso
+      });
+
+      if (recalcResult.error || !recalcResult.dailyItinerary) {
+        console.error('❌ Error recalculando:', recalcResult.error);
+        showToast('Error: ' + (recalcResult.error || 'No se pudo recalcular'), 'error');
+        return;
+      }
+
+      console.log('✅ Ruta recalculada sin el waypoint eliminado');
+
+      // 3. Actualizar resultados
+      setResults({ 
+        ...results, 
+        dailyItinerary: recalcResult.dailyItinerary
+      });
+
+      // 4. Actualizar formData.etapas para reflejar el cambio
+      const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim()) : [];
+      const updatedStops = waypoints.filter(w => currentStops.includes(w));
+      setFormData({ ...formData, etapas: updatedStops.join('|') });
+
+      showToast('Parada eliminada correctamente', 'success');
+    } catch (error) {
+      console.error('💥 Error eliminando waypoint:', error);
+      showToast('Error al eliminar parada: ' + (error instanceof Error ? error.message : 'Error desconocido'), 'error');
+    }
+  };
+
   const focusMapOnStage = async (dayIndex: number | null) => {
     // CASO: Volver a la Vista General
     if (dayIndex === null) {
@@ -410,7 +473,7 @@ export default function Home() {
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
                         onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                         onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
-                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
+                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} onRemoveWaypoint={handleRemoveWaypoint} t={t} convert={convert}
                         minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
                     />
 
