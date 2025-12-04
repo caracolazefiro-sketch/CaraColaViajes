@@ -34,11 +34,14 @@ interface ServiceButtonProps {
     toggles: Record<ServiceType, boolean>;
     onToggle: (type: ServiceType) => void;
     count?: number;
+    filteredCount?: number; // Nuevo: contador post-filtro
 }
 
-const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0 }) => {
+const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, filteredCount }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
+    // Si hay filteredCount, usarlo; si no, usar count original
+    const displayCount = filteredCount !== undefined ? filteredCount : count;
     
     return (
         <button 
@@ -60,13 +63,13 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
             <span className="text-[10px] leading-tight text-center">{label}</span>
             
             {/* Contador de resultados */}
-            {count > 0 && (
+            {displayCount > 0 && (
                 <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
                     isActive 
                         ? 'bg-red-500 text-white' 
                         : 'bg-gray-600 text-white'
                 }`}>
-                    {count}
+                    {displayCount}
                 </span>
             )}
         </button>
@@ -294,12 +297,15 @@ interface DaySpotsListProps {
     auditMode: boolean;
     // 🔥 NUEVOS PROPS PARA FILTRADO (desde page.tsx)
     minRating?: number;
+    setMinRating?: (rating: number) => void;
     searchRadius?: number;
+    setSearchRadius?: (radius: number) => void;
     sortBy?: 'score' | 'distance' | 'rating';
+    setSortBy?: (sort: 'score' | 'distance' | 'rating') => void;
 }
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
-    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert, auditMode, minRating = 0, searchRadius = 50, sortBy = 'score'
+    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert, auditMode, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }) => {
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
@@ -472,19 +478,89 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     {/* Grid de botones de servicios compacto */}
                     <div className="grid grid-cols-4 gap-2 mb-4">
-                        <ServiceButton type="camping" label="Spots" toggles={toggles} onToggle={onToggle} count={places.camping?.length || 0} />
-                        <ServiceButton type="water" label={t('SERVICE_WATER')} toggles={toggles} onToggle={onToggle} count={places.water?.length || 0} />
-                        <ServiceButton type="gas" label={t('SERVICE_GAS')} toggles={toggles} onToggle={onToggle} count={places.gas?.length || 0} />
-                        <ServiceButton type="restaurant" label={t('SERVICE_EAT')} toggles={toggles} onToggle={onToggle} count={places.restaurant?.length || 0} />
-                        <ServiceButton type="supermarket" label={t('SERVICE_SUPERMARKET')} toggles={toggles} onToggle={onToggle} count={places.supermarket?.length || 0} />
-                        <ServiceButton type="laundry" label={t('SERVICE_LAUNDRY')} toggles={toggles} onToggle={onToggle} count={places.laundry?.length || 0} />
-                        <ServiceButton type="tourism" label={t('SERVICE_TOURISM')} toggles={toggles} onToggle={onToggle} count={places.tourism?.length || 0} />
-                        <ServiceButton type="custom" label={t('SERVICE_CUSTOM')} toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'custom').length} />
+                        <ServiceButton 
+                            type="camping" 
+                            label="Spots" 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.camping?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'camping').length + filterAndSort(places.camping || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="water" 
+                            label={t('SERVICE_WATER')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.water?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'water').length + filterAndSort(places.water || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="gas" 
+                            label={t('SERVICE_GAS')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.gas?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'gas').length + filterAndSort(places.gas || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="restaurant" 
+                            label={t('SERVICE_EAT')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.restaurant?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'restaurant').length + filterAndSort(places.restaurant || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="supermarket" 
+                            label={t('SERVICE_SUPERMARKET')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.supermarket?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'supermarket').length + filterAndSort(places.supermarket || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="laundry" 
+                            label={t('SERVICE_LAUNDRY')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.laundry?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'laundry').length + filterAndSort(places.laundry || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="tourism" 
+                            label={t('SERVICE_TOURISM')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.tourism?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'tourism').length + filterAndSort(places.tourism || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="custom" 
+                            label={t('SERVICE_CUSTOM')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={saved.filter(s => s.type === 'custom').length}
+                            filteredCount={saved.filter(s => s.type === 'custom').length}
+                        />
                         {saved.filter(s => s.type === 'search').length > 0 && (
-                            <ServiceButton type="search" label="Buscados" toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'search').length} />
+                            <ServiceButton 
+                                type="search" 
+                                label="Buscados" 
+                                toggles={toggles} 
+                                onToggle={onToggle} 
+                                count={saved.filter(s => s.type === 'search').length}
+                                filteredCount={saved.filter(s => s.type === 'search').length}
+                            />
                         )}
                         {saved.filter(s => s.type === 'found').length > 0 && (
-                            <ServiceButton type="found" label="Encontrados" toggles={toggles} onToggle={onToggle} count={saved.filter(s => s.type === 'found').length} />
+                            <ServiceButton 
+                                type="found" 
+                                label="Encontrados" 
+                                toggles={toggles} 
+                                onToggle={onToggle} 
+                                count={saved.filter(s => s.type === 'found').length}
+                                filteredCount={saved.filter(s => s.type === 'found').length}
+                            />
                         )}
                         {/* Botón Añadir Sitio como parte del grid */}
                         <button 
@@ -497,6 +573,83 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             <span className="text-[10px] leading-tight text-center">{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
                         </button>
                     </div>
+
+                    {/* Sliders de filtrado - Copia sincronizada con el mapa */}
+                    {setMinRating && setSearchRadius && setSortBy && (
+                        <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-200">
+                            <h4 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                🎚️ Filtros de búsqueda
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-4">
+                                {/* Rating Slider */}
+                                <div className="flex flex-col gap-1.5 flex-1 min-w-[120px]">
+                                    <label className="text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
+                                        <IconStar size={13} /> Rating mín: {minRating.toFixed(1)}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="5"
+                                        step="0.5"
+                                        value={minRating}
+                                        onChange={(e) => setMinRating(parseFloat(e.target.value))}
+                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
+                                        style={{
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            WebkitAppearance: 'none',
+                                        } as React.CSSProperties}
+                                    />
+                                </div>
+
+                                {/* Radio Slider */}
+                                <div className="flex flex-col gap-1.5 flex-1 min-w-[120px]">
+                                    <label className="text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
+                                        <IconMapPin size={13} /> Radio: {searchRadius}km
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="5"
+                                        max="50"
+                                        step="5"
+                                        value={searchRadius}
+                                        onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
+                                        style={{
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            WebkitAppearance: 'none',
+                                        } as React.CSSProperties}
+                                    />
+                                </div>
+
+                                {/* Sort Slider */}
+                                <div className="flex flex-col gap-1.5 flex-1 min-w-[120px]">
+                                    <label className="text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
+                                        📊 Ordenar: {sortBy === 'score' ? 'Relevancia' : sortBy === 'distance' ? 'Distancia' : 'Puntuación'}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="2"
+                                        step="1"
+                                        value={sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setSortBy(val === 0 ? 'score' : val === 1 ? 'distance' : 'rating');
+                                        }}
+                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
+                                        style={{
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            WebkitAppearance: 'none',
+                                        } as React.CSSProperties}
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-2 italic">
+                                💡 Estos filtros solo afectan a los resultados de búsqueda, no a los lugares guardados.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" markerColor="bg-cyan-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />

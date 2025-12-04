@@ -34,15 +34,18 @@ interface ItineraryPanelProps {
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
     // 🔥 NUEVOS PROPS PARA FILTRADO
     minRating?: number;
+    setMinRating?: (rating: number) => void;
     searchRadius?: number;
+    setSearchRadius?: (radius: number) => void;
     sortBy?: 'score' | 'distance' | 'rating';
+    setSortBy?: (sort: 'score' | 'distance' | 'rating') => void;
 }
 
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
     onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert,
-    minRating = 0, searchRadius = 50, sortBy = 'score'
+    minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }: ItineraryPanelProps) {
 
     if (!dailyItinerary) return null;
@@ -223,8 +226,11 @@ export default function ItineraryPanel({
                         onRemovePlace={onRemovePlace} 
                         onHover={onHover}
                         minRating={minRating}
+                        setMinRating={setMinRating}
                         searchRadius={searchRadius}
+                        setSearchRadius={setSearchRadius}
                         sortBy={sortBy}
+                        setSortBy={setSortBy}
                         t={t} convert={convert}
                     />
                 )}
