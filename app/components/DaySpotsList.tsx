@@ -1,4 +1,5 @@
 'use client';
+// Version: f263621+rebuild
 
 import React, { useState } from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
