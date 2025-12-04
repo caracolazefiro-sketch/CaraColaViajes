@@ -145,14 +145,15 @@ const ServiceList: React.FC<ServiceListProps> = ({
     const isLoading = loading[type];
     if ((type === 'custom' || type === 'search' || type === 'found') && list.length === 0) return null;
 
-    // 🆕 Calcular contadores: seleccionados (saved) vs disponibles (search)
+    // 🆕 Calcular contadores: seleccionados (saved) vs disponibles FILTRADOS (coherente con badge)
     const selectedCount = savedOfType.length;
-    const availableCount = (type === 'custom' || type === 'search' || type === 'found') 
-        ? list.length 
-        : (places[type] || []).length;
+    const filteredAvailableCount = (type === 'custom' || type === 'search' || type === 'found') 
+        ? 0 // Tipos especiales no tienen "disponibles", solo guardados
+        : filterAndSort(places[type] || [], minRating, searchRadius, sortBy).length;
+    const rawAvailableCount = (places[type] || []).length; // Para detectar si hay filtros activos
     const isFiltered = toggles[type] && type !== 'custom' && type !== 'search' && type !== 'found' 
-        && availableCount > 0 
-        && filterAndSort(places[type] || [], minRating, searchRadius, sortBy).length !== availableCount;
+        && rawAvailableCount > 0 
+        && filteredAvailableCount !== rawAvailableCount;
 
     return (
         <div className="animate-fadeIn mt-4">
@@ -164,7 +165,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                     <span className="text-[10px] font-semibold text-gray-600">
                         <span className="text-blue-600">{selectedCount} seleccionados</span>
                         <span className="text-gray-400 mx-1">|</span>
-                        <span className="text-gray-600">{availableCount} disponibles</span>
+                        <span className="text-gray-600">{filteredAvailableCount} disponibles</span>
                         {isFiltered && <span title="Filtros aplicados"><IconZap size={12} className="inline ml-1 text-orange-500" /></span>}
                     </span>
                 )}
@@ -573,16 +574,19 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             selectedCount={saved.filter(s => s.type === 'tourism').length}
                             filteredAvailableCount={filterAndSort(places.tourism || [], minRating, searchRadius, sortBy).length}
                         />
-                        <ServiceButton 
-                            type="custom" 
-                            label={t('SERVICE_CUSTOM')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={saved.filter(s => s.type === 'custom').length}
-                            selectedCount={saved.filter(s => s.type === 'custom').length}
-                            filteredAvailableCount={0}
-                        />
-                        {saved.filter(s => s.type === 'search').length > 0 && (
+                        {/* Tipos especiales: solo visibles si toggle ON */}
+                        {toggles.custom && (
+                            <ServiceButton 
+                                type="custom" 
+                                label={t('SERVICE_CUSTOM')} 
+                                toggles={toggles} 
+                                onToggle={onToggle} 
+                                count={saved.filter(s => s.type === 'custom').length}
+                                selectedCount={saved.filter(s => s.type === 'custom').length}
+                                filteredAvailableCount={0}
+                            />
+                        )}
+                        {toggles.search && saved.filter(s => s.type === 'search').length > 0 && (
                             <ServiceButton 
                                 type="search" 
                                 label="Buscados" 
@@ -593,7 +597,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 filteredAvailableCount={0}
                             />
                         )}
-                        {saved.filter(s => s.type === 'found').length > 0 && (
+                        {toggles.found && saved.filter(s => s.type === 'found').length > 0 && (
                             <ServiceButton 
                                 type="found" 
                                 label="Encontrados" 
@@ -604,13 +608,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 filteredAvailableCount={0}
                             />
                         )}
-                        {/* Botón Añadir Sitio como parte del grid */}
+                        {/* Botón Añadir Sitio - Estilo "mágico" diferenciado */}
                         <button 
                             onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
-                            className="px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md"
+                            className="px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 bg-gradient-to-br from-purple-500 to-purple-600 text-white border-purple-700 hover:shadow-purple-200 hover:from-purple-600 hover:to-purple-700"
                         >
-                            <div className="p-1 rounded-full bg-gray-100">
-                                <IconPlus className="text-gray-600" />
+                            <div className="p-1 rounded-full bg-white/20">
+                                <IconPlus className="text-white" />
                             </div>
                             <span className="text-[10px] leading-tight text-center">{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
                         </button>
