@@ -9,7 +9,7 @@ import StarRating from './StarRating';
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
 import { filterAndSort } from '../hooks/useSearchFilters';
-import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp } from '../lib/svgIcons';
+import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp, IconInfo } from '../lib/svgIcons';
 import { ServiceIcons } from './ServiceIcons';
 
 // Iconos
@@ -667,8 +667,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     />
                                 </div>
                             </div>
-                            <p className="text-[9px] text-gray-500 mt-1.5 italic leading-tight">
-                                💡 Solo filtran búsquedas, no lugares guardados
+                            <p className="text-[9px] text-gray-500 mt-1.5 italic leading-tight flex items-center gap-1">
+                                <IconInfo size={10} className="text-gray-400" /> Solo filtran búsquedas, no lugares guardados
                             </p>
                         </div>
                     )}
