@@ -9,7 +9,7 @@ import StarRating from './StarRating';
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
 import { filterAndSort } from '../hooks/useSearchFilters';
-import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar } from '../lib/svgIcons';
+import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp } from '../lib/svgIcons';
 import { ServiceIcons } from './ServiceIcons';
 
 // Iconos
@@ -602,15 +602,12 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
                     {/* Sliders de filtrado - Copia sincronizada con el mapa */}
                     {setMinRating && setSearchRadius && setSortBy && (
-                        <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-200">
-                            <h4 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-2">
-                                🎚️ Filtros de búsqueda
-                            </h4>
-                            <div className="flex flex-wrap items-center gap-4">
+                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-2 mb-3 border border-gray-200 shadow-sm">
+                            <div className="flex flex-wrap items-center gap-3">
                                 {/* Rating Slider */}
-                                <div className="flex flex-col gap-1.5 flex-1 min-w-[120px]">
-                                    <label className="text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
-                                        <IconStar size={13} /> Rating mín: {minRating.toFixed(1)}
+                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
+                                        <IconStar size={11} /> {minRating.toFixed(1)}
                                     </label>
                                     <input
                                         type="range"
@@ -628,9 +625,9 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 </div>
 
                                 {/* Radio Slider */}
-                                <div className="flex flex-col gap-1.5 flex-1 min-w-[120px]">
-                                    <label className="text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
-                                        <IconMapPin size={13} /> Radio: {searchRadius}km
+                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
+                                        <IconMapPin size={11} /> {searchRadius}km
                                     </label>
                                     <input
                                         type="range"
@@ -648,9 +645,9 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 </div>
 
                                 {/* Sort Slider */}
-                                <div className="flex flex-col gap-1.5 flex-1 min-w-[120px]">
-                                    <label className="text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
-                                        📊 Ordenar: {sortBy === 'score' ? 'Relevancia' : sortBy === 'distance' ? 'Distancia' : 'Puntuación'}
+                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
+                                        <IconTrendingUp size={11} /> {sortBy === 'score' ? 'Rel' : sortBy === 'distance' ? 'Dist' : 'Rate'}
                                     </label>
                                     <input
                                         type="range"
@@ -670,8 +667,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     />
                                 </div>
                             </div>
-                            <p className="text-[10px] text-gray-500 mt-2 italic">
-                                💡 Estos filtros solo afectan a los resultados de búsqueda, no a los lugares guardados.
+                            <p className="text-[9px] text-gray-500 mt-1.5 italic leading-tight">
+                                💡 Solo filtran búsquedas, no lugares guardados
                             </p>
                         </div>
                     )}

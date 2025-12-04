@@ -21,18 +21,39 @@ interface NavItem {
 const navItems: NavItem[] = [
   // TEST PAGES
   {
-    label: 'Test Rating Filter',
-    href: '/test-rating-filter',
-    icon: <span>🎚️</span>,
+    label: '🔍 Test Spots Search',
+    href: '/test-spots-search',
+    icon: <span>🏕️</span>,
     category: 'test',
     completed: false,
+  },
+  {
+    label: 'Test Manual Checklist',
+    href: '/test-manual-checklist',
+    icon: <span>✅</span>,
+    category: 'test',
+    completed: true,
+  },
+  {
+    label: 'Test Sliders Exhaustive',
+    href: '/test-sliders-exhaustive',
+    icon: <span>🎚️</span>,
+    category: 'test',
+    completed: true,
+  },
+  {
+    label: 'Test Rating Filter',
+    href: '/test-rating-filter',
+    icon: <span>📊</span>,
+    category: 'test',
+    completed: true,
   },
   {
     label: 'Test Integration',
     href: '/test-rating-integration',
     icon: <span>🧪</span>,
     category: 'test',
-    completed: false,
+    completed: true,
   },
   {
     label: 'Test SVG Icons',
