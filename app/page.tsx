@@ -73,7 +73,7 @@ export default function Home() {
     };
   });
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
-  const [showWaypoints, setShowWaypoints] = useState(true);
+  const [showWaypoints, setShowWaypoints] = useState(false);
 
   const { 
       results, setResults, directionsResponse,

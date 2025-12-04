@@ -2,9 +2,21 @@
 
 import React, { useState } from 'react';
 import { PlaceWithDistance, ServiceType } from '../types';
+import { ServiceIcons } from './ServiceIcons';
 
 // Iconos locales
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>);
+
+// Componente para mostrar icono + label en select
+const ServiceOption = ({ type, label }: { type: ServiceType; label: string }) => {
+    const Icon = ServiceIcons[type];
+    return (
+        <div className="flex items-center gap-2">
+            {Icon && <Icon size={16} />}
+            <span>{label}</span>
+        </div>
+    );
+};
 
 interface AddPlaceFormProps {
     initialData?: PlaceWithDistance | null; // Datos para editar
@@ -71,17 +83,22 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
             <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                     <input type="text" placeholder="Nombre (ej: Taller)" value={customName} onChange={e => setCustomName(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" required />
-                    <select value={customType} onChange={e => setCustomType(e.target.value as ServiceType)} className="w-full p-2 text-xs rounded border border-gray-300 bg-white outline-none">
-                        <option value="custom">⭐ Otro</option>
-                        <option value="camping">🚐 Pernocta</option>
-                        <option value="restaurant">🍳 Restaurante</option>
-                        <option value="water">💧 Aguas</option>
-                        <option value="gas">⛽ Gasolinera</option>
-                        <option value="supermarket">🛒 Super</option>
-                        <option value="tourism">📷 Turismo</option>
-                        <option value="search">🔍 Buscado</option>
-                        <option value="found">📍 Encontrado</option>
-                    </select>
+                    <div className="relative">
+                        <select value={customType} onChange={e => setCustomType(e.target.value as ServiceType)} className="w-full p-2 text-xs rounded border border-gray-300 bg-white outline-none appearance-none cursor-pointer">
+                            <option value="custom">Otro</option>
+                            <option value="camping">Pernocta</option>
+                            <option value="restaurant">Restaurante</option>
+                            <option value="water">Aguas</option>
+                            <option value="gas">Gasolinera</option>
+                            <option value="supermarket">Super</option>
+                            <option value="tourism">Turismo</option>
+                            <option value="search">Buscado</option>
+                            <option value="found">Encontrado</option>
+                        </select>
+                        <div className="pointer-events-none absolute left-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 text-gray-600">
+                            {ServiceIcons[customType] && React.createElement(ServiceIcons[customType], { size: 14 })}
+                        </div>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <input type="text" placeholder="Dirección (ej: Calle Mayor 1)" value={customDesc} onChange={e => setCustomDesc(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
