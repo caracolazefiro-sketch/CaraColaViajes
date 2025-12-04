@@ -35,13 +35,15 @@ const getAvailableCount = (
     saved: PlaceWithDistance[],
     minRating: number,
     searchRadius: number,
-    sortBy: 'rating' | 'distance'
+    sortBy: 'rating' | 'distance' | 'score'
 ): number => {
     if (type === 'custom' || type === 'search' || type === 'found') return 0;
     
     const savedIds = new Set(saved.filter(s => s.type === type).map(s => s.place_id));
     const searchResults = places[type] || [];
-    const filteredResults = filterAndSort(searchResults, minRating, searchRadius, sortBy);
+    // filterAndSort solo acepta 'rating' | 'distance', convertir 'score' a 'rating'
+    const sortByNormalized = sortBy === 'score' ? 'rating' : sortBy;
+    const filteredResults = filterAndSort(searchResults, minRating, searchRadius, sortByNormalized);
     
     // Contar solo los NO guardados (blancos)
     return filteredResults.filter(r => !savedIds.has(r.place_id)).length;
