@@ -188,7 +188,8 @@ export default function TestSlidersExhaustive() {
             <div className="bg-gray-100 border-t border-gray-200 p-4 text-center text-xs text-gray-600">
                 <p>
                     <strong>Rama:</strong> <code className="bg-white px-2 py-1 rounded">testing</code> | 
-                    <strong className="ml-3">Commit:</strong> <code className="bg-white px-2 py-1 rounded">2874e75</code> | 
+                    <strong className="ml-3">Commit:</strong> <code className="bg-white px-2 py-1 rounded">1082d8d</code> | 
+                    <strong className="ml-3">Fecha:</strong> 04/12/2025 | 
                     <strong className="ml-3">Estado:</strong> ✅ READY FOR TESTING
                 </p>
             </div>
