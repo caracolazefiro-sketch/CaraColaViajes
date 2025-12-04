@@ -211,7 +211,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                         return (
                         <div key={`${type}-${idx}`} className={`group p-3 rounded border transition-all flex gap-3 shadow-sm ${
                             isSelected 
-                                ? 'bg-blue-50/30 border-blue-200' 
+                                ? 'bg-red-50/40 border-red-200' 
                                 : 'bg-white border-gray-200 hover:border-blue-300'
                         }`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
                             <div className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold text-white ${markerColor}`}>{idx + 1}</div>
