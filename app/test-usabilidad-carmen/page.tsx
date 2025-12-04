@@ -36,10 +36,10 @@ const initialTests: TestCase[] = [
   {
     id: 'C2',
     category: 'critico',
-    title: 'No se pueden borrar waypoints/paradas',
+    title: 'No se pueden borrar escalas',
     description: 'Imposible eliminar paradas intermedias. Ejemplo: Cantagallo (Italy) añadido por error, +2000km',
     expectedBehavior: 'Botón de eliminar funcional en cada parada',
-    actualBehavior: 'No hay forma de borrar waypoints una vez añadidos',
+    actualBehavior: 'No hay forma de borrar escalas una vez añadidas',
     screenshot: 'image2.png',
     status: 'pending',
     priority: 1,

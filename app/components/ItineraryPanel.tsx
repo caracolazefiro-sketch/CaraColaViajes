@@ -30,7 +30,7 @@ interface ItineraryPanelProps {
     onSelectDay: (index: number | null) => void;
     onSearchNearDay: (dayIndex: number) => void; // Nueva prop
     onAdjustDay: (dayIndex: number) => void; // Nueva prop - Ajustar destino
-    onRemoveWaypoint?: (dayIndex: number) => void; // Nueva prop - Eliminar waypoint
+    onRemoveWaypoint?: (dayIndex: number) => void; // Nueva prop - Eliminar escala
     t: (key: string) => string; // Traducción
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
     // 🔥 NUEVOS PROPS PARA FILTRADO
@@ -165,7 +165,7 @@ export default function ItineraryPanel({
                                                     </button>
                                                 )}
                                                 
-                                                {/* Botón eliminar waypoint */}
+                                                {/* Botón eliminar escala */}
                                                 {day.isDriving && onRemoveWaypoint && index > 0 && index < dailyItinerary.length - 1 && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onRemoveWaypoint(index); }}
