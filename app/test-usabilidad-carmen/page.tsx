@@ -367,7 +367,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'Solo 1 viaje en localStorage',
     status: 'pending',
     priority: 2,
-    notes: 'Requiere Supabase. Alternativa: localStorage con array de trips'
+    notes: 'Requiere Supabase. Alternativa: localStorage con array de trips',
+    myFindings: ''
   }
 ];
 
