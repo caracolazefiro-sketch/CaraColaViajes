@@ -84,6 +84,12 @@ const navItems: NavItem[] = [
     category: 'docs',
   },
   {
+    label: '🎯 Análisis Manifesto V0.8',
+    href: '/manifesto-analysis',
+    icon: <span>🐌</span>,
+    category: 'docs',
+  },
+  {
     label: 'Roadmap',
     href: '/roadmap',
     icon: <IconCheck />,
