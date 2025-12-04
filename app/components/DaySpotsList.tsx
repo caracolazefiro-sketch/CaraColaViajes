@@ -643,14 +643,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 filteredAvailableCount={0}
                             />
                         )}
-                        {/* 10. Añadir - Hover más intenso */}
+                        {/* 10. Añadir - Sutil con toque mágico */}
                         <button 
                             onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
                             className="px-2 py-2 transition-all flex flex-col items-center gap-1 hover:scale-110 active:scale-95 group"
                             title={t('MAP_ADD') + ' ' + (isImperial ? 'Place' : 'Sitio')}
                         >
-                            <IconPlus className="text-purple-500 group-hover:text-purple-700 h-8 w-8 transition-colors" />
-                            <span className="text-[9px] leading-tight text-center text-gray-600 group-hover:text-purple-700 transition-colors">{isImperial ? 'Add' : 'Añadir'}</span>
+                            <IconPlus className="text-gray-400 group-hover:text-gray-600 h-8 w-8 transition-colors" />
+                            <span className="text-[9px] leading-tight text-center text-gray-600 group-hover:text-gray-700 transition-colors">{isImperial ? 'Add' : 'Añadir'}</span>
                         </button>
                     </div>
 
