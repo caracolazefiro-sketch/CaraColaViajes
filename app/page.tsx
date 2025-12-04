@@ -403,7 +403,11 @@ export default function Home() {
       // Construir waypoints: las escalas van en orden entre origen y destino
       const dayWaypoints = stopovers;
 
-      console.log(`📍 Recalculando día ${dayIndex}: ${dayOrigin} → [${dayWaypoints.join(', ')}] → ${dayDestination}`);
+      console.log(`📍 Recalculando día ${dayIndex}:`);
+      console.log(`   Origen: ${dayOrigin}`);
+      console.log(`   Destino: ${dayDestination}`);
+      console.log(`   Waypoints: [${dayWaypoints.join(', ')}]`);
+      console.log(`   KM máximo permitido: ${formData.kmMaximoDia * 10}`);
 
       // Calcular solo este segmento
       const segmentResult = await getDirectionsAndCost({
@@ -416,9 +420,11 @@ export default function Home() {
         fechaRegreso: formData.fechaRegreso
       });
 
+      console.log('📦 Respuesta de Google Directions:', segmentResult);
+
       if (segmentResult.error || !segmentResult.dailyItinerary) {
         console.error('❌ Error recalculando segmento:', segmentResult.error);
-        showToast('Error: ' + (segmentResult.error || 'No se pudo recalcular'), 'error');
+        showToast('Error Google Directions: ' + (segmentResult.error || 'No se pudo recalcular'), 'error');
         return;
       }
 
