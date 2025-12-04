@@ -64,7 +64,8 @@ export default function Home() {
       origen: '',
       fechaRegreso: '',
       destino: '',
-      etapas: '',
+      etapas: '', // Pernoctas (overnight stops)
+      escalas: '', // NEW: Escalas (stopovers - visits without overnight)
       consumo: 12.5,
       precioGasoil: 1.35,
       kmMaximoDia: 300,
