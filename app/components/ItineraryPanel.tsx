@@ -232,6 +232,19 @@ export default function ItineraryPanel({
                                         <div className="text-xs text-gray-800 font-medium mb-2">
                                             {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
                                         </div>
+
+                                        {/* ESCALAS DEL DÍA */}
+                                        {day.stopovers && day.stopovers.length > 0 && (
+                                            <div className="mt-2 pt-2 border-t border-blue-100 space-y-1">
+                                                <h6 className="text-[10px] font-bold text-blue-700 mb-1">🚩 Escalas ({day.stopovers.length}):</h6>
+                                                {day.stopovers.map((stopover, i) => (
+                                                    <div key={i} className="text-xs text-gray-700 flex items-start gap-2 pl-2">
+                                                        <span className="text-blue-600 text-sm">🚩</span>
+                                                        <span className="font-medium text-blue-800">{stopover}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                         
                                         {/* LISTA DE SITIOS GUARDADOS EN EL RESUMEN */}
                                         {day.savedPlaces && day.savedPlaces.length > 0 && (

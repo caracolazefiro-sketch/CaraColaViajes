@@ -377,6 +377,83 @@ export default function Home() {
     }
   };
 
+  // NEW: Gestionar escalas de un día específico
+  const handleManageStopovers = async (dayIndex: number, stopovers: string[]) => {
+    if (!results.dailyItinerary) return;
+
+    showToast('Actualizando escalas y recalculando ruta...', 'info');
+
+    try {
+      console.log(`🚩 Gestionando escalas del día ${dayIndex}:`, stopovers);
+
+      // 1. Actualizar las escalas del día en el itinerario
+      const updatedItinerary = results.dailyItinerary.map((day, idx) => {
+        if (idx === dayIndex) {
+          return { ...day, stopovers };
+        }
+        return day;
+      });
+
+      // 2. Recalcular la ruta del día incluyendo las escalas como waypoints
+      const { getDirectionsAndCost } = await import('./actions');
+      const dayOrigin = updatedItinerary[dayIndex].from;
+      const dayDestination = updatedItinerary[dayIndex].to;
+
+      // Construir waypoints: las escalas van en orden entre origen y destino
+      const dayWaypoints = stopovers;
+
+      console.log(`📍 Recalculando día ${dayIndex}: ${dayOrigin} → [${dayWaypoints.join(', ')}] → ${dayDestination}`);
+
+      // Calcular solo este segmento
+      const segmentResult = await getDirectionsAndCost({
+        origin: dayOrigin,
+        destination: dayDestination,
+        waypoints: dayWaypoints,
+        kmMaximoDia: formData.kmMaximoDia * 10, // Permitir cualquier distancia para este día específico
+        travel_mode: 'driving',
+        fechaInicio: updatedItinerary[dayIndex].date,
+        fechaRegreso: formData.fechaRegreso
+      });
+
+      if (segmentResult.error || !segmentResult.dailyItinerary) {
+        console.error('❌ Error recalculando segmento:', segmentResult.error);
+        showToast('Error: ' + (segmentResult.error || 'No se pudo recalcular'), 'error');
+        return;
+      }
+
+      // 3. El resultado debe ser UN SOLO día (las escalas no crean días nuevos)
+      if (segmentResult.dailyItinerary.length > 1) {
+        showToast('⚠️ Atención: Las escalas añadieron demasiada distancia. Considera reducir el número de escalas.', 'error');
+        // Por ahora, tomamos solo el primer día y actualizamos la distancia total
+      }
+
+      const recalculatedDay = segmentResult.dailyItinerary[0];
+      
+      // 4. Actualizar el día con la nueva distancia y las escalas
+      updatedItinerary[dayIndex] = {
+        ...updatedItinerary[dayIndex],
+        distance: recalculatedDay.distance,
+        stopovers: stopovers,
+        coordinates: recalculatedDay.coordinates,
+        startCoordinates: recalculatedDay.startCoordinates
+      };
+
+      // 5. Actualizar resultados
+      setResults({
+        ...results,
+        dailyItinerary: updatedItinerary,
+        distanceKm: updatedItinerary.reduce((sum, day) => sum + day.distance, 0)
+      });
+
+      showToast(`✅ Escalas actualizadas: ${stopovers.length} paradas en este día`, 'success');
+      console.log('✅ Escalas actualizadas correctamente');
+
+    } catch (error) {
+      console.error('💥 Error gestionando escalas:', error);
+      showToast('Error al gestionar escalas: ' + (error instanceof Error ? error.message : 'Error desconocido'), 'error');
+    }
+  };
+
   const focusMapOnStage = async (dayIndex: number | null) => {
     // CASO: Volver a la Vista General
     if (dayIndex === null) {
@@ -503,7 +580,8 @@ export default function Home() {
                         places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
                         onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                         onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
-                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} onRemoveWaypoint={handleRemoveWaypoint} t={t} convert={convert}
+                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} onRemoveWaypoint={handleRemoveWaypoint} 
+                        onManageStopovers={handleManageStopovers} t={t} convert={convert}
                         minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
                     />
 
