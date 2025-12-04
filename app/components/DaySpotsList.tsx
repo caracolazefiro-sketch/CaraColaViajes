@@ -72,8 +72,10 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
         restaurant: 'text-green-500',
         supermarket: 'text-blue-500',
         laundry: 'text-purple-500',
-        tourism: 'text-yellow-500',
+        tourism: 'text-yellow-600',
         custom: 'text-pink-500',
+        search: 'text-indigo-500',
+        found: 'text-teal-500',
     };
     
     // 🆕 NUEVA LÓGICA: Mostrar lo que el usuario VE en la lista (post-filtros)
@@ -88,15 +90,17 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
         >
             {/* Icono grande sin jaula */}
             {Icon && (
-                <Icon size={32} className={isActive ? (activeColors[type] || 'text-gray-700') : 'text-gray-400'} />
+                <Icon size={32} className={isActive ? (activeColors[type] || 'text-gray-700') : 'text-gray-500'} />
             )}
             
-            {/* Label pequeño */}
-            <span className="text-[9px] leading-tight text-center text-gray-600">{label}</span>
+            {/* Label pequeño - cambia de color cuando activo */}
+            <span className={`text-[9px] leading-tight text-center transition-colors ${
+                isActive ? (activeColors[type] || 'text-gray-700') : 'text-gray-600'
+            }`}>{label}</span>
             
             {/* Contador de resultados: X/Y formato (coherente con lista visible) */}
             {showBadge && (
-                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm bg-white/90 border border-gray-200">
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm bg-white/70 border border-gray-200">
                     {selectedCount > 0 ? (
                         <>
                             <span className={activeColors[type] || 'text-gray-700'}>{selectedCount}</span>
@@ -533,7 +537,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     {/* Grid de botones de servicios compacto */}
-                    <div className="grid grid-cols-4 gap-2 mb-4">
+                    <div className="grid grid-cols-4 gap-3 mb-4">
+                        {/* 1. Pernocta */}
                         <ServiceButton 
                             type="camping" 
                             label="Spots" 
@@ -543,15 +548,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             selectedCount={saved.filter(s => s.type === 'camping').length}
                             filteredAvailableCount={getAvailableCount('camping', places, saved, minRating, searchRadius, sortBy)}
                         />
-                        <ServiceButton 
-                            type="water" 
-                            label={t('SERVICE_WATER')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.water?.length || 0}
-                            selectedCount={saved.filter(s => s.type === 'water').length}
-                            filteredAvailableCount={getAvailableCount('water', places, saved, minRating, searchRadius, sortBy)}
-                        />
+                        {/* 2. Gas */}
                         <ServiceButton 
                             type="gas" 
                             label={t('SERVICE_GAS')} 
@@ -561,15 +558,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             selectedCount={saved.filter(s => s.type === 'gas').length}
                             filteredAvailableCount={getAvailableCount('gas', places, saved, minRating, searchRadius, sortBy)}
                         />
-                        <ServiceButton 
-                            type="restaurant" 
-                            label={t('SERVICE_EAT')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.restaurant?.length || 0}
-                            selectedCount={saved.filter(s => s.type === 'restaurant').length}
-                            filteredAvailableCount={getAvailableCount('restaurant', places, saved, minRating, searchRadius, sortBy)}
-                        />
+                        {/* 3. Super */}
                         <ServiceButton 
                             type="supermarket" 
                             label={t('SERVICE_SUPERMARKET')} 
@@ -579,15 +568,17 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             selectedCount={saved.filter(s => s.type === 'supermarket').length}
                             filteredAvailableCount={getAvailableCount('supermarket', places, saved, minRating, searchRadius, sortBy)}
                         />
+                        {/* 4. Comer */}
                         <ServiceButton 
-                            type="laundry" 
-                            label={t('SERVICE_LAUNDRY')} 
+                            type="restaurant" 
+                            label={t('SERVICE_EAT')} 
                             toggles={toggles} 
                             onToggle={onToggle} 
-                            count={places.laundry?.length || 0}
-                            selectedCount={saved.filter(s => s.type === 'laundry').length}
-                            filteredAvailableCount={getAvailableCount('laundry', places, saved, minRating, searchRadius, sortBy)}
+                            count={places.restaurant?.length || 0}
+                            selectedCount={saved.filter(s => s.type === 'restaurant').length}
+                            filteredAvailableCount={getAvailableCount('restaurant', places, saved, minRating, searchRadius, sortBy)}
                         />
+                        {/* 5. Turismo */}
                         <ServiceButton 
                             type="tourism" 
                             label={t('SERVICE_TOURISM')} 
@@ -597,7 +588,27 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             selectedCount={saved.filter(s => s.type === 'tourism').length}
                             filteredAvailableCount={getAvailableCount('tourism', places, saved, minRating, searchRadius, sortBy)}
                         />
-                        {/* Tipos especiales: solo visibles si tienen contenido (independiente de toggle) */}
+                        {/* 6. Agua */}
+                        <ServiceButton 
+                            type="water" 
+                            label={t('SERVICE_WATER')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.water?.length || 0}
+                            selectedCount={saved.filter(s => s.type === 'water').length}
+                            filteredAvailableCount={getAvailableCount('water', places, saved, minRating, searchRadius, sortBy)}
+                        />
+                        {/* 7. Lavar */}
+                        <ServiceButton 
+                            type="laundry" 
+                            label={t('SERVICE_LAUNDRY')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.laundry?.length || 0}
+                            selectedCount={saved.filter(s => s.type === 'laundry').length}
+                            filteredAvailableCount={getAvailableCount('laundry', places, saved, minRating, searchRadius, sortBy)}
+                        />
+                        {/* 8. Favoritos (custom) */}
                         {saved.filter(s => s.type === 'custom').length > 0 && (
                             <ServiceButton 
                                 type="custom" 
@@ -609,6 +620,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 filteredAvailableCount={0}
                             />
                         )}
+                        {/* 9. Buscados */}
                         {saved.filter(s => s.type === 'search').length > 0 && (
                             <ServiceButton 
                                 type="search" 
@@ -631,14 +643,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 filteredAvailableCount={0}
                             />
                         )}
-                        {/* Botón Añadir Sitio - Simple + flotante */}
+                        {/* 10. Añadir - Hover más intenso */}
                         <button 
                             onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
-                            className="px-2 py-2 transition-all flex flex-col items-center gap-1 hover:scale-110 active:scale-95"
+                            className="px-2 py-2 transition-all flex flex-col items-center gap-1 hover:scale-110 active:scale-95 group"
                             title={t('MAP_ADD') + ' ' + (isImperial ? 'Place' : 'Sitio')}
                         >
-                            <IconPlus className="text-purple-500 h-8 w-8" />
-                            <span className="text-[9px] leading-tight text-center text-gray-600">{isImperial ? 'Add' : 'Añadir'}</span>
+                            <IconPlus className="text-purple-500 group-hover:text-purple-700 h-8 w-8 transition-colors" />
+                            <span className="text-[9px] leading-tight text-center text-gray-600 group-hover:text-purple-700 transition-colors">{isImperial ? 'Add' : 'Añadir'}</span>
                         </button>
                     </div>
 
