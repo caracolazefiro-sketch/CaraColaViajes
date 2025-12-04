@@ -78,7 +78,7 @@ export default function Home() {
   const [showWaypoints, setShowWaypoints] = useState(false);
 
   const { 
-      results, setResults, directionsResponse,
+      results, setResults, directionsResponse, setDirectionsResponse,
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary 
   } = useTripCalculator(convert, settings.units); 
 
