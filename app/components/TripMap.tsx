@@ -240,36 +240,40 @@ export default function TripMap({
                     />
                 )}
 
-                {/* Marcadores de Pernoctas (destinos de días de conducción) */}
-                {dailyItinerary?.map((day, i) => day.coordinates && day.isDriving && (
-                    <Marker 
-                        key={`itinerary-${i}`} 
-                        position={day.coordinates} 
-                        icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd} 
-                        title={day.to} 
-                        label={{ text: `${i+1}`, color: "white", fontSize: "10px", fontWeight: "bold" }} 
-                    />
-                ))}
+                {/* Marcadores de Pernoctas (origen + todos los destinos de conducción) */}
+                {dailyItinerary?.map((day, i) => {
+                    // Pintar origen del primer día
+                    if (i === 0 && day.startCoordinates) {
+                        return (
+                            <Marker 
+                                key={`start-${i}`} 
+                                position={day.startCoordinates} 
+                                icon={ICONS_ITINERARY.startEnd} 
+                                title={day.from} 
+                                label={{ text: 'A', color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                            />
+                        );
+                    }
+                    
+                    // Pintar destinos de días de conducción (pernoctas)
+                    if (day.coordinates && day.isDriving) {
+                        const letter = String.fromCharCode(65 + i + 1); // B, C, D, E...
+                        return (
+                            <Marker 
+                                key={`pernocta-${i}`} 
+                                position={day.coordinates} 
+                                icon={ICONS_ITINERARY.startEnd} 
+                                title={day.to} 
+                                label={{ text: letter, color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                            />
+                        );
+                    }
+                    
+                    return null;
+                })}
                 
-                {/* Marcadores de Escalas (chinchetas) */}
-                {dailyItinerary?.map((day, dayIdx) => 
-                    day.stopovers?.map((stopover, stopIdx) => (
-                        <Marker
-                            key={`stopover-${dayIdx}-${stopIdx}`}
-                            position={{ lat: 0, lng: 0 }} // TODO: Geocodificar escalas para obtener coordenadas
-                            icon={{
-                                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%23DC2626">
-                                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                                    </svg>
-                                `),
-                                scaledSize: new google.maps.Size(32, 32),
-                                anchor: new google.maps.Point(16, 32)
-                            }}
-                            title={stopover}
-                        />
-                    ))
-                )}
+                {/* TODO: Marcadores de Escalas - requiere geocodificación */}
+                {/* Por ahora las escalas solo se ven en la línea roja, no como marcadores */}
 
                 {Object.keys(places).map((key) => {
                     const type = key as ServiceType;
