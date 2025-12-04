@@ -188,3 +188,10 @@ export const IconFlame: React.FC<IconProps> = ({ size = 24, className = '', stro
     <path d="M8.5 14.5A2.5 2.5 0 0 0 12 12.5a2.5 2.5 0 0 0 0-5c-1.396 0-2.573.5-3.5 1.47-.932.971-1.5 2.25-1.5 3.53 0 1.948.99 3.46 2.5 4.5M12 5v7m0 0a2.5 2.5 0 0 0 0-5M12 12a2 2 0 1 0 0-4" />
   </svg>
 );
+
+export const IconTrendingUp: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </svg>
+);

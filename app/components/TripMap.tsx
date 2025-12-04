@@ -7,6 +7,7 @@ import { ICONS_ITINERARY } from '../constants';
 import { createMarkerIcon, ServiceIcons } from './ServiceIcons';
 import StarRating from './StarRating';
 import { filterAndSort } from '../hooks/useSearchFilters';
+import { IconStar, IconMapPin, IconTrendingUp } from '../lib/svgIcons';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -344,17 +345,19 @@ export default function TripMap({
             {/* Filter Controls - Línea única con ROJO + Tooltip */}
             {setMinRating && setSearchRadius && setSortBy && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-transparent rounded-lg p-3 flex items-center gap-6 w-fit group">
-                    {/* Tooltip Info - Posicionado a mitad del mapa, izquierda */}
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white bg-opacity-95 text-gray-800 text-xs rounded-lg px-4 py-3 whitespace-nowrap pointer-events-none z-20 shadow-md border border-gray-200">
-                        <p className="font-bold mb-2 text-gray-900">Filtros Activos:</p>
-                        <p className="text-gray-700">⭐ Rating: mín {minRating.toFixed(1)} de 5</p>
-                        <p className="text-gray-700">📍 Radio: hasta {searchRadius}km</p>
-                        <p className="text-gray-700">📊 Ordenar por: {sortBy === 'score' ? 'Relevancia' : sortBy === 'distance' ? 'Distancia' : 'Puntuación'}</p>
+                    {/* Tooltip Info - Centro del mapa, izquierda, fondo transparente */}
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-transparent text-gray-700 text-[11px] rounded-lg px-3 py-2 whitespace-nowrap pointer-events-none z-20 border border-gray-300 border-opacity-40">
+                        <p className="font-semibold mb-1.5 text-gray-800 text-[12px]">Filtros:</p>
+                        <p className="text-gray-600 font-light">Rating: mín {minRating.toFixed(1)}/5</p>
+                        <p className="text-gray-600 font-light">Radio: hasta {searchRadius}km</p>
+                        <p className="text-gray-600 font-light">Ordenar: {sortBy === 'score' ? 'Relevancia' : sortBy === 'distance' ? 'Distancia' : 'Puntuación'}</p>
                     </div>
 
                     {/* Rating Slider - ROJO DEGRADADO */}
-                    <div className="flex flex-col items-center gap-2">
-                        <label className="text-xs font-bold text-red-600">⭐ {minRating.toFixed(1)}</label>
+                    <div className="flex flex-col items-center gap-1.5">
+                        <label className="text-[11px] font-light text-red-600 flex items-center gap-1.5">
+                            <IconStar size={13} /> {minRating.toFixed(1)}
+                        </label>
                         <input
                             type="range"
                             min="0"
@@ -362,7 +365,7 @@ export default function TripMap({
                             step="0.5"
                             value={minRating}
                             onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                            className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red"
+                            className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
                             style={{
                                 background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                 WebkitAppearance: 'none',
@@ -371,8 +374,10 @@ export default function TripMap({
                     </div>
 
                     {/* Radio Slider - ROJO DEGRADADO */}
-                    <div className="flex flex-col items-center gap-2">
-                        <label className="text-xs font-bold text-red-600">📍 {searchRadius}km</label>
+                    <div className="flex flex-col items-center gap-1.5">
+                        <label className="text-[11px] font-light text-red-600 flex items-center gap-1.5">
+                            <IconMapPin size={13} /> {searchRadius}km
+                        </label>
                         <input
                             type="range"
                             min="5"
@@ -380,7 +385,7 @@ export default function TripMap({
                             step="5"
                             value={searchRadius}
                             onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                            className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red"
+                            className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
                             style={{
                                 background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                 WebkitAppearance: 'none',
@@ -389,9 +394,10 @@ export default function TripMap({
                     </div>
 
                     {/* Sort Slider - ROJO DEGRADADO */}
-                    <div className="flex flex-col items-center gap-2">
-                        <label className="text-xs font-bold text-red-600">
-                            {sortBy === 'score' ? '📊 Score' : sortBy === 'distance' ? '📍 Dist.' : '⭐ Rate'}
+                    <div className="flex flex-col items-center gap-1.5">
+                        <label className="text-[11px] font-light text-red-600 flex items-center gap-1.5">
+                            <IconTrendingUp size={13} /> 
+                            {sortBy === 'score' ? 'Score' : sortBy === 'distance' ? 'Dist.' : 'Rate'}
                         </label>
                         <input
                             type="range"
@@ -403,7 +409,7 @@ export default function TripMap({
                                 const val = parseInt(e.target.value);
                                 setSortBy(val === 0 ? 'score' : val === 1 ? 'distance' : 'rating');
                             }}
-                            className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red"
+                            className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
                             style={{
                                 background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                 WebkitAppearance: 'none',
