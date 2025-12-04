@@ -64,16 +64,16 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
     
-    // Colores de borde según tipo de servicio
-    const borderColors: Record<string, string> = {
-        camping: isActive ? 'border-red-500' : 'border-gray-200',
-        water: isActive ? 'border-cyan-500' : 'border-gray-200',
-        gas: isActive ? 'border-orange-500' : 'border-gray-200',
-        restaurant: isActive ? 'border-green-500' : 'border-gray-200',
-        supermarket: isActive ? 'border-blue-500' : 'border-gray-200',
-        laundry: isActive ? 'border-purple-500' : 'border-gray-200',
-        tourism: isActive ? 'border-yellow-500' : 'border-gray-200',
-        custom: isActive ? 'border-pink-500' : 'border-gray-200',
+    // Colores de icono según tipo de servicio (cuando está activo)
+    const activeColors: Record<string, string> = {
+        camping: 'text-red-500',
+        water: 'text-cyan-500',
+        gas: 'text-orange-500',
+        restaurant: 'text-green-500',
+        supermarket: 'text-blue-500',
+        laundry: 'text-purple-500',
+        tourism: 'text-yellow-500',
+        custom: 'text-pink-500',
     };
     
     // 🆕 NUEVA LÓGICA: Mostrar lo que el usuario VE en la lista (post-filtros)
@@ -84,17 +84,11 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
     return (
         <button 
             onClick={() => onToggle(type)} 
-            className={`relative px-3 py-3 rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 ${
-                borderColors[type] || 'border-gray-200'
-            } ${
-                isActive 
-                    ? 'bg-white shadow-md' 
-                    : 'bg-white hover:border-gray-300 hover:shadow-md'
-            }`}
+            className="relative px-2 py-2 transition-all flex flex-col items-center gap-1 hover:scale-110 active:scale-95"
         >
-            {/* Icono grande y protagonista */}
+            {/* Icono grande sin jaula */}
             {Icon && (
-                <Icon size={28} className={isActive ? 'text-gray-700' : 'text-gray-500'} />
+                <Icon size={32} className={isActive ? (activeColors[type] || 'text-gray-700') : 'text-gray-400'} />
             )}
             
             {/* Label pequeño */}
