@@ -41,7 +41,6 @@ Fecha Regreso: ${formData.fechaRegreso || '(no especificada)'}
 Origen: ${formData.origen}
 Destino: ${formData.destino}
 Pernoctas (etapas): ${formData.etapas || '(ninguna)'}
-Escalas (visitas): ${formData.escalas || '(ninguna)'}
 KM Máximo/Día: ${formData.kmMaximoDia}
 Consumo: ${formData.consumo} L/100km
 Precio Gasoil: ${formData.precioGasoil} €/L
