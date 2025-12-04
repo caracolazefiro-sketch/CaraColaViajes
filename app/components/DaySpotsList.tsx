@@ -40,8 +40,7 @@ interface ServiceButtonProps {
 const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, filteredCount }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
-    // Si hay filteredCount, usarlo; si no, usar count original
-    const displayCount = filteredCount !== undefined ? filteredCount : count;
+    // Mostrar count (resultados brutos de Google), no filteredCount
     
     return (
         <button 
@@ -63,13 +62,13 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
             <span className="text-[10px] leading-tight text-center">{label}</span>
             
             {/* Contador de resultados */}
-            {displayCount > 0 && (
+            {count > 0 && (
                 <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
                     isActive 
                         ? 'bg-red-500 text-white' 
                         : 'bg-gray-600 text-white'
                 }`}>
-                    {displayCount}
+                    {count}
                 </span>
             )}
         </button>
@@ -145,9 +144,36 @@ const ServiceList: React.FC<ServiceListProps> = ({
     const isLoading = loading[type];
     if ((type === 'custom' || type === 'search' || type === 'found') && list.length === 0) return null;
 
+    // Calcular totales para tooltip
+    const totalFound = (type === 'custom' || type === 'search' || type === 'found') 
+        ? list.length 
+        : savedOfType.length + (places[type]?.length || 0);
+    const totalShown = list.length;
+    const isFiltered = totalFound !== totalShown;
+
     return (
         <div className="animate-fadeIn mt-4">
-            <h5 className={`text-xs font-bold ${colorClass} mb-2 border-b border-gray-100 pb-1 flex justify-between items-center`}><span className="flex items-center gap-1">{Icon && <Icon size={14} />} {title}</span>{!isLoading && <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{list.length}</span>}</h5>
+            <h5 className={`text-xs font-bold ${colorClass} mb-2 border-b border-gray-100 pb-1 flex justify-between items-center`}>
+                <span className="flex items-center gap-1">
+                    {Icon && <Icon size={14} />} {title}
+                </span>
+                {!isLoading && (
+                    <span 
+                        className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full cursor-help relative group"
+                        title={isFiltered 
+                            ? `🔍 Encontrados: ${totalFound} | 📊 Mostrados: ${totalShown} | ⚙️ Filtros: Rating ≥${minRating.toFixed(1)}, Radio ${searchRadius}km`
+                            : `${totalShown} ${type === 'custom' ? 'personalizados' : 'encontrados'}`
+                        }
+                    >
+                        {totalShown}
+                        {isFiltered && (
+                            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block w-max max-w-xs bg-gray-800 text-white text-[9px] px-2 py-1 rounded shadow-lg z-50 whitespace-nowrap">
+                                🔍 Encontrados: {totalFound} | 📊 Mostrados: {totalShown} | ⚙️ Filtros: ⭐{minRating.toFixed(1)} 📍{searchRadius}km
+                            </span>
+                        )}
+                    </span>
+                )}
+            </h5>
             {isLoading && <p className="text-[10px] text-gray-400 animate-pulse">{t('FORM_LOADING')}</p>}
             {!isLoading && list.length > 0 && (
                 <div className="space-y-2">

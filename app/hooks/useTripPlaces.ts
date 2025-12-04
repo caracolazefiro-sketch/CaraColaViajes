@@ -36,9 +36,17 @@ export function useTripPlaces(map: google.maps.Map | null) {
         const service = new google.maps.places.PlacesService(map);
         const centerPoint = new google.maps.LatLng(location.lat, location.lng);
         let placeType = ''; let radius = 10000; 
+        let useKeyword = false; // Para búsquedas que requieren keyword en lugar de type
+        let searchKeyword = '';
 
         switch(type) {
-            case 'camping': placeType = 'campground'; radius = 30000; break;
+            case 'camping': 
+                // Búsqueda ampliada: campgrounds + áreas de autocaravanas (RV parks)
+                placeType = 'campground'; 
+                radius = 30000; 
+                useKeyword = true;
+                searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta';
+                break;
             case 'restaurant': placeType = 'restaurant'; radius = 10000; break;
             case 'water': placeType = 'campground'; radius = 25000; break; // No hay tipo específico, usamos campground
             case 'gas': placeType = 'gas_station'; radius = 20000; break;
@@ -52,10 +60,17 @@ export function useTripPlaces(map: google.maps.Map | null) {
         console.log(`🔍 [${type}] Búsqueda iniciada:`, {
             location: `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`,
             radius: `${radius}m (${(radius/1000).toFixed(1)}km)`,
-            type: placeType
+            type: placeType,
+            keyword: useKeyword ? searchKeyword : 'N/A'
         });
         
-        service.nearbySearch({ location: centerPoint, radius, type: placeType }, (res, status) => {
+        const searchRequest: google.maps.places.PlaceSearchRequest = {
+            location: centerPoint,
+            radius,
+            ...(useKeyword ? { keyword: searchKeyword } : { type: placeType })
+        };
+        
+        service.nearbySearch(searchRequest, (res, status) => {
             setLoadingPlaces(prev => ({...prev, [type]: false}));
             
             console.log(`📊 [${type}] Respuesta de Google:`, {
