@@ -136,15 +136,13 @@ const ServiceList: React.FC<ServiceListProps> = ({
     type, title, colorClass, markerColor, places, loading, toggles, saved, t, isSaved, onAddPlace, onRemovePlace, onHover, handlePlaceClick, handleEditStart, auditMode, minRating, searchRadius, sortBy
 }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
-    const isSpecialType = type === 'search' || type === 'custom';
     const savedOfType = saved.filter(s => s.type === type);
-    const hasResults = places[type]?.length > 0 || savedOfType.length > 0;
     
-    // 🆕 NUEVA LÓGICA: Toggle OFF = no mostrar nada (guardados ya visibles en MI PLAN)
-    // Solo mostrar cuando toggle ON o para tipos especiales
-    if (!toggles[type] && !isSpecialType) return null;
-    if (type === 'search' && !hasResults && !toggles[type]) return null;
-    if (type === 'custom' && !hasResults) return null;
+    // 🆕 NUEVA LÓGICA: Toggle OFF = no mostrar NADA (incluye tipos especiales)
+    if (!toggles[type]) return null;
+    
+    // Para tipos especiales: no mostrar si no hay contenido
+    if ((type === 'custom' || type === 'search' || type === 'found') && savedOfType.length === 0) return null;
 
     // 🆕 Construir lista: toggle ON siempre muestra guardados + búsquedas (deduplicados)
     let list: PlaceWithDistance[] = [];
