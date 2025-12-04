@@ -64,6 +64,18 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
     
+    // Colores de borde según tipo de servicio
+    const borderColors: Record<string, string> = {
+        camping: isActive ? 'border-red-500' : 'border-gray-200',
+        water: isActive ? 'border-cyan-500' : 'border-gray-200',
+        gas: isActive ? 'border-orange-500' : 'border-gray-200',
+        restaurant: isActive ? 'border-green-500' : 'border-gray-200',
+        supermarket: isActive ? 'border-blue-500' : 'border-gray-200',
+        laundry: isActive ? 'border-purple-500' : 'border-gray-200',
+        tourism: isActive ? 'border-yellow-500' : 'border-gray-200',
+        custom: isActive ? 'border-pink-500' : 'border-gray-200',
+    };
+    
     // 🆕 NUEVA LÓGICA: Mostrar lo que el usuario VE en la lista (post-filtros)
     // Badge muestra: X seleccionados / Y disponibles filtrados
     const availableToShow = filteredAvailableCount; // Disponibles después de filtros
@@ -72,21 +84,21 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
     return (
         <button 
             onClick={() => onToggle(type)} 
-            className={`relative px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 ${
+            className={`relative px-3 py-3 rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 ${
+                borderColors[type] || 'border-gray-200'
+            } ${
                 isActive 
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200' 
-                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md'
+                    ? 'bg-white shadow-md' 
+                    : 'bg-white hover:border-gray-300 hover:shadow-md'
             }`}
         >
-            {/* Icono */}
+            {/* Icono grande y protagonista */}
             {Icon && (
-                <div className={`p-1 rounded-full ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>
-                    <Icon size={16} className={isActive ? 'text-white' : 'text-gray-600'} />
-                </div>
+                <Icon size={28} className={isActive ? 'text-gray-700' : 'text-gray-500'} />
             )}
             
-            {/* Label */}
-            <span className="text-[10px] leading-tight text-center">{label}</span>
+            {/* Label pequeño */}
+            <span className="text-[9px] leading-tight text-center text-gray-600">{label}</span>
             
             {/* Contador de resultados: X/Y formato (coherente con lista visible) */}
             {showBadge && (
