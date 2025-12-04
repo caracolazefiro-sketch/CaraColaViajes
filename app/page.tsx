@@ -397,8 +397,14 @@ export default function Home() {
 
       // 2. Recalcular la ruta del día incluyendo las escalas como waypoints
       const { getDirectionsAndCost } = await import('./actions');
-      const dayOrigin = updatedItinerary[dayIndex].from;
-      const dayDestination = updatedItinerary[dayIndex].to;
+      
+      // IMPORTANTE: Usar las direcciones COMPLETAS del formulario, no los nombres simplificados del itinerario
+      // El primer día usa el origen del formulario, el último día usa el destino del formulario
+      const isFirstDay = dayIndex === 0;
+      const isLastDay = dayIndex === updatedItinerary.length - 1;
+      
+      const dayOrigin = isFirstDay ? formData.origen : updatedItinerary[dayIndex].from;
+      const dayDestination = isLastDay ? formData.destino : updatedItinerary[dayIndex].to;
 
       // Construir waypoints: las escalas van en orden entre origen y destino
       const dayWaypoints = stopovers;
