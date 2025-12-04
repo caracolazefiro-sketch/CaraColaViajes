@@ -96,16 +96,12 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
             
             {/* Contador de resultados: X/Y formato (coherente con lista visible) */}
             {showBadge && (
-                <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
-                    isActive 
-                        ? 'bg-red-500 text-white' 
-                        : 'bg-gray-600 text-white'
-                }`}>
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm bg-white/90 border border-gray-200">
                     {selectedCount > 0 ? (
                         <>
-                            <span className="text-blue-200">{selectedCount}</span>
-                            <span className="opacity-50">/</span>
-                            <span>{availableToShow}</span>
+                            <span className={activeColors[type] || 'text-gray-700'}>{selectedCount}</span>
+                            <span className="text-gray-400">/</span>
+                            <span className="text-green-600">{availableToShow}</span>
                         </>
                     ) : (
                         availableToShow
@@ -635,15 +631,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 filteredAvailableCount={0}
                             />
                         )}
-                        {/* Botón Añadir Sitio - Estilo "mágico" diferenciado */}
+                        {/* Botón Añadir Sitio - Simple + flotante */}
                         <button 
                             onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
-                            className="px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 bg-gradient-to-br from-purple-500 to-purple-600 text-white border-purple-700 hover:shadow-purple-200 hover:from-purple-600 hover:to-purple-700"
+                            className="px-2 py-2 transition-all flex flex-col items-center gap-1 hover:scale-110 active:scale-95"
+                            title={t('MAP_ADD') + ' ' + (isImperial ? 'Place' : 'Sitio')}
                         >
-                            <div className="p-1 rounded-full bg-white/20">
-                                <IconPlus className="text-white" />
-                            </div>
-                            <span className="text-[10px] leading-tight text-center">{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
+                            <IconPlus className="text-purple-500 h-8 w-8" />
+                            <span className="text-[9px] leading-tight text-center text-gray-600">{isImperial ? 'Add' : 'Añadir'}</span>
                         </button>
                     </div>
 
