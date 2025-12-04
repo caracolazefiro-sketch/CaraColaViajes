@@ -429,6 +429,7 @@ export default function TestUsabilidadCarmen() {
         md += `**Descripción:** ${t.description}\n\n`;
         md += `**Esperado:** ${t.expectedBehavior}\n\n`;
         md += `**Actual:** ${t.actualBehavior}\n\n`;
+        if (t.myFindings) md += `**Mis Hallazgos:** ${t.myFindings}\n\n`;
         if (t.screenshot) md += `**Screenshot:** \`${t.screenshot}\`\n\n`;
         md += `**Notas:** ${t.notes}\n\n`;
         md += `---\n\n`;
@@ -441,6 +442,53 @@ export default function TestUsabilidadCarmen() {
     a.href = url;
     a.download = `test-carmen-usabilidad-v07-${new Date().toISOString().split('T')[0]}.md`;
     a.click();
+  };
+
+  const copyConsoleLogs = () => {
+    // Obtener todos los hallazgos con contenido
+    const logsWithFindings = tests
+      .filter(t => t.myFindings && t.myFindings.trim() !== '')
+      .map(t => {
+        return `[${t.id}] ${t.title}\nStatus: ${t.status}\nHallazgos: ${t.myFindings}\n${'='.repeat(80)}`;
+      })
+      .join('\n\n');
+
+    const fullLog = `
+TEST DE USABILIDAD CARMEN V0.7
+Fecha: ${new Date().toLocaleString('es-ES')}
+${'-'.repeat(80)}
+
+ESTADÍSTICAS:
+- Total tests: ${stats.total}
+- Pendientes: ${stats.pending}
+- En testing: ${stats.testing}
+- Corregidos: ${stats.fixed}
+- Verificados: ${stats.verified}
+- Críticos sin resolver: ${stats.critical}
+
+${'='.repeat(80)}
+
+HALLAZGOS REPORTADOS:
+
+${logsWithFindings || 'No hay hallazgos reportados aún'}
+
+${'='.repeat(80)}
+`;
+
+    navigator.clipboard.writeText(fullLog).then(() => {
+      alert('✅ Logs copiados al portapapeles');
+    }).catch(() => {
+      // Fallback: crear textarea temporal
+      const textarea = document.createElement('textarea');
+      textarea.value = fullLog;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('✅ Logs copiados al portapapeles');
+    });
   };
 
   const categoryLabels = {
@@ -539,6 +587,13 @@ export default function TestUsabilidadCarmen() {
               className="ml-auto px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold"
             >
               📥 Exportar Markdown
+            </button>
+            
+            <button
+              onClick={copyConsoleLogs}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold"
+            >
+              📋 Copiar Logs
             </button>
           </div>
         </div>
