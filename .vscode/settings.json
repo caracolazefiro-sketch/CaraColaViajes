@@ -137,6 +137,20 @@
   "workbench.tips.enabled": false,
   "workbench.startupEditor": "none",
   "welcomePage.walkthroughs.openOnInstall": false,
-  "update.enableWindowsBackgroundUpdates": false
+  "update.enableWindowsBackgroundUpdates": false,
+
+  // ===== 🚀 OPTIMIZACIONES DE RENDIMIENTO (04/12/2025) =====
+  "telemetry.telemetryLevel": "off",
+  "editor.parameterHints.enabled": false,
+  "editor.hover.enabled": false,
+  "editor.lightbulb.enabled": false,
+  "editor.inlineCompletionsAccessibilityVerbosenessSetting": "off",
+  "extensions.autoCheckUpdates": false,
+  "files.hotExit": "off",
+  "git.autofetch": false,
+  "git.autorefresh": false,
+  "search.followSymlinks": false,
+  "debug.showDebugOutput": false,
+  "window.restoreFullscreen": false
 }
 
