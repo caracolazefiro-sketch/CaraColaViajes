@@ -242,11 +242,33 @@ export default function TripMap({
 
                 {/* Marcadores de Pernoctas (A, B, C, D...) */}
                 {dailyItinerary?.map((day, i) => {
-                    if (!day.coordinates) return null;
+                    // Primer día: pintar A en el ORIGEN (startCoordinates)
+                    if (i === 0 && day.startCoordinates) {
+                        return (
+                            <React.Fragment key={`day-${i}`}>
+                                <Marker 
+                                    key={`origin-${i}`} 
+                                    position={day.startCoordinates} 
+                                    icon={ICONS_ITINERARY.startEnd} 
+                                    title={day.from} 
+                                    label={{ text: 'A', color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                                />
+                                {day.coordinates && (
+                                    <Marker 
+                                        key={`dest-${i}`} 
+                                        position={day.coordinates} 
+                                        icon={ICONS_ITINERARY.startEnd} 
+                                        title={day.to} 
+                                        label={{ text: 'B', color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                                    />
+                                )}
+                            </React.Fragment>
+                        );
+                    }
                     
-                    // Todos los días de conducción tienen marcador
-                    if (day.isDriving) {
-                        const letter = String.fromCharCode(65 + i); // A, B, C, D...
+                    // Resto de días: pintar solo destinos (C, D, E...)
+                    if (i > 0 && day.coordinates && day.isDriving) {
+                        const letter = String.fromCharCode(66 + i); // C, D, E... (66 = C porque ya usamos B)
                         return (
                             <Marker 
                                 key={`pernocta-${i}`} 
