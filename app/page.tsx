@@ -225,16 +225,31 @@ export default function Home() {
       const adjustedDayOrigin = updatedItinerary[adjustingDayIndex].from;
       const finalDestination = formData.destino;
       
-      // NO pasamos waypoints intermedios - dejamos que Google recalcule libremente
-      // Esto asegura que respete los 300km/día desde el nuevo punto
-      const waypoints: string[] = [];
+      // Construir waypoints: nuevo destino + waypoints originales del usuario (NO paradas tácticas)
+      const userWaypoints = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim()) : [];
+      
+      // Encontrar qué waypoints del usuario vienen DESPUÉS del punto ajustado
+      const waypointsAfterAdjust: string[] = [];
+      let foundAdjustedPoint = false;
+      
+      for (const waypoint of userWaypoints) {
+        // Si ya pasamos el punto ajustado, incluir el resto
+        if (foundAdjustedPoint) {
+          waypointsAfterAdjust.push(waypoint);
+        }
+        // Detectar si este waypoint corresponde al día ajustado
+        if (updatedItinerary[adjustingDayIndex].to.includes(waypoint) || waypoint.includes(updatedItinerary[adjustingDayIndex].to.split(',')[0])) {
+          foundAdjustedPoint = true;
+        }
+      }
 
-      console.log('📍 Recalculando ruta libre desde:', adjustedDayOrigin, '→', newDestination, '→', finalDestination);
+      console.log('📍 Recalculando desde:', adjustedDayOrigin, '→', newDestination);
+      console.log('📍 Waypoints de usuario posteriores:', waypointsAfterAdjust);
 
       const recalcResult = await getDirectionsAndCost({
         origin: adjustedDayOrigin,
         destination: finalDestination,
-        waypoints: [newDestination], // Solo el nuevo destino como waypoint
+        waypoints: [newDestination, ...waypointsAfterAdjust], // Nuevo destino + waypoints del usuario
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
         fechaInicio: updatedItinerary[adjustingDayIndex].date,
