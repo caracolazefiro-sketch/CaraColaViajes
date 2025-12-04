@@ -74,7 +74,6 @@ interface FormData {
     origen: string;
     destino: string;
     etapas: string; // Pernoctas (overnight stops)
-    escalas: string; // NEW: Escalas (stopovers - visits without overnight)
     precioGasoil: number;
     consumo: number;
     kmMaximoDia: number;
@@ -112,13 +111,10 @@ export default function TripForm({
     
     const [isExpanded, setIsExpanded] = useState(true); 
     const [tempStop, setTempStop] = useState('');
-    const [tempStopover, setTempStopover] = useState(''); // NEW: Para escalas
-    const [showStopovers, setShowStopovers] = useState(false); // NEW: Mostrar sección de escalas
     
     const originRef = useRef<google.maps.places.Autocomplete | null>(null);
     const destRef = useRef<google.maps.places.Autocomplete | null>(null);
     const stopRef = useRef<google.maps.places.Autocomplete | null>(null);
-    const stopoverRef = useRef<google.maps.places.Autocomplete | null>(null); // NEW: Para escalas
 
     // Auto-colapsar cuando se completen los resultados
     useEffect(() => {
@@ -128,7 +124,6 @@ export default function TripForm({
     }, [loading, results.totalDays]);
 
     const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim().length > 0) : [];
-    const currentStopovers = formData.escalas ? formData.escalas.split('|').filter((s: string) => s.trim().length > 0) : []; // NEW
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
@@ -142,18 +137,11 @@ export default function TripForm({
         if (!isChecked) setFormData({ ...formData, etapas: '' });
     };
 
-    const handleToggleStopovers = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const isChecked = e.target.checked;
-        setShowStopovers(isChecked);
-        if (!isChecked) setFormData({ ...formData, escalas: '' });
-    };
-
-    const onPlaceChanged = (field: 'origen' | 'destino' | 'tempStop' | 'tempStopover') => {
-        const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : field === 'tempStop' ? stopRef : stopoverRef;
+    const onPlaceChanged = (field: 'origen' | 'destino' | 'tempStop') => {
+        const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
         const place = ref.current?.getPlace();
         if (place && place.formatted_address) {
             if (field === 'tempStop') setTempStop(place.formatted_address);
-            else if (field === 'tempStopover') setTempStopover(place.formatted_address);
             else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
         }
     };
@@ -184,19 +172,6 @@ export default function TripForm({
     const removeWaypoint = (indexToRemove: number) => {
         const newStops = currentStops.filter((_: string, index: number) => index !== indexToRemove);
         setFormData({ ...formData, etapas: newStops.join('|') });
-    };
-
-    // NEW: Funciones para manejar escalas (stopovers)
-    const addStopover = () => {
-        if (!tempStopover) return;
-        const newStopovers = [...currentStopovers, tempStopover];
-        setFormData({ ...formData, escalas: newStopovers.join('|') });
-        setTempStopover(''); 
-    };
-
-    const removeStopover = (indexToRemove: number) => {
-        const newStopovers = currentStopovers.filter((_: string, index: number) => index !== indexToRemove);
-        setFormData({ ...formData, escalas: newStopovers.join('|') });
     };
 
     // --- CÁLCULOS PARA RENDERIZADO BILINGÜE ---
@@ -343,11 +318,6 @@ export default function TripForm({
                         </label>
 
                         <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs select-none border-l pl-6 border-red-200">
-                            <input type="checkbox" className="text-red-600 rounded focus:ring-red-500" checked={showStopovers} onChange={handleToggleStopovers} />
-                            {t('FORM_STOPOVERS_TITLE')}
-                        </label>
-
-                        <label className="flex items-center gap-2 cursor-pointer text-red-800 font-bold text-xs select-none border-l pl-6 border-red-200">
                             <input type="checkbox" id="vueltaACasa" checked={formData.vueltaACasa || false} onChange={handleChange} className="text-red-600 rounded focus:ring-red-500" />
                             {t('FORM_ROUND_TRIP')}
                         </label>
@@ -391,48 +361,6 @@ export default function TripForm({
                                 </div>
                             ) : (
                                 <p className="text-[10px] text-gray-400 italic text-center">{t('FORM_NO_WAYPOINTS')}</p>
-                            )}
-                        </div>
-                    )}
-
-                    {/* ZONA DE ESCALAS (CHIPS) - Visitas en ruta sin pernocta */}
-                    {showStopovers && (
-                        <div className="md:col-span-2 lg:col-span-4 -mt-2 space-y-3 p-3 bg-blue-50 rounded border border-blue-200">
-                            <div className="flex gap-2 items-center">
-                                <div className="flex-1 relative">
-                                    <Autocomplete onLoad={ref => stopoverRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStopover')}>
-                                        <input 
-                                            type="text" 
-                                            value={tempStopover} 
-                                            onChange={(e) => setTempStopover(e.target.value)} 
-                                            placeholder={t('FORM_STOPOVER_SEARCH_PLACEHOLDER')} 
-                                            className="w-full px-3 py-2 text-xs border border-blue-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
-                                        />
-                                    </Autocomplete>
-                                </div>
-                                <button type="button" onClick={addStopover} className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1 shadow-sm">
-                                    <IconPlusCircle /> {t('MAP_ADD')}
-                                </button>
-                            </div>
-                            
-                            {currentStopovers.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {currentStopovers.map((stopover: string, index: number) => (
-                                        <div key={index} className="flex items-center gap-2 bg-white border-2 border-blue-300 text-gray-800 px-3 py-2 rounded-lg text-sm shadow-sm animate-fadeIn font-medium">
-                                            <span className="font-semibold">🚩 {stopover}</span>
-                                            <button 
-                                                type="button" 
-                                                onClick={() => removeStopover(index)} 
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full p-1.5 transition-all hover:scale-110"
-                                                title="Eliminar escala"
-                                            >
-                                                <IconTrash />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-[10px] text-gray-400 italic text-center">{t('FORM_NO_STOPOVERS')}</p>
                             )}
                         </div>
                     )}
