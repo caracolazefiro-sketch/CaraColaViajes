@@ -225,30 +225,16 @@ export default function Home() {
       const adjustedDayOrigin = updatedItinerary[adjustingDayIndex].from;
       const finalDestination = formData.destino;
       
-      // Construir waypoints usando COORDENADAS para evitar ambigüedades (ej: Solferino Francia vs Italia)
+      // NO pasamos waypoints intermedios - dejamos que Google recalcule libremente
+      // Esto asegura que respete los 300km/día desde el nuevo punto
       const waypoints: string[] = [];
-      
-      // Añadir nuevo destino (puede ser nombre o coordenadas)
-      waypoints.push(newDestination);
-      
-      // Añadir waypoints siguientes usando coordenadas si están disponibles
-      for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
-        const day = updatedItinerary[i];
-        if (day.coordinates) {
-          // Usar coordenadas para evitar ambigüedades
-          waypoints.push(`${day.coordinates.lat},${day.coordinates.lng}`);
-        } else {
-          // Fallback al nombre si no hay coordenadas
-          waypoints.push(day.to);
-        }
-      }
 
-      console.log('📍 Origen:', adjustedDayOrigin, '| Destino:', finalDestination, '| Waypoints:', waypoints);
+      console.log('📍 Recalculando ruta libre desde:', adjustedDayOrigin, '→', newDestination, '→', finalDestination);
 
       const recalcResult = await getDirectionsAndCost({
         origin: adjustedDayOrigin,
         destination: finalDestination,
-        waypoints,
+        waypoints: [newDestination], // Solo el nuevo destino como waypoint
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
         fechaInicio: updatedItinerary[adjustingDayIndex].date,
