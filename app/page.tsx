@@ -398,13 +398,29 @@ export default function Home() {
       // 2. Recalcular la ruta del día incluyendo las escalas como waypoints
       const { getDirectionsAndCost } = await import('./actions');
       
-      // IMPORTANTE: Usar las direcciones COMPLETAS del formulario, no los nombres simplificados del itinerario
-      // El primer día usa el origen del formulario, el último día usa el destino del formulario
-      const isFirstDay = dayIndex === 0;
-      const isLastDay = dayIndex === updatedItinerary.length - 1;
+      // Obtener coordenadas del día anterior (para el origen) y del día actual (para el destino)
+      const prevDay = dayIndex > 0 ? updatedItinerary[dayIndex - 1] : null;
+      const currentDay = updatedItinerary[dayIndex];
       
-      const dayOrigin = isFirstDay ? formData.origen : updatedItinerary[dayIndex].from;
-      const dayDestination = isLastDay ? formData.destino : updatedItinerary[dayIndex].to;
+      // Origen: usar coordenadas del día anterior si existen, sino formData.origen si es el primer día, sino nombre simplificado
+      let dayOrigin: string;
+      if (dayIndex === 0) {
+        dayOrigin = formData.origen; // Primer día: usar origen del formulario (completo)
+      } else if (prevDay?.coordinates) {
+        dayOrigin = `${prevDay.coordinates.lat},${prevDay.coordinates.lng}`; // Usar coordenadas del día anterior
+      } else {
+        dayOrigin = currentDay.from; // Fallback: nombre simplificado
+      }
+      
+      // Destino: usar coordenadas del día actual si existen, sino formData.destino si es el último día, sino nombre simplificado
+      let dayDestination: string;
+      if (currentDay.coordinates) {
+        dayDestination = `${currentDay.coordinates.lat},${currentDay.coordinates.lng}`; // Usar coordenadas del destino
+      } else if (dayIndex === updatedItinerary.length - 1) {
+        dayDestination = formData.destino; // Último día: usar destino del formulario (completo)
+      } else {
+        dayDestination = currentDay.to; // Fallback: nombre simplificado
+      }
 
       // Construir waypoints: las escalas van en orden entre origen y destino
       const dayWaypoints = stopovers;
