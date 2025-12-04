@@ -10,7 +10,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
         camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false
     });
     const [toggles, setToggles] = useState<Record<ServiceType, boolean>>({
-        camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true, search: false, found: false
+        camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false
     });
 
     // 💰 CACHÉ EN MEMORIA (Ahorro de API Calls)
@@ -299,7 +299,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
     const resetPlaces = () => {
         // Opcional: Podríamos limpiar la caché aquí si quisiéramos forzar recarga al cambiar de viaje
         // placesCache.current = {}; 
-        setToggles({ camping: true, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: true, search: false, found: false });
+        setToggles({ camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false });
         setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: [] });
     };
 

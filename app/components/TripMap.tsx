@@ -346,7 +346,7 @@ export default function TripMap({
             {setMinRating && setSearchRadius && setSortBy && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-transparent rounded-lg p-3 flex flex-col items-center gap-3 w-fit group">
                     {/* Sliders Container */}
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4 md:gap-6">
                         {/* Rating Slider - ROJO DEGRADADO */}
                         <div className="flex flex-col items-center gap-1.5">
                             <label className="text-[11px] font-light text-red-600 flex items-center gap-1.5">
@@ -359,7 +359,7 @@ export default function TripMap({
                                 step="0.5"
                                 value={minRating}
                                 onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                                className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
+                                className="w-24 md:w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
                                 style={{
                                     background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                     WebkitAppearance: 'none',
@@ -379,7 +379,7 @@ export default function TripMap({
                                 step="5"
                                 value={searchRadius}
                                 onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                                className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
+                                className="w-24 md:w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
                                 style={{
                                     background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                     WebkitAppearance: 'none',
@@ -403,7 +403,7 @@ export default function TripMap({
                                     const val = parseInt(e.target.value);
                                     setSortBy(val === 0 ? 'score' : val === 1 ? 'distance' : 'rating');
                                 }}
-                                className="w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
+                                className="w-24 md:w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
                                 style={{
                                     background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                     WebkitAppearance: 'none',
