@@ -398,43 +398,41 @@ export default function Home() {
       // 2. Recalcular la ruta del día incluyendo las escalas como waypoints
       const { getDirectionsAndCost } = await import('./actions');
       
-      // Obtener coordenadas del día anterior (para el origen) y del día actual (para el destino)
-      const prevDay = dayIndex > 0 ? updatedItinerary[dayIndex - 1] : null;
       const currentDay = updatedItinerary[dayIndex];
       
-      // Origen: usar coordenadas del día anterior si existen, sino formData.origen si es el primer día, sino nombre simplificado
-      let dayOrigin: string;
-      if (dayIndex === 0) {
-        dayOrigin = formData.origen; // Primer día: usar origen del formulario (completo)
-      } else if (prevDay?.coordinates) {
-        dayOrigin = `${prevDay.coordinates.lat},${prevDay.coordinates.lng}`; // Usar coordenadas del día anterior
+      // IMPORTANTE: Usar COORDENADAS para Google API (precisión), guardar NOMBRES para UI (legibilidad)
+      // Origen: usar coordenadas si es día 0, sino coordenadas del día anterior
+      let dayOriginCoords: string;
+      if (dayIndex === 0 && currentDay.startCoordinates) {
+        dayOriginCoords = `${currentDay.startCoordinates.lat},${currentDay.startCoordinates.lng}`;
+      } else if (dayIndex > 0 && updatedItinerary[dayIndex - 1].coordinates) {
+        const prevCoords = updatedItinerary[dayIndex - 1].coordinates;
+        dayOriginCoords = `${prevCoords.lat},${prevCoords.lng}`;
       } else {
-        dayOrigin = currentDay.from; // Fallback: nombre simplificado
+        dayOriginCoords = formData.origen; // Fallback: nombre del formulario
       }
       
-      // Destino: usar coordenadas del día actual si existen, sino formData.destino si es el último día, sino nombre simplificado
-      let dayDestination: string;
+      // Destino: usar coordenadas del día actual
+      let dayDestinationCoords: string;
       if (currentDay.coordinates) {
-        dayDestination = `${currentDay.coordinates.lat},${currentDay.coordinates.lng}`; // Usar coordenadas del destino
-      } else if (dayIndex === updatedItinerary.length - 1) {
-        dayDestination = formData.destino; // Último día: usar destino del formulario (completo)
+        dayDestinationCoords = `${currentDay.coordinates.lat},${currentDay.coordinates.lng}`;
       } else {
-        dayDestination = currentDay.to; // Fallback: nombre simplificado
+        dayDestinationCoords = formData.destino; // Fallback: nombre del formulario
       }
 
       // Construir waypoints: las escalas van en orden entre origen y destino
       const dayWaypoints = stopovers;
 
       console.log(`📍 Recalculando día ${dayIndex}:`);
-      console.log(`   Origen: ${dayOrigin}`);
-      console.log(`   Destino: ${dayDestination}`);
+      console.log(`   Origen (coords): ${dayOriginCoords}`);
+      console.log(`   Destino (coords): ${dayDestinationCoords}`);
       console.log(`   Waypoints: [${dayWaypoints.join(', ')}]`);
       console.log(`   KM máximo permitido: ${formData.kmMaximoDia * 10}`);
 
-      // Calcular solo este segmento
+      // Calcular solo este segmento (usando COORDENADAS)
       const segmentResult = await getDirectionsAndCost({
-        origin: dayOrigin,
-        destination: dayDestination,
+        origin: dayOriginCoords,
+        destination: dayDestinationCoords,
         waypoints: dayWaypoints,
         kmMaximoDia: formData.kmMaximoDia * 10, // Permitir cualquier distancia para este día específico
         travel_mode: 'driving',
@@ -481,16 +479,20 @@ export default function Home() {
       if (typeof google !== 'undefined') {
         const directionsService = new google.maps.DirectionsService();
         
-        // Construir TODOS los waypoints del viaje completo
+        // Construir TODOS los waypoints del viaje completo (USANDO COORDENADAS)
         const allWaypoints: { location: string; stopover: boolean }[] = [];
         
         updatedItinerary.forEach((day, idx) => {
           // Añadir pernoctas intermedias (destinos de días de conducción excepto el último)
-          if (idx > 0 && idx < updatedItinerary.length - 1 && day.isDriving) {
-            allWaypoints.push({ location: day.to, stopover: true });
+          if (idx > 0 && idx < updatedItinerary.length - 1 && day.isDriving && day.coordinates) {
+            // Usar COORDENADAS para precisión
+            allWaypoints.push({ 
+              location: `${day.coordinates.lat},${day.coordinates.lng}`, 
+              stopover: true 
+            });
           }
           
-          // Añadir escalas del día (si las tiene)
+          // Añadir escalas del día (usar NOMBRES porque no tenemos sus coordenadas geocodificadas)
           if (day.stopovers && day.stopovers.length > 0) {
             day.stopovers.forEach(stopover => {
               allWaypoints.push({ location: stopover, stopover: true });
@@ -502,8 +504,8 @@ export default function Home() {
         
         directionsService.route(
           {
-            origin: formData.origen,
-            destination: formData.destino,
+            origin: formData.origen, // Usar nombre del formulario (ya validado)
+            destination: formData.destino, // Usar nombre del formulario (ya validado)
             waypoints: allWaypoints,
             travelMode: google.maps.TravelMode.DRIVING,
             avoidTolls: formData.evitarPeajes
