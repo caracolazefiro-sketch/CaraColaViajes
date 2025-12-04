@@ -212,7 +212,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                         <div key={`${type}-${idx}`} className={`group p-3 rounded border transition-all flex gap-3 shadow-sm ${
                             isSelected 
                                 ? 'bg-red-50/40 border-red-200' 
-                                : 'bg-white border-gray-200 hover:border-blue-300'
+                                : 'bg-white border-gray-200 hover:border-gray-300'
                         }`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
                             <div className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold text-white ${markerColor}`}>{idx + 1}</div>
                             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
@@ -238,7 +238,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                         </span>
                                     )}
                                     {spot.distanceFromCenter !== undefined && (
-                                        <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-medium">
+                                        <span className="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded font-medium">
                                             dist: {(spot.distanceFromCenter / 1000).toFixed(1)}km
                                         </span>
                                     )}
@@ -265,7 +265,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                     <div className="mt-1 pt-1 border-t border-gray-200 space-y-0.5">
                                         <div className="flex gap-1 flex-wrap text-[9px]">
                                             {spot.type && (
-                                                <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono border border-blue-200">
+                                                <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono border border-gray-200">
                                                     type: {spot.type}
                                                 </span>
                                             )}
