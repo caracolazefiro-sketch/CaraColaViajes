@@ -105,51 +105,41 @@ const ServiceList: React.FC<ServiceListProps> = ({
     const savedOfType = saved.filter(s => s.type === type);
     const hasResults = places[type]?.length > 0 || savedOfType.length > 0;
     
-    // Si toggle OFF y no hay lugares guardados → no mostrar nada
-    if (!toggles[type] && savedOfType.length === 0 && !isSpecialType) return null;
+    // 🆕 NUEVA LÓGICA: Toggle OFF = no mostrar nada (guardados ya visibles en MI PLAN)
+    // Solo mostrar cuando toggle ON o para tipos especiales
+    if (!toggles[type] && !isSpecialType) return null;
     if (type === 'search' && !hasResults && !toggles[type]) return null;
     if (type === 'custom' && !hasResults) return null;
 
-    // Construir lista: siempre mostrar guardados, añadir búsquedas solo si toggle ON
+    // 🆕 Construir lista: toggle ON siempre muestra guardados + búsquedas (deduplicados)
     let list: PlaceWithDistance[] = [];
     if (type === 'custom' || type === 'search' || type === 'found') {
         list = savedOfType;
-    } else if (savedOfType.length > 0 && toggles[type]) {
-        // Toggle ON: guardados + búsquedas
-        list = [...savedOfType, ...places[type]].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
-    } else if (savedOfType.length > 0 && !toggles[type]) {
-        // Toggle OFF: solo guardados
-        list = savedOfType;
     } else if (toggles[type]) {
-        // Toggle ON sin guardados: solo búsquedas
-        list = places[type];
+        // Toggle ON: guardados + búsquedas (sin duplicados)
+        list = [...savedOfType, ...(places[type] || [])].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
     }
 
     // 🎚️ APLICAR FILTROS Y ORDENACIÓN (solo a búsquedas, no a guardados)
-    // 🔥 AHORA: Usamos la función pura filterAndSort con parámetros explícitos
-    if (type !== 'custom' && type !== 'search' && type !== 'found') {
+    if (type !== 'custom' && type !== 'search' && type !== 'found' && toggles[type]) {
         const searchResults = places[type] || [];
         const filteredResults = filterAndSort(searchResults, minRating, searchRadius, sortBy);
         
-        // Recombinar: guardados sin filtrar + búsquedas filtradas
-        if (savedOfType.length > 0 && toggles[type]) {
-            list = [...savedOfType, ...filteredResults].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
-        } else if (savedOfType.length > 0 && !toggles[type]) {
-            list = savedOfType;
-        } else if (toggles[type]) {
-            list = filteredResults;
-        }
+        // Recombinar: guardados sin filtrar + búsquedas filtradas (sin duplicados)
+        list = [...savedOfType, ...filteredResults].filter((v,i,a)=>a.findIndex(t=>(t.place_id === v.place_id))===i);
     }
 
     const isLoading = loading[type];
     if ((type === 'custom' || type === 'search' || type === 'found') && list.length === 0) return null;
 
-    // Calcular totales para tooltip
-    const totalFound = (type === 'custom' || type === 'search' || type === 'found') 
+    // 🆕 Calcular contadores: seleccionados (saved) vs disponibles (search)
+    const selectedCount = savedOfType.length;
+    const availableCount = (type === 'custom' || type === 'search' || type === 'found') 
         ? list.length 
-        : savedOfType.length + (places[type]?.length || 0);
-    const totalShown = list.length;
-    const isFiltered = totalFound !== totalShown;
+        : (places[type] || []).length;
+    const isFiltered = toggles[type] && type !== 'custom' && type !== 'search' && type !== 'found' 
+        && availableCount > 0 
+        && filterAndSort(places[type] || [], minRating, searchRadius, sortBy).length !== availableCount;
 
     return (
         <div className="animate-fadeIn mt-4">
@@ -157,20 +147,17 @@ const ServiceList: React.FC<ServiceListProps> = ({
                 <span className="flex items-center gap-1">
                     {Icon && <Icon size={14} />} {title}
                 </span>
-                {!isLoading && (
-                    <span 
-                        className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full cursor-help relative group"
-                        title={isFiltered 
-                            ? `🔍 Encontrados: ${totalFound} | 📊 Mostrados: ${totalShown} | ⚙️ Filtros: Rating ≥${minRating.toFixed(1)}, Radio ${searchRadius}km`
-                            : `${totalShown} ${type === 'custom' ? 'personalizados' : 'encontrados'}`
-                        }
-                    >
-                        {totalShown}
-                        {isFiltered && (
-                            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block w-max max-w-xs bg-gray-800 text-white text-[9px] px-2 py-1 rounded shadow-lg z-50 whitespace-nowrap">
-                                🔍 Encontrados: {totalFound} | 📊 Mostrados: {totalShown} | ⚙️ Filtros: ⭐{minRating.toFixed(1)} 📍{searchRadius}km
-                            </span>
-                        )}
+                {!isLoading && (type !== 'custom' && type !== 'search' && type !== 'found') && (
+                    <span className="text-[10px] font-semibold text-gray-600">
+                        <span className="text-blue-600">{selectedCount} seleccionados</span>
+                        <span className="text-gray-400 mx-1">|</span>
+                        <span className="text-gray-600">{availableCount} disponibles</span>
+                        {isFiltered && <span className="text-orange-500 ml-1" title="Filtros aplicados">⚡</span>}
+                    </span>
+                )}
+                {!isLoading && (type === 'custom' || type === 'search' || type === 'found') && (
+                    <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {list.length}
                     </span>
                 )}
             </h5>
@@ -184,8 +171,14 @@ const ServiceList: React.FC<ServiceListProps> = ({
                         const isPopular = (spot.user_ratings_total || 0) >= 100;
                         const isNearby = (spot.distanceFromCenter || 999999) < 3000;
                         
+                        const isSelected = isSaved(spot.place_id);
+                        
                         return (
-                        <div key={`${type}-${idx}`} className={`group bg-white p-3 rounded border ${isSaved(spot.place_id) ? 'border-green-500 bg-green-50 ring-1 ring-green-500' : 'border-gray-200'} hover:border-blue-400 transition-all flex gap-3 shadow-sm`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
+                        <div key={`${type}-${idx}`} className={`group p-3 rounded border transition-all flex gap-3 shadow-sm ${
+                            isSelected 
+                                ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-300' 
+                                : 'bg-white border-gray-200 hover:border-blue-300'
+                        }`} onMouseEnter={() => onHover(spot)} onMouseLeave={() => onHover(null)}>
                             <div className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold text-white ${markerColor}`}>{idx + 1}</div>
                             <div className="min-w-0 flex-1 cursor-pointer" onClick={() => handlePlaceClick(spot)}>
                                 {/* Nombre + Badges */}
