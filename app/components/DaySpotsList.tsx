@@ -9,7 +9,7 @@ import StarRating from './StarRating';
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
 import { filterAndSort } from '../hooks/useSearchFilters';
-import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp, IconInfo } from '../lib/svgIcons';
+import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp, IconInfo, IconZap } from '../lib/svgIcons';
 import { ServiceIcons } from './ServiceIcons';
 
 // Iconos
@@ -152,7 +152,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                         <span className="text-blue-600">{selectedCount} seleccionados</span>
                         <span className="text-gray-400 mx-1">|</span>
                         <span className="text-gray-600">{availableCount} disponibles</span>
-                        {isFiltered && <span className="text-orange-500 ml-1" title="Filtros aplicados">⚡</span>}
+                        {isFiltered && <IconZap size={12} className="inline ml-1 text-orange-500" title="Filtros aplicados" />}
                     </span>
                 )}
                 {!isLoading && (type === 'custom' || type === 'search' || type === 'found') && (
