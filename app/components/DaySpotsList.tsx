@@ -33,17 +33,19 @@ interface ServiceButtonProps {
     label: string;
     toggles: Record<ServiceType, boolean>;
     onToggle: (type: ServiceType) => void;
-    count?: number;
-    selectedCount?: number; // Nuevo: contador de seleccionados
-    filteredCount?: number; // Nuevo: contador post-filtro
+    count?: number; // Brutos de Google (no usado en badge, solo para cálculo)
+    selectedCount?: number; // Contador de seleccionados
+    filteredAvailableCount?: number; // Disponibles DESPUÉS de filtros (lo que realmente se ve)
 }
 
-const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, selectedCount = 0, filteredCount }) => {
+const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, selectedCount = 0, filteredAvailableCount = 0 }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
     
-    // Mostrar "X/Y" si hay seleccionados, sino solo count
-    const showBadge = count > 0 || selectedCount > 0;
+    // 🆕 NUEVA LÓGICA: Mostrar lo que el usuario VE en la lista (post-filtros)
+    // Badge muestra: X seleccionados / Y disponibles filtrados
+    const availableToShow = filteredAvailableCount; // Disponibles después de filtros
+    const showBadge = availableToShow > 0 || selectedCount > 0;
     
     return (
         <button 
@@ -64,7 +66,7 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
             {/* Label */}
             <span className="text-[10px] leading-tight text-center">{label}</span>
             
-            {/* Contador de resultados: X/Y formato */}
+            {/* Contador de resultados: X/Y formato (coherente con lista visible) */}
             {showBadge && (
                 <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
                     isActive 
@@ -75,10 +77,10 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
                         <>
                             <span className="text-blue-200">{selectedCount}</span>
                             <span className="opacity-50">/</span>
-                            <span>{count}</span>
+                            <span>{availableToShow}</span>
                         </>
                     ) : (
-                        count
+                        availableToShow
                     )}
                 </span>
             )}
@@ -515,7 +517,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.camping?.length || 0}
                             selectedCount={saved.filter(s => s.type === 'camping').length}
-                            filteredCount={saved.filter(s => s.type === 'camping').length + filterAndSort(places.camping || [], minRating, searchRadius, sortBy).length}
+                            filteredAvailableCount={filterAndSort(places.camping || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="water" 
@@ -524,7 +526,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.water?.length || 0}
                             selectedCount={saved.filter(s => s.type === 'water').length}
-                            filteredCount={saved.filter(s => s.type === 'water').length + filterAndSort(places.water || [], minRating, searchRadius, sortBy).length}
+                            filteredAvailableCount={filterAndSort(places.water || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="gas" 
@@ -533,7 +535,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.gas?.length || 0}
                             selectedCount={saved.filter(s => s.type === 'gas').length}
-                            filteredCount={saved.filter(s => s.type === 'gas').length + filterAndSort(places.gas || [], minRating, searchRadius, sortBy).length}
+                            filteredAvailableCount={filterAndSort(places.gas || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="restaurant" 
@@ -542,7 +544,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.restaurant?.length || 0}
                             selectedCount={saved.filter(s => s.type === 'restaurant').length}
-                            filteredCount={saved.filter(s => s.type === 'restaurant').length + filterAndSort(places.restaurant || [], minRating, searchRadius, sortBy).length}
+                            filteredAvailableCount={filterAndSort(places.restaurant || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="supermarket" 
@@ -551,7 +553,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.supermarket?.length || 0}
                             selectedCount={saved.filter(s => s.type === 'supermarket').length}
-                            filteredCount={saved.filter(s => s.type === 'supermarket').length + filterAndSort(places.supermarket || [], minRating, searchRadius, sortBy).length}
+                            filteredAvailableCount={filterAndSort(places.supermarket || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="laundry" 
@@ -560,7 +562,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.laundry?.length || 0}
                             selectedCount={saved.filter(s => s.type === 'laundry').length}
-                            filteredCount={saved.filter(s => s.type === 'laundry').length + filterAndSort(places.laundry || [], minRating, searchRadius, sortBy).length}
+                            filteredAvailableCount={filterAndSort(places.laundry || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="tourism" 
@@ -569,7 +571,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.tourism?.length || 0}
                             selectedCount={saved.filter(s => s.type === 'tourism').length}
-                            filteredCount={saved.filter(s => s.type === 'tourism').length + filterAndSort(places.tourism || [], minRating, searchRadius, sortBy).length}
+                            filteredAvailableCount={filterAndSort(places.tourism || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="custom" 
