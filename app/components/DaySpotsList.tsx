@@ -579,7 +579,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             toggles={toggles} 
                             onToggle={onToggle} 
                             count={saved.filter(s => s.type === 'custom').length}
-                            filteredCount={saved.filter(s => s.type === 'custom').length}
+                            selectedCount={saved.filter(s => s.type === 'custom').length}
+                            filteredAvailableCount={0}
                         />
                         {saved.filter(s => s.type === 'search').length > 0 && (
                             <ServiceButton 
@@ -588,7 +589,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 toggles={toggles} 
                                 onToggle={onToggle} 
                                 count={saved.filter(s => s.type === 'search').length}
-                                filteredCount={saved.filter(s => s.type === 'search').length}
+                                selectedCount={saved.filter(s => s.type === 'search').length}
+                                filteredAvailableCount={0}
                             />
                         )}
                         {saved.filter(s => s.type === 'found').length > 0 && (
@@ -598,7 +600,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 toggles={toggles} 
                                 onToggle={onToggle} 
                                 count={saved.filter(s => s.type === 'found').length}
-                                filteredCount={saved.filter(s => s.type === 'found').length}
+                                selectedCount={saved.filter(s => s.type === 'found').length}
+                                filteredAvailableCount={0}
                             />
                         )}
                         {/* Botón Añadir Sitio como parte del grid */}
