@@ -225,10 +225,22 @@ export default function Home() {
       const adjustedDayOrigin = updatedItinerary[adjustingDayIndex].from;
       const finalDestination = formData.destino;
       
-      // Construir waypoints: nuevo destino + destinos de días siguientes
-      const waypoints: string[] = [newDestination];
+      // Construir waypoints usando COORDENADAS para evitar ambigüedades (ej: Solferino Francia vs Italia)
+      const waypoints: string[] = [];
+      
+      // Añadir nuevo destino (puede ser nombre o coordenadas)
+      waypoints.push(newDestination);
+      
+      // Añadir waypoints siguientes usando coordenadas si están disponibles
       for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
-        waypoints.push(updatedItinerary[i].to);
+        const day = updatedItinerary[i];
+        if (day.coordinates) {
+          // Usar coordenadas para evitar ambigüedades
+          waypoints.push(`${day.coordinates.lat},${day.coordinates.lng}`);
+        } else {
+          // Fallback al nombre si no hay coordenadas
+          waypoints.push(day.to);
+        }
       }
 
       console.log('📍 Origen:', adjustedDayOrigin, '| Destino:', finalDestination, '| Waypoints:', waypoints);
