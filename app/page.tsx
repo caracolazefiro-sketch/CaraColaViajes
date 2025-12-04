@@ -330,15 +330,16 @@ export default function Home() {
       console.log('✅ Ruta recalculada sin el waypoint eliminado');
 
       // 3. Mapear resultado para añadir campos requeridos (isoDate, type, savedPlaces)
-      const mappedItinerary = recalcResult.dailyItinerary.map((day: any, idx: number) => {
+      const mappedItinerary = recalcResult.dailyItinerary!.map((day: any, idx: number) => {
         const currentDate = new Date(formData.fechaInicio);
         currentDate.setDate(currentDate.getDate() + idx);
+        const totalDays = recalcResult.dailyItinerary!.length;
         
         return {
           ...day,
           isoDate: currentDate.toISOString().split('T')[0],
           type: day.isDriving 
-            ? (idx === 0 ? 'start' : idx === recalcResult.dailyItinerary.length - 1 ? 'end' : 'tactical')
+            ? (idx === 0 ? 'start' : idx === totalDays - 1 ? 'end' : 'tactical')
             : 'overnight',
           savedPlaces: []
         };
