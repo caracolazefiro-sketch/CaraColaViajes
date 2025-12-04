@@ -474,6 +474,29 @@ export default function Home() {
         distanceKm: updatedItinerary.reduce((sum, day) => sum + day.distance, 0)
       });
 
+      // 6. Redibujar la ruta en el mapa con las escalas
+      if (typeof google !== 'undefined') {
+        const directionsService = new google.maps.DirectionsService();
+        
+        directionsService.route(
+          {
+            origin: dayOrigin,
+            destination: dayDestination,
+            waypoints: dayWaypoints.map(wp => ({ location: wp, stopover: true })),
+            travelMode: google.maps.TravelMode.DRIVING,
+            avoidTolls: formData.evitarPeajes
+          },
+          (result, status) => {
+            if (status === 'OK' && result) {
+              setDirectionsResponse(result);
+              console.log('🗺️ Mapa actualizado con nueva ruta');
+            } else {
+              console.warn('⚠️ No se pudo actualizar el mapa:', status);
+            }
+          }
+        );
+      }
+
       showToast(`✅ Escalas actualizadas: ${stopovers.length} paradas en este día`, 'success');
       console.log('✅ Escalas actualizadas correctamente');
 
