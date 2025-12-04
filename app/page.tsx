@@ -458,6 +458,9 @@ export default function Home() {
 
       const recalculatedDay = segmentResult.dailyItinerary[0];
       
+      console.log(`📏 Distancia recalculada:`, recalculatedDay.distance);
+      console.log(`📏 Distancia total del segmentResult:`, segmentResult.distanceKm);
+      
       // 4. Actualizar el día con la nueva distancia y las escalas
       updatedItinerary[dayIndex] = {
         ...updatedItinerary[dayIndex],
@@ -474,22 +477,41 @@ export default function Home() {
         distanceKm: updatedItinerary.reduce((sum, day) => sum + day.distance, 0)
       });
 
-      // 6. Redibujar la ruta en el mapa con las escalas
+      // 6. Redibujar la ruta COMPLETA en el mapa (no solo este día)
       if (typeof google !== 'undefined') {
         const directionsService = new google.maps.DirectionsService();
         
+        // Construir TODOS los waypoints del viaje completo
+        const allWaypoints: { location: string; stopover: boolean }[] = [];
+        
+        updatedItinerary.forEach((day, idx) => {
+          // Añadir pernoctas intermedias (destinos de días de conducción excepto el último)
+          if (idx > 0 && idx < updatedItinerary.length - 1 && day.isDriving) {
+            allWaypoints.push({ location: day.to, stopover: true });
+          }
+          
+          // Añadir escalas del día (si las tiene)
+          if (day.stopovers && day.stopovers.length > 0) {
+            day.stopovers.forEach(stopover => {
+              allWaypoints.push({ location: stopover, stopover: true });
+            });
+          }
+        });
+        
+        console.log(`🗺️ Redibujando ruta completa con ${allWaypoints.length} waypoints`);
+        
         directionsService.route(
           {
-            origin: dayOrigin,
-            destination: dayDestination,
-            waypoints: dayWaypoints.map(wp => ({ location: wp, stopover: true })),
+            origin: formData.origen,
+            destination: formData.destino,
+            waypoints: allWaypoints,
             travelMode: google.maps.TravelMode.DRIVING,
             avoidTolls: formData.evitarPeajes
           },
           (result, status) => {
             if (status === 'OK' && result) {
               setDirectionsResponse(result);
-              console.log('🗺️ Mapa actualizado con nueva ruta');
+              console.log('✅ Mapa actualizado con ruta completa');
             } else {
               console.warn('⚠️ No se pudo actualizar el mapa:', status);
             }

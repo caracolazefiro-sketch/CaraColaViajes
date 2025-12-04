@@ -234,15 +234,42 @@ export default function TripMap({
                         directions={directionsResponse}
                         options={{
                             polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 },
-                            suppressMarkers: false,
+                            suppressMarkers: true, // ✅ SUPRIMIMOS marcadores de Google - ponemos los nuestros
                             preserveViewport: true // 🛑 PROHIBIDO TOCAR EL ZOOM: Nosotros mandamos
                         }}
                     />
                 )}
 
-                {dailyItinerary?.map((day, i) => day.coordinates && (
-                    <Marker key={`itinerary-${i}`} position={day.coordinates} icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd} title={day.to} label={{ text: `${i+1}`, color: "white", fontSize: "10px", fontWeight: "bold" }} />
+                {/* Marcadores de Pernoctas (destinos de días de conducción) */}
+                {dailyItinerary?.map((day, i) => day.coordinates && day.isDriving && (
+                    <Marker 
+                        key={`itinerary-${i}`} 
+                        position={day.coordinates} 
+                        icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd} 
+                        title={day.to} 
+                        label={{ text: `${i+1}`, color: "white", fontSize: "10px", fontWeight: "bold" }} 
+                    />
                 ))}
+                
+                {/* Marcadores de Escalas (chinchetas) */}
+                {dailyItinerary?.map((day, dayIdx) => 
+                    day.stopovers?.map((stopover, stopIdx) => (
+                        <Marker
+                            key={`stopover-${dayIdx}-${stopIdx}`}
+                            position={{ lat: 0, lng: 0 }} // TODO: Geocodificar escalas para obtener coordenadas
+                            icon={{
+                                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%23DC2626">
+                                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                                    </svg>
+                                `),
+                                scaledSize: new google.maps.Size(32, 32),
+                                anchor: new google.maps.Point(16, 32)
+                            }}
+                            title={stopover}
+                        />
+                    ))
+                )}
 
                 {Object.keys(places).map((key) => {
                     const type = key as ServiceType;
