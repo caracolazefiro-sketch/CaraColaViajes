@@ -345,8 +345,8 @@ export default function TripMap({
             {/* Filter Controls - Línea única con ROJO + Tooltip */}
             {setMinRating && setSearchRadius && setSortBy && (
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-transparent rounded-lg p-3 flex items-center gap-6 w-fit group">
-                    {/* Tooltip Info - Centro del mapa, izquierda, fondo transparente */}
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-transparent text-gray-700 text-[11px] rounded-lg px-3 py-2 whitespace-nowrap pointer-events-none z-20 border border-gray-300 border-opacity-40">
+                    {/* Tooltip Info - Arriba de los sliders, transparente */}
+                    <div className="absolute left-0 -top-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-transparent text-gray-700 text-[11px] rounded-lg px-3 py-2 whitespace-nowrap pointer-events-none z-20 border border-gray-300 border-opacity-40">
                         <p className="font-semibold mb-1.5 text-gray-800 text-[12px]">Filtros:</p>
                         <p className="text-gray-600 font-light">Rating: mín {minRating.toFixed(1)}/5</p>
                         <p className="text-gray-600 font-light">Radio: hasta {searchRadius}km</p>
