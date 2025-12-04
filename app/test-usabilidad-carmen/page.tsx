@@ -15,6 +15,7 @@ interface TestCase {
   priority: 1 | 2 | 3;
   assignedTo?: string;
   notes: string;
+  myFindings: string;
 }
 
 const initialTests: TestCase[] = [
@@ -29,7 +30,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image1.png',
     status: 'pending',
     priority: 1,
-    notes: 'Error crítico que bloquea edición de ruta. Revisar AdjustStageModal.tsx y llamadas a Directions API'
+    notes: 'Error crítico que bloquea edición de ruta. Revisar AdjustStageModal.tsx y llamadas a Directions API',
+    myFindings: ''
   },
   {
     id: 'C2',
@@ -41,7 +43,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image2.png',
     status: 'pending',
     priority: 1,
-    notes: 'Bug severo. Usuarios quedan atrapados con rutas incorrectas. Revisar useTripPlaces.ts'
+    notes: 'Bug severo. Usuarios quedan atrapados con rutas incorrectas. Revisar useTripPlaces.ts',
+    myFindings: ''
   },
   {
     id: 'C3',
@@ -53,7 +56,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image3.png',
     status: 'pending',
     priority: 1,
-    notes: 'Revisar actions.ts - función getDirectionsAndCost. Waypoints no se procesan correctamente'
+    notes: 'Revisar actions.ts - función getDirectionsAndCost. Waypoints no se procesan correctamente',
+    myFindings: ''
   },
   {
     id: 'C4',
@@ -65,7 +69,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image4.png',
     status: 'pending',
     priority: 2,
-    notes: 'Añadir botón de reset en AppHeader.tsx. Debe limpiar localStorage y state'
+    notes: 'Añadir botón de reset en AppHeader.tsx. Debe limpiar localStorage y state',
+    myFindings: ''
   },
   {
     id: 'C5',
@@ -77,7 +82,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image5.png',
     status: 'pending',
     priority: 2,
-    notes: 'Revisar TripForm.tsx - añadir required o hacer el campo opcional de verdad'
+    notes: 'Revisar TripForm.tsx - añadir required o hacer el campo opcional de verdad',
+    myFindings: ''
   },
 
   // MEJORAS UX (8)
@@ -91,7 +97,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image6.png',
     status: 'pending',
     priority: 2,
-    notes: 'Revisar CSS en ItineraryPanel.tsx. Posible overflow-x-auto innecesario'
+    notes: 'Revisar CSS en ItineraryPanel.tsx. Posible overflow-x-auto innecesario',
+    myFindings: ''
   },
   {
     id: 'UX2',
@@ -103,7 +110,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image7.png',
     status: 'pending',
     priority: 2,
-    notes: 'Añadir botón (-) en DaySpotsList.tsx junto al contador'
+    notes: 'Añadir botón (-) en DaySpotsList.tsx junto al contador',
+    myFindings: ''
   },
   {
     id: 'UX3',
@@ -115,7 +123,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image8.png',
     status: 'pending',
     priority: 2,
-    notes: 'Revisar TripMap.tsx - limpiar marcadores al cambiar de búsqueda'
+    notes: 'Revisar TripMap.tsx - limpiar marcadores al cambiar de búsqueda',
+    myFindings: ''
   },
   {
     id: 'UX4',
@@ -127,7 +136,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image9.png',
     status: 'pending',
     priority: 2,
-    notes: 'Revisar useEffect en TripMap.tsx - falta trigger al cambiar waypoints'
+    notes: 'Revisar useEffect en TripMap.tsx - falta trigger al cambiar waypoints',
+    myFindings: ''
   },
   {
     id: 'UX5',
@@ -139,7 +149,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image10.png',
     status: 'pending',
     priority: 3,
-    notes: 'Revisar svgIcons.tsx - considerar rediseño de iconos ambiguos'
+    notes: 'Revisar svgIcons.tsx - considerar rediseño de iconos ambiguos',
+    myFindings: ''
   },
   {
     id: 'UX6',
@@ -151,7 +162,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image11.png',
     status: 'pending',
     priority: 3,
-    notes: 'Revisar TripMap.tsx - aumentar contraste en colores de marcadores'
+    notes: 'Revisar TripMap.tsx - aumentar contraste en colores de marcadores',
+    myFindings: ''
   },
   {
     id: 'UX7',
@@ -163,7 +175,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image12.png',
     status: 'pending',
     priority: 3,
-    notes: 'Revisar eventos onMouseLeave en componentes con tooltip'
+    notes: 'Revisar eventos onMouseLeave en componentes con tooltip',
+    myFindings: ''
   },
   {
     id: 'UX8',
@@ -175,7 +188,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image13.wmf',
     status: 'pending',
     priority: 3,
-    notes: 'Ya arreglado en commit reciente (cambio de morado a gris). Revisar si es suficiente'
+    notes: 'Ya arreglado en commit reciente (cambio de morado a gris). Revisar si es suficiente',
+    myFindings: ''
   },
 
   // TESTS FUNCIONALES (6)
@@ -188,7 +202,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'PENDIENTE DE VALIDAR',
     status: 'pending',
     priority: 2,
-    notes: 'Validar con ubicaciones reales: Madrid, Barcelona, Sevilla'
+    notes: 'Validar con ubicaciones reales: Madrid, Barcelona, Sevilla',
+    myFindings: ''
   },
   {
     id: 'F2',
@@ -199,7 +214,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'PENDIENTE DE VALIDAR',
     status: 'pending',
     priority: 2,
-    notes: 'Test exhaustivo en /test-sliders-exhaustive'
+    notes: 'Test exhaustivo en /test-sliders-exhaustive',
+    myFindings: ''
   },
   {
     id: 'F3',
@@ -211,7 +227,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image14.png',
     status: 'pending',
     priority: 2,
-    notes: 'Comparar con Google Maps manualmente'
+    notes: 'Comparar con Google Maps manualmente',
+    myFindings: ''
   },
   {
     id: 'F4',
@@ -222,7 +239,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'PENDIENTE DE VALIDAR',
     status: 'pending',
     priority: 2,
-    notes: 'Crear viaje, recargar, verificar que todo persiste'
+    notes: 'Crear viaje, recargar, verificar que todo persiste',
+    myFindings: ''
   },
   {
     id: 'F5',
@@ -234,7 +252,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image15.png',
     status: 'pending',
     priority: 3,
-    notes: 'Verificar con ruta montañosa (ej: Picos de Europa)'
+    notes: 'Verificar con ruta montañosa (ej: Picos de Europa)',
+    myFindings: ''
   },
   {
     id: 'F6',
@@ -246,7 +265,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image16.png',
     status: 'pending',
     priority: 3,
-    notes: 'Revisar @media print en globals.css'
+    notes: 'Revisar @media print en globals.css',
+    myFindings: ''
   },
 
   // DISEÑO (3)
@@ -260,7 +280,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image17.png',
     status: 'pending',
     priority: 3,
-    notes: 'Revisar TailwindCSS - crear variables CSS para colores principales'
+    notes: 'Revisar TailwindCSS - crear variables CSS para colores principales',
+    myFindings: ''
   },
   {
     id: 'D2',
@@ -271,7 +292,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'PENDIENTE DE VALIDAR',
     status: 'pending',
     priority: 2,
-    notes: 'Test con DevTools en 375px (iPhone SE) y 390px (iPhone 12)'
+    notes: 'Test con DevTools en 375px (iPhone SE) y 390px (iPhone 12)',
+    myFindings: ''
   },
   {
     id: 'D3',
@@ -283,7 +305,8 @@ const initialTests: TestCase[] = [
     screenshot: 'image18.png',
     status: 'pending',
     priority: 3,
-    notes: 'Usar herramienta de contraste, ajustar text-gray-400 → text-gray-600'
+    notes: 'Usar herramienta de contraste, ajustar text-gray-400 → text-gray-600',
+    myFindings: ''
   },
 
   // PROPUESTAS FUTURAS (5)
@@ -296,7 +319,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'NO IMPLEMENTADO',
     status: 'wontfix',
     priority: 3,
-    notes: 'V2.0 - Requiere rediseño completo de paleta'
+    notes: 'V2.0 - Requiere rediseño completo de paleta',
+    myFindings: ''
   },
   {
     id: 'P2',
@@ -307,7 +331,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'NO IMPLEMENTADO',
     status: 'pending',
     priority: 2,
-    notes: 'Requiere backend (Supabase). Ver supabase-roadmap-setup.sql'
+    notes: 'Requiere backend (Supabase). Ver supabase-roadmap-setup.sql',
+    myFindings: ''
   },
   {
     id: 'P3',
@@ -318,7 +343,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'Solo autocaravana',
     status: 'wontfix',
     priority: 3,
-    notes: 'Fuera de scope. App enfocada en campers'
+    notes: 'Fuera de scope. App enfocada en campers',
+    myFindings: ''
   },
   {
     id: 'P4',
@@ -329,7 +355,8 @@ const initialTests: TestCase[] = [
     actualBehavior: 'NO IMPLEMENTADO',
     status: 'pending',
     priority: 2,
-    notes: 'Open-Meteo API ya integrada. Falta UI. Ver useWeather.ts'
+    notes: 'Open-Meteo API ya integrada. Falta UI. Ver useWeather.ts',
+    myFindings: ''
   },
   {
     id: 'P5',
@@ -533,7 +560,7 @@ export default function TestUsabilidadCarmen() {
                   <h3 className="text-xl font-bold text-gray-900 mb-1">
                     {test.id} - {test.title}
                   </h3>
-                  <p className="text-sm text-gray-600">{test.description}</p>
+                  <p className="text-sm text-gray-900">{test.description}</p>
                 </div>
                 <span className={`px-3 py-1 rounded text-xs font-bold ${
                   test.priority === 1 ? 'bg-red-600 text-white' :
@@ -547,11 +574,11 @@ export default function TestUsabilidadCarmen() {
               <div className="grid md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="text-xs font-bold text-green-700">✅ Esperado:</label>
-                  <p className="text-sm text-gray-700 bg-green-50 p-2 rounded">{test.expectedBehavior}</p>
+                  <p className="text-sm text-gray-900 bg-green-50 p-3 rounded border border-green-200">{test.expectedBehavior}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-red-700">❌ Actual:</label>
-                  <p className="text-sm text-gray-700 bg-red-50 p-2 rounded">{test.actualBehavior}</p>
+                  <label className="text-xs font-bold text-red-700">❌ Actual (reportado por Carmen):</label>
+                  <p className="text-sm text-gray-900 bg-red-50 p-3 rounded border border-red-200">{test.actualBehavior}</p>
                 </div>
               </div>
 
@@ -566,12 +593,24 @@ export default function TestUsabilidadCarmen() {
               )}
 
               <div className="mb-4">
-                <label className="text-xs font-bold text-gray-700 block mb-2">📝 Notas técnicas:</label>
+                <label className="text-xs font-bold text-gray-900 block mb-2">🔍 MIS HALLAZGOS (lo que yo encuentro al testar):</label>
+                <textarea
+                  value={test.myFindings || ''}
+                  onChange={(e) => updateTest(test.id, 'myFindings', e.target.value)}
+                  className="w-full p-3 border-2 border-blue-300 rounded text-sm text-gray-900 bg-blue-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  rows={3}
+                  placeholder="Escribe aquí lo que observas al probar este caso... ¿Funciona? ¿Falla? ¿Comportamiento diferente al reportado por Carmen?"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs font-bold text-gray-700 block mb-2">📝 Notas técnicas (contexto de Carmen):</label>
                 <textarea
                   value={test.notes}
                   onChange={(e) => updateTest(test.id, 'notes', e.target.value)}
-                  className="w-full p-2 border rounded text-sm"
+                  className="w-full p-2 border rounded text-sm text-gray-900 bg-gray-50"
                   rows={2}
+                  readOnly
                 />
               </div>
 
