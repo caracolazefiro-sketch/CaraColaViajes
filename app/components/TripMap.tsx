@@ -240,24 +240,13 @@ export default function TripMap({
                     />
                 )}
 
-                {/* Marcadores de Pernoctas (origen + todos los destinos de conducción) */}
+                {/* Marcadores de Pernoctas (A, B, C, D...) */}
                 {dailyItinerary?.map((day, i) => {
-                    // Pintar origen del primer día
-                    if (i === 0 && day.startCoordinates) {
-                        return (
-                            <Marker 
-                                key={`start-${i}`} 
-                                position={day.startCoordinates} 
-                                icon={ICONS_ITINERARY.startEnd} 
-                                title={day.from} 
-                                label={{ text: 'A', color: "white", fontSize: "12px", fontWeight: "bold" }} 
-                            />
-                        );
-                    }
+                    if (!day.coordinates) return null;
                     
-                    // Pintar destinos de días de conducción (pernoctas)
-                    if (day.coordinates && day.isDriving) {
-                        const letter = String.fromCharCode(65 + i + 1); // B, C, D, E...
+                    // Todos los días de conducción tienen marcador
+                    if (day.isDriving) {
+                        const letter = String.fromCharCode(65 + i); // A, B, C, D...
                         return (
                             <Marker 
                                 key={`pernocta-${i}`} 
