@@ -21,6 +21,13 @@ interface NavItem {
 const navItems: NavItem[] = [
   // TEST PAGES
   {
+    label: '📋 Test Carmen Feedback V0.7',
+    href: '/test-carmen-feedback',
+    icon: <span>👤</span>,
+    category: 'test',
+    completed: false,
+  },
+  {
     label: '🔍 Test Spots Search',
     href: '/test-spots-search',
     icon: <span>🏕️</span>,
