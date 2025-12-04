@@ -14,6 +14,7 @@ import ItineraryPanel from './components/ItineraryPanel';
 import ToastContainer from './components/ToastContainer';
 import UpcomingTripsNotification from './components/UpcomingTripsNotification';
 import AdjustStageModal from './components/AdjustStageModal';
+import DebugConsole from './components/DebugConsole'; // NEW
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
@@ -54,6 +55,7 @@ export default function Home() {
   const [adjustingDayIndex, setAdjustingDayIndex] = useState<number | null>(null); 
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
   const [auditMode, setAuditMode] = useState(false);
+  const [debugMode, setDebugMode] = useState(false); // NEW: Debug console
 
   const [formData, setFormData] = useState(() => {
     const tomorrow = new Date();
@@ -559,9 +561,18 @@ export default function Home() {
         <TripForm 
             formData={formData} setFormData={setFormData} loading={loading} results={results} 
             onSubmit={handleCalculateWrapper} showWaypoints={showWaypoints} setShowWaypoints={setShowWaypoints}
-            auditMode={auditMode} setAuditMode={setAuditMode} isSaving={isSaving} onSave={handleSaveToCloud}
+            auditMode={auditMode} setAuditMode={setAuditMode} debugMode={debugMode} setDebugMode={setDebugMode} 
+            isSaving={isSaving} onSave={handleSaveToCloud}
             onShare={handleShareTrip} onReset={handleResetTrip} currentTripId={currentTripId}
             t={t} convert={convert}
+        />
+
+        {/* Debug Console */}
+        <DebugConsole 
+            isOpen={debugMode} 
+            formData={formData} 
+            results={results} 
+            onClose={() => setDebugMode(false)} 
         />
 
         {results?.totalCost !== null && results?.totalCost !== undefined && (

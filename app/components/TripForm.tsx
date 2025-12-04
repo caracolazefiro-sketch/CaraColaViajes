@@ -19,6 +19,7 @@ const IconWallet = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3
 
 // Iconos Acciones
 const IconAudit = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>);
+const IconDebug = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>);
 const IconCloud = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>);
 const IconReset = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>);
 const IconShare = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>);
@@ -26,6 +27,8 @@ const IconShare = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 
 interface ActionButtonsProps {
     auditMode: boolean;
     setAuditMode: (v: boolean) => void;
+    debugMode: boolean; // NEW
+    setDebugMode: (v: boolean) => void; // NEW
     results: TripResult;
     currentTripId: number | null;
     isSaving: boolean;
@@ -36,10 +39,11 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
-    auditMode, setAuditMode, results, currentTripId, isSaving, onSave, onShare, onReset, t
+    auditMode, setAuditMode, debugMode, setDebugMode, results, currentTripId, isSaving, onSave, onShare, onReset, t
 }) => (
     <div className="flex items-center gap-1">
         <button onClick={(e) => { e.stopPropagation(); setAuditMode(!auditMode); }} className={`p-1.5 rounded transition ${auditMode ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`} title={t('HEADER_AUDIT')}><IconAudit /></button>
+        <button onClick={(e) => { e.stopPropagation(); setDebugMode(!debugMode); }} className={`p-1.5 rounded transition ${debugMode ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`} title="🐛 Debug Console"><IconDebug /></button>
         {results.totalDays && (
             <>
                 {currentTripId && (
@@ -89,6 +93,8 @@ interface TripFormProps {
     // Props de Acciones
     auditMode: boolean;
     setAuditMode: (v: boolean) => void;
+    debugMode: boolean; // NEW: Debug console
+    setDebugMode: (v: boolean) => void; // NEW
     isSaving: boolean;
     onSave: () => void;
     onShare: () => void;
@@ -100,7 +106,7 @@ interface TripFormProps {
 
 export default function TripForm({ 
     formData, setFormData, loading, results, onSubmit, showWaypoints, setShowWaypoints,
-    auditMode, setAuditMode, isSaving, onSave, onShare, onReset, currentTripId,
+    auditMode, setAuditMode, debugMode, setDebugMode, isSaving, onSave, onShare, onReset, currentTripId,
     t, convert
 }: TripFormProps) {
     
@@ -256,7 +262,7 @@ export default function TripForm({
 
                 {/* 3. ACCIONES + EDITAR (Derecha) */}
                 <div className="hidden md:flex items-center gap-2">
-                    <ActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
+                    <ActionButtons auditMode={auditMode} setAuditMode={setAuditMode} debugMode={debugMode} setDebugMode={setDebugMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
                     <div className="w-px h-6 bg-gray-200"></div>
                     <div className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">
                         <span>{t('DASHBOARD_EDIT')}</span>
@@ -275,7 +281,7 @@ export default function TripForm({
                     {t('FORM_TITLE')}
                 </h2>
                 <div className="flex items-center gap-4">
-                    <ActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
+                    <ActionButtons auditMode={auditMode} setAuditMode={setAuditMode} debugMode={debugMode} setDebugMode={setDebugMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
                     {results.totalDays && <IconChevronUp />}
                 </div>
             </div>
