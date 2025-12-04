@@ -329,13 +329,28 @@ export default function Home() {
 
       console.log('✅ Ruta recalculada sin el waypoint eliminado');
 
-      // 3. Actualizar resultados
-      setResults({ 
-        ...results, 
-        dailyItinerary: recalcResult.dailyItinerary
+      // 3. Mapear resultado para añadir campos requeridos (isoDate, type, savedPlaces)
+      const mappedItinerary = recalcResult.dailyItinerary.map((day: any, idx: number) => {
+        const currentDate = new Date(formData.fechaInicio);
+        currentDate.setDate(currentDate.getDate() + idx);
+        
+        return {
+          ...day,
+          isoDate: currentDate.toISOString().split('T')[0],
+          type: day.isDriving 
+            ? (idx === 0 ? 'start' : idx === recalcResult.dailyItinerary.length - 1 ? 'end' : 'tactical')
+            : 'overnight',
+          savedPlaces: []
+        };
       });
 
-      // 4. Actualizar formData.etapas para reflejar el cambio
+      // 4. Actualizar resultados
+      setResults({ 
+        ...results, 
+        dailyItinerary: mappedItinerary
+      });
+
+      // 5. Actualizar formData.etapas para reflejar el cambio
       const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim()) : [];
       const updatedStops = waypoints.filter(w => currentStops.includes(w));
       setFormData({ ...formData, etapas: updatedStops.join('|') });
