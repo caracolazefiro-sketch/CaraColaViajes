@@ -32,6 +32,7 @@ export interface DailyPlan {
     startCoordinates?: Coordinates; 
     coordinates?: Coordinates; // Coordenadas de destino
     type: 'overnight' | 'tactical' | 'start' | 'end';
+    stopovers?: string[]; // NEW: Escalas (visitas en ruta sin pernocta) para este día
     savedPlaces?: PlaceWithDistance[]; 
 }
 

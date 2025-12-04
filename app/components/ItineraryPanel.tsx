@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
 import DaySpotsList from './DaySpotsList';
 import { ServiceIcons } from './ServiceIcons';
 import { IconPrinter, IconPlus, IconTrash2, IconTruck, IconSearch, IconSettings } from '../lib/svgIcons';
+import ManageStopoversModal from './ManageStopoversModal';
 
 // Iconos locales
 const IconPrint = () => <IconPrinter size={16} />;
@@ -31,6 +32,7 @@ interface ItineraryPanelProps {
     onSearchNearDay: (dayIndex: number) => void; // Nueva prop
     onAdjustDay: (dayIndex: number) => void; // Nueva prop - Ajustar destino
     onRemoveWaypoint?: (dayIndex: number) => void; // Nueva prop - Eliminar escala
+    onManageStopovers?: (dayIndex: number, stopovers: string[]) => void; // NEW - Gestionar escalas del día
     t: (key: string) => string; // Traducción
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
     // 🔥 NUEVOS PROPS PARA FILTRADO
@@ -45,9 +47,12 @@ interface ItineraryPanelProps {
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
-    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, onRemoveWaypoint, t, convert,
+    onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, onRemoveWaypoint, onManageStopovers, t, convert,
     minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }: ItineraryPanelProps) {
+
+    const [stopoversModalOpen, setStopoversModalOpen] = useState(false);
+    const [managingDayIndex, setManagingDayIndex] = useState<number | null>(null);
 
     if (!dailyItinerary) return null;
 
@@ -57,6 +62,23 @@ export default function ItineraryPanel({
     const displayTotalKm = totalDistance ? convert(totalDistance, 'km').toFixed(0) : '0';
     const firstDate = dailyItinerary[0]?.date;
     const lastDate = dailyItinerary[dailyItinerary.length - 1]?.date;
+
+    // Funciones para manejar escalas
+    const handleOpenStopoversModal = (dayIndex: number) => {
+        setManagingDayIndex(dayIndex);
+        setStopoversModalOpen(true);
+    };
+
+    const handleCloseStopoversModal = () => {
+        setStopoversModalOpen(false);
+        setManagingDayIndex(null);
+    };
+
+    const handleConfirmStopovers = (stopovers: string[]) => {
+        if (managingDayIndex !== null && onManageStopovers) {
+            onManageStopovers(managingDayIndex, stopovers);
+        }
+    };
 
     return (
         <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] print:h-auto print:overflow-visible">
@@ -164,6 +186,17 @@ export default function ItineraryPanel({
                                                         <IconSettings className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
+
+                                                {/* NEW: Botón gestionar escalas del día */}
+                                                {day.isDriving && onManageStopovers && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleOpenStopoversModal(index); }}
+                                                        className="text-purple-600 hover:bg-purple-100 p-1 rounded-full border border-purple-200 bg-white shadow-sm transition-all hover:scale-110"
+                                                        title="🚩 Escalas: Añade lugares a visitar en esta etapa sin pernoctar."
+                                                    >
+                                                        <span className="text-xs font-bold">🚩</span>
+                                                    </button>
+                                                )}
                                                 
                                                 {/* Botón eliminar escala */}
                                                 {day.isDriving && onRemoveWaypoint && index > 0 && index < dailyItinerary.length - 1 && (
@@ -247,6 +280,23 @@ export default function ItineraryPanel({
                     />
                 )}
             </div>
+
+            {/* Modal de gestión de escalas */}
+            {managingDayIndex !== null && (
+                <ManageStopoversModal
+                    isOpen={stopoversModalOpen}
+                    onClose={handleCloseStopoversModal}
+                    onConfirm={handleConfirmStopovers}
+                    dayIndex={managingDayIndex}
+                    dayInfo={{
+                        from: dailyItinerary[managingDayIndex].from,
+                        to: dailyItinerary[managingDayIndex].to,
+                        date: dailyItinerary[managingDayIndex].date
+                    }}
+                    currentStopovers={dailyItinerary[managingDayIndex].stopovers || []}
+                    t={t}
+                />
+            )}
         </div>
     );
 }
