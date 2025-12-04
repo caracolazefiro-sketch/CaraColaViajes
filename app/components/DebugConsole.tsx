@@ -20,12 +20,16 @@ export default function DebugConsole({ isOpen, formData, results, onClose }: Deb
 
     const generateDebugReport = () => {
         const now = new Date();
+        const buildTime = new Date().toISOString().split('T')[0];
         const report = `
 ═══════════════════════════════════════════════
 🐛 CARACOLA DEBUG REPORT
 ═══════════════════════════════════════════════
 ⏰ Timestamp: ${now.toISOString()}
 🌐 URL: ${window.location.href}
+🚀 Branch: testing
+📦 Build Date: ${buildTime}
+🔢 Version: 0.8.1
 📱 User Agent: ${navigator.userAgent}
 🖥️ Platform: ${navigator.platform}
 🌍 Language: ${navigator.language}
