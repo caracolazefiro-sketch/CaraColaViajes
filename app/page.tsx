@@ -405,9 +405,13 @@ export default function Home() {
       let dayOriginCoords: string;
       if (dayIndex === 0 && currentDay.startCoordinates) {
         dayOriginCoords = `${currentDay.startCoordinates.lat},${currentDay.startCoordinates.lng}`;
-      } else if (dayIndex > 0 && updatedItinerary[dayIndex - 1].coordinates) {
+      } else if (dayIndex > 0) {
         const prevCoords = updatedItinerary[dayIndex - 1].coordinates;
-        dayOriginCoords = `${prevCoords.lat},${prevCoords.lng}`;
+        if (prevCoords) {
+          dayOriginCoords = `${prevCoords.lat},${prevCoords.lng}`;
+        } else {
+          dayOriginCoords = formData.origen; // Fallback
+        }
       } else {
         dayOriginCoords = formData.origen; // Fallback: nombre del formulario
       }
