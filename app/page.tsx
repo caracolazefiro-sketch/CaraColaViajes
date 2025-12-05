@@ -192,6 +192,58 @@ export default function Home() {
     setAdjustModalOpen(true);
   };
 
+  // Helper: Segmentar itinerario por límite de km/día
+  const segmentItineraryByDistance = (itinerary: typeof results.dailyItinerary, maxKmPerDay: number) => {
+    if (!itinerary) return itinerary;
+    
+    const segmented: typeof results.dailyItinerary = [];
+    
+    for (const day of itinerary) {
+      if (day.distance > maxKmPerDay && day.isDriving) {
+        // Etapa > límite, necesita dividirse
+        const numSegments = Math.ceil(day.distance / maxKmPerDay);
+        const kmPerSegment = day.distance / numSegments;
+        
+        console.log(`🔀 Dividiendo etapa: ${day.from} → ${day.to} (${Math.round(day.distance)} km) en ${numSegments} partes`);
+        
+        let currentDate = new Date(day.date);
+        for (let i = 0; i < numSegments; i++) {
+          const isLast = i === numSegments - 1;
+          const segmentDay = {
+            ...day,
+            date: formatDate(currentDate),
+            isoDate: currentDate.toISOString(),
+            distance: isLast 
+              ? day.distance - (kmPerSegment * i)  // Última parte con el resto
+              : kmPerSegment,
+            to: isLast 
+              ? day.to 
+              : `📍 Parada Táctica: ${day.to}`,
+            type: isLast ? ('overnight' as const) : ('tactical' as const),
+            day: segmented.length + 1
+          };
+          segmented.push(segmentDay);
+          currentDate = addDays(currentDate, 1);
+        }
+      } else {
+        // Etapa normal, agregar tal cual
+        segmented.push(day);
+      }
+    }
+    
+    return segmented;
+  };
+
+  const addDays = (date: Date, days: number) => {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
   const handleConfirmAdjust = async (newDestination: string, newCoordinates: { lat: number; lng: number }) => {
     if (adjustingDayIndex === null || !results.dailyItinerary) return;
     
@@ -338,9 +390,14 @@ export default function Home() {
 
       // PASO 4: El itinerario ya viene COMPLETO desde Google
       // No necesitamos fusionar con días anteriores
-      const finalItinerary = recalcResult.dailyItinerary;
+      let finalItinerary = recalcResult.dailyItinerary;
       
       console.log('📊 Itinerario final (regenerado desde cero):', finalItinerary.length, 'días');
+      
+      // PASO 4.5: SEGMENTAR ETAPAS > 300 KM
+      // Aplicar el cortador de 300 km al itinerario recalculado
+      finalItinerary = segmentItineraryByDistance(finalItinerary, formData.kmMaximoDia);
+      console.log('📊 Itinerario después de segmentación:', finalItinerary.length, 'días');
 
       // PASO 5: ACTUALIZAR formData.etapas con los waypoints obligatorios
       // Extraer waypoints obligatorios del itinerario nuevo

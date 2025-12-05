@@ -285,7 +285,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         for (const stop of allDrivingStops) {
              // Usar nombre directamente de allStops (ya es correcto)
              // Las coordenadas se usan solo para el mapa
-             debugLog.push(`  📍 Etapa ${dayCounter}: ${stop.from} → ${stop.to}`);
+             const distanceKm = Math.round(stop.distance);
+             debugLog.push(`  📍 Etapa ${dayCounter}: ${stop.from} → ${stop.to} (${distanceKm} km)`);
              
              dailyItinerary.push({
                 date: formatDate(currentDate),
