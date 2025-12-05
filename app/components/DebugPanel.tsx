@@ -18,6 +18,7 @@ export default function DebugPanel() {
   const [selectedLog, setSelectedLog] = useState<number | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const originalConsoleLog = useRef<typeof console.log>(console.log);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Override console.log para capturar todos los logs
@@ -94,6 +95,64 @@ export default function DebugPanel() {
     copyToClipboard(allLogsText);
   };
 
+  // 📸 Función para tomar screenshot
+  const takeScreenshot = async () => {
+    try {
+      // Usar html2canvas si está disponible, sino usar canvas API
+      const canvas = await (window as any).html2canvas?.(document.body) || 
+        await new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          script.onload = async () => {
+            const result = await (window as any).html2canvas(document.body);
+            resolve(result);
+          };
+          document.head.appendChild(script);
+        });
+
+      if (canvas) {
+        canvas.toBlob((blob: Blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `debug-screenshot-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          alert('✅ Screenshot descargado');
+        });
+      }
+    } catch (error) {
+      console.error('Error tomando screenshot:', error);
+      alert('❌ Error al tomar screenshot');
+    }
+  };
+
+  // 📥 Función para descargar logs como archivo
+  const downloadLogs = () => {
+    const allLogsText = `
+=== DEBUG LOGS - ${new Date().toLocaleString()} ===
+=== Total logs: ${filteredLogs.length} ===
+
+${filteredLogs
+  .map((log, idx) => {
+    return `[${log.timestamp}] [${log.category}]
+${log.raw}
+${log.data ? JSON.stringify(log.data, null, 2) : ''}
+${'='.repeat(80)}`;
+  })
+  .join('\n\n')}
+    `.trim();
+
+    const blob = new Blob([allLogsText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `debug-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('✅ Logs descargados');
+  };
+
   return (
     <div>
       {/* Botón flotante para abrir/cerrar */}
@@ -109,26 +168,41 @@ export default function DebugPanel() {
 
       {/* Panel de Debug - Fullscreen cuando está abierto */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-95 flex flex-col">
+        <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-95 flex flex-col" ref={panelRef}>
           {/* Header */}
           <div className="bg-blue-700 px-4 py-3 flex justify-between items-center border-b-2 border-blue-500">
             <span className="font-bold text-white text-lg">🐛 Debug Console ({logs.length} logs)</span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={copyAllLogs}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-bold"
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-bold transition-colors"
+                title="Copiar todos los logs al portapapeles"
               >
                 📋 Copiar TODO
               </button>
               <button
+                onClick={downloadLogs}
+                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-white text-sm font-bold transition-colors"
+                title="Descargar logs como archivo .txt"
+              >
+                📥 Descargar Logs
+              </button>
+              <button
+                onClick={takeScreenshot}
+                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 rounded text-white text-sm font-bold transition-colors"
+                title="Tomar screenshot de la pantalla actual"
+              >
+                📸 Screenshot
+              </button>
+              <button
                 onClick={() => setLogs([])}
-                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white text-sm font-bold"
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white text-sm font-bold transition-colors"
               >
                 🗑️ Clear
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-white text-sm font-bold"
+                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-white text-sm font-bold transition-colors"
               >
                 ✕ Close
               </button>
