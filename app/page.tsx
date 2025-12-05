@@ -227,14 +227,26 @@ export default function Home() {
       const finalDestination = formData.destino;
       
       // Construir waypoints: nuevo destino + destinos de días siguientes
-      // Limpiar nombres: remover emojis y etiquetas "📍 Parada Táctica: " 
-      const cleanName = (name: string) => {
-        return name.replace(/📍\s*Parada Táctica:\s*/, '').trim();
-      };
+      // IMPORTANTE: Usar coordenadas en lugar de nombres para evitar ambigüedad con Google API
+      // Google Directions API acepta formato: "lat,lng" para coordenadas
+      const waypoints: string[] = [];
       
-      const waypoints: string[] = [cleanName(newDestination)];
+      // Agregar nuevo destino (usar texto si está disponible)
+      waypoints.push(newDestination);
+      
+      // Agregar waypoints de días siguientes usando coordenadas cuando sea posible
       for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
-        waypoints.push(cleanName(updatedItinerary[i].to));
+        const day = updatedItinerary[i];
+        if (day.coordinates) {
+          // Usar coordenadas para mayor precisión y evitar ambigüedad
+          waypoints.push(`${day.coordinates.lat},${day.coordinates.lng}`);
+          console.log(`  Waypoint día ${i+1}: Coordenadas (${day.coordinates.lat},${day.coordinates.lng})`);
+        } else {
+          // Fallback: usar nombre limpio
+          const cleanName = day.to.replace(/📍\s*Parada Táctica:\s*/, '').trim();
+          waypoints.push(cleanName);
+          console.log(`  Waypoint día ${i+1}: ${cleanName} (sin coordenadas)`);
+        }
       }
 
       console.log('📍 Origen:', adjustedDayOrigin, '| Destino:', finalDestination, '| Waypoints:', waypoints);
