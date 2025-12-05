@@ -28,6 +28,8 @@ interface DirectionsResult {
     mapUrl?: string;
     error?: string;
     dailyItinerary?: DailyPlan[];
+    debugLog?: string[]; // Logs del servidor para debugging
+}
 }
 
 // --- UTILS ---
@@ -116,6 +118,8 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
     
+    const debugLog: string[] = [];
+    
     // Prefer a server-side API key for Google Maps. If a server key is not set,
     // fall back to the public key if available, but return a clear error when
     // neither exists.
@@ -125,30 +129,26 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         return { error: "Clave de API de Google Maps no configurada. Configure 'GOOGLE_MAPS_API_KEY_FIXED' (preferido) o 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'." };
     }
 
-    if (!process.env.GOOGLE_MAPS_API_KEY_FIXED) {
-        // Server-side log to warn maintainers that a client key is being used as fallback.
-        // In production, set a server-only key in 'GOOGLE_MAPS_API_KEY_FIXED'.
-        console.warn("Usando clave pública de Google Maps como fallback. Configure 'GOOGLE_MAPS_API_KEY_FIXED' en entorno de servidor para producción.");
-    }
-
     const allStops = [data.origin, ...data.waypoints.filter(w => w), data.destination];
     const waypointsParam = data.waypoints.length > 0 ? `&waypoints=${data.waypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(data.origin)}&destination=${encodeURIComponent(data.destination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
 
-    console.log('🔗 Google Directions API Call:');
-    console.log('  Origin:', data.origin);
-    console.log('  Destination:', data.destination);
-    console.log('  Waypoints:', data.waypoints);
-    console.log('  URL (sin key):', url.substring(0, url.lastIndexOf('&key=')));
+    debugLog.push('🔗 Google Directions API Call:');
+    debugLog.push(`  Origin: ${data.origin}`);
+    debugLog.push(`  Destination: ${data.destination}`);
+    debugLog.push(`  Waypoints: ${JSON.stringify(data.waypoints)}`);
+    debugLog.push(`  URL (sin key): ${url.substring(0, url.lastIndexOf('&key='))}`);
 
     try {
         const response = await fetch(url);
         const directionsResult = await response.json();
 
         if (directionsResult.status !== 'OK') {
-            console.error('❌ Google API Response:', { status: directionsResult.status, error_message: directionsResult.error_message });
-            return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}` };
+            debugLog.push(`❌ Google API Response: status=${directionsResult.status}, error=${directionsResult.error_message}`);
+            return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}`, debugLog };
         }
+        
+        debugLog.push('✅ Google API Response OK');
         
         const route = directionsResult.routes[0];
         
@@ -313,10 +313,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
         
-        return { distanceKm, mapUrl, dailyItinerary };
+        return { distanceKm, mapUrl, dailyItinerary, debugLog };
 
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        return { error: msg || "Error al calcular la ruta." };
+        debugLog.push(`⚠️ Exception: ${msg}`);
+        return { error: msg || "Error al calcular la ruta.", debugLog };
     }
 }
