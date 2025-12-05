@@ -22,23 +22,41 @@ export default function AppHeader({
             setIsCapturing(true);
             // Lazy load html2canvas para no afectar performance inicial
             const html2canvas = (await import('html2canvas')).default;
-            const canvas = await html2canvas(document.body, {
+            
+            // Intentar capturar el elemento raíz (#__next)
+            const element = document.getElementById('__next') || document.documentElement;
+            
+            console.log('[AppHeader] 📸 Iniciando captura...');
+            
+            const canvas = await html2canvas(element, {
                 backgroundColor: '#ffffff',
                 logging: false,
                 useCORS: true,
                 allowTaint: true,
+                scale: 1,
+                windowHeight: element.scrollHeight,
+                windowWidth: element.scrollWidth,
             });
+            
+            if (!canvas) {
+                throw new Error('Canvas no se pudo generar');
+            }
             
             // Descargar como PNG
             const link = document.createElement('a');
             link.href = canvas.toDataURL('image/png');
-            link.download = `CaraCola-Screenshot-${new Date().toISOString().split('T')[0]}.png`;
+            const fileName = `CaraCola-Screenshot-${new Date().toISOString().split('T')[0]}-${Date.now()}.png`;
+            link.download = fileName;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
             
-            console.log('[AppHeader] ✅ Screenshot descargado exitosamente');
+            console.log('[AppHeader] ✅ Screenshot descargado:', fileName);
+            alert('✅ Screenshot descargado correctamente');
         } catch (error) {
-            console.error('[AppHeader] ❌ Error al capturar pantalla:', error);
-            alert('Error al capturar pantalla. Revisa la consola.');
+            const errMsg = error instanceof Error ? error.message : String(error);
+            console.error('[AppHeader] ❌ Error al capturar pantalla:', errMsg, error);
+            alert(`❌ Error al capturar pantalla:\n${errMsg}`);
         } finally {
             setIsCapturing(false);
         }
