@@ -193,10 +193,10 @@ export default function Home() {
   };
 
   // Helper: Segmentar itinerario por límite de km/día
-  const segmentItineraryByDistance = (itinerary: typeof results.dailyItinerary, maxKmPerDay: number) => {
-    if (!itinerary) return itinerary;
+  const segmentItineraryByDistance = (itinerary: typeof results.dailyItinerary, maxKmPerDay: number): typeof results.dailyItinerary => {
+    if (!itinerary) return null;
     
-    const segmented: typeof results.dailyItinerary = [];
+    const segmented: DailyPlan[] = [];
     
     for (const day of itinerary) {
       if (day.distance > maxKmPerDay && day.isDriving) {
@@ -396,7 +396,10 @@ export default function Home() {
       
       // PASO 4.5: SEGMENTAR ETAPAS > 300 KM
       // Aplicar el cortador de 300 km al itinerario recalculado
-      finalItinerary = segmentItineraryByDistance(finalItinerary, formData.kmMaximoDia);
+      const segmentedItinerary = segmentItineraryByDistance(finalItinerary, formData.kmMaximoDia);
+      if (segmentedItinerary) {
+        finalItinerary = segmentedItinerary;
+      }
       console.log('📊 Itinerario después de segmentación:', finalItinerary.length, 'días');
 
       // PASO 5: ACTUALIZAR formData.etapas con los waypoints obligatorios
