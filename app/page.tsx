@@ -252,6 +252,10 @@ export default function Home() {
       
       let updatedMandatoryWaypoints: string[];
       
+      // Helper: normalizar para comparación
+      const normalizeForComparison = (text: string) =>
+        text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      
       if (adjustingDayIndex < updatedItinerary.length - 1) {
         // No es la última etapa, buscar el siguiente waypoint real
         const nextDayDestination = updatedItinerary[adjustingDayIndex + 1].to;
@@ -264,11 +268,13 @@ export default function Home() {
         console.log('  nextDayDestination:', nextDayDestination);
         console.log('  waypointsFromForm:', waypointsFromForm);
         
-        // Buscar dónde está ese waypoint en formData.etapas
-        const nextWaypointIndex = waypointsFromForm.findIndex(wp => 
-          wp.toLowerCase().includes(nextDayDestination.toLowerCase().split(',')[0]) ||
-          nextDayDestination.toLowerCase().includes(wp.toLowerCase().split(',')[0])
-        );
+        // Buscar dónde está ese waypoint en formData.etapas (normalizando acentos)
+        const normalizedNextDest = normalizeForComparison(nextDayDestination);
+        const nextWaypointIndex = waypointsFromForm.findIndex(wp => {
+          const normalizedWp = normalizeForComparison(wp);
+          const cityPart = normalizedNextDest.split(',')[0];
+          return normalizedWp.includes(cityPart) || normalizedNextDest.includes(normalizedWp.split(',')[0]);
+        });
         
         console.log('  nextWaypointIndex encontrado:', nextWaypointIndex);
         
