@@ -148,7 +148,18 @@ git push origin testing
 # ⚠️ NUNCA pushear a main ni previews
 ```
 
-### 🔟 **Validación Final**
+### 🔟 **Backup CaraColaViajes a Disco Externo (F:)**
+```bash
+# Copiar proyecto completo al externo como backup
+Copy-Item "C:\Users\chema\CaraColaViajes" "F:\Backups\CaraColaViajes_YYYYMMDD" -Recurse -Force
+
+# O usar robocopy para sync más rápido:
+robocopy "C:\Users\chema\CaraColaViajes" "F:\Backups\CaraColaViajes" /MIR /Z /R:1 /W:1
+
+# Resultado: Backup diario sincronizado en F:\Backups\
+```
+
+### 1️⃣1️⃣ **Validación Final**
 ```bash
 # Verificar rama
 git branch --show-current  # Debe ser: testing
@@ -217,8 +228,9 @@ Cuando user escriba `BUENAS NOCHES`:
 7. ✅ Crear INFORME_BUENAS_NOCHES automático
 8. ✅ Crear CHAT_SESSION si aplica (debugging complejo, cambios arquitectura)
 9. ✅ Hacer git add + commit + push testing
-10. ✅ Validar status
-11. ✅ **MOSTRAR RESUMEN COMPLETO EN CHAT** con todo lo realizado
+10. ✅ **BACKUP CaraColaViajes a F:\Backups\ (diario)**
+11. ✅ Validar status
+12. ✅ **MOSTRAR RESUMEN COMPLETO EN CHAT** con todo lo realizado
 
 ---
 
