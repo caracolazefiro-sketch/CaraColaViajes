@@ -182,6 +182,21 @@ export default function TripMap({
 
     const searchPlaceholder = t ? t('MAP_SEARCH_PLACEHOLDER') : 'Buscar en esta zona...';
 
+    // DEBUG: Log para verificar datos que llegan
+    useEffect(() => {
+        if (dailyItinerary && dailyItinerary.length > 0) {
+            console.log('[TripMap] dailyItinerary recibido:', dailyItinerary.map((day, i) => ({
+                index: i,
+                from: day.from,
+                to: day.to,
+                hasStartCoordinates: !!day.startCoordinates,
+                hasCoordinates: !!day.coordinates,
+                startCoordinates: day.startCoordinates,
+                coordinates: day.coordinates
+            })));
+        }
+    }, [dailyItinerary]);
+
     // Generamos una clave única para forzar el repintado de la ruta si cambia
     // Usamos el polyline codificado como ID único de la ruta
     const routeKey = directionsResponse?.routes?.[0]?.overview_polyline || 'no-route';
@@ -249,6 +264,9 @@ export default function TripMap({
                 */}
                 {dailyItinerary?.map((day, i) => {
                     const markers: React.ReactElement[] = [];
+                    
+                    // DEBUG: Log para verificar datos
+                    if (i === 0) console.log(`[TripMap] Día ${i}:`, { from: day.from, to: day.to, startCoordinates: day.startCoordinates, coordinates: day.coordinates });
                     
                     // ✅ Día 0: Renderizar A (origen) y B (destino)
                     if (i === 0) {
