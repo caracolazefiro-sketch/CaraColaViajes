@@ -11,6 +11,8 @@ interface DailyPlan {
   warning?: string;
   coordinates?: { lat: number; lng: number }; // Destino
   startCoordinates?: { lat: number; lng: number }; // Inicio
+  isoDate?: string; // ISO format para consistencia con types.ts
+  type?: 'overnight' | 'tactical' | 'start' | 'end'; // Tipo de día
 }
 
 interface DirectionsRequest {
@@ -287,11 +289,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
              
              dailyItinerary.push({
                 date: formatDate(currentDate),
+                isoDate: currentDate.toISOString(),
                 day: dayCounter,
                 from: stop.from,
                 to: stop.to,
                 distance: stop.distance,
                 isDriving: true,
+                type: 'overnight' as const,
                 startCoordinates: stop.startCoords,
                 coordinates: stop.endCoords
             });
@@ -320,11 +324,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 for (let i = 0; i < daysStay; i++) {
                      dailyItinerary.push({
                         date: formatDate(currentDate),
+                        isoDate: currentDate.toISOString(),
                         day: dayCounter,
                         from: stayLocation,
                         to: stayLocation,
                         distance: 0,
                         isDriving: false,
+                        type: 'overnight' as const,
                         startCoordinates: stayCoords,
                         coordinates: stayCoords
                     });
