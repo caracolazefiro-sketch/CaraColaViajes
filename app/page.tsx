@@ -219,55 +219,65 @@ export default function Home() {
       }
 
       // 3. Si es etapa intermedia, RECALCULAR LA RUTA COMPLETA
-      // Idea: usar TODOS los destinos del itinerario actual, reemplazando el día ajustado
+      // Arquitectura correcta:
+      // 1. Extraer waypoints OBLIGATORIOS desde formData.etapas
+      // 2. Reemplazar el ajustado con newDestination
+      // 3. Enviar a Google: Origin → Obligatorios → Destino
+      // 4. Regenerar itinerario DESDE CERO
+      // 5. Actualizar formData.etapas con nuevos waypoints
+      
       console.log('🔄 Recalculando ruta COMPLETA desde origen original');
       const { getDirectionsAndCost } = await import('./actions');
       
-      // Helper: normalizar para Google (extraer ciudad+país, luego remover acentos)
+      // Helper: normalizar para Google
       const normalizeForGoogle = (text: string) => {
-        // Paso 1: Si hay coma, tomar ciudad y país (ej: "Salamanca, España")
-        // Si no hay coma, usar todo (ej: "Salamanca")
         const parts = text.split(',');
         const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
-        // Paso 2: Remover acentos/diacríticos
-        return location
-          .normalize('NFD')                   // Descomponer caracteres acentuados
-          .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
+        return location.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       };
       
-      // NUEVO ENFOQUE: Construir waypoints desde el itinerario actual
-      // Recolectar TODOS los destinos del itinerario (excepto el último, que es el destino final)
-      const allWaypoints = updatedItinerary
-        .slice(0, -1) // Excluir el último día (cuyo destino es el destino final)
-        .map((day: any, idx: number) => {
-          // Si es el día que estamos ajustando, usar newDestination
-          if (idx === adjustingDayIndex) {
-            return newDestination;
-          }
-          return day.to;
-        });
+      // PASO 1: Extraer waypoints OBLIGATORIOS desde formData.etapas
+      const waypointsFromForm = formData.etapas
+        .split('|')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
       
-      console.log('📦 Waypoints del itinerario actual:', allWaypoints);
+      console.log('📦 Waypoints obligatorios (formData.etapas):', waypointsFromForm);
+      
+      // PASO 2: Determinar si reemplazar o agregar
+      // Si adjustingDayIndex es antes de los waypoints, reemplazar
+      // Si es después, agregarlo como nuevo
+      let updatedMandatoryWaypoints: string[];
+      
+      if (adjustingDayIndex < waypointsFromForm.length) {
+        // Reemplazar un waypoint existente (Ej: Tarancón → Madrid reemplaza índice 0)
+        updatedMandatoryWaypoints = waypointsFromForm.map((wp, idx) =>
+          idx === adjustingDayIndex ? newDestination : wp
+        );
+      } else {
+        // Agregar un nuevo waypoint al final (Ej: usuario agrega Braga)
+        updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
+      }
+      
+      console.log('📦 Waypoints después del ajuste:', updatedMandatoryWaypoints);
       
       const originCityName = normalizeForGoogle(formData.origen);
       const destCityName = normalizeForGoogle(formData.destino);
+      const normalizedWaypoints = updatedMandatoryWaypoints.map(wp => normalizeForGoogle(wp));
       
-      // FILTRAR paradas tácticas (solo enviar ciudades REALES a Google)
-      const filteredWaypoints = allWaypoints.filter(wp => !wp.includes('📍 Parada Táctica'));
-      const normalizedWaypoints = filteredWaypoints.map(wp => normalizeForGoogle(wp));
-
-      console.log('📍 Ruta completa (normalizada para Google):');
+      console.log('📍 Ruta NUEVA a Google:');
       console.log(`  Origen: ${originCityName}`);
       normalizedWaypoints.forEach((wp, i) => console.log(`  Waypoint ${i+1}: ${wp}`));
       console.log(`  Destino: ${destCityName}`);
 
+      // PASO 3: Enviar a Google la ruta NUEVA
       const recalcResult = await getDirectionsAndCost({
         origin: originCityName,
         destination: destCityName,
         waypoints: normalizedWaypoints,
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
-        fechaInicio: results.dailyItinerary[0].date, // Usar fecha de inicio original
+        fechaInicio: results.dailyItinerary[0].date,
         fechaRegreso: ''
       });
 
@@ -283,26 +293,30 @@ export default function Home() {
         return;
       }
 
-      console.log('✅ Recalculado, fusionando itinerarios...');
+      console.log('✅ Recalculado exitosamente. Itinerario nuevo:');
       if (recalcResult.debugLog) {
         recalcResult.debugLog.forEach((line) => console.log(line));
       }
 
-      // 4. Fusionar: mantener días anteriores, reemplazar desde adjustingDayIndex
-      const preservedDays = updatedItinerary.slice(0, adjustingDayIndex);
-      const newCalculatedDays = recalcResult.dailyItinerary;
+      // PASO 4: El itinerario ya viene COMPLETO desde Google
+      // No necesitamos fusionar con días anteriores
+      const finalItinerary = recalcResult.dailyItinerary;
       
-      // Ajustar números de día
-      const finalItinerary = [
-        ...preservedDays,
-        ...newCalculatedDays.map((day: any, idx: number) => ({
-          ...day,
-          day: preservedDays.length + idx + 1,
-          savedPlaces: updatedItinerary[adjustingDayIndex + idx]?.savedPlaces || [] // Mantener lugares guardados si existen
-        }))
-      ];
+      console.log('📊 Itinerario final (regenerado desde cero):', finalItinerary.length, 'días');
 
-      console.log('📊 Itinerario final:', finalItinerary.length, 'días');
+      // PASO 5: ACTUALIZAR formData.etapas con los waypoints obligatorios
+      // Extraer waypoints obligatorios del itinerario nuevo
+      const obligatoryWaypoints = finalItinerary
+        .slice(0, -1)  // Excluir último día (destino)
+        .filter((day: any) => !day.to.includes('📍 Parada Táctica'))
+        .map((day: any) => day.to);
+      
+      console.log('📝 Actualizando formData.etapas:', obligatoryWaypoints);
+      
+      setFormData(prev => ({
+        ...prev,
+        etapas: obligatoryWaypoints.join('|')
+      }));
 
       setResults({ 
         ...results, 

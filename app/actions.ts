@@ -143,11 +143,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
     // Normalizar origin, destination y waypoints
     const normalizedOrigin = normalizeForGoogle(data.origin);
     const normalizedDestination = normalizeForGoogle(data.destination);
-    // FILTRAR paradas tácticas antes de enviar a Google
-    const filteredWaypoints = data.waypoints.filter(w => !w.includes('📍 Parada Táctica'));
-    const normalizedWaypoints = filteredWaypoints.map(w => normalizeForGoogle(w));
+    // Normalizar TODOS los waypoints (incluyendo paradas tácticas)
+    // Google las trata como waypoints normales y genera rutas correctas
+    const normalizedWaypoints = data.waypoints.map(w => normalizeForGoogle(w));
 
-    const allStops = [data.origin, ...filteredWaypoints.filter(w => w), data.destination];
+    const allStops = [data.origin, ...data.waypoints.filter(w => w), data.destination];
     const waypointsParam = normalizedWaypoints.length > 0 ? `&waypoints=${normalizedWaypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(normalizedOrigin)}&destination=${encodeURIComponent(normalizedDestination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
 
