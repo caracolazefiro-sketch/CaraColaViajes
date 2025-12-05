@@ -86,6 +86,14 @@ export default function DebugPanel() {
     alert('✅ Copiado al portapapeles');
   };
 
+  const copyAllLogs = () => {
+    const allLogsText = filteredLogs
+      .map((log, idx) => `[${log.category}] ${log.timestamp}\n${log.raw}${log.data ? '\n' + JSON.stringify(log.data, null, 2) : ''}\n`)
+      .join('\n---\n\n');
+    
+    copyToClipboard(allLogsText);
+  };
+
   return (
     <div>
       {/* Botón flotante para abrir/cerrar */}
@@ -106,6 +114,12 @@ export default function DebugPanel() {
           <div className="bg-blue-700 px-4 py-3 flex justify-between items-center border-b-2 border-blue-500">
             <span className="font-bold text-white text-lg">🐛 Debug Console ({logs.length} logs)</span>
             <div className="flex gap-2">
+              <button
+                onClick={copyAllLogs}
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-bold"
+              >
+                📋 Copiar TODO
+              </button>
               <button
                 onClick={() => setLogs([])}
                 className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white text-sm font-bold"
