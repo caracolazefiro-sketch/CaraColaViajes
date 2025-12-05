@@ -687,7 +687,8 @@ export default function Home() {
         )}
         
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-        <UpcomingTripsNotification onLoadTrip={handleLoadTripFromNotification} />
+        {/* TODO: Re-activar UpcomingTripsNotification cuando esté finalmente ajustado */}
+        {/* <UpcomingTripsNotification onLoadTrip={handleLoadTripFromNotification} /> */}
                 {/* Modal para ajustar etapa */}
         {adjustModalOpen && adjustingDayIndex !== null && results.dailyItinerary && (
           <AdjustStageModal
