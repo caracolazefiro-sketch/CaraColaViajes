@@ -226,9 +226,14 @@ export default function Home() {
       const finalDestination = formData.destino;
       
       // Construir waypoints: nuevo destino + destinos de días siguientes
-      const waypoints: string[] = [newDestination];
+      // Limpiar nombres: remover emojis y etiquetas "📍 Parada Táctica: " 
+      const cleanName = (name: string) => {
+        return name.replace(/📍\s*Parada Táctica:\s*/, '').trim();
+      };
+      
+      const waypoints: string[] = [cleanName(newDestination)];
       for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
-        waypoints.push(updatedItinerary[i].to);
+        waypoints.push(cleanName(updatedItinerary[i].to));
       }
 
       console.log('📍 Origen:', adjustedDayOrigin, '| Destino:', finalDestination, '| Waypoints:', waypoints);
