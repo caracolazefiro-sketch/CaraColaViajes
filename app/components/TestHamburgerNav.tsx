@@ -34,11 +34,6 @@ const navSections: NavSection[] = [
     defaultOpen: true,
     items: [
       {
-        label: 'Manifiesto CaraCola',
-        href: '/manifesto',
-        description: 'Nuestra filosofía y principios de desarrollo',
-      },
-      {
         label: 'Análisis V0.8: Pernoctas vs Escalas',
         href: '/manifesto-analysis',
         description: 'Validación de alineación estratégica',
@@ -60,9 +55,11 @@ const navSections: NavSection[] = [
     defaultOpen: false,
     items: [
       {
-        label: 'Onboarding / Tour Guiado',
-        href: '/onboarding',
-        description: 'Experiencia de primer uso',
+        label: 'Casos de Uso Carmen (V0.7)',
+        href: '/test-usabilidad-carmen',
+        description: '27 casos de prueba documentados',
+        badge: 'ACTIVO',
+        badgeColor: 'bg-orange-500',
       },
     ],
   },
@@ -74,23 +71,18 @@ const navSections: NavSection[] = [
     defaultOpen: false,
     items: [
       {
-        label: 'Test Usabilidad Carmen V0.7',
-        href: '/test-usabilidad-carmen',
-        description: '27 casos de prueba documentados',
-        badge: 'ACTIVO',
-        badgeColor: 'bg-orange-500',
-      },
-      {
         label: 'Test Búsqueda de Spots',
         href: '/test-spots-search',
         description: 'Validación de búsqueda por tipo de servicio',
+        badge: '✓',
+        badgeColor: 'bg-green-500',
       },
       {
         label: 'Test Manual Checklist',
         href: '/test-manual-checklist',
         description: 'Lista de verificación de funcionalidades core',
-        badge: '✓',
-        badgeColor: 'bg-green-500',
+        badge: '⏳',
+        badgeColor: 'bg-yellow-500',
       },
     ],
   },
@@ -174,45 +166,45 @@ export default function TestHamburgerNav() {
 
       {/* Sidebar - WIKI Style */}
       <div
-        className={`fixed top-0 right-0 h-screen w-[420px] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-100 shadow-2xl z-40 transform transition-transform duration-300 ease-out overflow-hidden flex flex-col ${
+        className={`fixed top-0 right-0 h-screen w-full sm:w-[420px] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-100 shadow-2xl z-40 transform transition-transform duration-300 ease-out overflow-hidden flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 p-6 border-b border-slate-800">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl">🐌</span>
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">CaraCola Wiki</h2>
-              <p className="text-blue-100 text-xs">Knowledge Base & Documentation</p>
+        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 p-4 sm:p-6 border-b border-slate-800">
+          <div className="flex items-center gap-2 sm:gap-3 mb-2">
+            <span className="text-2xl sm:text-3xl">🐌</span>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-2xl font-bold tracking-tight">CaraCola Wiki</h2>
+              <p className="text-blue-100 text-[10px] sm:text-xs">Knowledge Base & Documentation</p>
             </div>
           </div>
         </div>
 
         {/* Stats Bar */}
-        <div className="bg-slate-800/50 px-6 py-3 border-b border-slate-700">
-          <div className="grid grid-cols-4 gap-3 text-center">
+        <div className="bg-slate-800/50 px-3 sm:px-6 py-2 sm:py-3 border-b border-slate-700">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 text-center">
             <div>
-              <div className="text-xl font-bold text-blue-400">{navSections.length}</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wide">Secciones</div>
+              <div className="text-lg sm:text-xl font-bold text-blue-400">{navSections.length}</div>
+              <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wide">Secciones</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-purple-400">{totalItems}</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wide">Páginas</div>
+              <div className="text-lg sm:text-xl font-bold text-purple-400">{totalItems}</div>
+              <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wide">Páginas</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-green-400">{completedItems}</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wide">Validados</div>
+              <div className="text-lg sm:text-xl font-bold text-green-400">{completedItems}</div>
+              <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wide">Validados</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-orange-400">V0.8</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wide">Versión</div>
+              <div className="text-lg sm:text-xl font-bold text-orange-400">V0.8</div>
+              <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wide">Versión</div>
             </div>
           </div>
         </div>
 
         {/* Navigation Sections */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4 space-y-2 sm:space-y-3">
           {navSections.map((section) => {
             const isExpanded = openSections.includes(section.id);
             return (
@@ -220,15 +212,15 @@ export default function TestHamburgerNav() {
                 {/* Section Header */}
                 <button
                   onClick={() => toggleSection(section.id)}
-                  className="w-full p-4 flex items-center gap-3 hover:bg-slate-700/50 transition-colors"
+                  className="w-full p-3 sm:p-4 flex items-center gap-2 sm:gap-3 hover:bg-slate-700/50 transition-colors"
                 >
-                  <span className="text-2xl">{section.icon}</span>
-                  <div className="flex-1 text-left">
-                    <div className="font-bold text-sm text-slate-100 tracking-wide">{section.title}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">{section.description}</div>
+                  <span className="text-xl sm:text-2xl flex-shrink-0">{section.icon}</span>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="font-bold text-xs sm:text-sm text-slate-100 tracking-wide truncate">{section.title}</div>
+                    <div className="text-[9px] sm:text-xs text-slate-400 mt-0.5 line-clamp-1">{section.description}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <span className="text-[9px] sm:text-xs text-slate-500 bg-slate-700 px-1.5 sm:px-2 py-0.5 rounded">
                       {section.items.length}
                     </span>
                     <IconChevron isOpen={isExpanded} />
@@ -245,24 +237,24 @@ export default function TestHamburgerNav() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => setIsOpen(false)}
-                        className={`block p-3 pl-6 hover:bg-slate-700/50 transition-colors group ${
+                        className={`block p-2 sm:p-3 pl-4 sm:pl-6 hover:bg-slate-700/50 transition-colors group ${
                           idx !== section.items.length - 1 ? 'border-b border-slate-700/50' : ''
                         }`}
                       >
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm text-slate-200 group-hover:text-blue-300 transition-colors">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 sm:gap-2 mb-1 flex-wrap">
+                              <span className="font-medium text-xs sm:text-sm text-slate-200 group-hover:text-blue-300 transition-colors">
                                 {item.label}
                               </span>
                               {item.badge && (
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded text-white ${item.badgeColor}`}>
+                                <span className={`text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded text-white whitespace-nowrap ${item.badgeColor}`}>
                                   {item.badge}
                                 </span>
                               )}
                             </div>
                             {item.description && (
-                              <p className="text-xs text-slate-400 leading-relaxed">
+                              <p className="text-[10px] sm:text-xs text-slate-400 leading-relaxed">
                                 {item.description}
                               </p>
                             )}
@@ -281,19 +273,19 @@ export default function TestHamburgerNav() {
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-900 border-t border-slate-700 p-4">
-          <div className="text-xs text-slate-400 space-y-1">
+        <div className="bg-slate-900 border-t border-slate-700 p-3 sm:p-4">
+          <div className="text-[10px] sm:text-xs text-slate-400 space-y-1">
             <p className="flex items-center gap-2">
-              <span className="text-blue-400">💡</span>
-              <span>Wiki corporativa para equipo y testers</span>
+              <span className="text-blue-400 flex-shrink-0">💡</span>
+              <span className="truncate">Wiki corporativa para equipo y testers</span>
             </p>
             <p className="flex items-center gap-2">
-              <span className="text-purple-400">🔐</span>
-              <span>Acceso interno - Testing environment</span>
+              <span className="text-purple-400 flex-shrink-0">🔐</span>
+              <span className="truncate">Acceso interno - Testing environment</span>
             </p>
-            <div className="pt-2 mt-2 border-t border-slate-800 text-[10px] text-slate-500 flex justify-between">
-              <span>Branch: testing</span>
-              <span>Build: {new Date().toISOString().split('T')[0]}</span>
+            <div className="pt-2 mt-2 border-t border-slate-800 text-[9px] sm:text-[10px] text-slate-500 flex justify-between gap-1">
+              <span className="truncate">Branch: testing</span>
+              <span className="flex-shrink-0">{new Date().toISOString().split('T')[0]}</span>
             </div>
           </div>
         </div>
