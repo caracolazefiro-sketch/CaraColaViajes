@@ -2,11 +2,11 @@
 
 **Ejecutable cuando:** User escriba exactamente `BUENOS DÍAS`
 
-## 📋 Checklist Matutino
+## 📋 Checklist Matutino (SIMPLIFICADO)
 
 Cuando se ejecute este protocolo, realizar EN ORDEN:
 
-### 1️⃣ **Verificar Estado del Repositorio**
+### 1️⃣ **Verificar Estado del Repositorio** ⭐ DIARIO
 ```bash
 cd "c:\Users\chema\CaraColaViajes"
 
@@ -20,43 +20,43 @@ git log --oneline -3
 git status  # clean working tree
 ```
 
-### 2️⃣ **Verificar Build**
+### 2️⃣ **Revisar Sesión Anterior** ⭐ DIARIO
+```bash
+# Ver último CHAT_SESSION_*.md
+ls CHEMA/PROTOCOLOS/CHAT_SESSIONS/ | head -1
+
+# Ver INFORME de ayer
+ls CHEMA/PROTOCOLOS/INFORMES_BUENAS_NOCHES/ | tail -1
+
+# Verificar pendientes críticos en INFORME (sección "PRÓXIMAS ACCIONES")
+```
+
+### 3️⃣ **Verificar Build** (OPCIONAL - 3 veces/semana o antes de push críticos)
 ```bash
 # Compilar proyecto
 npm run build
 
-# Verificar sin errores
-# Si hay errores, ejecutar inmediatamente:
+# Si hay errores:
 npm run lint --fix
 npm run build
 ```
 
-### 3️⃣ **Limpiar y Cachés**
+### 4️⃣ **Verificar Dependencias** (OPCIONAL - Semanal máximo)
 ```bash
-# Limpiar .next build cache
-Remove-Item ".\.next" -Recurse -Force -ErrorAction SilentlyContinue
-
-# Limpiar caché de npm si es necesario
-npm cache clean --force  # Usar solo si hay problemas
-```
-
-### 4️⃣ **Verificar Dependencias**
-```bash
-# Ver si falta actualizar
+# Ver si hay updates
 npm outdated
 
-# Si hay updates críticos: npm update
-# (Pero NO sin revisar primero qué se actualiza)
+# Solo actualizar si son críticos de seguridad
+npm update
 ```
 
-### 5️⃣ **Revisar Protocolo Anterior**
-```bash
-# Ver último CHAT_SESSION_*.md
-cat CHEMA/PROTOCOLOS/CHAT_SESSION_*.md
+---
 
-# Verificar si hay tareas pendientes
-# (Buscar sección "TODO" o "PRÓXIMOS PASOS")
-```
+## ⏱️ **Duración**
+
+- **DIARIO (Pasos 1️⃣-2️⃣):** ~2 minutos ⚡
+- **CON PASO 3️⃣:** +2-3 minutos (compilar)
+- **CON PASO 4️⃣:** +1 minuto (check dependencias)
 
 ---
 
@@ -68,6 +68,41 @@ cat CHEMA/PROTOCOLOS/CHAT_SESSION_*.md
 | Status | `git status` | Limpio |
 | Build | `npm run build` | Sin errores |
 | Logs | `git log --oneline -1` | Ver último commit |
+
+---
+
+## 📋 **TAREAS CRÍTICAS PENDIENTES**
+
+Después de completar el protocolo, **ESTAS SON LAS PRIORIDADES DE HOY:**
+
+### 🔴 CRÍTICOS (Hacer primero)
+1. **Fijar marcadores A, B, C, D en mapa** 
+   - Bug: Marcadores no aparecen después de refactor de escalas
+   - Archivo: `app/components/TripMap.tsx` (líneas 230-275)
+   - Causa probable: `startCoordinates` undefined o lógica condicional incorrecta
+   - Time: ~1-2h debugging
+
+2. **Geocodificar escalas para pintar chinchetas rojas**
+   - Status: Escalas funcionan pero sin marcadores visuales
+   - Requerimiento: Google Geocoding API → lat/lng → render Marker
+   - Time: ~2-3h implementación
+
+### 🟠 ALTOS (Segunda prioridad)
+3. **Botón "Nuevo Viaje" (C4 - Critical Error)**
+   - Falta reset completo del formulario
+   - Archivo: `app/page.tsx`
+   - Time: ~30-45 min
+
+4. **Validar "Fecha de Vuelta" (C5 - Critical Error)**
+   - Campo inconsistente (opcional/requerido)
+   - Archivo: `app/components/TripForm.tsx`
+   - Time: ~30 min
+
+### 🟡 NORMALES (Tercera prioridad)
+5. **Test completo Salamanca → Barcelona**
+   - Escenario de estrés con múltiples escalas y pernoctas
+   - Validar todo el flujo end-to-end
+   - Time: ~45 min
 
 ---
 
@@ -133,13 +168,13 @@ git push origin testing
 
 Una vez completado este protocolo:
 
-1. Abrir VS Code: `code .`
-2. Esperar que cargue completamente
-3. Revisar archivo de sesión anterior en `CHEMA/PROTOCOLOS/`
-4. Continuar con el trabajo del día
+1. Revisar archivo de sesión anterior (`CHAT_SESSIONS/`)
+2. Leer informe de ayer (`INFORMES_BUENAS_NOCHES/`)
+3. Comenzar con **TAREA CRÍTICA #1** (marcadores en mapa)
+4. Al terminar: ejecutar `BUENAS NOCHES`
 
 ---
 
-_Protocolo: BUENOS DÍAS_  
-_Duración: ~5-10 minutos_  
-_Frecuencia: Diaria (al empezar sesión)_
+_Protocolo: BUENOS DÍAS (SIMPLIFICADO)_  
+_Duración: ~2 minutos (diario) | ~5 minutos (con compilación)_  
+_Última actualización: 05/12/2025_
