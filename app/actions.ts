@@ -426,6 +426,14 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
 
+        // 🔍 DEBUG CRÍTICO: Verificar que dailyItinerary tiene startCoordinates ANTES de retornar
+        console.log('[actions.ts] ===== PRE-RETURN VERIFICATION =====');
+        dailyItinerary.forEach((day, idx) => {
+            console.log(`[actions.ts] Day ${idx} HAS startCoordinates:`, !!day.startCoordinates, day.startCoordinates);
+        });
+        console.log('[actions.ts] dailyItinerary JSON STRINGIFIED:', JSON.stringify(dailyItinerary, null, 2));
+        addDebugLog('PRE-RETURN: dailyItinerary full dump', dailyItinerary);
+
         return { distanceKm, mapUrl, dailyItinerary, debugLogs };
 
     } catch (e: unknown) {
