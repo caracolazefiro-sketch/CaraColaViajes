@@ -195,7 +195,7 @@ export default function TripMap({
                 coordinates: day.coordinates
             }));
             console.log('[TripMap] dailyItinerary recibido:', logData);
-            
+
             // Log adicional para ver el primer día en detalle
             if (dailyItinerary[0]) {
                 console.log('[TripMap] Día 0 DETALLE COMPLETO:', JSON.stringify(dailyItinerary[0], null, 2));
@@ -270,53 +270,76 @@ export default function TripMap({
                 */}
                 {dailyItinerary?.map((day, i) => {
                     const markers: React.ReactElement[] = [];
-                    
+
+                    // ✅ Función auxiliar para validar si las coords son válidas (no son 0,0 dummy)
+                    const isValidCoords = (coords?: { lat: number; lng: number }): boolean => {
+                        return !!(coords && (coords.lat !== 0 || coords.lng !== 0));
+                    };
+
                     // DEBUG: Log para verificar datos
-                    if (i === 0) console.log(`[TripMap] Día ${i}:`, { from: day.from, to: day.to, startCoordinates: day.startCoordinates, coordinates: day.coordinates });
-                    
+                    if (i === 0) {
+                        console.log(`[TripMap] Día ${i} DETALLE:`, {
+                            from: day.from,
+                            to: day.to,
+                            hasStartCoordinates: !!day.startCoordinates,
+                            startCoordinates: day.startCoordinates,
+                            isValidStart: isValidCoords(day.startCoordinates),
+                            hasCoordinates: !!day.coordinates,
+                            coordinates: day.coordinates,
+                            isValidEnd: isValidCoords(day.coordinates)
+                        });
+                    }
+
                     // ✅ Día 0: Renderizar A (origen) y B (destino)
                     if (i === 0) {
-                        if (day.startCoordinates) {
+                        // Marcador A (origen)
+                        if (isValidCoords(day.startCoordinates)) {
                             markers.push(
-                                <Marker 
-                                    key={`origin-${i}`} 
-                                    position={day.startCoordinates} 
-                                    icon={ICONS_ITINERARY.startEnd} 
-                                    title={day.from} 
-                                    label={{ text: 'A', color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                                <Marker
+                                    key={`origin-${i}`}
+                                    position={day.startCoordinates as { lat: number; lng: number }}
+                                    icon={ICONS_ITINERARY.startEnd}
+                                    title={day.from}
+                                    label={{ text: 'A', color: "white", fontSize: "12px", fontWeight: "bold" }}
                                 />
                             );
+                        } else {
+                            console.warn(`[TripMap] ⚠️ Día ${i} - startCoordinates NO VÁLIDO:`, day.startCoordinates);
                         }
-                        if (day.coordinates) {
+
+                        // Marcador B (destino)
+                        if (isValidCoords(day.coordinates)) {
                             markers.push(
-                                <Marker 
-                                    key={`dest-${i}`} 
-                                    position={day.coordinates} 
-                                    icon={ICONS_ITINERARY.startEnd} 
-                                    title={day.to} 
-                                    label={{ text: 'B', color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                                <Marker
+                                    key={`dest-${i}`}
+                                    position={day.coordinates as { lat: number; lng: number }}
+                                    icon={ICONS_ITINERARY.startEnd}
+                                    title={day.to}
+                                    label={{ text: 'B', color: "white", fontSize: "12px", fontWeight: "bold" }}
                                 />
                             );
+                        } else {
+                            console.warn(`[TripMap] ⚠️ Día ${i} - coordinates NO VÁLIDO:`, day.coordinates);
                         }
                     } else {
                         // ✅ Día 1+: Renderizar destinos como C, D, E...
-                        if (day.coordinates) {
+                        if (isValidCoords(day.coordinates)) {
                             const letter = String.fromCharCode(65 + i); // 65 = A, so i+1 starts at B, then C, D, E...
                             markers.push(
                                 <Marker 
                                     key={`pernocta-${i}`} 
-                                    position={day.coordinates} 
+                                    position={day.coordinates as { lat: number; lng: number }} 
                                     icon={ICONS_ITINERARY.startEnd} 
                                     title={day.to} 
                                     label={{ text: letter, color: "white", fontSize: "12px", fontWeight: "bold" }} 
                                 />
                             );
+                        } else {
+                            console.warn(`[TripMap] ⚠️ Día ${i} (${day.to}) - coordinates NO VÁLIDO:`, day.coordinates);
                         }
-                    }
-                    
-                    return markers.length > 0 ? <React.Fragment key={`markers-day-${i}`}>{markers}</React.Fragment> : null;
+                    }                    return markers.length > 0 ? <React.Fragment key={`markers-day-${i}`}>{markers}</React.Fragment> : null;
                 })}
-                
+
                 {/* TODO: Marcadores de Escalas - requiere geocodificación */}
                 {/* Por ahora las escalas solo se ven en la línea roja, no como marcadores */}
 
@@ -466,7 +489,7 @@ export default function TripMap({
                         {/* Sort Slider - ROJO DEGRADADO */}
                         <div className="flex flex-col items-center gap-1.5">
                             <label className="text-[11px] font-light text-red-600 flex items-center gap-1.5">
-                                <IconTrendingUp size={13} /> 
+                                <IconTrendingUp size={13} />
                                 {sortBy === 'score' ? 'Score' : sortBy === 'distance' ? 'Dist.' : 'Rate'}
                             </label>
                             <input

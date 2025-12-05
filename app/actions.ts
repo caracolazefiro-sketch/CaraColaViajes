@@ -19,8 +19,8 @@ interface DirectionsRequest {
     waypoints: string[];
     travel_mode: 'driving';
     kmMaximoDia: number;
-    fechaInicio: string; 
-    fechaRegreso: string; 
+    fechaInicio: string;
+    fechaRegreso: string;
 }
 
 interface DirectionsResult {
@@ -81,7 +81,7 @@ function decodePolyline(encoded: string): LatLng[] {
 }
 
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371e3; 
+    const R = 6371e3;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -99,7 +99,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
         const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=es`;
         const geoRes = await fetch(geoUrl);
         const geoData = await geoRes.json();
-        
+
         if (geoData.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             await sleep(1000 * attempt);
             return getCityNameFromCoords(lat, lng, apiKey, attempt + 1);
@@ -111,9 +111,9 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
             const locality = comp.find((c: { types: string[] }) => c.types.includes('locality'))?.long_name;
             const admin2 = comp.find((c: { types: string[] }) => c.types.includes('administrative_area_level_2'))?.long_name;
             const adminArea = comp.find((c: { types: string[] }) => c.types.includes('administrative_area_level_1'))?.long_name;
-            
+
             const cityName = locality || admin2 || adminArea;
-            
+
             // Si encontramos una ciudad potencial, verificar que sea ciudad importante (no pueblo)
             if (cityName && cityName.length > 0) {
                 // Usar Places Nearby para verificar que hay establecimientos (hoteles, restaurantes)
@@ -121,7 +121,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
                     const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=5000&type=lodging&key=${apiKey}`;
                     const placesRes = await fetch(placesUrl);
                     const placesData = await placesRes.json();
-                    
+
                     // Si hay hoteles/alojamientos, es ciudad importante
                     if (placesData.results && placesData.results.length > 0) {
                         return `${cityName}`;
@@ -129,23 +129,23 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
                 } catch (e) {
                     console.log("Places API fallback", e);
                 }
-                
+
                 // Si no hay hoteles pero tenemos nombre de geocoding, usarlo igual
                 return cityName;
             }
         }
-        
+
         // Fallback: Solo coordenadas
         return `Parada (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
-    } catch (e) { 
-        console.error("Geocode error", e); 
+    } catch (e) {
+        console.error("Geocode error", e);
         return `Parada (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
     }
 }
 
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
-    
+
     // Prefer a server-side API key for Google Maps. If a server key is not set,
     // fall back to the public key if available, but return a clear error when
     // neither exists.
@@ -180,55 +180,77 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         if (directionsResult.status !== 'OK') {
             return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}`, debugLogs };
         }
-        
+
         const route = directionsResult.routes[0];
-        
+
         let totalDistanceMeters = 0;
         route.legs.forEach((leg: { distance: { value: number } }) => { totalDistanceMeters += leg.distance.value; });
         const distanceKm = totalDistanceMeters / 1000;
-        
+
         // Estructura temporal para guardar paradas con sus coordenadas de inicio y fin
-        const allDrivingStops: { 
-            from: string, to: string, distance: number, 
+        const allDrivingStops: {
+            from: string, to: string, distance: number,
             startCoords: {lat: number, lng: number}, // ✅ Start
             endCoords: {lat: number, lng: number}    // ✅ End (antes coordinates)
         }[] = [];
-        
-        const finalWaypointsForMap: string[] = []; 
+
+        const finalWaypointsForMap: string[] = [];
         const maxMeters = data.kmMaximoDia * 1000;
-        
-        let currentLegStartName = allStops[0]; 
+
+        let currentLegStartName = allStops[0];
         // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
-        let currentLegStartCoords: {lat: number, lng: number};
-        
+        let currentLegStartCoords: {lat: number, lng: number} | undefined;
+
         // Obtener coords del primer leg, con fallbacks
         const firstLegStart = route.legs?.[0]?.start_location;
-        if (firstLegStart && typeof firstLegStart.lat === 'number' && typeof firstLegStart.lng === 'number') {
-            currentLegStartCoords = { lat: firstLegStart.lat, lng: firstLegStart.lng };
-        } else if (firstLegStart?.lat?.() && firstLegStart?.lng?.()) {
-            // Si son funciones de Google Maps (ej: en client), llamarlas
-            currentLegStartCoords = { lat: firstLegStart.lat(), lng: firstLegStart.lng() };
-        } else {
-            // Fallback: geocodificar el origen
+
+        // Intentar 3 formas diferentes de obtener coordenadas
+        if (firstLegStart) {
+            // Forma 1: propiedades numéricas directas (JSON)
+            if (typeof firstLegStart.lat === 'number' && typeof firstLegStart.lng === 'number') {
+                currentLegStartCoords = { lat: firstLegStart.lat, lng: firstLegStart.lng };
+                addDebugLog('✅ firstLegStart (forma 1 - propiedades directas):', currentLegStartCoords);
+            }
+            // Forma 2: propiedades que son funciones de Google Maps (en server, no debería ocurrir pero por si acaso)
+            else if (typeof firstLegStart.lat === 'function' && typeof firstLegStart.lng === 'function') {
+                try {
+                    currentLegStartCoords = { lat: firstLegStart.lat(), lng: firstLegStart.lng() };
+                    addDebugLog('✅ firstLegStart (forma 2 - funciones):', currentLegStartCoords);
+                } catch (e) {
+                    addDebugLog('❌ Error llamando funciones lat/lng:', e);
+                }
+            }
+            // Forma 3: propiedades anidadas (por si Google devuelve algo inesperado)
+            else if (firstLegStart.lat?.lat !== undefined && firstLegStart.lng?.lng !== undefined) {
+                currentLegStartCoords = { lat: firstLegStart.lat.lat, lng: firstLegStart.lng.lng };
+                addDebugLog('✅ firstLegStart (forma 3 - anidadas):', currentLegStartCoords);
+            }
+        }
+
+        // Si no obtuvimos coordenadas del leg, hacer geocoding del origen
+        if (!currentLegStartCoords) {
+            addDebugLog('⚠️ firstLegStart NO VÁLIDO, geocodificando origen:', data.origin);
             const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(data.origin)}&key=${apiKey}`;
             const geoResponse = await fetch(geoUrl);
             const geoData = await geoResponse.json();
-            
+
             if (!geoData.results?.[0]?.geometry?.location) {
+                addDebugLog('❌ GEOCODIFICACIÓN FALLIDA para origen:', data.origin);
                 return { error: `No se pudo geocodificar el origen: ${data.origin}`, debugLogs };
             }
-            
+
             const loc = geoData.results[0].geometry.location;
             currentLegStartCoords = { lat: loc.lat, lng: loc.lng };
+            addDebugLog('✅ Geocodificado origen:', currentLegStartCoords);
         }
-        
-        addDebugLog('currentLegStartCoords FINAL:', currentLegStartCoords);
-        
+
+        addDebugLog('🎯 currentLegStartCoords FINAL:', currentLegStartCoords);
+
         let dayAccumulatorMeters = 0;
 
         for (let i = 0; i < route.legs.length; i++) {
             const leg = route.legs[i];
-            const nextStopName = allStops[i + 1]; 
+            const nextStopName = allStops[i + 1];
             let legDistanceMeters = 0;
 
             // Calcular la distancia total de este leg
@@ -252,7 +274,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
                         while (metersLeftInStep >= metersNeeded) {
                             let distWalked = 0;
-                            let stopCoords = path[currentPathIndex]; 
+                            let stopCoords = path[currentPathIndex];
 
                             for (let p = currentPathIndex; p < path.length - 1; p++) {
                                 const segment = getDistanceFromLatLonInM(path[p].lat, path[p].lng, path[p+1].lat, path[p+1].lng);
@@ -265,7 +287,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 distWalked += segment;
                             }
 
-                            await sleep(200); 
+                            await sleep(200);
                             const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
                             const stopName = `📍 Parada Táctica: ${stopNameRaw}`;
 
@@ -276,13 +298,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 startCoords: currentLegStartCoords,
                                 endCoords: stopCoords
                             });
-                            
+
                             finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
 
-                            currentLegStartName = stopNameRaw; 
+                            currentLegStartName = stopNameRaw;
                             currentLegStartCoords = stopCoords;
                             dayAccumulatorMeters = 0;
-                            metersNeeded = maxMeters; 
+                            metersNeeded = maxMeters;
                         }
                         dayAccumulatorMeters += metersLeftInStep;
                     }
@@ -294,9 +316,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
             // FORZAR: Cada waypoint es fin de etapa obligatorio
             const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
-            
+
             console.log('[actions.ts] Pushing parada (línea 237):', { from: currentLegStartName, to: nextStopName, startCoords: currentLegStartCoords, endCoords: legEndCoords });
-            
+
             allDrivingStops.push({
                 from: currentLegStartName,
                 to: nextStopName,
@@ -310,20 +332,23 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             // Preparar para el siguiente waypoint
             currentLegStartName = nextStopName;
             currentLegStartCoords = legEndCoords;
-            dayAccumulatorMeters = 0; 
+            dayAccumulatorMeters = 0;
         }
 
         // --- CONSTRUCCIÓN DEL ITINERARIO ---
         const dailyItinerary: DailyPlan[] = [];
         let currentDate = new Date(data.fechaInicio);
         let dayCounter = 1;
-        
+
         console.log('[actions.ts] allDrivingStops DETALLE:', allDrivingStops);
         console.log('[actions.ts] allDrivingStops RESUMEN:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords, startCoords: s.startCoords, hasEndCoords: !!s.endCoords })));
-        
+
         addDebugLog('allDrivingStops RESUMEN:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords })));
-        
+
         for (const stop of allDrivingStops) {
+             const startCoords = stop.startCoords ? { lat: stop.startCoords.lat, lng: stop.startCoords.lng } : { lat: 0, lng: 0 };
+             const endCoords = stop.endCoords ? { lat: stop.endCoords.lat, lng: stop.endCoords.lng } : { lat: 0, lng: 0 };
+
              const dailyPlan = {
                 date: formatDate(currentDate),
                 day: dayCounter,
@@ -331,21 +356,26 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 to: stop.to,
                 distance: stop.distance,
                 isDriving: true,
-                startCoordinates: stop.startCoords || { lat: 0, lng: 0 }, // ✅ Fallback a 0,0 si no existe
-                coordinates: stop.endCoords || { lat: 0, lng: 0 }         // ✅ Fallback
+                startCoordinates: startCoords, // ✅ GARANTIZADO que es {lat, lng}
+                coordinates: endCoords         // ✅ GARANTIZADO que es {lat, lng}
             };
-            console.log(`[actions.ts] ANTES DE ASIGNAR - stop.startCoords:`, stop.startCoords);
-            console.log(`[actions.ts] Pushing dailyPlan día ${dayCounter}:`, dailyPlan);
-            addDebugLog(`Pushing día ${dayCounter}: stop.startCoords=${JSON.stringify(stop.startCoords)}, asignando=${JSON.stringify(dailyPlan.startCoordinates)}`);
+            console.log(`[actions.ts] Día ${dayCounter}:`, {
+                from: dailyPlan.from,
+                to: dailyPlan.to,
+                startCoordinates: dailyPlan.startCoordinates,
+                coordinates: dailyPlan.coordinates,
+                hasValidStartCoords: dailyPlan.startCoordinates.lat !== 0 || dailyPlan.startCoordinates.lng !== 0
+            });
+            addDebugLog(`Día ${dayCounter}: startCoords=${JSON.stringify(dailyPlan.startCoordinates)}, endCoords=${JSON.stringify(dailyPlan.coordinates)}`);
             dailyItinerary.push(dailyPlan);
             currentDate = addDays(currentDate, 1);
             dayCounter++;
         }
-        
+
         if (data.fechaRegreso) {
             const dateEnd = new Date(data.fechaRegreso);
             const diffTime = dateEnd.getTime() - currentDate.getTime();
-            const daysStay = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            const daysStay = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
             if (daysStay > 0) {
                 const stayLocation = data.destination;
@@ -368,16 +398,16 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 }
             }
         }
-        
+
         const embedParams = {
             key: apiKey,
             origin: data.origin,
             destination: data.destination,
-            waypoints: finalWaypointsForMap.join('|'), 
+            waypoints: finalWaypointsForMap.join('|'),
             mode: data.travel_mode,
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
-        
+
         return { distanceKm, mapUrl, dailyItinerary, debugLogs };
 
     } catch (e: unknown) {
