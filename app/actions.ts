@@ -118,7 +118,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
 // Segmentar itinerario por límite de km/día, buscando localidades reales
 async function segmentItineraryByDistance(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
-    if (!itinerary) return null;
+    if (!itinerary) return [];
     
     const segmented: DailyPlan[] = [];
     
