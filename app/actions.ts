@@ -161,7 +161,27 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         
         let currentLegStartName = allStops[0]; 
         // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
-        let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
+        // FALLBACK: Si route.legs[0] no existe, geocodificamos el origen
+        let currentLegStartCoords: {lat: number, lng: number};
+        
+        if (route.legs?.[0]?.start_location) {
+            currentLegStartCoords = { 
+                lat: route.legs[0].start_location.lat, 
+                lng: route.legs[0].start_location.lng 
+            };
+        } else {
+            // Fallback: geocodificar el origen usando Google Geocoding API
+            const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(data.origin)}&key=${apiKey}`;
+            const geoResponse = await fetch(geoUrl);
+            const geoData = await geoResponse.json();
+            
+            if (!geoData.results?.[0]?.geometry?.location) {
+                return { error: `No se pudo geocodificar el origen: ${data.origin}` };
+            }
+            
+            currentLegStartCoords = geoData.results[0].geometry.location;
+        }
+        
         console.log('[actions.ts] Inicio de ruta:', { currentLegStartName, currentLegStartCoords, allStopsLength: allStops.length });
         
         let dayAccumulatorMeters = 0;
