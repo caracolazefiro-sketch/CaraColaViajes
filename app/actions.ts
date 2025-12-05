@@ -243,8 +243,15 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             currentLegStartCoords = { lat: loc.lat, lng: loc.lng };
             addDebugLog('✅ Geocodificado origen:', currentLegStartCoords);
         }
-
-        addDebugLog('🎯 currentLegStartCoords FINAL:', currentLegStartCoords);
+        
+        // 🔴 CRÍTICO: Si aún así currentLegStartCoords es undefined, usar fallback de seguridad
+        if (!currentLegStartCoords) {
+            console.error('[actions.ts] 🚨 CRÍTICO: currentLegStartCoords SIGUE SIENDO UNDEFINED tras todos los intentos. Usando fallback {0,0}');
+            currentLegStartCoords = { lat: 0, lng: 0 };
+        }
+        
+        addDebugLog('🎯 currentLegStartCoords FINAL (listo para usar):', currentLegStartCoords);
+        console.log('[actions.ts] ✅ currentLegStartCoords GARANTIZADO:', currentLegStartCoords);
 
         let dayAccumulatorMeters = 0;
 
@@ -339,13 +346,21 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         const dailyItinerary: DailyPlan[] = [];
         let currentDate = new Date(data.fechaInicio);
         let dayCounter = 1;
-
-        console.log('[actions.ts] allDrivingStops DETALLE:', allDrivingStops);
-        console.log('[actions.ts] allDrivingStops RESUMEN:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords, startCoords: s.startCoords, hasEndCoords: !!s.endCoords })));
-
-        addDebugLog('allDrivingStops RESUMEN:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords })));
-
-        for (const stop of allDrivingStops) {
+        
+        console.log('[actions.ts] ⚠️ DEBUGGING allDrivingStops:');
+        console.log('[actions.ts] allDrivingStops COUNT:', allDrivingStops.length);
+        allDrivingStops.forEach((stop, idx) => {
+            console.log(`[actions.ts] Stop ${idx}:`, {
+                from: stop.from,
+                to: stop.to,
+                distance: stop.distance,
+                startCoords: stop.startCoords,
+                endCoords: stop.endCoords,
+                hasStartCoords: !!stop.startCoords,
+                hasEndCoords: !!stop.endCoords
+            });
+        });
+        addDebugLog('allDrivingStops COMPLETO:', allDrivingStops);        for (const stop of allDrivingStops) {
              const startCoords = stop.startCoords ? { lat: stop.startCoords.lat, lng: stop.startCoords.lng } : { lat: 0, lng: 0 };
              const endCoords = stop.endCoords ? { lat: stop.endCoords.lat, lng: stop.endCoords.lng } : { lat: 0, lng: 0 };
 
@@ -359,14 +374,17 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 startCoordinates: startCoords, // ✅ GARANTIZADO que es {lat, lng}
                 coordinates: endCoords         // ✅ GARANTIZADO que es {lat, lng}
             };
-            console.log(`[actions.ts] Día ${dayCounter}:`, {
-                from: dailyPlan.from,
-                to: dailyPlan.to,
-                startCoordinates: dailyPlan.startCoordinates,
-                coordinates: dailyPlan.coordinates,
-                hasValidStartCoords: dailyPlan.startCoordinates.lat !== 0 || dailyPlan.startCoordinates.lng !== 0
-            });
-            addDebugLog(`Día ${dayCounter}: startCoords=${JSON.stringify(dailyPlan.startCoordinates)}, endCoords=${JSON.stringify(dailyPlan.coordinates)}`);
+            
+            // 🔍 DEBUG EXHAUSTIVO para verificar stop.startCoords
+            console.log(`[actions.ts] ====== DÍA ${dayCounter} ======`);
+            console.log(`[actions.ts] From: "${stop.from}" → To: "${stop.to}"`);
+            console.log(`[actions.ts] stop.startCoords (RAW):`, stop.startCoords);
+            console.log(`[actions.ts] stop.endCoords (RAW):`, stop.endCoords);
+            console.log(`[actions.ts] startCoordinates (ASIGNADO):`, startCoords);
+            console.log(`[actions.ts] coordinates (ASIGNADO):`, endCoords);
+            console.log(`[actions.ts] ========================================`);
+            
+            addDebugLog(`Día ${dayCounter}: startCoords (raw)=${JSON.stringify(stop.startCoords)} | startCoordinates (asignado)=${JSON.stringify(startCoords)}`);
             dailyItinerary.push(dailyPlan);
             currentDate = addDays(currentDate, 1);
             dayCounter++;
