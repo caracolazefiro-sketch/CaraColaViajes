@@ -251,7 +251,10 @@ export default function Home() {
       
       const originCityName = normalizeForGoogle(formData.origen);
       const destCityName = normalizeForGoogle(formData.destino);
-      const normalizedWaypoints = allWaypoints.map(wp => normalizeForGoogle(wp));
+      
+      // FILTRAR paradas tácticas (solo enviar ciudades REALES a Google)
+      const filteredWaypoints = allWaypoints.filter(wp => !wp.includes('📍 Parada Táctica'));
+      const normalizedWaypoints = filteredWaypoints.map(wp => normalizeForGoogle(wp));
 
       console.log('📍 Ruta completa (normalizada para Google):');
       console.log(`  Origen: ${originCityName}`);
