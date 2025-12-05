@@ -224,12 +224,14 @@ export default function Home() {
       console.log('🔄 Recalculando ruta COMPLETA desde origen original');
       const { getDirectionsAndCost } = await import('./actions');
       
-      // Helper: normalizar para Google (extraer ciudad, luego remover acentos)
+      // Helper: normalizar para Google (extraer ciudad+país, luego remover acentos)
       const normalizeForGoogle = (text: string) => {
-        // Paso 1: Extraer solo el nombre de la ciudad (antes de la coma)
-        const cityName = text.split(',')[0].trim();
+        // Paso 1: Si hay coma, tomar ciudad y país (ej: "Salamanca, España")
+        // Si no hay coma, usar todo (ej: "Salamanca")
+        const parts = text.split(',');
+        const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
         // Paso 2: Remover acentos/diacríticos
-        return cityName
+        return location
           .normalize('NFD')                   // Descomponer caracteres acentuados
           .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
       };
