@@ -256,14 +256,21 @@ export default function Home() {
         // No es la última etapa, buscar el siguiente waypoint real
         const nextDayDestination = updatedItinerary[adjustingDayIndex + 1].to;
         
+        console.log('🔍 DEBUG ÍNDICE:');
+        console.log('  adjustingDayIndex:', adjustingDayIndex);
+        console.log('  updatedItinerary.length:', updatedItinerary.length);
+        console.log('  updatedItinerary[adjustingDayIndex]:', updatedItinerary[adjustingDayIndex]);
+        console.log('  updatedItinerary[adjustingDayIndex + 1]:', updatedItinerary[adjustingDayIndex + 1]);
+        console.log('  nextDayDestination:', nextDayDestination);
+        console.log('  waypointsFromForm:', waypointsFromForm);
+        
         // Buscar dónde está ese waypoint en formData.etapas
         const nextWaypointIndex = waypointsFromForm.findIndex(wp => 
           wp.toLowerCase().includes(nextDayDestination.toLowerCase().split(',')[0]) ||
           nextDayDestination.toLowerCase().includes(wp.toLowerCase().split(',')[0])
         );
         
-        console.log('🎯 Siguiente destino esperado:', nextDayDestination);
-        console.log('🎯 Índice para insertar:', nextWaypointIndex);
+        console.log('  nextWaypointIndex encontrado:', nextWaypointIndex);
         
         if (nextWaypointIndex !== -1) {
           // Insertar ANTES del siguiente waypoint
@@ -272,13 +279,16 @@ export default function Home() {
             newDestination,
             ...waypointsFromForm.slice(nextWaypointIndex)
           ];
+          console.log('  ✅ Insertando en índice', nextWaypointIndex);
         } else {
           // Si no encontramos el siguiente waypoint, agregar al final
           updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
+          console.log('  ⚠️ No encontrado, agregando al final');
         }
       } else {
         // Si es la última etapa, agregar al final
         updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
+        console.log('  📌 Última etapa, agregando al final');
       }
       
       console.log('📦 Waypoints después del ajuste:', updatedMandatoryWaypoints);
