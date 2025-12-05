@@ -95,38 +95,6 @@ export default function DebugPanel() {
     copyToClipboard(allLogsText);
   };
 
-  // 📸 Función para tomar screenshot
-  const takeScreenshot = async () => {
-    try {
-      // Usar html2canvas si está disponible, sino usar canvas API
-      const canvas = await (window as any).html2canvas?.(document.body) || 
-        await new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-          script.onload = async () => {
-            const result = await (window as any).html2canvas(document.body);
-            resolve(result);
-          };
-          document.head.appendChild(script);
-        });
-
-      if (canvas) {
-        canvas.toBlob((blob: Blob) => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `debug-screenshot-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-          alert('✅ Screenshot descargado');
-        });
-      }
-    } catch (error) {
-      console.error('Error tomando screenshot:', error);
-      alert('❌ Error al tomar screenshot');
-    }
-  };
-
   // 📥 Función para descargar logs como archivo
   const downloadLogs = () => {
     const allLogsText = `
@@ -186,13 +154,6 @@ ${'='.repeat(80)}`;
                 title="Descargar logs como archivo .txt"
               >
                 📥 Descargar Logs
-              </button>
-              <button
-                onClick={takeScreenshot}
-                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 rounded text-white text-sm font-bold transition-colors"
-                title="Tomar screenshot de la pantalla actual"
-              >
-                📸 Screenshot
               </button>
               <button
                 onClick={() => setLogs([])}
