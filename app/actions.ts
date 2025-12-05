@@ -280,10 +280,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         let currentDate = new Date(data.fechaInicio);
         let dayCounter = 1;
         
-        console.log('[actions.ts] allDrivingStops:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords, startCoords: s.startCoords, hasEndCoords: !!s.endCoords })));
+        console.log('[actions.ts] allDrivingStops DETALLE:', allDrivingStops);
+        console.log('[actions.ts] allDrivingStops RESUMEN:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords, startCoords: s.startCoords, hasEndCoords: !!s.endCoords })));
         
         for (const stop of allDrivingStops) {
-             dailyItinerary.push({
+             const dailyPlan = {
                 date: formatDate(currentDate),
                 day: dayCounter,
                 from: stop.from,
@@ -292,7 +293,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 isDriving: true,
                 startCoordinates: stop.startCoords || { lat: 0, lng: 0 }, // ✅ Fallback a 0,0 si no existe
                 coordinates: stop.endCoords || { lat: 0, lng: 0 }         // ✅ Fallback
-            });
+            };
+            console.log(`[actions.ts] Pushing dailyPlan día ${dayCounter}:`, dailyPlan);
+            dailyItinerary.push(dailyPlan);
             currentDate = addDays(currentDate, 1);
             dayCounter++;
         }
