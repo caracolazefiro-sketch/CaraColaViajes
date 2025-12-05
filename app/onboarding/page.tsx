@@ -77,8 +77,6 @@ const steps: OnboardingStep[] = [
     title: 'Compartir Viaje',
     description: 'Comparte tu itinerario con otros',
     icon: '🔗',
-    description: 'Comparte tu itinerario con otros',
-    icon: '🔗',
     details: [
       'Haz clic en "Compartir" en el panel de itinerario',
       'Se genera un enlace único',

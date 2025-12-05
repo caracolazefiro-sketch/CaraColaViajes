@@ -87,6 +87,93 @@ Esta funcionalidad permite al usuario modificar cualquier parada técnica del vi
 
 ---
 
+## 🔧 ARQUITECTURA - Ideas de Refactorización (Diciembre 2025)
+
+### 🚀 **Optimización de Recálculo: Sistema de Sub-Viajes (Propuesta Técnica)**
+**Estado:** 📋 Análisis en profundidad completado - Pendiente implementación
+
+**Problema actual:**
+- Cada cambio en cualquier día (escalas, destino, etc.) recalcula **TODO el viaje** desde origen a destino
+- Algoritmo: O(n) donde n = número total de días
+- Ineficiente para viajes largos (ej: 20 días = Google Directions 1 vez con 18 waypoints)
+
+**Solución propuesta: Sub-viajes (mini-viajes por segmento)**
+
+```typescript
+// Estructura: Dividir viaje en sub-viajes independientes
+// Ejemplo: Salamanca → Barcelona en 3 días de conducción
+SubViaje {
+  id: "sv-1-3"
+  startPoint: {lat, lng}      // Salamanca
+  endPoint: {lat, lng}        // Barcelona
+  days: 3
+  distance: 1500km
+  dailyItinerary: DailyPlan[]
+  cachedAt: timestamp
+}
+
+// Al modificar Día 2:
+// ✅ Solo recalcula SubViaje actual (O(1) si cache válido)
+// ✅ SubViajes anteriores intactos
+// ✅ SubViajes posteriores intactos
+```
+
+**Ventajas:**
+- ✅ **Rendimiento**: O(1) para cambios en sub-viaje existente vs O(n) actual
+- ✅ **Caché inteligente**: Guardar sub-viajes completos en IndexedDB
+- ✅ **Desacoplamiento**: Cada sub-viaje es unidad independiente
+- ✅ **Escalabilidad**: Viajes de 30+ días eficientes
+- ✅ **Claridad código**: Lógica más modular y testeable
+
+**Limitaciones (Realidad de propagación):**
+- ⚠️ **Fechas aún se propagan**: Si cambias Día 3, Día 4+ se reajustan
+- ⚠️ **Coordenadas iniciales cambian**: Día 4 inicia donde termina Día 3
+- ⚠️ **Cascada inevitable**: Encadenamiento existe en cualquier arquitectura mientras fechas sean interdependientes
+
+**Pasos de análisis y refactorización:**
+
+1. **Fase 1: Análisis (4-6 horas)**
+   - [ ] Mapear viajes de prueba (corto/medio/largo)
+   - [ ] Medir tiempo recálculo actual vs proyectado con sub-viajes
+   - [ ] Definir límite de "un sub-viaje" (ej: máx 3-5 días antes de nueva ruta)
+   - [ ] Diseñar estructura de datos sub-viajes
+   - [ ] Evaluar impacto en almacenamiento (IndexedDB capacity)
+
+2. **Fase 2: Caché Strategy (2-3 horas)**
+   - [ ] Implementar IndexedDB schema para sub-viajes
+   - [ ] Lógica de invalidación de cache (qué causa que se recalcule)
+   - [ ] Serialización/deserialización de DailyPlan[]
+   - [ ] Backup a localStorage (respaldo)
+
+3. **Fase 3: Refactor getDirectionsAndCost (4-5 horas)**
+   - [ ] Crear getSubViajeDirections(startPoint, endPoint, days)
+   - [ ] Mantener compatibilidad con API actual
+   - [ ] Logging comprehensivo para debugging
+   - [ ] Tests con rutas variadas
+
+4. **Fase 4: Integración en handleManageStopovers (3-4 horas)**
+   - [ ] Detectar qué sub-viaje se modifica
+   - [ ] Recalcular solo ese sub-viaje
+   - [ ] Re-fetch coordenadas iniciales para días posteriores
+   - [ ] Actualizar UI con nueva itinerario
+
+5. **Fase 5: Testing y validación (3-4 horas)**
+   - [ ] Stress test: Salamanca → Barcelona, modificar cada día
+   - [ ] Comparar tiempos: viejo vs nuevo sistema
+   - [ ] Verificar consistencia de coordenadas y fechas
+   - [ ] Test de casos edge (viaje 1 día, 30 días, etc.)
+
+**Estimación total:** 16-22 horas de trabajo concentrado
+
+**Prioridad:** 🟡 MEDIA-ALTA (no bloqueador pero alto ROI en UX)
+
+**Dependencias:**
+- ✅ Marker fix (TripMap.tsx) debe completarse primero
+- ✅ Todos los tests de responsiveness pasando
+- ✅ Cero bugs reportados en escalas/recálculo actual
+
+---
+
 ## 🎯 VERSIÓN PREMIUM (Futuras features de pago)
 
 ### 📞 Información extendida de lugares
