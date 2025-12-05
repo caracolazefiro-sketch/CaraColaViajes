@@ -68,15 +68,27 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
 
+        // Normalizar nombres: remover acentos para Google API
+        const normalizeForGoogle = (text: string) => {
+            return text
+                .normalize('NFD')                   // Descomponer caracteres acentuados
+                .replace(/[\u0300-\u036f]/g, '')   // Remover diacríticos
+                .replace(/[^\w\s,]/g, '');         // Remover caracteres especiales (excepto comas)
+        };
+
         const directionsService = new google.maps.DirectionsService();
         
-        let destination = formData.destino;
-        const waypoints = formData.etapas.split('|').map(s => s.trim()).filter(s => s.length > 0).map(location => ({ location, stopover: true }));
+        let destination = normalizeForGoogle(formData.destino);
+        const waypoints = formData.etapas
+            .split('|')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+            .map(location => ({ location: normalizeForGoogle(location), stopover: true }));
         const outboundLegsCount = waypoints.length + 1;
 
         if (formData.vueltaACasa) {
-            destination = formData.origen;
-            waypoints.push({ location: formData.destino, stopover: true });
+            destination = normalizeForGoogle(formData.origen);
+            waypoints.push({ location: normalizeForGoogle(formData.destino), stopover: true });
         }
 
         try {

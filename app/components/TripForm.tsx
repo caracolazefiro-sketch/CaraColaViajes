@@ -119,9 +119,23 @@ export default function TripForm({
 
     const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim().length > 0) : [];
 
+    // Normalizar nombres: remover acentos para Google API
+    const normalizeForGoogle = (text: string) => {
+        return text
+            .normalize('NFD')                   // Descomponer caracteres acentuados
+            .replace(/[\u0300-\u036f]/g, '')   // Remover diacríticos
+            .replace(/[^\w\s,]/g, '');         // Remover caracteres especiales (excepto comas)
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
-        const finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+        let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+        
+        // Normalizar campos de ubicación
+        if (['origen', 'destino', 'etapas'].includes(id) && typeof finalValue === 'string') {
+            finalValue = normalizeForGoogle(finalValue);
+        }
+        
         setFormData({ ...formData, [id]: finalValue } as FormData);
     };
 
@@ -135,8 +149,9 @@ export default function TripForm({
         const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
         const place = ref.current?.getPlace();
         if (place && place.formatted_address) {
-            if (field === 'tempStop') setTempStop(place.formatted_address);
-            else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
+            const normalizedAddress = normalizeForGoogle(place.formatted_address);
+            if (field === 'tempStop') setTempStop(normalizedAddress);
+            else setFormData((prev) => ({ ...prev, [field]: normalizedAddress }) as FormData);
         }
     };
 

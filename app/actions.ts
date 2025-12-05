@@ -128,14 +128,27 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         return { error: "Clave de API de Google Maps no configurada. Configure 'GOOGLE_MAPS_API_KEY_FIXED' (preferido) o 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'." };
     }
 
+    // Normalizar nombres: remover acentos para Google API
+    const normalizeForGoogle = (text: string) => {
+        return text
+            .normalize('NFD')                   // Descomponer caracteres acentuados
+            .replace(/[\u0300-\u036f]/g, '')   // Remover diacríticos
+            .replace(/[^\w\s]/g, '');          // Remover caracteres especiales
+    };
+
+    // Normalizar origin, destination y waypoints
+    const normalizedOrigin = normalizeForGoogle(data.origin);
+    const normalizedDestination = normalizeForGoogle(data.destination);
+    const normalizedWaypoints = data.waypoints.map(w => normalizeForGoogle(w));
+
     const allStops = [data.origin, ...data.waypoints.filter(w => w), data.destination];
-    const waypointsParam = data.waypoints.length > 0 ? `&waypoints=${data.waypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(data.origin)}&destination=${encodeURIComponent(data.destination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
+    const waypointsParam = normalizedWaypoints.length > 0 ? `&waypoints=${normalizedWaypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(normalizedOrigin)}&destination=${encodeURIComponent(normalizedDestination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
 
     debugLog.push('🔗 Google Directions API Call:');
-    debugLog.push(`  Origin: ${data.origin}`);
-    debugLog.push(`  Destination: ${data.destination}`);
-    debugLog.push(`  Waypoints: ${JSON.stringify(data.waypoints)}`);
+    debugLog.push(`  Origin: ${normalizedOrigin}`);
+    debugLog.push(`  Destination: ${normalizedDestination}`);
+    debugLog.push(`  Waypoints: ${JSON.stringify(normalizedWaypoints)}`);
     debugLog.push(`  URL (sin key): ${url.substring(0, url.lastIndexOf('&key='))}`);
 
     try {
