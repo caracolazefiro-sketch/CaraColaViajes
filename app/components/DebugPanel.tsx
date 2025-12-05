@@ -16,7 +16,7 @@ export default function DebugPanel() {
   const [filter, setFilter] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
-  const originalConsoleLog = useRef<typeof console.log>();
+  const originalConsoleLog = useRef<typeof console.log>(console.log);
 
   useEffect(() => {
     // Override console.log para capturar todos los logs
