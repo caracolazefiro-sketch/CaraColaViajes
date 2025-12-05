@@ -135,11 +135,18 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
     const waypointsParam = data.waypoints.length > 0 ? `&waypoints=${data.waypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(data.origin)}&destination=${encodeURIComponent(data.destination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
 
+    console.log('🔗 Google Directions API Call:');
+    console.log('  Origin:', data.origin);
+    console.log('  Destination:', data.destination);
+    console.log('  Waypoints:', data.waypoints);
+    console.log('  URL (sin key):', url.substring(0, url.lastIndexOf('&key=')));
+
     try {
         const response = await fetch(url);
         const directionsResult = await response.json();
 
         if (directionsResult.status !== 'OK') {
+            console.error('❌ Google API Response:', { status: directionsResult.status, error_message: directionsResult.error_message });
             return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}` };
         }
         
