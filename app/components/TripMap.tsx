@@ -185,7 +185,7 @@ export default function TripMap({
     // DEBUG: Log para verificar datos que llegan
     useEffect(() => {
         if (dailyItinerary && dailyItinerary.length > 0) {
-            console.log('[TripMap] dailyItinerary recibido:', dailyItinerary.map((day, i) => ({
+            const logData = dailyItinerary.map((day, i) => ({
                 index: i,
                 from: day.from,
                 to: day.to,
@@ -193,7 +193,13 @@ export default function TripMap({
                 hasCoordinates: !!day.coordinates,
                 startCoordinates: day.startCoordinates,
                 coordinates: day.coordinates
-            })));
+            }));
+            console.log('[TripMap] dailyItinerary recibido:', logData);
+            
+            // Log adicional para ver el primer día en detalle
+            if (dailyItinerary[0]) {
+                console.log('[TripMap] Día 0 DETALLE COMPLETO:', JSON.stringify(dailyItinerary[0], null, 2));
+            }
         }
     }, [dailyItinerary]);
 
