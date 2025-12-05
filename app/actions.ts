@@ -261,23 +261,17 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         let currentDate = new Date(data.fechaInicio);
         let dayCounter = 1;
         
-        // Reverse geocodificar nombres para waypoints que vinieron como coordenadas
-        const resolveNames = async (fromName: string, toName: string, toCoords?: { lat: number; lng: number }) => {
-            let resolvedTo = toName;
-            // Si el "to" es un número (coordenadas), reverse geocodificar
-            if (toCoords && /^[\d\.\-,]+$/.test(toName)) {
-                try {
-                    await sleep(50); // Rate limiting
-                    resolvedTo = await getCityNameFromCoords(toCoords.lat, toCoords.lng, apiKey);
-                } catch {
-                    // Fallback: mantener el nombre original
-                }
-            }
-            return resolvedTo;
-        };
-        
         for (const stop of allDrivingStops) {
-             const displayName = await resolveNames(stop.from, stop.to, stop.endCoords);
+             // Reverse geocodificar si es coordenada
+             let displayName = stop.to;
+             if (stop.endCoords && /^[\d\.\-,]+$/.test(stop.to)) {
+                 try {
+                     displayName = await getCityNameFromCoords(stop.endCoords.lat, stop.endCoords.lng, apiKey);
+                     debugLog.push(`  ✅ Geocodificado: ${stop.to} → ${displayName}`);
+                 } catch {
+                     debugLog.push(`  ⚠️ No se pudo geocodificar ${stop.to}`);
+                 }
+             }
              
              dailyItinerary.push({
                 date: formatDate(currentDate),
@@ -286,8 +280,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 to: displayName,
                 distance: stop.distance,
                 isDriving: true,
-                startCoordinates: stop.startCoords, // ✅ Pasamos datos al frontend
-                coordinates: stop.endCoords         // ✅
+                startCoordinates: stop.startCoords,
+                coordinates: stop.endCoords
             });
             currentDate = addDays(currentDate, 1);
             dayCounter++;
@@ -297,11 +291,19 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             const dateEnd = new Date(data.fechaRegreso);
             const diffTime = dateEnd.getTime() - currentDate.getTime();
             const daysStay = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            debugLog.push(`📅 Fecha regreso: ${data.fechaRegreso}, días de estancia: ${daysStay}`);
 
             if (daysStay > 0) {
-                const stayLocation = data.destination;
                 const lastLeg = route.legs[route.legs.length - 1];
                 const stayCoords = { lat: lastLeg.end_location.lat, lng: lastLeg.end_location.lng };
+                
+                // Reverse geocodificar destino
+                let stayLocation = data.destination;
+                try {
+                    stayLocation = await getCityNameFromCoords(stayCoords.lat, stayCoords.lng, apiKey);
+                } catch {
+                    // usar destino original
+                }
 
                 for (let i = 0; i < daysStay; i++) {
                      dailyItinerary.push({
@@ -311,7 +313,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                         to: stayLocation,
                         distance: 0,
                         isDriving: false,
-                        startCoordinates: stayCoords, // En estancia, inicio = fin
+                        startCoordinates: stayCoords,
                         coordinates: stayCoords
                     });
                     currentDate = addDays(currentDate, 1);
