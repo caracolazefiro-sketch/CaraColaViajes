@@ -245,14 +245,14 @@ export default function Home() {
         // Si este waypoint corresponde a la etapa ajustada, usar newDestination
         // (asumimos que el orden de waypoints coincide con el orden de etapas)
         if (idx === adjustingDayIndex) {
-          return normalizeForGoogle(getCityName(newDestination));
+          return normalizeForGoogle(newDestination);
         }
-        return normalizeForGoogle(getCityName(wp));
+        return normalizeForGoogle(wp);
       });
 
       // Usar solo nombres de ciudades (sin códigos postales, sin países, sin acentos)
-      const originCityName = normalizeForGoogle(getCityName(formData.origen));
-      const destCityName = normalizeForGoogle(getCityName(formData.destino));
+      const originCityName = normalizeForGoogle(formData.origen);
+      const destCityName = normalizeForGoogle(formData.destino);
 
       console.log('📍 Ruta completa (normalizada para Google):');
       console.log(`  Origen: ${originCityName}`);
