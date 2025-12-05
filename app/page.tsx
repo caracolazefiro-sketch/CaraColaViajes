@@ -223,16 +223,22 @@ export default function Home() {
       console.log('🔄 Recalculando desde día', adjustingDayIndex);
       const { getDirectionsAndCost } = await import('./actions');
       
-      const adjustedDayOrigin = updatedItinerary[adjustingDayIndex].from;
-      const finalDestination = formData.destino;
+      // Obtener coordenadas del origen (día ajustado)
+      const firstDay = updatedItinerary[adjustingDayIndex];
+      let originParam = firstDay.from;
+      if (firstDay.startCoordinates) {
+        originParam = `${firstDay.startCoordinates.lat},${firstDay.startCoordinates.lng}`;
+        console.log(`  Origen: Coordenadas (${firstDay.startCoordinates.lat},${firstDay.startCoordinates.lng})`);
+      }
       
       // Construir waypoints: nuevo destino + destinos de días siguientes
       // IMPORTANTE: Usar coordenadas en lugar de nombres para evitar ambigüedad con Google API
       // Google Directions API acepta formato: "lat,lng" para coordenadas
       const waypoints: string[] = [];
       
-      // Agregar nuevo destino (usar texto si está disponible)
-      waypoints.push(newDestination);
+      // Agregar nuevo destino usando coordenadas (ya tenemos newCoordinates del modal)
+      waypoints.push(`${newCoordinates.lat},${newCoordinates.lng}`);
+      console.log(`  Waypoint día ${adjustingDayIndex+1}: Coordenadas (${newCoordinates.lat},${newCoordinates.lng})`);
       
       // Agregar waypoints de días siguientes usando coordenadas cuando sea posible
       for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
@@ -249,11 +255,20 @@ export default function Home() {
         }
       }
 
-      console.log('📍 Origen:', adjustedDayOrigin, '| Destino:', finalDestination, '| Waypoints:', waypoints);
+      // Obtener coordenadas del destino final
+      // Si no tenemos, usar texto (fallback)
+      let finalDestinationParam = formData.destino;
+      const lastDay = updatedItinerary[updatedItinerary.length - 1];
+      if (lastDay.coordinates) {
+        finalDestinationParam = `${lastDay.coordinates.lat},${lastDay.coordinates.lng}`;
+        console.log(`  Destino final: Coordenadas (${lastDay.coordinates.lat},${lastDay.coordinates.lng})`);
+      }
+
+      console.log('📍 Origen:', originParam, '| Destino:', finalDestinationParam, '| Waypoints:', waypoints);
 
       const recalcResult = await getDirectionsAndCost({
-        origin: adjustedDayOrigin,
-        destination: finalDestination,
+        origin: originParam,
+        destination: finalDestinationParam,
         waypoints,
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
