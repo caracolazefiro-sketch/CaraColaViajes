@@ -273,7 +273,7 @@ export default function Home() {
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
         fechaInicio: updatedItinerary[adjustingDayIndex].date,
-        fechaRegreso: formData.fechaRegreso
+        fechaRegreso: '' // No usar fechaRegreso en recálculo - duración se define solo por km/día
       });
 
       if (recalcResult.error || !recalcResult.dailyItinerary) {
