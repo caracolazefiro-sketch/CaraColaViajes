@@ -95,23 +95,52 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, attempt = 1): Promise<string> {
     try {
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_2&key=${apiKey}&language=es`;
-        const res = await fetch(url);
-        const data = await res.json();
+        // Primero: Reverse Geocoding normal
+        const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=es`;
+        const geoRes = await fetch(geoUrl);
+        const geoData = await geoRes.json();
         
-        if (data.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
+        if (geoData.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             await sleep(1000 * attempt);
             return getCityNameFromCoords(lat, lng, apiKey, attempt + 1);
         }
 
-        if (data.status === 'OK' && data.results?.[0]) {
-            const comp = data.results[0].address_components;
-            const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
-            const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
-            return locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+        // Si tenemos resultado del geocoding, verificar si es ciudad importante
+        if (geoData.status === 'OK' && geoData.results?.[0]) {
+            const comp = geoData.results[0].address_components;
+            const locality = comp.find((c: { types: string[] }) => c.types.includes('locality'))?.long_name;
+            const admin2 = comp.find((c: { types: string[] }) => c.types.includes('administrative_area_level_2'))?.long_name;
+            const adminArea = comp.find((c: { types: string[] }) => c.types.includes('administrative_area_level_1'))?.long_name;
+            
+            const cityName = locality || admin2 || adminArea;
+            
+            // Si encontramos una ciudad potencial, verificar que sea ciudad importante (no pueblo)
+            if (cityName && cityName.length > 0) {
+                // Usar Places Nearby para verificar que hay establecimientos (hoteles, restaurantes)
+                try {
+                    const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=5000&type=lodging&key=${apiKey}`;
+                    const placesRes = await fetch(placesUrl);
+                    const placesData = await placesRes.json();
+                    
+                    // Si hay hoteles/alojamientos, es ciudad importante
+                    if (placesData.results && placesData.results.length > 0) {
+                        return `${cityName}`;
+                    }
+                } catch (e) {
+                    console.log("Places API fallback", e);
+                }
+                
+                // Si no hay hoteles pero tenemos nombre de geocoding, usarlo igual
+                return cityName;
+            }
         }
-    } catch (e) { console.error("Geocode error", e); }
-    return `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+        
+        // Fallback: Solo coordenadas
+        return `Parada (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+    } catch (e) { 
+        console.error("Geocode error", e); 
+        return `Parada (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+    }
 }
 
 
@@ -305,8 +334,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 startCoordinates: stop.startCoords || { lat: 0, lng: 0 }, // ✅ Fallback a 0,0 si no existe
                 coordinates: stop.endCoords || { lat: 0, lng: 0 }         // ✅ Fallback
             };
+            console.log(`[actions.ts] ANTES DE ASIGNAR - stop.startCoords:`, stop.startCoords);
             console.log(`[actions.ts] Pushing dailyPlan día ${dayCounter}:`, dailyPlan);
-            addDebugLog(`Pushing día ${dayCounter}: startCoords=${stop.startCoords ? 'PRESENTE' : 'UNDEFINED'}`);
+            addDebugLog(`Pushing día ${dayCounter}: stop.startCoords=${JSON.stringify(stop.startCoords)}, asignando=${JSON.stringify(dailyPlan.startCoordinates)}`);
             dailyItinerary.push(dailyPlan);
             currentDate = addDays(currentDate, 1);
             dayCounter++;
