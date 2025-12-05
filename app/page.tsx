@@ -223,45 +223,34 @@ export default function Home() {
       console.log('🔄 Recalculando desde día', adjustingDayIndex);
       const { getDirectionsAndCost } = await import('./actions');
       
-      // Obtener coordenadas del origen (día ajustado)
+      // Obtener nombre del origen (día ajustado) - NO coordenadas
       const firstDay = updatedItinerary[adjustingDayIndex];
       let originParam = firstDay.from;
-      if (firstDay.startCoordinates) {
-        originParam = `${firstDay.startCoordinates.lat},${firstDay.startCoordinates.lng}`;
-        console.log(`  Origen: Coordenadas (${firstDay.startCoordinates.lat},${firstDay.startCoordinates.lng})`);
-      }
+      console.log(`  Origen: ${originParam}`);
       
       // Construir waypoints: nuevo destino + destinos de días siguientes
-      // IMPORTANTE: Usar coordenadas en lugar de nombres para evitar ambigüedad con Google API
-      // Google Directions API acepta formato: "lat,lng" para coordenadas
+      // IMPORTANTE: Pasar NOMBRES, no coordenadas - el servidor usa allStops para los nombres del itinerario
       const waypoints: string[] = [];
       
-      // Agregar nuevo destino usando coordenadas (ya tenemos newCoordinates del modal)
-      waypoints.push(`${newCoordinates.lat},${newCoordinates.lng}`);
-      console.log(`  Waypoint día ${adjustingDayIndex+1}: Coordenadas (${newCoordinates.lat},${newCoordinates.lng})`);
+      // Agregar nuevo destino usando su NOMBRE (del modal)
+      waypoints.push(newLocation.name || formData.destino);
+      console.log(`  Waypoint día ${adjustingDayIndex+1}: ${newLocation.name || formData.destino}`);
       
-      // Agregar waypoints de días siguientes usando coordenadas cuando sea posible
+      // Agregar waypoints de días siguientes usando sus NOMBRES
       for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
         const day = updatedItinerary[i];
-        if (day.coordinates) {
-          // Usar coordenadas para mayor precisión y evitar ambigüedad
-          waypoints.push(`${day.coordinates.lat},${day.coordinates.lng}`);
-          console.log(`  Waypoint día ${i+1}: Coordenadas (${day.coordinates.lat},${day.coordinates.lng})`);
-        } else {
-          // Fallback: usar nombre limpio
-          const cleanName = day.to.replace(/📍\s*Parada Táctica:\s*/, '').trim();
-          waypoints.push(cleanName);
-          console.log(`  Waypoint día ${i+1}: ${cleanName} (sin coordenadas)`);
-        }
+        const cleanName = day.to.replace(/📍\s*Parada Táctica:\s*/, '').trim();
+        waypoints.push(cleanName);
+        console.log(`  Waypoint día ${i+1}: ${cleanName}`);
       }
 
-      // Obtener coordenadas del destino final
-      // Si no tenemos, usar texto (fallback)
-      let finalDestinationParam = formData.destino;
+      // Usar el nombre del destino final (del último día del itinerario)
       const lastDay = updatedItinerary[updatedItinerary.length - 1];
-      if (lastDay.coordinates) {
-        finalDestinationParam = `${lastDay.coordinates.lat},${lastDay.coordinates.lng}`;
-        console.log(`  Destino final: Coordenadas (${lastDay.coordinates.lat},${lastDay.coordinates.lng})`);
+      let finalDestinationParam = formData.destino;
+      // Usar nombre, no coordenadas
+      if (lastDay.to) {
+        finalDestinationParam = lastDay.to.replace(/📍\s*Parada Táctica:\s*/, '').trim();
+        console.log(`  Destino final: ${finalDestinationParam}`);
       }
 
       console.log('📍 Origen:', originParam, '| Destino:', finalDestinationParam, '| Waypoints:', waypoints);
