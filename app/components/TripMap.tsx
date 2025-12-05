@@ -241,11 +241,19 @@ export default function TripMap({
                 )}
 
                 {/* Marcadores de Pernoctas (A, B, C, D...) */}
+                {/* ✅ LÓGICA FIJA:
+                    - Día 0: startCoordinates = A (origen)
+                    - Día 0: coordinates = B (destino)
+                    - Día 1+: coordinates = C, D, E... (destinos de cada día)
+                    - Se renderiza SIEMPRE, independiente de isDriving
+                */}
                 {dailyItinerary?.map((day, i) => {
-                    // Primer día: pintar A en el ORIGEN (startCoordinates)
-                    if (i === 0 && day.startCoordinates) {
-                        return (
-                            <React.Fragment key={`day-${i}`}>
+                    const markers: React.ReactElement[] = [];
+                    
+                    // ✅ Día 0: Renderizar A (origen) y B (destino)
+                    if (i === 0) {
+                        if (day.startCoordinates) {
+                            markers.push(
                                 <Marker 
                                     key={`origin-${i}`} 
                                     position={day.startCoordinates} 
@@ -253,34 +261,36 @@ export default function TripMap({
                                     title={day.from} 
                                     label={{ text: 'A', color: "white", fontSize: "12px", fontWeight: "bold" }} 
                                 />
-                                {day.coordinates && (
-                                    <Marker 
-                                        key={`dest-${i}`} 
-                                        position={day.coordinates} 
-                                        icon={ICONS_ITINERARY.startEnd} 
-                                        title={day.to} 
-                                        label={{ text: 'B', color: "white", fontSize: "12px", fontWeight: "bold" }} 
-                                    />
-                                )}
-                            </React.Fragment>
-                        );
+                            );
+                        }
+                        if (day.coordinates) {
+                            markers.push(
+                                <Marker 
+                                    key={`dest-${i}`} 
+                                    position={day.coordinates} 
+                                    icon={ICONS_ITINERARY.startEnd} 
+                                    title={day.to} 
+                                    label={{ text: 'B', color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                                />
+                            );
+                        }
+                    } else {
+                        // ✅ Día 1+: Renderizar destinos como C, D, E...
+                        if (day.coordinates) {
+                            const letter = String.fromCharCode(65 + i); // 65 = A, so i+1 starts at B, then C, D, E...
+                            markers.push(
+                                <Marker 
+                                    key={`pernocta-${i}`} 
+                                    position={day.coordinates} 
+                                    icon={ICONS_ITINERARY.startEnd} 
+                                    title={day.to} 
+                                    label={{ text: letter, color: "white", fontSize: "12px", fontWeight: "bold" }} 
+                                />
+                            );
+                        }
                     }
                     
-                    // Resto de días: pintar solo destinos (C, D, E...)
-                    if (i > 0 && day.coordinates && day.isDriving) {
-                        const letter = String.fromCharCode(66 + i); // C, D, E... (66 = C porque ya usamos B)
-                        return (
-                            <Marker 
-                                key={`pernocta-${i}`} 
-                                position={day.coordinates} 
-                                icon={ICONS_ITINERARY.startEnd} 
-                                title={day.to} 
-                                label={{ text: letter, color: "white", fontSize: "12px", fontWeight: "bold" }} 
-                            />
-                        );
-                    }
-                    
-                    return null;
+                    return markers.length > 0 ? <React.Fragment key={`markers-day-${i}`}>{markers}</React.Fragment> : null;
                 })}
                 
                 {/* TODO: Marcadores de Escalas - requiere geocodificación */}
