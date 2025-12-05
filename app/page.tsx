@@ -233,8 +233,8 @@ export default function Home() {
       const waypoints: string[] = [];
       
       // Agregar nuevo destino usando su NOMBRE (del modal)
-      waypoints.push(newLocation.name || formData.destino);
-      console.log(`  Waypoint día ${adjustingDayIndex+1}: ${newLocation.name || formData.destino}`);
+      waypoints.push(newDestination);
+      console.log(`  Waypoint día ${adjustingDayIndex+1}: ${newDestination}`);
       
       // Agregar waypoints de días siguientes usando sus NOMBRES
       for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
