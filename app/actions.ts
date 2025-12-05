@@ -261,12 +261,29 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         let currentDate = new Date(data.fechaInicio);
         let dayCounter = 1;
         
+        // Reverse geocodificar nombres para waypoints que vinieron como coordenadas
+        const resolveNames = async (fromName: string, toName: string, toCoords?: { lat: number; lng: number }) => {
+            let resolvedTo = toName;
+            // Si el "to" es un número (coordenadas), reverse geocodificar
+            if (toCoords && /^[\d\.\-,]+$/.test(toName)) {
+                try {
+                    await sleep(50); // Rate limiting
+                    resolvedTo = await getCityNameFromCoords(toCoords.lat, toCoords.lng, apiKey);
+                } catch {
+                    // Fallback: mantener el nombre original
+                }
+            }
+            return resolvedTo;
+        };
+        
         for (const stop of allDrivingStops) {
+             const displayName = await resolveNames(stop.from, stop.to, stop.endCoords);
+             
              dailyItinerary.push({
                 date: formatDate(currentDate),
                 day: dayCounter,
                 from: stop.from,
-                to: stop.to,
+                to: displayName,
                 distance: stop.distance,
                 isDriving: true,
                 startCoordinates: stop.startCoords, // ✅ Pasamos datos al frontend
