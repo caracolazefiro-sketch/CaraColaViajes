@@ -375,10 +375,7 @@ export default function TripForm({
                                         <input 
                                             type="text" 
                                             value={tempStop} 
-                                            onChange={(e) => {
-                                                // Solo permitir que el Autocomplete actualice este campo
-                                                // El onChange se ignora para evitar sobrescribir selecciones del dropdown
-                                            }} 
+                                            onChange={(e) => setTempStop(e.target.value)} 
                                             placeholder={t('FORM_WAYPOINT_SEARCH_PLACEHOLDER')} 
                                             className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
                                         />
