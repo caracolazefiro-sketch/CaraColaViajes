@@ -97,7 +97,7 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
 
         try {
             const result = await directionsService.route({
-                origin: formData.origen,
+                origin: normalizeForGoogle(formData.origen),
                 destination: destination,
                 waypoints: waypoints,
                 travelMode: google.maps.TravelMode.DRIVING,

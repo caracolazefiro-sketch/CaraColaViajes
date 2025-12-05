@@ -135,10 +135,8 @@ export default function TripForm({
         const { id, value, type, checked } = e.target;
         let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
         
-        // Normalizar campos de ubicación
-        if (['origen', 'destino', 'etapas'].includes(id) && typeof finalValue === 'string') {
-            finalValue = normalizeForGoogle(finalValue);
-        }
+        // NO normalizar al guardar - solo guardar valores tal como vienen
+        // La normalización se hace solo cuando se envía a Google Directions
         
         setFormData({ ...formData, [id]: finalValue } as FormData);
     };
@@ -153,9 +151,10 @@ export default function TripForm({
         const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
         const place = ref.current?.getPlace();
         if (place && place.formatted_address) {
-            const normalizedAddress = normalizeForGoogle(place.formatted_address);
-            if (field === 'tempStop') setTempStop(normalizedAddress);
-            else setFormData((prev) => ({ ...prev, [field]: normalizedAddress }) as FormData);
+            // NO normalizar al guardar - guardar dirección completa del API
+            // La normalización se hace solo cuando se envía a Google Directions
+            if (field === 'tempStop') setTempStop(place.formatted_address);
+            else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
         }
     };
 
