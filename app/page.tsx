@@ -200,7 +200,7 @@ export default function Home() {
     try {
       console.log('🔧 Ajustando día', adjustingDayIndex, 'a:', newDestination);
       
-      // 1. Actualizar la etapa ajustada
+      // 1. Actualizar la etapa ajustada en el itinerario local
       const updatedItinerary = [...results.dailyItinerary];
       updatedItinerary[adjustingDayIndex] = {
         ...updatedItinerary[adjustingDayIndex],
@@ -208,8 +208,7 @@ export default function Home() {
         coordinates: newCoordinates
       };
 
-      // 2. Preparar datos para recálculo
-      // Si es la última etapa, solo actualizar el destino final
+      // 2. Si es la última etapa, solo actualizar el destino final
       if (adjustingDayIndex === updatedItinerary.length - 1) {
         console.log('✅ Última etapa - solo actualizar destino');
         setResults({ ...results, dailyItinerary: updatedItinerary });
@@ -219,50 +218,41 @@ export default function Home() {
         return;
       }
 
-      // 3. Si es etapa intermedia, recalcular desde ahí hasta el final
-      console.log('🔄 Recalculando desde día', adjustingDayIndex);
+      // 3. Si es etapa intermedia, RECALCULAR LA RUTA COMPLETA
+      // Idea: ignoramos qué día se está editando, simplemente recalculamos
+      // Origen original → Waypoints obligatorios (incluyendo el ajustado) → Destino final
+      console.log('🔄 Recalculando ruta COMPLETA desde origen original');
       const { getDirectionsAndCost } = await import('./actions');
       
-      // Obtener nombre del origen (día ajustado) - NO coordenadas
-      const firstDay = updatedItinerary[adjustingDayIndex];
-      let originParam = firstDay.from;
-      console.log(`  Origen: ${originParam}`);
+      // Construir waypoints: TODOS los obligatorios, actualizados con el cambio
+      const waypointsFromForm = formData.etapas
+        .split('|')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
       
-      // Construir waypoints: nuevo destino + destinos de días siguientes
-      // IMPORTANTE: Pasar NOMBRES, no coordenadas - el servidor usa allStops para los nombres del itinerario
-      const waypoints: string[] = [];
-      
-      // Agregar nuevo destino usando su NOMBRE (del modal)
-      waypoints.push(newDestination);
-      console.log(`  Waypoint día ${adjustingDayIndex+1}: ${newDestination}`);
-      
-      // Agregar waypoints de días siguientes usando sus NOMBRES
-      for (let i = adjustingDayIndex + 1; i < updatedItinerary.length - 1; i++) {
-        const day = updatedItinerary[i];
-        const cleanName = day.to.replace(/📍\s*Parada Táctica:\s*/, '').trim();
-        waypoints.push(cleanName);
-        console.log(`  Waypoint día ${i+1}: ${cleanName}`);
-      }
+      // Reemplazar el waypoint editado con el nuevo destino
+      const updatedWaypoints = waypointsFromForm.map((wp, idx) => {
+        // Si este waypoint corresponde a la etapa ajustada, usar newDestination
+        // (asumimos que el orden de waypoints coincide con el orden de etapas)
+        if (idx === adjustingDayIndex) {
+          return newDestination;
+        }
+        return wp;
+      });
 
-      // Usar el nombre del destino final (del último día del itinerario)
-      const lastDay = updatedItinerary[updatedItinerary.length - 1];
-      let finalDestinationParam = formData.destino;
-      // Usar nombre, no coordenadas
-      if (lastDay.to) {
-        finalDestinationParam = lastDay.to.replace(/📍\s*Parada Táctica:\s*/, '').trim();
-        console.log(`  Destino final: ${finalDestinationParam}`);
-      }
-
-      console.log('📍 Origen:', originParam, '| Destino:', finalDestinationParam, '| Waypoints:', waypoints);
+      console.log('📍 Ruta completa:');
+      console.log(`  Origen: ${formData.origen}`);
+      updatedWaypoints.forEach((wp, i) => console.log(`  Waypoint ${i+1}: ${wp}`));
+      console.log(`  Destino: ${formData.destino}`);
 
       const recalcResult = await getDirectionsAndCost({
-        origin: originParam,
-        destination: finalDestinationParam,
-        waypoints,
+        origin: formData.origen,
+        destination: formData.destino,
+        waypoints: updatedWaypoints,
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
-        fechaInicio: updatedItinerary[adjustingDayIndex].date,
-        fechaRegreso: '' // No usar fechaRegreso en recálculo - duración se define solo por km/día
+        fechaInicio: results.dailyItinerary[0].date, // Usar fecha de inicio original
+        fechaRegreso: ''
       });
 
       if (recalcResult.error || !recalcResult.dailyItinerary) {
