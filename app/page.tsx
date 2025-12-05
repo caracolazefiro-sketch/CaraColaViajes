@@ -244,20 +244,12 @@ export default function Home() {
       
       console.log('📦 Waypoints obligatorios (formData.etapas):', waypointsFromForm);
       
-      // PASO 2: Determinar si reemplazar o agregar
-      // Si adjustingDayIndex es antes de los waypoints, reemplazar
-      // Si es después, agregarlo como nuevo
-      let updatedMandatoryWaypoints: string[];
+      // PASO 2: ESTRATEGIA SIMPLE - Siempre agregar el nuevo destino
+      // No reemplazar nada, solo agregar Madrid a la lista de waypoints
+      // El usuario está ajustando una parada táctica, no un waypoint obligatorio
+      // Entonces simplemente agregamos Madrid sin tocar Valencia
       
-      if (adjustingDayIndex < waypointsFromForm.length) {
-        // Reemplazar un waypoint existente (Ej: Tarancón → Madrid reemplaza índice 0)
-        updatedMandatoryWaypoints = waypointsFromForm.map((wp, idx) =>
-          idx === adjustingDayIndex ? newDestination : wp
-        );
-      } else {
-        // Agregar un nuevo waypoint al final (Ej: usuario agrega Braga)
-        updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
-      }
+      const updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
       
       console.log('📦 Waypoints después del ajuste:', updatedMandatoryWaypoints);
       
