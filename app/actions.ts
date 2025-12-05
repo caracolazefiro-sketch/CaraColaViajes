@@ -30,7 +30,6 @@ interface DirectionsResult {
     dailyItinerary?: DailyPlan[];
     debugLog?: string[]; // Logs del servidor para debugging
 }
-}
 
 // --- UTILS ---
 
