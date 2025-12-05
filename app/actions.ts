@@ -262,22 +262,15 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         let dayCounter = 1;
         
         for (const stop of allDrivingStops) {
-             // Reverse geocodificar si es coordenada
-             let displayName = stop.to;
-             if (stop.endCoords && /^[\d\.\-,]+$/.test(stop.to)) {
-                 try {
-                     displayName = await getCityNameFromCoords(stop.endCoords.lat, stop.endCoords.lng, apiKey);
-                     debugLog.push(`  ✅ Geocodificado: ${stop.to} → ${displayName}`);
-                 } catch {
-                     debugLog.push(`  ⚠️ No se pudo geocodificar ${stop.to}`);
-                 }
-             }
+             // Usar nombre directamente de allStops (ya es correcto)
+             // Las coordenadas se usan solo para el mapa
+             debugLog.push(`  📍 Etapa ${dayCounter}: ${stop.from} → ${stop.to}`);
              
              dailyItinerary.push({
                 date: formatDate(currentDate),
                 day: dayCounter,
                 from: stop.from,
-                to: displayName,
+                to: stop.to,
                 distance: stop.distance,
                 isDriving: true,
                 startCoordinates: stop.startCoords,
@@ -321,6 +314,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 }
             }
         }
+        
+        // DEBUG: Verificar que dailyItinerary tiene nombres, no coordenadas
+        dailyItinerary.forEach((day, idx) => {
+            debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to}`);
+        });
         
         const embedParams = {
             key: apiKey,
