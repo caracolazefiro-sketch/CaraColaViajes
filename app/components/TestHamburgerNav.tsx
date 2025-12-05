@@ -34,6 +34,13 @@ const navSections: NavSection[] = [
     defaultOpen: true,
     items: [
       {
+        label: 'Manifiesto CaraCola',
+        href: '/manifesto',
+        description: 'Nuestra filosofía y principios de desarrollo',
+        badge: '📖',
+        badgeColor: 'bg-blue-500',
+      },
+      {
         label: 'Análisis V0.8: Pernoctas vs Escalas',
         href: '/manifesto-analysis',
         description: 'Validación de alineación estratégica',
@@ -54,6 +61,13 @@ const navSections: NavSection[] = [
     description: 'Funcionalidad y experiencia de usuario',
     defaultOpen: false,
     items: [
+      {
+        label: 'Guía de Inicio (Onboarding)',
+        href: '/onboarding',
+        description: 'Cómo empezar a usar CaraCola en 6 pasos',
+        badge: '🆕',
+        badgeColor: 'bg-green-500',
+      },
       {
         label: 'Casos de Uso Carmen (V0.7)',
         href: '/test-usabilidad-carmen',
