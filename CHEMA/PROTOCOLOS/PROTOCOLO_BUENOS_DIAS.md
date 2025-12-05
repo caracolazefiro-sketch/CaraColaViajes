@@ -58,14 +58,6 @@ cat CHEMA/PROTOCOLOS/CHAT_SESSION_*.md
 # (Buscar sección "TODO" o "PRÓXIMOS PASOS")
 ```
 
-### 6️⃣ **Optimizar Sistema** (Ver PROTOCOLO_OPTIMIZAR)
-```bash
-# Si VS Code está lento:
-& ".\CHEMA\optimize-system.ps1"
-
-# Cerrar y reabrir VS Code
-```
-
 ---
 
 ## 🎯 **Checklist Rápido (5 min)**
