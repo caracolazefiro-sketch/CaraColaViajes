@@ -244,11 +244,10 @@ export default function Home() {
       
       console.log('📦 Waypoints obligatorios (formData.etapas):', waypointsFromForm);
       
-      // PASO 2: ESTRATEGIA SIMPLE - Siempre agregar el nuevo destino
-      // No reemplazar nada, solo agregar Madrid a la lista de waypoints
-      // El usuario está ajustando una parada táctica, no un waypoint obligatorio
-      // Entonces simplemente agregamos Madrid sin tocar Valencia
-      
+      // PASO 2: NUNCA reemplazar waypoints, SIEMPRE agregar
+      // El usuario está ajustando una parada táctica (computada), no un waypoint obligatorio
+      // Todos los waypoints de formData.etapas deben mantenerse
+      // El nuevo destino se agrega a la lista
       const updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
       
       console.log('📦 Waypoints después del ajuste:', updatedMandatoryWaypoints);
