@@ -14,6 +14,7 @@ import ItineraryPanel from './components/ItineraryPanel';
 import ToastContainer from './components/ToastContainer';
 import UpcomingTripsNotification from './components/UpcomingTripsNotification';
 import AdjustStageModal from './components/AdjustStageModal';
+import DebugTools from './components/DebugTools';
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
@@ -433,6 +434,7 @@ export default function Home() {
         
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         <UpcomingTripsNotification onLoadTrip={handleLoadTripFromNotification} />
+        <DebugTools />
                 {/* Modal para ajustar etapa */}
         {adjustModalOpen && adjustingDayIndex !== null && results.dailyItinerary && (
           <AdjustStageModal
