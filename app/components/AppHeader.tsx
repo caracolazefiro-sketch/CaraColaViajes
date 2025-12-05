@@ -20,43 +20,68 @@ export default function AppHeader({
     const takeScreenshot = async () => {
         try {
             setIsCapturing(true);
-            // Lazy load html2canvas para no afectar performance inicial
+            console.log('[AppHeader] 📸 Iniciando captura con html2canvas...');
+            
+            // Importar html2canvas
             const html2canvas = (await import('html2canvas')).default;
             
-            // Intentar capturar el elemento raíz (#__next)
-            const element = document.getElementById('__next') || document.documentElement;
+            // Encontrar elemento a capturar
+            const element = document.querySelector('main') || document.getElementById('__next') || document.documentElement;
             
-            console.log('[AppHeader] 📸 Iniciando captura...');
+            if (!element) {
+                throw new Error('No se encontró elemento principal para capturar');
+            }
             
+            console.log('[AppHeader] 📸 Elemento encontrado:', element.tagName);
+            
+            // Capturar con configuración más permisiva
             const canvas = await html2canvas(element, {
                 backgroundColor: '#ffffff',
                 logging: false,
                 useCORS: true,
                 allowTaint: true,
-                scale: 1,
+                scale: window.devicePixelRatio || 1,
                 windowHeight: element.scrollHeight,
                 windowWidth: element.scrollWidth,
+                // Ignorar errores de parsing CSS
+                imageTimeout: 15000,
+                ignoreElements: (element) => {
+                    // Ignorar elementos problemáticos
+                    return element.tagName === 'SCRIPT' || element.tagName === 'STYLE';
+                }
             });
             
             if (!canvas) {
-                throw new Error('Canvas no se pudo generar');
+                throw new Error('No se pudo generar el canvas');
             }
             
-            // Descargar como PNG
-            const link = document.createElement('a');
-            link.href = canvas.toDataURL('image/png');
-            const fileName = `CaraCola-Screenshot-${new Date().toISOString().split('T')[0]}-${Date.now()}.png`;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            console.log('[AppHeader] ✅ Canvas generado:', canvas.width, 'x', canvas.height);
             
-            console.log('[AppHeader] ✅ Screenshot descargado:', fileName);
-            alert('✅ Screenshot descargado correctamente');
+            // Convertir a blob y descargar
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    throw new Error('No se pudo generar el blob');
+                }
+                
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                const fileName = `CaraCola-Screenshot-${new Date().toISOString().split('T')[0]}-${Date.now()}.png`;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                console.log('[AppHeader] ✅ Screenshot descargado:', fileName);
+                alert('✅ Screenshot descargado correctamente');
+            }, 'image/png', 0.95);
+            
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
-            console.error('[AppHeader] ❌ Error al capturar pantalla:', errMsg, error);
-            alert(`❌ Error al capturar pantalla:\n${errMsg}`);
+            console.error('[AppHeader] ❌ Error al capturar pantalla:', errMsg);
+            console.error('[AppHeader] Stack:', error);
+            alert(`❌ Error: ${errMsg}\n\nIntenta descargar el screenshot manualmente con Ctrl+Impr`);
         } finally {
             setIsCapturing(false);
         }
