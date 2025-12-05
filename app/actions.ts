@@ -162,6 +162,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         let currentLegStartName = allStops[0]; 
         // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
         let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
+        console.log('[actions.ts] Inicio de ruta:', { currentLegStartName, currentLegStartCoords, allStopsLength: allStops.length });
         
         let dayAccumulatorMeters = 0;
 
@@ -234,6 +235,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             // FORZAR: Cada waypoint es fin de etapa obligatorio
             const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
             
+            console.log('[actions.ts] Pushing parada (línea 237):', { from: currentLegStartName, to: nextStopName, startCoords: currentLegStartCoords, endCoords: legEndCoords });
+            
             allDrivingStops.push({
                 from: currentLegStartName,
                 to: nextStopName,
@@ -254,6 +257,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         const dailyItinerary: DailyPlan[] = [];
         let currentDate = new Date(data.fechaInicio);
         let dayCounter = 1;
+        
+        console.log('[actions.ts] allDrivingStops:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords, startCoords: s.startCoords, hasEndCoords: !!s.endCoords })));
         
         for (const stop of allDrivingStops) {
              dailyItinerary.push({
