@@ -224,6 +224,17 @@ export default function Home() {
       console.log('🔄 Recalculando ruta COMPLETA desde origen original');
       const { getDirectionsAndCost } = await import('./actions');
       
+      // Helper: extraer solo el nombre de la ciudad (antes de la primera coma)
+      const getCityName = (location: string) => location.split(',')[0].trim();
+      
+      // Helper: remover acentos y caracteres especiales para Google API
+      const normalizeForGoogle = (text: string) => {
+        return text
+          .normalize('NFD')                   // Descomponer caracteres acentuados
+          .replace(/[\u0300-\u036f]/g, '')   // Remover diacríticos
+          .replace(/[^\w\s]/g, '');          // Remover caracteres especiales
+      };
+      
       // Construir waypoints: TODOS los obligatorios, actualizados con el cambio
       const waypointsFromForm = formData.etapas
         .split('|')
@@ -235,19 +246,23 @@ export default function Home() {
         // Si este waypoint corresponde a la etapa ajustada, usar newDestination
         // (asumimos que el orden de waypoints coincide con el orden de etapas)
         if (idx === adjustingDayIndex) {
-          return newDestination;
+          return normalizeForGoogle(getCityName(newDestination));
         }
-        return wp;
+        return normalizeForGoogle(getCityName(wp));
       });
 
-      console.log('📍 Ruta completa:');
-      console.log(`  Origen: ${formData.origen}`);
+      // Usar solo nombres de ciudades (sin códigos postales, sin países, sin acentos)
+      const originCityName = normalizeForGoogle(getCityName(formData.origen));
+      const destCityName = normalizeForGoogle(getCityName(formData.destino));
+
+      console.log('📍 Ruta completa (normalizada para Google):');
+      console.log(`  Origen: ${originCityName}`);
       updatedWaypoints.forEach((wp, i) => console.log(`  Waypoint ${i+1}: ${wp}`));
-      console.log(`  Destino: ${formData.destino}`);
+      console.log(`  Destino: ${destCityName}`);
 
       const recalcResult = await getDirectionsAndCost({
-        origin: formData.origen,
-        destination: formData.destino,
+        origin: originCityName,
+        destination: destCityName,
         waypoints: updatedWaypoints,
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
