@@ -352,7 +352,7 @@ export default function Home() {
 
       console.log('✅ Ruta recalculada sin el waypoint eliminado');
 
-      // 3. Mapear resultado para añadir campos requeridos (isoDate, type, savedPlaces)
+      // 3. Mapear resultado para añadir campos requeridos (isoDate, type, savedPlaces, startCoordinates si falta)
       const mappedItinerary = recalcResult.dailyItinerary!.map((day: any, idx: number) => {
         const currentDate = new Date(formData.fechaInicio);
         currentDate.setDate(currentDate.getDate() + idx);
@@ -364,7 +364,9 @@ export default function Home() {
           type: day.isDriving 
             ? (idx === 0 ? 'start' : idx === totalDays - 1 ? 'end' : 'tactical')
             : 'overnight',
-          savedPlaces: []
+          savedPlaces: [],
+          // ✅ GARANTIZAR que startCoordinates siempre existe (fallback a coordinates o 0,0)
+          startCoordinates: day.startCoordinates || day.coordinates || { lat: 0, lng: 0 }
         };
       });
 
