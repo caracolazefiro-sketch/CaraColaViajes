@@ -116,10 +116,74 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
     return `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
 }
 
-// Segmentar itinerario por límite de km/día, buscando localidades reales
-// NOTA: La segmentación se realiza durante la construcción de allDrivingStops en getDirectionsAndCost
-// usando los polylines exactos de Google, no después con interpolación lineal
-
+// Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
+async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
+    const segmented: DailyPlan[] = [];
+    
+    for (const day of itinerary) {
+        if (day.distance > maxKmPerDay && day.isDriving) {
+            // Esta etapa necesita dividirse
+            const numSegments = Math.ceil(day.distance / maxKmPerDay);
+            const kmPerSegment = day.distance / numSegments;
+            
+            console.log(`🔀 POST-segmentando: ${day.from} → ${day.to} (${Math.round(day.distance)} km) en ${numSegments} partes`);
+            
+            let currentDate = new Date(day.isoDate);
+            let currentStartCoords = day.startCoordinates || { lat: 0, lng: 0 };
+            let currentStartName = day.from;
+            
+            for (let i = 0; i < numSegments; i++) {
+                const isLast = i === numSegments - 1;
+                
+                let segmentEndName = day.to;
+                let segmentEndCoords = day.coordinates || { lat: 0, lng: 0 };
+                
+                // Para segmentos intermedios, buscar ciudad real en el punto interpolado
+                if (!isLast && day.startCoordinates && day.coordinates) {
+                    const ratio = (i + 1) / numSegments;
+                    
+                    const intermediateCoords = {
+                        lat: day.startCoordinates.lat + (day.coordinates.lat - day.startCoordinates.lat) * ratio,
+                        lng: day.startCoordinates.lng + (day.coordinates.lng - day.startCoordinates.lng) * ratio
+                    };
+                    
+                    // Obtener nombre real de la ciudad en ese punto
+                    await sleep(100);
+                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey);
+                    segmentEndName = cityName;
+                    segmentEndCoords = intermediateCoords;
+                }
+                
+                const segmentDay: DailyPlan = {
+                    ...day,
+                    date: formatDate(currentDate),
+                    isoDate: currentDate.toISOString(),
+                    distance: isLast 
+                        ? day.distance - (kmPerSegment * i)
+                        : kmPerSegment,
+                    from: currentStartName,
+                    to: segmentEndName,
+                    type: isLast ? ('overnight' as const) : ('tactical' as const),
+                    startCoordinates: currentStartCoords,
+                    coordinates: segmentEndCoords,
+                    day: segmented.length + 1
+                };
+                
+                segmented.push(segmentDay);
+                
+                // Preparar para siguiente segmento
+                currentDate = addDays(currentDate, 1);
+                currentStartCoords = segmentEndCoords;
+                currentStartName = segmentEndName;
+            }
+        } else {
+            // Etapa normal, agregar sin cambios
+            segmented.push({ ...day, day: segmented.length + 1 });
+        }
+    }
+    
+    return segmented;
+}
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
     
@@ -351,10 +415,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to}`);
         });
         
-        // NOTA: La segmentación ya ocurrió durante la construcción de allDrivingStops
-        // usando polylines exactos de Google, no después con interpolación
-        debugLog.push(`\n📊 Itinerario final (con segmentación de 300km/día): ${dailyItinerary.length} días`);
-        dailyItinerary.forEach((day, idx) => {
+        // POST-PROCESAMIENTO: Segmentar etapas > 300km/día
+        debugLog.push(`\n📊 Itinerario ANTES de post-segmentación: ${dailyItinerary.length} días`);
+        const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey);
+        debugLog.push(`📊 Itinerario DESPUÉS de post-segmentación: ${segmentedItinerary.length} días`);
+        segmentedItinerary.forEach((day, idx) => {
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
         });
         
@@ -367,7 +432,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
         
-        return { distanceKm, mapUrl, dailyItinerary, debugLog };
+        return { distanceKm, mapUrl, dailyItinerary: segmentedItinerary, debugLog };
 
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
