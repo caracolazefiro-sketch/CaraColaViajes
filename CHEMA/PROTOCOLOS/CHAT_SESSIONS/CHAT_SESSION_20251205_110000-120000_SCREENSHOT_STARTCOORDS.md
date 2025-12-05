@@ -1,7 +1,7 @@
-# Chat Session: Screenshot & startCoordinates Debug
+# Chat Session: Screenshot & startCoordinates Debug → Branch Strategy
 **Fecha:** 5 Diciembre 2025  
-**Horario:** 11:00 - 12:00 (CET)  
-**Tema Principal:** Mover botón Screenshot fuera de Debug Panel + Resolver bug startCoordinates undefined
+**Horario:** 11:00 - 13:00 (CET)  
+**Tema Principal:** Mover botón Screenshot + Resolver bug startCoordinates + Estrategia de ramas de preview estables
 
 ---
 
@@ -134,7 +134,45 @@ canvas.toBlob((blob) => {
 
 ---
 
-## 📊 Estado Actual
+## 🎯 Resolución Final (12:00-13:00)
+
+### Problema: Screenshot Button Falla en Producción
+**Síntoma:** 
+- Botón 📸 no funciona en Vercel
+- Error: `"Attempting to parse an unsupported color function "lab""`
+- html2canvas no soporta colores CSS modernos de Tailwind
+
+**Decisión del Usuario:**
+> "No vamos a darle más vueltas. Quiero volver a un estado estable de la web de ayer, antes de las 16:00"
+
+### Solución Implementada: Estrategia de Ramas
+
+En lugar de revertir `testing`, se creó una **estrategia de múltiples previews**:
+
+**Rama `testing`** (Actual - Con cambios de hoy)
+- Commit: `8ded5b5` 
+- Estado: Con todos los cambios del día (4 commits)
+- URL: https://cara-cola-viajes-git-testing-caracola.vercel.app/
+- **Mantiene:** Todos los nuevos commits para iteración futura
+
+**Rama `preview-1500`** (Versión estable 15:41 ayer)
+- Commit: `8d80170` (2025-12-04 15:41:58)
+- Estado: Version funcional y estable
+- URL: https://cara-cola-viajes-git-preview-1500-caracola.vercel.app/
+- **Propósito:** Comparar con cambios de hoy
+
+**Rama `preview` (Eliminada)**
+- Commit anterior: `0ab3a25` (16:00 ayer)
+- Estado: ✅ Borrada per usuario request
+
+### Commits Relacionados a Branch Strategy
+- `8ded5b5`: Restaurar testing a estado con todos los cambios
+- `bd574e0`: Force redeploy en preview-1500
+- Deleted: rama preview
+
+---
+
+## 📊 Estado Actual (13:00)
 
 ### ✅ Completado
 - Botón Screenshot movido a AppHeader (arriba derecha)
@@ -144,17 +182,19 @@ canvas.toBlob((blob) => {
 - Múltiples intentos de fix para error de colores CSS
 - Build exitoso (0 errores TypeScript)
 - Todos los cambios deployados en Vercel
+- **NUEVA:** Estrategia de ramas implementada
+  - `testing` mantiene cambios de hoy
+  - `preview-1500` como versión estable para comparación
+  - rama `preview` eliminada
 
-### ⏳ Esperando
-- Testing del botón Screenshot en Vercel
-- Logs PRE-RETURN para analizar startCoordinates
-- Feedback del usuario sobre si markers A,B,C,D ahora aparecen
+### ⏳ En Espera
+- Vercel deploy de `preview-1500` (en progreso)
+- Usuario comparando `testing` vs `preview-1500`
 
-### 🔴 Pendiente
-- Resolución definitiva de startCoordinates (depende de logs PRE-RETURN)
-- Si screenshot sigue fallando, considerar alternativa sin html2canvas
-- Geocodificación de escalas (próxima tarea)
-- Merge a main (después de testing exitoso)
+### 🔴 No Resuelto
+- Screenshot button sigue sin funcionar (html2canvas + colores CSS)
+- startCoordinates bug sin confirmar (depende de PRE-RETURN logs)
+- Solución: Mantener `testing` como WIP, usar `preview-1500` como baseline
 
 ---
 
@@ -216,14 +256,23 @@ canvas.toBlob((blob) => {
 
 ---
 
-## 📚 Referencias
+## 🔄 Branches Finales
 
-- **Bug Original:** startCoordinates undefined en map markers
-- **Usuario Request:** Screenshot button fuera de Debug Panel
-- **Session Date:** 5 Dic 2025
-- **Duration:** 1 hora (11:00-12:00)
-- **Commits:** 4 (099f542, 16bcc24, f8f726b, 09d177c)
+| Rama | Commit | Fecha/Hora | Estado | URL |
+|------|--------|-----------|--------|-----|
+| **testing** | `8ded5b5` | 5 Dic 13:00 | WIP - Cambios de hoy | [Link](https://cara-cola-viajes-git-testing-caracola.vercel.app/) |
+| **preview-1500** | `bd574e0` / `8d80170` | 4 Dic 15:41 | ✅ Estable | [Link](https://cara-cola-viajes-git-preview-1500-caracola.vercel.app/) |
+| preview | `0ab3a25` | 4 Dic 16:00 | ❌ Deleted |  |
 
 ---
 
-**Estado Final:** Sistema deployado en testing. Aguardando feedback del usuario.
+## 📚 Referencias
+
+- **Sesión Completa:** 11:00-13:00 (2 horas)
+- **Commits Totales Hoy:** 8 (099f542 → 8ded5b5)
+- **Ramas Creadas:** preview-1500, preview (deleted)
+- **Decision Point:** Usuario prefirió mantener `testing` como WIP en lugar de revertir
+
+---
+
+**Estado Final:** Sistema dividido en dos previews - `testing` con cambios experimentales, `preview-1500` como baseline estable para comparación y testing.
