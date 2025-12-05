@@ -219,8 +219,7 @@ export default function Home() {
       }
 
       // 3. Si es etapa intermedia, RECALCULAR LA RUTA COMPLETA
-      // Idea: ignoramos qué día se está editando, simplemente recalculamos
-      // Origen original → Waypoints obligatorios (incluyendo el ajustado) → Destino final
+      // Idea: usar TODOS los destinos del itinerario actual, reemplazando el día ajustado
       console.log('🔄 Recalculando ruta COMPLETA desde origen original');
       const { getDirectionsAndCost } = await import('./actions');
       
@@ -236,35 +235,33 @@ export default function Home() {
           .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
       };
       
-      // Construir waypoints: TODOS los obligatorios, actualizados con el cambio
-      const waypointsFromForm = formData.etapas
-        .split('|')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+      // NUEVO ENFOQUE: Construir waypoints desde el itinerario actual
+      // Recolectar TODOS los destinos del itinerario (excepto el último, que es el destino final)
+      const allWaypoints = updatedItinerary
+        .slice(0, -1) // Excluir el último día (cuyo destino es el destino final)
+        .map((day: any, idx: number) => {
+          // Si es el día que estamos ajustando, usar newDestination
+          if (idx === adjustingDayIndex) {
+            return newDestination;
+          }
+          return day.to;
+        });
       
-      // Reemplazar el waypoint editado con el nuevo destino
-      const updatedWaypoints = waypointsFromForm.map((wp, idx) => {
-        // Si este waypoint corresponde a la etapa ajustada, usar newDestination
-        // (asumimos que el orden de waypoints coincide con el orden de etapas)
-        if (idx === adjustingDayIndex) {
-          return normalizeForGoogle(newDestination);
-        }
-        return normalizeForGoogle(wp);
-      });
-
-      // Usar solo nombres de ciudades (sin códigos postales, sin países, sin acentos)
+      console.log('📦 Waypoints del itinerario actual:', allWaypoints);
+      
       const originCityName = normalizeForGoogle(formData.origen);
       const destCityName = normalizeForGoogle(formData.destino);
+      const normalizedWaypoints = allWaypoints.map(wp => normalizeForGoogle(wp));
 
       console.log('📍 Ruta completa (normalizada para Google):');
       console.log(`  Origen: ${originCityName}`);
-      updatedWaypoints.forEach((wp, i) => console.log(`  Waypoint ${i+1}: ${wp}`));
+      normalizedWaypoints.forEach((wp, i) => console.log(`  Waypoint ${i+1}: ${wp}`));
       console.log(`  Destino: ${destCityName}`);
 
       const recalcResult = await getDirectionsAndCost({
         origin: originCityName,
         destination: destCityName,
-        waypoints: updatedWaypoints,
+        waypoints: normalizedWaypoints,
         travel_mode: 'driving',
         kmMaximoDia: formData.kmMaximoDia,
         fechaInicio: results.dailyItinerary[0].date, // Usar fecha de inicio original

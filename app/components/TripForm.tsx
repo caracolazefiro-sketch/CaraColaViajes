@@ -153,6 +153,7 @@ export default function TripForm({
         if (place && place.formatted_address) {
             // NO normalizar al guardar - guardar dirección completa del API
             // La normalización se hace solo cuando se envía a Google Directions
+            console.log(`📍 ${field} seleccionado:`, place.formatted_address);
             if (field === 'tempStop') setTempStop(place.formatted_address);
             else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
         }
@@ -176,6 +177,7 @@ export default function TripForm({
 
     const addWaypoint = () => {
         if (!tempStop) return;
+        console.log(`➕ Agregando waypoint:`, tempStop);
         const newStops = [...currentStops, tempStop];
         setFormData({ ...formData, etapas: newStops.join('|') });
         setTempStop(''); 
@@ -369,11 +371,14 @@ export default function TripForm({
                         <div className="md:col-span-2 lg:col-span-4 -mt-2 space-y-3 p-3 bg-gray-50 rounded border border-gray-200">
                             <div className="flex gap-2 items-center">
                                 <div className="flex-1 relative">
-                                    <Autocomplete onLoad={ref => originRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStop')}>
+                                    <Autocomplete onLoad={ref => stopRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStop')}>
                                         <input 
                                             type="text" 
                                             value={tempStop} 
-                                            onChange={(e) => setTempStop(e.target.value)} 
+                                            onChange={(e) => {
+                                                // Solo permitir que el Autocomplete actualice este campo
+                                                // El onChange se ignora para evitar sobrescribir selecciones del dropdown
+                                            }} 
                                             placeholder={t('FORM_WAYPOINT_SEARCH_PLACEHOLDER')} 
                                             className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
                                         />
