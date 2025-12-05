@@ -117,75 +117,8 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 }
 
 // Segmentar itinerario por límite de km/día, buscando localidades reales
-async function segmentItineraryByDistance(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
-    if (!itinerary) return [];
-    
-    const segmented: DailyPlan[] = [];
-    
-    for (const day of itinerary) {
-        if (day.distance > maxKmPerDay && day.isDriving) {
-            // Etapa > límite, necesita dividirse
-            const numSegments = Math.ceil(day.distance / maxKmPerDay);
-            const kmPerSegment = day.distance / numSegments;
-            
-            console.log(`🔀 Dividiendo etapa: ${day.from} → ${day.to} (${Math.round(day.distance)} km) en ${numSegments} partes`);
-            
-            let currentDate = new Date(day.isoDate);
-            let currentStartCoords = day.startCoordinates || { lat: 0, lng: 0 };
-            let currentStartName = day.from;
-            
-            for (let i = 0; i < numSegments; i++) {
-                const isLast = i === numSegments - 1;
-                
-                let segmentEndName = day.to;
-                let segmentEndCoords = day.coordinates || { lat: 0, lng: 0 };
-                
-                // Si no es el último segmento, interpolar localidad real en el punto intermedio
-                if (!isLast && day.startCoordinates && day.coordinates) {
-                    // Calcular punto intermedio (aproximado) del segmento
-                    const ratio = (i + 1) / numSegments;
-                    const intermediateCoords = {
-                        lat: day.startCoordinates.lat + (day.coordinates.lat - day.startCoordinates.lat) * ratio,
-                        lng: day.startCoordinates.lng + (day.coordinates.lng - day.startCoordinates.lng) * ratio
-                    };
-                    
-                    // Obtener nombre de localidad real
-                    await sleep(100); // Rate limiting
-                    const realCityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey);
-                    segmentEndName = realCityName;
-                    segmentEndCoords = intermediateCoords;
-                }
-                
-                const segmentDay: DailyPlan = {
-                    ...day,
-                    date: formatDate(currentDate),
-                    isoDate: currentDate.toISOString(),
-                    distance: isLast 
-                        ? day.distance - (kmPerSegment * i)  // Última parte con el resto
-                        : kmPerSegment,
-                    from: currentStartName,
-                    to: segmentEndName,
-                    type: isLast ? ('overnight' as const) : ('tactical' as const),
-                    startCoordinates: currentStartCoords,
-                    coordinates: segmentEndCoords,
-                    day: segmented.length + 1
-                };
-                
-                segmented.push(segmentDay);
-                
-                // Preparar para el siguiente segmento
-                currentDate = addDays(currentDate, 1);
-                currentStartCoords = segmentEndCoords;
-                currentStartName = segmentEndName;
-            }
-        } else {
-            // Etapa normal, agregar tal cual
-            segmented.push({ ...day, day: segmented.length + 1 });
-        }
-    }
-    
-    return segmented;
-}
+// NOTA: La segmentación se realiza durante la construcción de allDrivingStops en getDirectionsAndCost
+// usando los polylines exactos de Google, no después con interpolación lineal
 
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
@@ -304,7 +237,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
                             await sleep(200); 
                             const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
-                            const stopName = `📍 Parada Táctica: ${stopNameRaw}`;
+                            // Usar directamente el nombre de la ciudad (sin prefijo)
+                            const stopName = stopNameRaw;
 
                             allDrivingStops.push({
                                 from: currentLegStartName,
@@ -417,15 +351,12 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to}`);
         });
         
-        // APLICAR SEGMENTACIÓN: Dividir etapas > maxKmPerDay con localidades reales
-        debugLog.push(`\n📊 Itinerario antes de segmentación: ${dailyItinerary.length} días`);
-        let finalItinerary = await segmentItineraryByDistance(dailyItinerary, data.kmMaximoDia, apiKey);
-        if (finalItinerary) {
-            debugLog.push(`📊 Itinerario después de segmentación: ${finalItinerary.length} días`);
-            finalItinerary.forEach((day, idx) => {
-                debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
-            });
-        }
+        // NOTA: La segmentación ya ocurrió durante la construcción de allDrivingStops
+        // usando polylines exactos de Google, no después con interpolación
+        debugLog.push(`\n📊 Itinerario final (con segmentación de 300km/día): ${dailyItinerary.length} días`);
+        dailyItinerary.forEach((day, idx) => {
+            debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
+        });
         
         const embedParams = {
             key: apiKey,
@@ -436,7 +367,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
         
-        return { distanceKm, mapUrl, dailyItinerary: finalItinerary || dailyItinerary, debugLog };
+        return { distanceKm, mapUrl, dailyItinerary, debugLog };
 
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
