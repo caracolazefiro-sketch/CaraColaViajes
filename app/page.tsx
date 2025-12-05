@@ -206,7 +206,8 @@ export default function Home() {
         
         console.log(`🔀 Dividiendo etapa: ${day.from} → ${day.to} (${Math.round(day.distance)} km) en ${numSegments} partes`);
         
-        let currentDate = new Date(day.date);
+        // Parsear desde isoDate (más fiable que day.date que es string DD/MM/YYYY)
+        let currentDate = new Date(day.isoDate);
         for (let i = 0; i < numSegments; i++) {
           const isLast = i === numSegments - 1;
           const segmentDay = {
