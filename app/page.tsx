@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { PlaceWithDistance, ServiceType, Coordinates } from './types';
+import { PlaceWithDistance, ServiceType, Coordinates, DailyPlan } from './types';
 import { supabase } from './supabase';
 
 // COMPONENTES
