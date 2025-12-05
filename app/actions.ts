@@ -28,6 +28,8 @@ interface DirectionsResult {
     mapUrl?: string;
     error?: string;
     dailyItinerary?: DailyPlan[];
+    debugLogs?: string[]; // ✅ Incluir logs del servidor para debugging
+}
 }
 
 // --- UTILS ---
@@ -135,12 +137,20 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
     const waypointsParam = data.waypoints.length > 0 ? `&waypoints=${data.waypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(data.origin)}&destination=${encodeURIComponent(data.destination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
 
+    // 🐛 Debug logs array para enviar al cliente
+    const debugLogs: string[] = [];
+    const addDebugLog = (msg: string, data?: any) => {
+        const log = `[actions.ts] ${msg}${data ? ' ' + JSON.stringify(data) : ''}`;
+        debugLogs.push(log);
+        console.log(log);
+    };
+
     try {
         const response = await fetch(url);
         const directionsResult = await response.json();
 
         if (directionsResult.status !== 'OK') {
-            return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}` };
+            return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}`, debugLogs };
         }
         
         const route = directionsResult.routes[0];
@@ -177,14 +187,14 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             const geoData = await geoResponse.json();
             
             if (!geoData.results?.[0]?.geometry?.location) {
-                return { error: `No se pudo geocodificar el origen: ${data.origin}` };
+                return { error: `No se pudo geocodificar el origen: ${data.origin}`, debugLogs };
             }
             
             const loc = geoData.results[0].geometry.location;
             currentLegStartCoords = { lat: loc.lat, lng: loc.lng };
         }
         
-        console.log('[actions.ts] currentLegStartCoords FINAL:', currentLegStartCoords);
+        addDebugLog('currentLegStartCoords FINAL:', currentLegStartCoords);
         
         let dayAccumulatorMeters = 0;
 
@@ -283,6 +293,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         console.log('[actions.ts] allDrivingStops DETALLE:', allDrivingStops);
         console.log('[actions.ts] allDrivingStops RESUMEN:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords, startCoords: s.startCoords, hasEndCoords: !!s.endCoords })));
         
+        addDebugLog('allDrivingStops RESUMEN:', allDrivingStops.map((s, i) => ({ index: i, from: s.from, to: s.to, hasStartCoords: !!s.startCoords })));
+        
         for (const stop of allDrivingStops) {
              const dailyPlan = {
                 date: formatDate(currentDate),
@@ -295,6 +307,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 coordinates: stop.endCoords || { lat: 0, lng: 0 }         // ✅ Fallback
             };
             console.log(`[actions.ts] Pushing dailyPlan día ${dayCounter}:`, dailyPlan);
+            addDebugLog(`Pushing día ${dayCounter}: startCoords=${stop.startCoords ? 'PRESENTE' : 'UNDEFINED'}`);
             dailyItinerary.push(dailyPlan);
             currentDate = addDays(currentDate, 1);
             dayCounter++;
@@ -336,10 +349,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
         
-        return { distanceKm, mapUrl, dailyItinerary };
+        return { distanceKm, mapUrl, dailyItinerary, debugLogs };
 
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        return { error: msg || "Error al calcular la ruta." };
+        return { error: msg || "Error al calcular la ruta.", debugLogs };
     }
 }

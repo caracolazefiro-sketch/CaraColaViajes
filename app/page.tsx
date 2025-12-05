@@ -260,13 +260,21 @@ export default function Home() {
 
       if (recalcResult.error || !recalcResult.dailyItinerary) {
         console.error('❌ Error recalculando:', recalcResult.error);
+        if (recalcResult.debugLogs) {
+          console.log('[SERVER DEBUG LOGS]:', recalcResult.debugLogs);
+          recalcResult.debugLogs.forEach(log => console.log(log));
+        }
         showToast('Error: ' + (recalcResult.error || 'No se pudo recalcular'), 'error');
         setAdjustModalOpen(false);
         setAdjustingDayIndex(null);
         return;
       }
 
-      console.log('✅ Recalculado, fusionando itinerarios...');
+      // Mostrar debugLogs si existen
+      if (recalcResult.debugLogs) {
+        console.log('[SERVER DEBUG LOGS]:', recalcResult.debugLogs);
+        recalcResult.debugLogs.forEach(log => console.log(log));
+      }
 
       // 4. Fusionar: mantener días anteriores, reemplazar desde adjustingDayIndex
       const preservedDays = updatedItinerary.slice(0, adjustingDayIndex);
