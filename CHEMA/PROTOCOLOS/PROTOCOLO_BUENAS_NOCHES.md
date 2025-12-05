@@ -56,7 +56,23 @@ Cuando se ejecute este protocolo, realizar EN ORDEN:
   - Notas: [Contexto adicional]
 ```
 
-### 5️⃣ **Evaluación de Desempeño del Agente**
+### 5️⃣ **Revisar Sesión Anterior**
+```bash
+# Sistema de guardado del proyecto:
+# 📂 CHAT_SESSIONS/ = Resúmenes manuales de sesiones importantes
+# 📂 INFORMES_BUENAS_NOCHES/ = Informes auto-generados cada noche
+
+# Ver último CHAT_SESSION_*.md (si existe)
+ls CHEMA/PROTOCOLOS/CHAT_SESSIONS/
+
+# Ver informe de ayer
+cat CHEMA/PROTOCOLOS/INFORMES_BUENAS_NOCHES/INFORME_*.md
+
+# Verificar pendientes del día anterior
+# (Buscar sección "PRÓXIMAS ACCIONES" o "PENDIENTES")
+```
+
+### 6️⃣ **Evaluación de Desempeño del Agente**
 ```markdown
 ## 📊 AUTOEVALUACIÓN DEL AGENTE
 
@@ -81,38 +97,50 @@ Cuando se ejecute este protocolo, realizar EN ORDEN:
 - Evitar: [Error recurrente]
 ```
 
-### 6️⃣ **Snapshot del Chat**
+### 7️⃣ **Crear INFORME_BUENAS_NOCHES Automático**
 ```bash
-# Leer archivo de sesión actual
-cat CHAT_SESSION_*.md
+# Crear archivo:
+# INFORMES_BUENAS_NOCHES/INFORME_YYYYMMDD.md
 
-# Crear nuevo snapshot con:
-# - Timestamp (fecha y hora)
-# - Rama actual (git branch)
-# - Status (git status)
-# - Build status (npm run build)
-# - Cambios realizados (git log --oneline -5)
+# Contenido (estructura fija):
+# 1️⃣ HITS DEL DÍA
+# 2️⃣ PROBLEMAS DETECTADOS
+# 3️⃣ PENDIENTES CRÍTICOS
+# 4️⃣ PENDIENTES NORMALES
+# 5️⃣ IDEAS BACKLOG
+# 6️⃣ AUTOEVALUACIÓN DEL AGENTE
+# 7️⃣ COMMITS DEL DÍA
+# 8️⃣ ARCHIVOS MODIFICADOS
+# 9️⃣ ESTADO FINAL
 ```
 
-### 7️⃣ **Archivo de Sesión**
-- Archivo: `CHAT_SESSION_YYYYMMDD.md`
-- Ubicación: Raíz del proyecto
-- Contenido:
-  - Resumen de conversación
-  - Archivos modificados
-  - Commits realizados
-  - Estado final
+### 8️⃣ **Crear CHAT_SESSION si aplica**
+```bash
+# Crear CHAT_SESSIONS/CHAT_SESSION_YYYYMMDD.md SOLO si:
+# - Debugging complejo que requiere documentar root cause
+# - Arquitectura significativa de cambios
+# - Algoritmo importante que necesita contexto
 
-### 8️⃣ **Git Cleanup**
+# Contenido:
+# - Resumen ejecutivo
+# - Objetivos de sesión
+# - Resultados completados
+# - Root causes identificadas
+# - Próximas acciones prioritarias
+# - Métricas y timeline
+```
+
+### 9️⃣ **Git Cleanup**
 ```bash
 # Ver status
 git status
 
-# Agregar archivo de sesión
-git add CHAT_SESSION_*.md
+# Agregar archivos generados
+git add CHEMA/PROTOCOLOS/INFORMES_BUENAS_NOCHES/INFORME_*.md
+git add CHEMA/PROTOCOLOS/CHAT_SESSIONS/CHAT_SESSION_*.md  # si aplica
 
 # Commit (SIEMPRE solo en testing)
-git commit -m "docs: Chat session snapshot - YYYYMMDD"
+git commit -m "docs: Informe BUENAS NOCHES YYYYMMDD"
 
 # Push SOLO a testing
 git push origin testing
@@ -120,7 +148,7 @@ git push origin testing
 # ⚠️ NUNCA pushear a main ni previews
 ```
 
-### 9️⃣ **Validación Final**
+### 🔟 **Validación Final**
 ```bash
 # Verificar rama
 git branch --show-current  # Debe ser: testing
@@ -185,11 +213,12 @@ Cuando user escriba `BUENAS NOCHES`:
 3. ✅ Documentar ideas no implementadas
 4. ✅ Actualizar ROADMAP.md con nuevas ideas
 5. ✅ Evaluar desempeño del agente (mostrar en chat)
-6. ✅ Leer último CHAT_SESSION_*.md
-7. ✅ Crear snapshot si hay cambios nuevos
-8. ✅ Hacer git add + commit + push testing
-9. ✅ Validar status
-10. ✅ **MOSTRAR RESUMEN COMPLETO EN CHAT** con todo lo realizado
+6. ✅ Leer último INFORME_BUENAS_NOCHES/INFORME_*.md
+7. ✅ Crear INFORME_BUENAS_NOCHES automático
+8. ✅ Crear CHAT_SESSION si aplica (debugging complejo, cambios arquitectura)
+9. ✅ Hacer git add + commit + push testing
+10. ✅ Validar status
+11. ✅ **MOSTRAR RESUMEN COMPLETO EN CHAT** con todo lo realizado
 
 ---
 
