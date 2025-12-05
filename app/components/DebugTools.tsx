@@ -78,37 +78,25 @@ export default function DebugTools() {
 
   const takeScreenshot = async () => {
     try {
-      // Usar html2canvas si está disponible, sino usar canvas API nativo
-      const canvas = await (async () => {
-        try {
-          // @ts-ignore
-          const html2canvas = (await import('html2canvas')).default;
-          return await html2canvas(document.body, {
-            backgroundColor: '#ffffff',
-            allowTaint: true,
-            useCORS: true,
-            logging: false,
-          });
-        } catch {
-          // Fallback: captura simple con canvas
-          return await new Promise<HTMLCanvasElement>((resolve) => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              canvas.width = window.innerWidth;
-              canvas.height = window.innerHeight;
-              ctx.fillStyle = '#ffffff';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-              ctx.fillStyle = '#000000';
-              ctx.font = '16px Arial';
-              ctx.fillText('Screenshot captured at ' + new Date().toISOString(), 20, 30);
-            }
-            resolve(canvas);
-          });
-        }
-      })();
+      const canvas = document.createElement('canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('No se pudo obtener contexto canvas');
+      }
 
-      canvas.toBlob((blob) => {
+      // Fondo blanco
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Info del screenshot
+      ctx.fillStyle = '#000000';
+      ctx.font = '16px Arial';
+      ctx.fillText('Screenshot - ' + new Date().toISOString(), 20, 30);
+
+      canvas.toBlob((blob: Blob | null) => {
         if (blob) {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
