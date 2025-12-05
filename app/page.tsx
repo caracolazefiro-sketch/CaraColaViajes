@@ -224,15 +224,14 @@ export default function Home() {
       console.log('🔄 Recalculando ruta COMPLETA desde origen original');
       const { getDirectionsAndCost } = await import('./actions');
       
-      // Helper: extraer solo el nombre de la ciudad (antes de la primera coma)
-      const getCityName = (location: string) => location.split(',')[0].trim();
-      
-      // Helper: remover acentos y caracteres especiales para Google API
+      // Helper: normalizar para Google (extraer ciudad, luego remover acentos)
       const normalizeForGoogle = (text: string) => {
-        return text
+        // Paso 1: Extraer solo el nombre de la ciudad (antes de la coma)
+        const cityName = text.split(',')[0].trim();
+        // Paso 2: Remover acentos/diacríticos
+        return cityName
           .normalize('NFD')                   // Descomponer caracteres acentuados
-          .replace(/[\u0300-\u036f]/g, '')   // Remover diacríticos
-          .replace(/[^\w\s]/g, '');          // Remover caracteres especiales
+          .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
       };
       
       // Construir waypoints: TODOS los obligatorios, actualizados con el cambio

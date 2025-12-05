@@ -119,12 +119,14 @@ export default function TripForm({
 
     const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim().length > 0) : [];
 
-    // Normalizar nombres: remover acentos para Google API
+    // Normalizar nombres: extraer ciudad, luego remover acentos para Google API
     const normalizeForGoogle = (text: string) => {
-        return text
+        // Paso 1: Extraer solo el nombre de la ciudad (antes de la coma)
+        const cityName = text.split(',')[0].trim();
+        // Paso 2: Remover acentos/diacríticos
+        return cityName
             .normalize('NFD')                   // Descomponer caracteres acentuados
-            .replace(/[\u0300-\u036f]/g, '')   // Remover diacríticos
-            .replace(/[^\w\s,]/g, '');         // Remover caracteres especiales (excepto comas)
+            .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
