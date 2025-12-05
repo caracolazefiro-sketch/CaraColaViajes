@@ -161,16 +161,17 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         
         let currentLegStartName = allStops[0]; 
         // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
-        // FALLBACK: Si route.legs[0] no existe, geocodificamos el origen
         let currentLegStartCoords: {lat: number, lng: number};
         
-        if (route.legs?.[0]?.start_location) {
-            currentLegStartCoords = { 
-                lat: route.legs[0].start_location.lat, 
-                lng: route.legs[0].start_location.lng 
-            };
+        // Obtener coords del primer leg, con fallbacks
+        const firstLegStart = route.legs?.[0]?.start_location;
+        if (firstLegStart && typeof firstLegStart.lat === 'number' && typeof firstLegStart.lng === 'number') {
+            currentLegStartCoords = { lat: firstLegStart.lat, lng: firstLegStart.lng };
+        } else if (firstLegStart?.lat?.() && firstLegStart?.lng?.()) {
+            // Si son funciones de Google Maps (ej: en client), llamarlas
+            currentLegStartCoords = { lat: firstLegStart.lat(), lng: firstLegStart.lng() };
         } else {
-            // Fallback: geocodificar el origen usando Google Geocoding API
+            // Fallback: geocodificar el origen
             const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(data.origin)}&key=${apiKey}`;
             const geoResponse = await fetch(geoUrl);
             const geoData = await geoResponse.json();
@@ -179,10 +180,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 return { error: `No se pudo geocodificar el origen: ${data.origin}` };
             }
             
-            currentLegStartCoords = geoData.results[0].geometry.location;
+            const loc = geoData.results[0].geometry.location;
+            currentLegStartCoords = { lat: loc.lat, lng: loc.lng };
         }
         
-        console.log('[actions.ts] Inicio de ruta:', { currentLegStartName, currentLegStartCoords, allStopsLength: allStops.length });
+        console.log('[actions.ts] currentLegStartCoords FINAL:', currentLegStartCoords);
         
         let dayAccumulatorMeters = 0;
 
@@ -288,8 +290,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 to: stop.to,
                 distance: stop.distance,
                 isDriving: true,
-                startCoordinates: stop.startCoords, // ✅ Pasamos datos al frontend
-                coordinates: stop.endCoords         // ✅
+                startCoordinates: stop.startCoords || { lat: 0, lng: 0 }, // ✅ Fallback a 0,0 si no existe
+                coordinates: stop.endCoords || { lat: 0, lng: 0 }         // ✅ Fallback
             });
             currentDate = addDays(currentDate, 1);
             dayCounter++;
