@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { useMotor } from './hooks/useMotor';
 import MotorSearch from './components/MotorSearch';
