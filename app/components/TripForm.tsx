@@ -125,9 +125,25 @@ export default function TripForm({
 
     const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim().length > 0) : [];
 
+    // Normalizar nombres: mantener ciudad+país, remover acentos para Google API
+    const normalizeForGoogle = (text: string) => {
+        // Paso 1: Si hay coma, tomar ciudad y país (ej: "Salamanca, España")
+        // Si no hay coma, usar todo (ej: "Salamanca")
+        const parts = text.split(',');
+        const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
+        // Paso 2: Remover acentos/diacríticos
+        return location
+            .normalize('NFD')                   // Descomponer caracteres acentuados
+            .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
-        const finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+        let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+        
+        // NO normalizar al guardar - solo guardar valores tal como vienen
+        // La normalización se hace solo cuando se envía a Google Directions
+        
         setFormData({ ...formData, [id]: finalValue } as FormData);
     };
 
@@ -141,6 +157,9 @@ export default function TripForm({
         const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
         const place = ref.current?.getPlace();
         if (place && place.formatted_address) {
+            // NO normalizar al guardar - guardar dirección completa del API
+            // La normalización se hace solo cuando se envía a Google Directions
+            console.log(`📍 ${field} seleccionado:`, place.formatted_address);
             if (field === 'tempStop') setTempStop(place.formatted_address);
             else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
         }
@@ -164,6 +183,7 @@ export default function TripForm({
 
     const addWaypoint = () => {
         if (!tempStop) return;
+        console.log(`➕ Agregando waypoint:`, tempStop);
         const newStops = [...currentStops, tempStop];
         setFormData({ ...formData, etapas: newStops.join('|') });
         setTempStop(''); 
@@ -262,6 +282,35 @@ export default function TripForm({
             </div>
 
             <form onSubmit={onSubmit} className="p-5 text-sm">
+                {/* CARGA RÁPIDA DE DATOS DE PRUEBA */}
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex justify-between items-center">
+                    <span className="text-xs font-bold text-blue-700">⚡ Datos de prueba (Salamanca → Punta Umbría)</span>
+                    <button 
+                        type="button"
+                        onClick={() => {
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          const returnDate = new Date(tomorrow);
+                          returnDate.setDate(returnDate.getDate() + 4);
+                          
+                          setFormData({
+                            ...formData,
+                            tripName: 'Test Salamanca → Punta Umbría',
+                            origen: 'Salamanca, España',
+                            destino: '21100 Punta Umbría, Huelva, España',
+                            etapas: 'Valencia',
+                            fechaInicio: tomorrow.toISOString().split('T')[0],
+                            fechaRegreso: returnDate.toISOString().split('T')[0],
+                            kmMaximoDia: 300,
+                          });
+                          console.log('✅ Datos de prueba cargados');
+                        }}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition"
+                    >
+                      Cargar
+                    </button>
+                </div>
+
                 {/* NOMBRE DEL VIAJE */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{t('FORM_TRIP_NAME')}</label>
@@ -328,7 +377,7 @@ export default function TripForm({
                         <div className="md:col-span-2 lg:col-span-4 -mt-2 space-y-3 p-3 bg-gray-50 rounded border border-gray-200">
                             <div className="flex gap-2 items-center">
                                 <div className="flex-1 relative">
-                                    <Autocomplete onLoad={ref => originRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStop')}>
+                                    <Autocomplete onLoad={ref => stopRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStop')}>
                                         <input 
                                             type="text" 
                                             value={tempStop} 
