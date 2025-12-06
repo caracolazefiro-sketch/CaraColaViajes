@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { GoogleMap, Marker, DirectionsRenderer } from '@react-google-maps/api';
-import { DailyPlan } from '../../types';
+import { DailyPlan } from '../types';
 
 interface MotorMapProps {
   origen: string;

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { DailyPlan } from '../../types';
+import { DailyPlan } from '../types';
 
 export interface MotorState {
   origen: string;
@@ -58,7 +58,7 @@ export function useMotor() {
     setError(null);
 
     try {
-      const { getDirectionsAndCost } = await import('../../actions');
+      const { getDirectionsAndCost } = await import('../actions');
       
       console.log('🚀 MOTOR: Calculando ruta');
       console.log('  Origen:', state.origen);
