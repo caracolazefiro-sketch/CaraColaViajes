@@ -1,18 +1,7 @@
 import { useMemo } from 'react';
+import { DailyPlan } from '../types';
 
-interface ServerDay {
-  date: string; // DD/MM/YYYY
-  isoDate: string;
-  day: number;
-  from: string;
-  to: string;
-  distance: number;
-  isDriving: boolean;
-  coordinates?: { lat: number; lng: number };
-  startCoordinates?: { lat: number; lng: number };
-  isManualWaypoint?: boolean;
-}
-
+// Renombrar ServerDay para evitar conflictos - ahora usamos DailyPlan del types.ts
 interface SegmentationPoint {
   cityName: string;
   distance: number;
@@ -48,7 +37,7 @@ export interface DynamicDay {
  * @returns Array completo de días con fechas calculadas correctamente
  */
 export function useDynamicItinerary(
-  serverItinerary: ServerDay[] | undefined,
+  serverItinerary: DailyPlan[] | undefined,
   segmentationPoints: SegmentationPoint[] | undefined,
   extraDays: Record<string, number>,
   startCity: string
