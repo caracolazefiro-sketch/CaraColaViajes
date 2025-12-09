@@ -109,8 +109,9 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
         if (data.status === 'OK' && data.results?.[0]) {
             const comp = data.results[0].address_components;
             const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
+            const admin3 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_3'))?.long_name;
             const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
-            return locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+            return locality || admin3 || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
         }
     } catch (e) { console.error("Geocode error", e); }
     return `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
@@ -299,20 +300,21 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 distWalked += segment;
                             }
 
-                            await sleep(200); 
-                            const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
-                            // Usar directamente el nombre de la ciudad (sin prefijo)
-                            const stopName = stopNameRaw;
+                        await sleep(200); 
+                        const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
+                        // Usar directamente el nombre de la ciudad (sin prefijo)
+                        const stopName = stopNameRaw;
 
-                            allDrivingStops.push({
-                                from: currentLegStartName,
-                                to: stopName,
-                                distance: data.kmMaximoDia,
-                                startCoords: currentLegStartCoords,
-                                endCoords: stopCoords
-                            });
-                            
-                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
+                        // Distancia del segmento: siempre es maxMeters porque cortamos exactamente al límite
+                        const realDistance = maxMeters / 1000;
+
+                        allDrivingStops.push({
+                            from: currentLegStartName,
+                            to: stopName,
+                            distance: realDistance,
+                            startCoords: currentLegStartCoords,
+                            endCoords: stopCoords
+                        });                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
 
                             currentLegStartName = stopNameRaw; 
                             currentLegStartCoords = stopCoords;
