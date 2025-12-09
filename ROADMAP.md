@@ -110,10 +110,58 @@ Esta funcionalidad permite al usuario modificar cualquier parada técnica del vi
 
 ## 🔧 MEJORAS TÉCNICAS (Backlog)
 
+### 📊 Optimización de APIs (Ver: `ANALISIS_OPTIMIZACION_APIS.md`)
+**Estado actual:** Óptimo (coste $0.02/viaje sin búsquedas, $0.12 con búsquedas)
+
+#### Implementado ✅
+- ✅ **Directions API:** 1 call/viaje (óptimo, no mejora posible)
+- ✅ **Geocoding API:** Caché persistente en git (63.2% hit rate)
+- ✅ **Exponential backoff:** Previene throttling de Google (3 intentos, 1-3 segundos)
+- ✅ **Admin3 fallback:** Evita mostrar coordenadas (UX mejorada)
+
+#### Roadmap Priorizado 🎯
+1. **Expandir seed caché geocoding** (CORTO PLAZO - 1 semana)
+   - [ ] Añadir top 100 ciudades europeas al seed inicial
+   - [ ] Resultado esperado: 63.2% → 80% hit rate
+   - [ ] Coste: $0, Beneficio: ~$275/mes ahorrados
+   - [ ] Ubicación: `data/geocoding-cache.json`
+
+2. **Places API local cache** (MEDIANO PLAZO - 1 mes)
+   - [ ] Cachear búsquedas populares por tipo (hoteles en París, etc.)
+   - [ ] Reutilizar en viajes posteriores
+   - [ ] Resultado esperado: -20% Places API calls
+   - [ ] Coste: 2-3 horas trabajo, $0 infraestructura
+   - [ ] Ubicación: `app/lib/places-cache.ts`
+
+3. **Session-level deduplication** (MEDIANO PLAZO - 1 mes)
+   - [ ] Si misma coordenada se pide 2x en misma sesión, reutilizar respuesta
+   - [ ] Evita 2-3 geocoding calls por ruta compleja
+   - [ ] Resultado esperado: +5% ahorros geocoding
+   - [ ] Coste: 1 hora trabajo
+
+4. **Supabase Storage sync** (LARGO PLAZO - 3 meses)
+   - [ ] Migrar caché de git a Supabase Storage cuando llegue >5000 entradas
+   - [ ] Sync automático dev ↔ prod
+   - [ ] Coste: $0.02/mes, Beneficio: Escalabilidad
+
+#### NO Implementable ❌
+- ❌ **Directions API caché:** Combinatoria explosiva (1 billón+ rutas posibles)
+  - Parámetros: origin + waypoints + destination
+  - Tamaño respuesta: 50-200 KB/ruta → impracticable
+  - Solución: Usar como está (1 call/viaje = óptimo)
+
+- ❌ **Places API caché (búsquedas dinámicas):** Resultados personales y volátiles
+  - Tipo de búsqueda + radio son variables
+  - Google actualiza resultados constantemente
+  - Solución: User-driven design (búsquedas bajo demanda)
+
+**Referencia técnica completa:** Ver `ANALISIS_OPTIMIZACION_APIS.md` para detalles arquitectónicos, benchmarks reales (16 rutas testadas), y proyecciones de costes.
+
 ### Performance
-- [ ] Cachear resultados de Places API en localStorage (reducir llamadas)
+- [x] **Geocoding API caché** (COMPLETADO - 63.2% hit rate)
 - [ ] Lazy loading de fotos (solo cargar cuando visible)
 - [ ] Virtualización de listas largas (react-window)
+- [ ] **Migrar a Routes API v2** - Investigar estructura de respuesta (40% más barata que Directions API, pero requiere análisis de formato de legs/steps)
 
 ### UX/UI
 - [ ] Selector de ordenación (Score / Distancia / Rating)
