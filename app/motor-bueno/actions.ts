@@ -109,8 +109,9 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
         if (data.status === 'OK' && data.results?.[0]) {
             const comp = data.results[0].address_components;
             const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
+            const admin3 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_3'))?.long_name;
             const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
-            return locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+            return locality || admin3 || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
         }
     } catch (e) { console.error("Geocode error", e); }
     return `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
@@ -304,10 +305,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             // Usar directamente el nombre de la ciudad (sin prefijo)
                             const stopName = stopNameRaw;
 
+                            // Calcular distancia real: acumulado previo + lo que caminamos en este segmento
+                            const realDistance = (dayAccumulatorMeters + metersNeeded) / 1000;
+
                             allDrivingStops.push({
                                 from: currentLegStartName,
                                 to: stopName,
-                                distance: data.kmMaximoDia,
+                                distance: realDistance,
                                 startCoords: currentLegStartCoords,
                                 endCoords: stopCoords
                             });
