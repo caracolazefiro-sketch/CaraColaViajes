@@ -657,7 +657,7 @@ export default function MotorPage() {
                                 </div>
                               </div>
                               <div style={{ fontSize: '0.95rem', color: '#000', fontWeight: 'bold' }}>
-                                🛏️ Estancia en {state.segmentationData.endCity}
+                                🛏️ Estancia en {state.segmentationData?.endCity}
                               </div>
                               <div style={{ textAlign: 'right', fontWeight: 'bold', color: '#999', fontSize: '0.85rem' }}>
                                 0 km
