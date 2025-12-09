@@ -198,7 +198,7 @@ export function useMotor() {
         origin: state.origen,
         destination: state.destino,
         waypoints: state.waypoints, // 🛏️ Pernoctas manuales
-        travel_mode: 'driving',
+        travel_mode: 'driving' as const,
         kmMaximoDia: state.kmMaximo, // ✅ Usar kmMaximo del estado (no hardcoded 300)
         fechaInicio: state.fecha, // ✅ Usar fecha del usuario
         fechaRegreso: '',
