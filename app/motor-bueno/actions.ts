@@ -1,14 +1,7 @@
 'use server';
 
-import { apiLogger } from './api-logger';
-import { getCachedCityName, setCachedCityName } from './geocoding-cache';
-
-// ⚠️🚨 VERSIÓN OPTIMIZADA API V1.4 - 08/DEC/2025 21:12 🚨⚠️
-// 🔧 OPTIMIZACIONES IMPLEMENTADAS:
-// - Caché de geocoding para evitar llamadas API duplicadas
-// - Eliminada función postSegmentItinerary (segmentación duplicada)
-// - Reducción de ~50% en llamadas a Google Geocoding API
-// ✅ PROBADO: Funciona correctamente con algoritmo de segmentación único
+// ⚠️🚨 RED FLAG - CRITICAL FILE - VERSIÓN ESTABLE V1 - DO NOT MODIFY 🚨⚠️
+// ✅ ESTA VERSIÓN FUNCIONA PERFECTAMENTE - NO TOCAR SIN BACKUP
 // Este archivo contiene el algoritmo de segmentación del MOTOR (SERVIDOR).
 // La función getDirectionsAndCost es la ÚNICA que debe llamar a Google Directions API.
 // El algoritmo de segmentación usa decodePolyline y getDistanceFromLatLonInM para
@@ -17,6 +10,7 @@ import { getCachedCityName, setCachedCityName } from './geocoding-cache';
 // porque el servidor y el cliente pueden recibir polylines ligeramente diferentes
 // de Google. El cliente es la fuente de verdad para los marcadores en el mapa.
 // ⚠️🚨 NO SINCRONIZAR - SON ALGORITMOS SEPARADOS INTENCIONALMENTE 🚨⚠️
+// Fecha estable: 06/12/2025
 
 // Copia local de getDirectionsAndCost para aislamiento total del MOTOR
 import { DailyPlan } from './types';
@@ -101,60 +95,11 @@ function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Caché de geocoding para evitar llamadas duplicadas (por request)
-const geocodingCache = new Map<string, string>();
-
-function getCacheKey(lat: number, lng: number): string {
-    // Redondear a 4 decimales (~11m precisión) para agrupar coordenadas muy cercanas
-    return `${lat.toFixed(4)},${lng.toFixed(4)}`;
-}
-
 async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, attempt = 1): Promise<string> {
-    const cacheKey = getCacheKey(lat, lng);
-
-    // 1️⃣ Verificar caché persistente primero (disco)
-    const persistentCached = await getCachedCityName(lat, lng);
-    if (persistentCached) {
-        apiLogger.logAPICall({
-            type: 'GEOCODING',
-            endpoint: 'geocode',
-            params: { lat, lng },
-            cached: true,
-            duration: 0
-        });
-        // Guardar en caché de memoria también para este request
-        geocodingCache.set(cacheKey, persistentCached);
-        return persistentCached;
-    }
-
-    // 2️⃣ Verificar caché de memoria (request actual)
-    if (geocodingCache.has(cacheKey)) {
-        apiLogger.logAPICall({
-            type: 'GEOCODING',
-            endpoint: 'geocode',
-            params: { lat, lng },
-            cached: true,
-            duration: 0
-        });
-        return geocodingCache.get(cacheKey)!;
-    }
-
-    // 3️⃣ Llamar a Google Geocoding API
     try {
-        const startTime = Date.now();
         const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_2&key=${apiKey}&language=es`;
         const res = await fetch(url);
         const data = await res.json();
-        const duration = Date.now() - startTime;
-
-        apiLogger.logAPICall({
-            type: 'GEOCODING',
-            endpoint: 'geocode',
-            params: { lat, lng, attempt },
-            response: { status: data.status, resultsCount: data.results?.length || 0 },
-            cached: false,
-            duration
-        });
 
         if (data.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             await sleep(1000 * attempt);
@@ -165,43 +110,71 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
             const comp = data.results[0].address_components;
             const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
             const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
-            const result = locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
-
-            // Guardar en caché de memoria
-            geocodingCache.set(cacheKey, result);
-            // 💾 Guardar en caché persistente
-            await setCachedCityName(lat, lng, result);
-            return result;
+            return locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
         }
     } catch (e) { console.error("Geocode error", e); }
-
-    const fallback = `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
-    geocodingCache.set(cacheKey, fallback);
-    // 💾 Guardar fallback en caché persistente también
-    await setCachedCityName(lat, lng, fallback);
-    return fallback;
+    return `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
 }
 
-// ❌ FUNCIÓN ELIMINADA: postSegmentItinerary
-// Razón: Duplicaba la segmentación ya realizada en getDirectionsAndCost
-// Resultado: ~50% menos llamadas a Google Geocoding API
-// La segmentación principal ya divide correctamente por kmMaximoDia
+async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
+    const segmented: DailyPlan[] = [];
+
+    for (const day of itinerary) {
+        if (day.distance > maxKmPerDay && day.isDriving) {
+            const numSegments = Math.ceil(day.distance / maxKmPerDay);
+            const kmPerSegment = day.distance / numSegments;
+
+            let currentDate = new Date(day.date);
+            let currentStartCoords = day.startCoordinates || { lat: 0, lng: 0 };
+            let currentStartName = day.from;
+
+            for (let i = 0; i < numSegments; i++) {
+                const isLast = i === numSegments - 1;
+
+                let segmentEndName = day.to;
+                let segmentEndCoords = day.coordinates || { lat: 0, lng: 0 };
+
+                if (!isLast && day.startCoordinates && day.coordinates) {
+                    const ratio = (i + 1) / numSegments;
+
+                    const intermediateCoords = {
+                        lat: day.startCoordinates.lat + (day.coordinates.lat - day.startCoordinates.lat) * ratio,
+                        lng: day.startCoordinates.lng + (day.coordinates.lng - day.startCoordinates.lng) * ratio
+                    };
+
+                    await sleep(100);
+                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey);
+                    segmentEndName = cityName;
+                    segmentEndCoords = intermediateCoords;
+                }
+
+                const segmentDay: DailyPlan = {
+                    date: formatDate(currentDate),
+                    distance: isLast ? day.distance - (kmPerSegment * i) : kmPerSegment,
+                    from: currentStartName,
+                    to: segmentEndName,
+                    startCoordinates: currentStartCoords,
+                    coordinates: segmentEndCoords,
+                    day: segmented.length + 1,
+                    isDriving: day.isDriving
+                };
+
+                segmented.push(segmentDay);
+
+                currentDate = addDays(currentDate, 1);
+                currentStartCoords = segmentEndCoords;
+                currentStartName = segmentEndName;
+            }
+        } else {
+            segmented.push({ ...day, day: segmented.length + 1 });
+        }
+    }
+
+    return segmented;
+}
 
 export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Promise<GetDirectionsAndCostResult> {
     const debugLog: string[] = [];
-
-    // Limpiar caché al inicio de cada request
-    geocodingCache.clear();
-
-    // 📊 Iniciar logging del viaje (solo waypoints con paradas reales, excluir coordenadas)
-    const realWaypoints = data.waypoints?.filter(w => !w.match(/^-?\d+\.\d+,-?\d+\.\d+$/)) || [];
-    const tripId = apiLogger.startTrip(
-        data.origin,
-        data.destination,
-        data.kmMaximoDia,
-        realWaypoints.length > 0 ? realWaypoints : undefined
-    );
-    debugLog.push(`📊 Trip ID: ${tripId}`);
 
     const apiKey = process.env.GOOGLE_MAPS_API_KEY_FIXED ?? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -220,87 +193,24 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
     const normalizedWaypoints = data.waypoints.map(w => normalizeForGoogle(w));
 
     const allStops = [data.origin, ...data.waypoints.filter(w => w), data.destination];
+    const waypointsParam = normalizedWaypoints.length > 0 ? `&waypoints=${normalizedWaypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(normalizedOrigin)}&destination=${encodeURIComponent(normalizedDestination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
 
-    // 🆕 ROUTES API (nueva generación) - más eficiente y económica
-    const routesApiUrl = 'https://routes.googleapis.com/directions/v2:computeRoutes';
-
-    // Construir waypoints para Routes API
-    const intermediates = normalizedWaypoints.map(w => ({
-        address: w
-    }));
-
-    const requestBody = {
-        origin: { address: normalizedOrigin },
-        destination: { address: normalizedDestination },
-        ...(intermediates.length > 0 && { intermediates }),
-        travelMode: data.travel_mode.toUpperCase(),
-        routingPreference: 'TRAFFIC_AWARE',
-        computeAlternativeRoutes: false,
-        routeModifiers: {
-            avoidTolls: false,
-            avoidHighways: false,
-            avoidFerries: false
-        },
-        languageCode: 'es',
-        units: 'METRIC'
-    };
-
-    debugLog.push('🔗 MOTOR: Routes API Call (v2)');
+    debugLog.push('🔗 MOTOR: Google Directions API Call');
 
     try {
-        const directionsStartTime = Date.now();
-        const response = await fetch(routesApiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Goog-Api-Key': apiKey,
-                'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs'
-            },
-            body: JSON.stringify(requestBody)
-        });
+        const response = await fetch(url);
+        const directionsResult = await response.json();
 
-        const routesResult = await response.json();
-        const directionsDuration = Date.now() - directionsStartTime;
-
-        apiLogger.logAPICall({
-            type: 'DIRECTIONS',
-            endpoint: 'routes/v2:computeRoutes',
-            params: {
-                origin: normalizedOrigin,
-                destination: normalizedDestination,
-                waypoints: normalizedWaypoints,
-                mode: data.travel_mode
-            },
-            response: {
-                status: response.ok ? 'OK' : 'ERROR',
-                routesCount: routesResult.routes?.length || 0
-            },
-            duration: directionsDuration
-        });
-
-        if (!response.ok || !routesResult.routes || routesResult.routes.length === 0) {
-            debugLog.push(`❌ Routes API Response: ${routesResult.error?.message || 'No routes found'}`);
-            return {
-                error: `Routes API Error: ${routesResult.error?.message || 'No routes found'}`,
-                debugLog,
-                googleRawResponse: routesResult
-            };
+        if (directionsResult.status !== 'OK') {
+            debugLog.push(`❌ Google API Response: ${directionsResult.status}`);
+            return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}`, debugLog, googleRawResponse: directionsResult };
         }
 
-        const route = routesResult.routes[0];
+        const route = directionsResult.routes[0];
 
-        // Validar que la respuesta tenga la estructura esperada
-        if (!route.legs || route.legs.length === 0) {
-            debugLog.push(`❌ Routes API: No legs found in route`);
-            return {
-                error: 'Routes API returned invalid route structure (no legs)',
-                debugLog,
-                googleRawResponse: routesResult
-            };
-        }
-
-        // Extraer distancia total de Routes API (ya viene en metros)
-        let totalDistanceMeters = route.distanceMeters || 0;
+        let totalDistanceMeters = 0;
+        route.legs.forEach((leg: { distance: { value: number } }) => { totalDistanceMeters += leg.distance.value; });
         const distanceKm = totalDistanceMeters / 1000;
 
         const allDrivingStops: {
@@ -312,36 +222,8 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
         const finalWaypointsForMap: string[] = [];
         const maxMeters = data.kmMaximoDia * 1000;
 
-        // Factor de corrección para fusionar última etapa si es muy pequeña
-        let minLastStageKm = 45; // Default para 300km
-        if (data.kmMaximoDia <= 100) {
-            minLastStageKm = 15;
-        } else if (data.kmMaximoDia <= 200) {
-            minLastStageKm = 30;
-        } else if (data.kmMaximoDia <= 300) {
-            minLastStageKm = 45;
-        } else if (data.kmMaximoDia <= 400) {
-            minLastStageKm = 55;
-        } else if (data.kmMaximoDia >= 500) {
-            minLastStageKm = 65;
-        }
-        const minLastStageMeters = minLastStageKm * 1000;
-
-        // Validar que el primer leg tenga startLocation
-        if (!route.legs[0].startLocation?.latLng) {
-            debugLog.push(`❌ Routes API: First leg missing startLocation.latLng`);
-            return {
-                error: 'Routes API returned invalid leg structure',
-                debugLog,
-                googleRawResponse: routesResult
-            };
-        }
-
         let currentLegStartName = allStops[0];
-        let currentLegStartCoords = {
-            lat: route.legs[0].startLocation.latLng.latitude,
-            lng: route.legs[0].startLocation.latLng.longitude
-        };
+        let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
 
         let dayAccumulatorMeters = 0;
 
@@ -350,37 +232,20 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
             const nextStopName = allStops[i + 1];
             let legDistanceMeters = 0;
 
-            // Validar que leg tenga steps
-            if (!leg.steps || leg.steps.length === 0) {
-                debugLog.push(`⚠️ Leg ${i} has no steps, using leg distanceMeters directly`);
-                legDistanceMeters = leg.distanceMeters || 0;
-            } else {
-                for (const step of leg.steps) {
-                    legDistanceMeters += step.distanceMeters || 0;
-                }
+            for (const step of leg.steps) {
+                legDistanceMeters += step.distance.value;
             }
 
-            // 🐛 FIX: Segmentar legs que exceden maxMeters, incluso si es la primera leg
-            if (legDistanceMeters > maxMeters || (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0)) {
-                if (!leg.steps || leg.steps.length === 0) {
-                    debugLog.push(`⚠️ Cannot segment leg ${i} - no steps available`);
-                    dayAccumulatorMeters += legDistanceMeters;
-                } else {
-                    for (const step of leg.steps) {
-                        const stepDist = step.distanceMeters || 0;
-
-                        if (!step.polyline?.encodedPolyline) {
-                            debugLog.push(`⚠️ Step missing polyline, skipping segmentation`);
-                            dayAccumulatorMeters += stepDist;
-                            continue;
-                        }
+            if (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0) {
+                for (const step of leg.steps) {
+                    const stepDist = step.distance.value;
 
                     if (dayAccumulatorMeters + stepDist < maxMeters) {
                         dayAccumulatorMeters += stepDist;
                     } else {
                         let metersNeeded = maxMeters - dayAccumulatorMeters;
                         let metersLeftInStep = stepDist;
-                        const path = decodePolyline(step.polyline.encodedPolyline);
+                        const path = decodePolyline(step.polyline.points);
                         let currentPathIndex = 0;
 
                         while (metersLeftInStep >= metersNeeded) {
@@ -432,37 +297,22 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
                         }
                         dayAccumulatorMeters += metersLeftInStep;
                     }
-                    }
                 }
             } else {
                 dayAccumulatorMeters += legDistanceMeters;
             }
 
-            const legEndCoords = { lat: leg.endLocation.latLng.latitude, lng: leg.endLocation.latLng.longitude };
+            const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
 
-            // 🔍 Fusionar etapa si es muy pequeña (< 45km para 300km/día)
-            // Esto evita etapas ridículas de 10-20km entre waypoints
-            if (dayAccumulatorMeters < minLastStageMeters && allDrivingStops.length > 0) {
-                // Fusionar con la última etapa creada
-                const previousStop = allDrivingStops[allDrivingStops.length - 1];
-                previousStop.to = nextStopName;
-                previousStop.distance += dayAccumulatorMeters / 1000;
-                previousStop.endCoords = legEndCoords;
+            allDrivingStops.push({
+                from: currentLegStartName,
+                to: nextStopName,
+                distance: dayAccumulatorMeters / 1000,
+                startCoords: currentLegStartCoords,
+                endCoords: legEndCoords
+            });
 
-                // No agregar nueva etapa, solo actualizar waypoint final si no es el último
-                if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
-            } else {
-                // Etapa normal
-                allDrivingStops.push({
-                    from: currentLegStartName,
-                    to: nextStopName,
-                    distance: dayAccumulatorMeters / 1000,
-                    startCoords: currentLegStartCoords,
-                    endCoords: legEndCoords
-                });
-
-                if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
-            }
+            if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
 
             currentLegStartName = nextStopName;
             currentLegStartCoords = legEndCoords;
@@ -495,7 +345,7 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
 
             if (daysStay > 0) {
                 const lastLeg = route.legs[route.legs.length - 1];
-                const stayCoords = { lat: lastLeg.endLocation.latLng.latitude, lng: lastLeg.endLocation.latLng.longitude };
+                const stayCoords = { lat: lastLeg.end_location.lat, lng: lastLeg.end_location.lng };
 
                 let stayLocation = data.destination;
                 try {
@@ -521,9 +371,7 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
             }
         }
 
-        // ✅ OPTIMIZACIÓN: Ya no necesitamos postSegmentItinerary
-        // La segmentación principal ya divide correctamente por kmMaximoDia
-        const segmentedItinerary = dailyItinerary;
+        const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey);
 
         const embedParams = {
             key: apiKey,
@@ -534,18 +382,11 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
 
-        // 📊 Finalizar logging del viaje
-        apiLogger.endTrip(distanceKm, segmentedItinerary.length);
-
-        return { distanceKm, mapUrl, dailyItinerary: segmentedItinerary, debugLog, googleRawResponse: routesResult };
+        return { distanceKm, mapUrl, dailyItinerary: segmentedItinerary, debugLog, googleRawResponse: directionsResult };
 
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         debugLog.push(`⚠️ Exception: ${msg}`);
-
-        // 📊 Finalizar logging incluso con error
-        apiLogger.endTrip();
-
         return { error: msg || "Error al calcular la ruta.", debugLog };
     }
 }
