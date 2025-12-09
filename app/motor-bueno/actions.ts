@@ -432,6 +432,7 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
                         }
                         dayAccumulatorMeters += metersLeftInStep;
                     }
+                    }
                 }
             } else {
                 dayAccumulatorMeters += legDistanceMeters;
