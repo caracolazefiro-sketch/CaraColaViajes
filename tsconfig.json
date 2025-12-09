@@ -30,5 +30,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "CHEMA/EJEMPLOS/**",
+    "BACKUP_PRE_MIGRATION_09DEC2025_20251209_080705/**",
+    "app/motor/CORRECCIONES_API_V1.4_08DEC2108/**"
+  ]
 }
