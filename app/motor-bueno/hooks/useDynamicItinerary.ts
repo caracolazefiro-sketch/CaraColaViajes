@@ -1,12 +1,26 @@
 import { useMemo } from 'react';
 import { DailyPlan } from '../types';
 
-// Renombrar ServerDay para evitar conflictos - ahora usamos DailyPlan del types.ts
+// Tipo para puntos de segmentación (matches useMotor.ts state.segmentationData.points)
 interface SegmentationPoint {
-  cityName: string;
+  lat: number;
+  lng: number;
+  day: number;
   distance: number;
-  isManualWaypoint: boolean;
-  coordinates?: { lat: number; lng: number };
+  cityName?: string;
+  cityCoordinates?: { lat: number; lng: number };
+  realDistance?: number;
+  isManualWaypoint?: boolean;
+  alternatives?: Array<{
+    name: string;
+    lat: number;
+    lng: number;
+    rating: number;
+    userRatingsTotal: number;
+    vicinity?: string;
+    distanceFromOrigin: number;
+    score: number;
+  }>;
 }
 
 export interface DynamicDay {
@@ -76,10 +90,10 @@ export function useDynamicItinerary(
       date: formatDate(currentDate),
       type: 'driving',
       from: startCity,
-      to: firstPoint.cityName,
+      to: firstPoint.cityName || 'Unknown',
       distance: firstServerDay.distance,
-      cityName: firstPoint.cityName,
-      isManualWaypoint: firstPoint.isManualWaypoint,
+      cityName: firstPoint.cityName || 'Unknown',
+      isManualWaypoint: firstPoint.isManualWaypoint || false,
       coordinates: firstPoint.coordinates,
       startCoordinates: firstServerDay.startCoordinates,
     };
@@ -88,19 +102,19 @@ export function useDynamicItinerary(
     currentDate.setDate(currentDate.getDate() + 1);
 
     // Días de estancia en el primer punto
-    const firstPointExtraDays = extraDays[firstPoint.cityName] || 0;
+    const firstPointExtraDays = extraDays[firstPoint.cityName || ''] || 0;
     for (let i = 0; i < firstPointExtraDays; i++) {
       const stayDay: DynamicDay = {
         dayNumber: currentDayNumber++,
         date: formatDate(currentDate),
         type: 'stay',
-        from: firstPoint.cityName,
-        to: firstPoint.cityName,
+        from: firstPoint.cityName || 'Unknown',
+        to: firstPoint.cityName || 'Unknown',
         distance: 0,
-        cityName: firstPoint.cityName,
-        isManualWaypoint: firstPoint.isManualWaypoint,
+        cityName: firstPoint.cityName || 'Unknown',
+        isManualWaypoint: firstPoint.isManualWaypoint || false,
         isStay: true,
-        stayCity: firstPoint.cityName,
+        stayCity: firstPoint.cityName || 'Unknown',
         coordinates: firstPoint.coordinates,
       };
 
@@ -123,8 +137,8 @@ export function useDynamicItinerary(
           from: serverDay.from,
           to: serverDay.to,
           distance: serverDay.distance,
-          cityName: point.cityName,
-          isManualWaypoint: point.isManualWaypoint,
+          cityName: point.cityName || 'Unknown',
+          isManualWaypoint: point.isManualWaypoint || false,
           coordinates: point.coordinates,
           startCoordinates: serverDay.startCoordinates,
         };
@@ -134,19 +148,19 @@ export function useDynamicItinerary(
       }
 
       // Días de estancia en este punto
-      const extraDaysCount = extraDays[point.cityName] || 0;
+      const extraDaysCount = extraDays[point.cityName || ''] || 0;
       for (let i = 0; i < extraDaysCount; i++) {
         const stayDay: DynamicDay = {
           dayNumber: currentDayNumber++,
           date: formatDate(currentDate),
           type: 'stay',
-          from: point.cityName,
-          to: point.cityName,
+          from: point.cityName || 'Unknown',
+          to: point.cityName || 'Unknown',
           distance: 0,
-          cityName: point.cityName,
-          isManualWaypoint: point.isManualWaypoint,
+          cityName: point.cityName || 'Unknown',
+          isManualWaypoint: point.isManualWaypoint || false,
           isStay: true,
-          stayCity: point.cityName,
+          stayCity: point.cityName || 'Unknown',
           coordinates: point.coordinates,
         };
 
