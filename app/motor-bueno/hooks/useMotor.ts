@@ -161,13 +161,16 @@ export function useMotor() {
   }, []);
 
   const resetForm = useCallback(() => {
-    setState({
+    setState(prev => ({
+      ...prev,
       origen: '',
       destino: '',
       itinerary: null,
       loading: false,
       error: null,
-    });
+      waypoints: [],
+      extraDays: {}
+    }));
   }, []);
 
   const calculate = useCallback(async () => {
