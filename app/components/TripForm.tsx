@@ -150,12 +150,15 @@ export default function TripForm({
     const onPlaceChanged = (field: 'origen' | 'destino' | 'tempStop') => {
         const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
         const place = ref.current?.getPlace();
+        console.log(`🔍 onPlaceChanged(${field}):`, place); // DEBUG
         if (place && place.formatted_address) {
             // NO normalizar al guardar - guardar dirección completa del API
             // La normalización se hace solo cuando se envía a Google Directions
             console.log(`📍 ${field} seleccionado:`, place.formatted_address);
             if (field === 'tempStop') setTempStop(place.formatted_address);
             else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
+        } else {
+            console.warn(`⚠️ ${field}: No se pudo obtener formatted_address`, place);
         }
     };
 
