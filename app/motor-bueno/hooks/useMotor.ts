@@ -25,7 +25,7 @@ export interface MotorState {
   loading: boolean;
   error: string | null;
   debugRequest: { timestamp?: number; origin?: string; destination?: string; } | null;
-  debugResponse: { dailyItinerary?: DailyPlan[]; status?: string; } | null;
+  debugResponse: { dailyItinerary?: DailyPlan[]; status?: string; totalDistance?: number; } | null;
   googleRawResponse: Record<string, unknown> | null;
   segmentationData: {
     points: Array<{
