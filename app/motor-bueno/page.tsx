@@ -190,7 +190,7 @@ export default function MotorPage() {
                         Distancia total del viaje
                       </div>
                       <div style={{ fontSize: '1.1rem', color: '#fff', fontWeight: 'bold' }}>
-                        {state.segmentationData.startCity} → {state.segmentationData.endCity}
+                        {state.segmentationData?.startCity} → {state.segmentationData?.endCity}
                       </div>
                     </div>
                     <div style={{
@@ -213,7 +213,8 @@ export default function MotorPage() {
                     <>
                       {/* Primera etapa: origen → primer punto */}
                       {(() => {
-                        const firstPoint = state.segmentationData.points[0];
+                        const firstPoint = state.segmentationData?.points?.[0];
+                        if (!firstPoint) return null;
                         const dynamicDate = state.debugResponse?.dailyItinerary?.[0]?.date || '';
                         const extraDaysHere = state.extraDays[firstPoint.cityName || ''] || 0;
 
@@ -235,7 +236,7 @@ export default function MotorPage() {
                             </div>
                           </div>
                           <div style={{ fontSize: '0.95rem', color: '#000', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <span>{state.segmentationData.startCity} → {firstPoint.cityName || 'Cargando...'}</span>
+                            <span>{state.segmentationData?.startCity} → {firstPoint.cityName || 'Cargando...'}</span>
                             {firstPoint.isManualWaypoint ? (
                               <>
                                 <span style={{
@@ -368,19 +369,19 @@ export default function MotorPage() {
                       })()}
 
                       {/* Etapas intermedias: punto → punto */}
-                      {state.segmentationData.points.slice(1).map((point, idx) => {
+                      {state.segmentationData?.points?.slice(1).map((point, idx) => {
                         const actualPointIdx = idx + 1;
                         // El índice del servidor es simplemente idx (0, 1, 2...)
                         // porque el servidor NO conoce los días extra
                         const serverIdx = idx + 1; // idx + 1 porque slice(1) ya saltó el primer punto
                         const dynamicDate = calculateDynamicDate(
                           state.debugResponse?.dailyItinerary?.[serverIdx]?.date || '',
-                          state.segmentationData.points,
+                          state.segmentationData?.points || [],
                           actualPointIdx
                         );
                         const dayNumber = calculateDayNumber(
                           actualPointIdx + 1,
-                          state.segmentationData.points,
+                          state.segmentationData?.points || [],
                           actualPointIdx
                         );
                         const extraDaysHere = state.extraDays[point.cityName || ''] || 0;
@@ -447,7 +448,7 @@ export default function MotorPage() {
                                     🟢 SUGERIDO
                                   </span>
                                   {/* Botón también en destino final (último punto) */}
-                                  {actualPointIdx === state.segmentationData.points.length - 1 && (
+                                  {actualPointIdx === (state.segmentationData?.points?.length || 0) - 1 && (
                                     <button
                                       onClick={() => addExtraDay(point.cityName || '')}
                                       style={{
@@ -472,8 +473,8 @@ export default function MotorPage() {
                               )}
                             </div>
                             <div style={{ textAlign: 'right', fontWeight: 'bold', color: '#4CAF50', fontSize: '0.85rem' }}>
-                              {point.realDistance && state.segmentationData?.points[idx]?.realDistance
-                                ? `${(point.realDistance - state.segmentationData.points[idx].realDistance).toFixed(0)} km`
+                              {point.realDistance && state.segmentationData?.points?.[idx]?.realDistance
+                                ? `${(point.realDistance - (state.segmentationData.points[idx].realDistance || 0)).toFixed(0)} km`
                                 : point.realDistance
                                 ? `${point.realDistance.toFixed(0)} km`
                                 : `~${point.distance.toFixed(0)} km`
@@ -562,8 +563,8 @@ export default function MotorPage() {
                         // Si el número de puntos en segmentationData es igual al número de días con conducción - 1,
                         // significa que el último punto YA ES el destino final (no hay etapa adicional)
                         const drivingDays = state.debugResponse?.dailyItinerary?.filter((d: any) => d.isDriving).length || 0;
-                        const hasMoreDays = state.segmentationData.points.length < drivingDays;
-                        if (!hasMoreDays) return null;
+                        const hasMoreDays = (state.segmentationData?.points?.length || 0) < drivingDays;
+                        if (!hasMoreDays || !state.segmentationData?.points) return null;
 
                         // Calcular fecha y día dinámicos para última etapa
                         const lastPoint = state.segmentationData.points[state.segmentationData.points.length - 1];
@@ -575,7 +576,7 @@ export default function MotorPage() {
                         const date = new Date(baseDate);
                         date.setDate(date.getDate() + totalExtraDays);
                         const dynamicDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-                        const extraDaysHere = state.extraDays[state.segmentationData.endCity] || 0;
+                        const extraDaysHere = state.extraDays[state.segmentationData?.endCity || ''] || 0;
 
                         return (
                         <>
@@ -593,9 +594,9 @@ export default function MotorPage() {
                             <div style={{ fontSize: '0.75rem', color: '#666', fontWeight: 'normal' }}>{dynamicDate}</div>
                           </div>
                           <div style={{ fontSize: '0.95rem', color: '#000', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <span>{lastPoint.cityName || 'Cargando...'} → {state.segmentationData.endCity}</span>
+                            <span>{lastPoint.cityName || 'Cargando...'} → {state.segmentationData?.endCity}</span>
                             <button
-                              onClick={() => addExtraDay(state.segmentationData.endCity)}
+                              onClick={() => addExtraDay(state.segmentationData?.endCity || '')}
                               style={{
                                 padding: '0.25rem 0.5rem',
                                 background: '#FF9800',
@@ -617,7 +618,7 @@ export default function MotorPage() {
                           <div style={{ textAlign: 'right', fontWeight: 'bold', color: '#4CAF50', fontSize: '0.85rem' }}>
                             {(() => {
                               const totalFromServer = state.debugResponse?.dailyItinerary?.reduce((sum: number, day: any) => sum + day.distance, 0) || 0;
-                              const calculatedSoFar = state.segmentationData.points.reduce((sum: number, p: any) => sum + p.distance, 0);
+                              const calculatedSoFar = state.segmentationData?.points?.reduce((sum: number, p: any) => sum + p.distance, 0) || 0;
                               return (totalFromServer - calculatedSoFar).toFixed(0);
                             })()} km
                           </div>
