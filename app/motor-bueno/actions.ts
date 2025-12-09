@@ -111,7 +111,7 @@ function getCacheKey(lat: number, lng: number): string {
 
 async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, attempt = 1): Promise<string> {
     const cacheKey = getCacheKey(lat, lng);
-    
+
     // 1️⃣ Verificar caché persistente primero (disco)
     const persistentCached = await getCachedCityName(lat, lng);
     if (persistentCached) {
@@ -126,7 +126,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
         geocodingCache.set(cacheKey, persistentCached);
         return persistentCached;
     }
-    
+
     // 2️⃣ Verificar caché de memoria (request actual)
     if (geocodingCache.has(cacheKey)) {
         apiLogger.logAPICall({
@@ -138,7 +138,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
         });
         return geocodingCache.get(cacheKey)!;
     }
-    
+
     // 3️⃣ Llamar a Google Geocoding API
     try {
         const startTime = Date.now();
@@ -166,7 +166,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
             const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
             const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
             const result = locality || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
-            
+
             // Guardar en caché de memoria
             geocodingCache.set(cacheKey, result);
             // 💾 Guardar en caché persistente
@@ -174,7 +174,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
             return result;
         }
     } catch (e) { console.error("Geocode error", e); }
-    
+
     const fallback = `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
     geocodingCache.set(cacheKey, fallback);
     // 💾 Guardar fallback en caché persistente también
@@ -189,16 +189,16 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
 export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Promise<GetDirectionsAndCostResult> {
     const debugLog: string[] = [];
-    
+
     // Limpiar caché al inicio de cada request
     geocodingCache.clear();
-    
+
     // 📊 Iniciar logging del viaje (solo waypoints con paradas reales, excluir coordenadas)
     const realWaypoints = data.waypoints?.filter(w => !w.match(/^-?\d+\.\d+,-?\d+\.\d+$/)) || [];
     const tripId = apiLogger.startTrip(
-        data.origin, 
-        data.destination, 
-        data.kmMaximoDia, 
+        data.origin,
+        data.destination,
+        data.kmMaximoDia,
         realWaypoints.length > 0 ? realWaypoints : undefined
     );
     debugLog.push(`📊 Trip ID: ${tripId}`);
@@ -220,15 +220,15 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
     const normalizedWaypoints = data.waypoints.map(w => normalizeForGoogle(w));
 
     const allStops = [data.origin, ...data.waypoints.filter(w => w), data.destination];
-    
+
     // 🆕 ROUTES API (nueva generación) - más eficiente y económica
     const routesApiUrl = 'https://routes.googleapis.com/directions/v2:computeRoutes';
-    
+
     // Construir waypoints para Routes API
     const intermediates = normalizedWaypoints.map(w => ({
         address: w
     }));
-    
+
     const requestBody = {
         origin: { address: normalizedOrigin },
         destination: { address: normalizedDestination },
@@ -258,7 +258,7 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
             },
             body: JSON.stringify(requestBody)
         });
-        
+
         const routesResult = await response.json();
         const directionsDuration = Date.now() - directionsStartTime;
 
@@ -280,14 +280,24 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
 
         if (!response.ok || !routesResult.routes || routesResult.routes.length === 0) {
             debugLog.push(`❌ Routes API Response: ${routesResult.error?.message || 'No routes found'}`);
-            return { 
-                error: `Routes API Error: ${routesResult.error?.message || 'No routes found'}`, 
-                debugLog, 
-                googleRawResponse: routesResult 
+            return {
+                error: `Routes API Error: ${routesResult.error?.message || 'No routes found'}`,
+                debugLog,
+                googleRawResponse: routesResult
             };
         }
 
         const route = routesResult.routes[0];
+
+        // Validar que la respuesta tenga la estructura esperada
+        if (!route.legs || route.legs.length === 0) {
+            debugLog.push(`❌ Routes API: No legs found in route`);
+            return {
+                error: 'Routes API returned invalid route structure (no legs)',
+                debugLog,
+                googleRawResponse: routesResult
+            };
+        }
 
         // Extraer distancia total de Routes API (ya viene en metros)
         let totalDistanceMeters = route.distanceMeters || 0;
@@ -301,7 +311,7 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
 
         const finalWaypointsForMap: string[] = [];
         const maxMeters = data.kmMaximoDia * 1000;
-        
+
         // Factor de corrección para fusionar última etapa si es muy pequeña
         let minLastStageKm = 45; // Default para 300km
         if (data.kmMaximoDia <= 100) {
@@ -317,8 +327,21 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
         }
         const minLastStageMeters = minLastStageKm * 1000;
 
+        // Validar que el primer leg tenga startLocation
+        if (!route.legs[0].startLocation?.latLng) {
+            debugLog.push(`❌ Routes API: First leg missing startLocation.latLng`);
+            return {
+                error: 'Routes API returned invalid leg structure',
+                debugLog,
+                googleRawResponse: routesResult
+            };
+        }
+
         let currentLegStartName = allStops[0];
-        let currentLegStartCoords = { lat: route.legs[0].startLocation.latLng.latitude, lng: route.legs[0].startLocation.latLng.longitude };
+        let currentLegStartCoords = {
+            lat: route.legs[0].startLocation.latLng.latitude,
+            lng: route.legs[0].startLocation.latLng.longitude
+        };
 
         let dayAccumulatorMeters = 0;
 
@@ -327,14 +350,30 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
             const nextStopName = allStops[i + 1];
             let legDistanceMeters = 0;
 
-            for (const step of leg.steps) {
-                legDistanceMeters += step.distanceMeters;
+            // Validar que leg tenga steps
+            if (!leg.steps || leg.steps.length === 0) {
+                debugLog.push(`⚠️ Leg ${i} has no steps, using leg distanceMeters directly`);
+                legDistanceMeters = leg.distanceMeters || 0;
+            } else {
+                for (const step of leg.steps) {
+                    legDistanceMeters += step.distanceMeters || 0;
+                }
             }
 
             // 🐛 FIX: Segmentar legs que exceden maxMeters, incluso si es la primera leg
             if (legDistanceMeters > maxMeters || (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0)) {
-                for (const step of leg.steps) {
-                    const stepDist = step.distanceMeters;
+                if (!leg.steps || leg.steps.length === 0) {
+                    debugLog.push(`⚠️ Cannot segment leg ${i} - no steps available`);
+                    dayAccumulatorMeters += legDistanceMeters;
+                } else {
+                    for (const step of leg.steps) {
+                        const stepDist = step.distanceMeters || 0;
+
+                        if (!step.polyline?.encodedPolyline) {
+                            debugLog.push(`⚠️ Step missing polyline, skipping segmentation`);
+                            dayAccumulatorMeters += stepDist;
+                            continue;
+                        }
 
                     if (dayAccumulatorMeters + stepDist < maxMeters) {
                         dayAccumulatorMeters += stepDist;
@@ -408,7 +447,7 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
                 previousStop.to = nextStopName;
                 previousStop.distance += dayAccumulatorMeters / 1000;
                 previousStop.endCoords = legEndCoords;
-                
+
                 // No agregar nueva etapa, solo actualizar waypoint final si no es el último
                 if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
             } else {
@@ -502,10 +541,10 @@ export async function getDirectionsAndCost(data: GetDirectionsAndCostParams): Pr
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         debugLog.push(`⚠️ Exception: ${msg}`);
-        
+
         // 📊 Finalizar logging incluso con error
         apiLogger.endTrip();
-        
+
         return { error: msg || "Error al calcular la ruta.", debugLog };
     }
 }
