@@ -187,9 +187,6 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
 }
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
-    // Deshabilitar caché de Vercel
-    const headers = new Headers();
-    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     
     const debugLog: string[] = [];
     
