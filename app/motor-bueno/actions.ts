@@ -1,9 +1,5 @@
  'use server';
 
-// Deshabilitar caché de Vercel para este server action
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 // Definiciones de interfaces locales para el server action
 interface DailyPlan {
   date: string;
@@ -191,6 +187,9 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
 }
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
+    // Deshabilitar caché de Vercel
+    const headers = new Headers();
+    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     
     const debugLog: string[] = [];
     
