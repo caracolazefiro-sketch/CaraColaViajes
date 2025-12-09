@@ -1,0 +1,444 @@
+/* ⚠️🚨 RED FLAG - CRITICAL FILE - VERSIÓN ESTABLE V1 - DO NOT MODIFY 🚨⚠️
+   ✅ ESTA VERSIÓN FUNCIONA PERFECTAMENTE - NO TOCAR SIN BACKUP
+   Este archivo contiene los estilos CSS del MOTOR MVP.
+   LAYOUT ACTUAL:
+     - Fila 1: 2 columnas (Nuestra petición | Google Maps)
+     - Fila 2: 2 columnas (Nuestro MOTOR | Itinerario)
+   Los estilos motor-comparison-* son críticos para el layout de los 3 mapas.
+   Cualquier cambio puede romper la visualización side-by-side de las comparaciones.
+   ⚠️🚨 TESTEAR EXHAUSTIVAMENTE CUALQUIER CAMBIO 🚨⚠️
+   Fecha estable: 06/12/2025
+*/
+
+/* Motor MVP - Minimal, clean styles */
+
+.motor-page {
+  min-height: 100vh;
+  padding: 1rem;
+  background: #f5f5f5;
+}
+
+.motor-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 400px;
+}
+
+/* Search Panel */
+.motor-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.motor-search h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.motor-search-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.motor-search-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.motor-search-input-group label {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.motor-search-input-group .pac-container {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+input.motor-input {
+  padding: 0.4rem;
+  font-size: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  color: #000;
+}
+
+input.motor-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.motor-button {
+  padding: 0.5rem 0.75rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.motor-button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.motor-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Search Only Wrapper */
+.motor-search-only-wrapper {
+  max-width: 900px;
+  margin: 0.5rem auto;
+  padding: 0 1rem;
+}
+
+/* Search Compact - Single Line */
+.motor-search-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+input.motor-input-compact {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.875rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  color: #000;
+  min-width: 200px;
+  flex: 1;
+}
+
+input.motor-input-compact:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+input.motor-input-date,
+input.motor-input-km {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.875rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  color: #000;
+}
+
+input.motor-input-date:focus,
+input.motor-input-km:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.motor-button-compact {
+  padding: 0.4rem 1rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.motor-button-compact:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.motor-button-compact:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* Itinerary Panel */
+.motor-itinerary-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: auto;
+}
+
+.motor-itinerary {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.motor-itinerary-header {
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 0.75rem;
+}
+
+.motor-itinerary-header h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.motor-itinerary-summary {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.motor-itinerary-loading,
+.motor-itinerary-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #999;
+  font-style: italic;
+}
+
+.motor-itinerary-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.motor-itinerary-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 1fr 70px;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+}
+
+.motor-itinerary-row:last-child {
+  border-bottom: none;
+}
+
+.motor-itinerary-thead {
+  background: #f9f9f9;
+  font-weight: 600;
+  color: #666;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  border-bottom: 2px solid #ddd;
+  position: sticky;
+  top: 0;
+}
+
+.col-day {
+  text-align: center;
+}
+
+.col-from {
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.col-to {
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.col-km {
+  text-align: right;
+  font-weight: 500;
+  color: #007bff;
+}
+
+/* Map Container */
+.motor-map-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Debug Panels */
+.motor-debug-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  max-width: 1400px;
+  margin: 2rem auto 0;
+  padding: 0 1rem 1rem;
+}
+
+.motor-debug-box {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.motor-debug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.motor-debug-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.motor-copy-btn {
+  padding: 0.5rem 1rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.motor-copy-btn:hover {
+  background: #0056b3;
+}
+
+.motor-debug-content {
+  padding: 1rem;
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: #000;
+  background: #f8f9fa;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Comparison Maps Container */
+.motor-comparison-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  max-width: 1400px;
+  margin: 1rem auto 0;
+  padding: 0 1rem;
+}
+
+.motor-comparison-box {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.motor-comparison-header {
+  background: #f8f9fa;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.motor-comparison-map {
+  height: 250px;
+  width: 100%;
+}
+
+/* Raw Data Display */
+.motor-raw-data {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 1rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.motor-raw-data h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.motor-raw-data-content {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #000;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .motor-container {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .motor-map-container {
+    min-height: 400px;
+  }
+
+  .motor-debug-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .motor-search {
+    padding: 1rem;
+  }
+
+  .motor-itinerary {
+    padding: 1rem;
+  }
+
+  .motor-itinerary-row {
+    grid-template-columns: 40px 1fr 1fr 60px;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .col-day {
+    font-size: 0.8rem;
+  }
+}
