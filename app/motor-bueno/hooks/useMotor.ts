@@ -216,7 +216,7 @@ export function useMotor() {
       const result = await getDirectionsAndCost(requestData);
 
       // Guardar response en estado
-      setState(prev => ({ ...prev, debugResponse: result, googleRawResponse: result.googleRawResponse }));
+      setState(prev => ({ ...prev, debugResponse: result, googleRawResponse: result.googleRawResponse || null }));
 
       if (result.error) {
         setError(result.error);
