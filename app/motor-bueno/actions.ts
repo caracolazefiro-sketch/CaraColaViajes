@@ -1,5 +1,9 @@
  'use server';
 
+// Deshabilitar caché de Vercel para este server action
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Definiciones de interfaces locales para el server action
 interface DailyPlan {
   date: string;
@@ -300,23 +304,21 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 distWalked += segment;
                             }
 
-                            await sleep(200); 
-                            const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
-                            // Usar directamente el nombre de la ciudad (sin prefijo)
-                            const stopName = stopNameRaw;
+                        await sleep(200); 
+                        const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
+                        // Usar directamente el nombre de la ciudad (sin prefijo)
+                        const stopName = stopNameRaw;
 
-                            // Calcular distancia real: acumulado previo + lo que caminamos en este segmento
-                            const realDistance = (dayAccumulatorMeters + metersNeeded) / 1000;
+                        // Distancia del segmento: siempre es maxMeters porque cortamos exactamente al límite
+                        const realDistance = maxMeters / 1000;
 
-                            allDrivingStops.push({
-                                from: currentLegStartName,
-                                to: stopName,
-                                distance: realDistance,
-                                startCoords: currentLegStartCoords,
-                                endCoords: stopCoords
-                            });
-                            
-                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
+                        allDrivingStops.push({
+                            from: currentLegStartName,
+                            to: stopName,
+                            distance: realDistance,
+                            startCoords: currentLegStartCoords,
+                            endCoords: stopCoords
+                        });                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
 
                             currentLegStartName = stopNameRaw; 
                             currentLegStartCoords = stopCoords;
