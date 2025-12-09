@@ -1,0 +1,36 @@
+# Motor Bueno Backup - 09/DIC/2025
+
+Esta carpeta contiene una copia de `app/motor-bueno/` realizada el 09 de diciembre de 2025.
+
+## Motivo del Backup
+
+Motor bueno fue la base para optimizar motor malo:
+- Admin3 fallback para nombres de ciudades
+- Distance fix (300 km en vez de 254 km)
+- Marcadores verdes con nombres de ciudad
+- Algoritmo de segmentación del polyline
+
+Los fixes fueron exitosamente mergeados en el motor malo (app/), que ahora es la versión de producción.
+
+## Cuándo Recuperar
+
+Solo si necesitas:
+1. Comparar versión antigua vs. nueva
+2. Entender cambios específicos realizados
+3. Revertir algún cambio en motor malo
+
+## Estructura
+
+```
+motor-bueno-20251209/motor-bueno/
+├── actions.ts              (Server actions)
+├── page.tsx                (Motor page)
+├── hooks/                  (Custom hooks)
+├── components/             (React components)
+└── styles/                 (CSS styles)
+```
+
+## Git
+
+Este backup NO está trackeado en git intencionalmente.
+Es solo referencia local en el filesystem.
