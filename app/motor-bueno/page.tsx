@@ -23,7 +23,7 @@ import MotorComparisonMaps from './components/MotorComparisonMaps';
 import MotorItinerary from './components/MotorItinerary';
 import './styles/motor.css';
 
-const googleMapsLibraries: ('places' | 'geometry' | 'drawing' | 'visualization')[] = ['places'];
+const googleMapsLibraries: ('places' | 'geometry' | 'drawing' | 'visualization')[] = ['places', 'geometry'];
 
 export default function MotorPage() {
   const {

@@ -24,7 +24,7 @@ import { useLanguage } from './hooks/useLanguage';
 import { useToast } from './hooks/useToast';
 import { useSearchFilters } from './hooks/useSearchFilters';
 
-const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"]; 
+const LIBRARIES: ("places" | "geometry")[] = ["places"]; 
 
 const printStyles = `
   @media print {
