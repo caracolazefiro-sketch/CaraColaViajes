@@ -201,7 +201,7 @@ export default function MotorPage() {
                       textShadow: '2px 2px 4px rgba(0,0,0,0.2)'
                     }}>
                       {(() => {
-                        const totalFromServer = state.debugResponse.dailyItinerary.reduce((sum: number, day: any) => sum + day.distance, 0);
+                        const totalFromServer = state.debugResponse?.dailyItinerary?.reduce((sum: number, day: any) => sum + day.distance, 0) || 0;
                         return totalFromServer.toFixed(1);
                       })()} km
                     </div>
@@ -214,7 +214,7 @@ export default function MotorPage() {
                       {/* Primera etapa: origen → primer punto */}
                       {(() => {
                         const firstPoint = state.segmentationData.points[0];
-                        const dynamicDate = state.debugResponse.dailyItinerary[0]?.date || '';
+                        const dynamicDate = state.debugResponse?.dailyItinerary?.[0]?.date || '';
                         const extraDaysHere = state.extraDays[firstPoint.cityName || ''] || 0;
 
                         return (
@@ -374,7 +374,7 @@ export default function MotorPage() {
                         // porque el servidor NO conoce los días extra
                         const serverIdx = idx + 1; // idx + 1 porque slice(1) ya saltó el primer punto
                         const dynamicDate = calculateDynamicDate(
-                          state.debugResponse.dailyItinerary[serverIdx]?.date || '',
+                          state.debugResponse?.dailyItinerary?.[serverIdx]?.date || '',
                           state.segmentationData.points,
                           actualPointIdx
                         );
@@ -561,7 +561,7 @@ export default function MotorPage() {
                       {(() => {
                         // Si el número de puntos en segmentationData es igual al número de días con conducción - 1,
                         // significa que el último punto YA ES el destino final (no hay etapa adicional)
-                        const drivingDays = state.debugResponse.dailyItinerary.filter((d: any) => d.isDriving).length;
+                        const drivingDays = state.debugResponse?.dailyItinerary?.filter((d: any) => d.isDriving).length || 0;
                         const hasMoreDays = state.segmentationData.points.length < drivingDays;
                         if (!hasMoreDays) return null;
 
@@ -571,7 +571,7 @@ export default function MotorPage() {
                           sum + (state.extraDays[p.cityName || ''] || 0), 0
                         );
                         const finalDayNumber = state.segmentationData.points.length + 1 + totalExtraDays;
-                        const baseDate = state.debugResponse.dailyItinerary[state.debugResponse.dailyItinerary.length - 1]?.date || '';
+                        const baseDate = state.debugResponse?.dailyItinerary?.[state.debugResponse.dailyItinerary.length - 1]?.date || '';
                         const date = new Date(baseDate);
                         date.setDate(date.getDate() + totalExtraDays);
                         const dynamicDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
@@ -616,7 +616,7 @@ export default function MotorPage() {
                           </div>
                           <div style={{ textAlign: 'right', fontWeight: 'bold', color: '#4CAF50', fontSize: '0.85rem' }}>
                             {(() => {
-                              const totalFromServer = state.debugResponse.dailyItinerary.reduce((sum: number, day: any) => sum + day.distance, 0);
+                              const totalFromServer = state.debugResponse?.dailyItinerary?.reduce((sum: number, day: any) => sum + day.distance, 0) || 0;
                               const calculatedSoFar = state.segmentationData.points.reduce((sum: number, p: any) => sum + p.distance, 0);
                               return (totalFromServer - calculatedSoFar).toFixed(0);
                             })()} km
@@ -848,7 +848,7 @@ export default function MotorPage() {
                   </label>
                   <input
                     type="text"
-                    value={state.segmentationData?.points?.length || state.debugResponse.dailyItinerary.length}
+                    value={state.segmentationData?.points?.length || state.debugResponse?.dailyItinerary?.length || 0}
                     readOnly
                     title="Este valor se rellena automáticamente del resultado"
                     style={{
@@ -887,7 +887,7 @@ export default function MotorPage() {
                   const googleTotal = (document.getElementById('googleTotal') as HTMLInputElement)?.value;
                   const polylineTotal = state.debugResponse?.totalDistance?.toFixed(1) || 'N/A';
                   const observaciones = (document.getElementById('observaciones') as HTMLTextAreaElement)?.value;
-                  const nParadas = state.segmentationData?.points?.length || state.debugResponse.dailyItinerary.length;
+                  const nParadas = state.segmentationData?.points?.length || state.debugResponse?.dailyItinerary?.length || 0;
 
                   if (!googleTotal) {
                     alert('⚠️ Por favor introduce la distancia total de Google Maps');
@@ -898,7 +898,7 @@ export default function MotorPage() {
 
                   const ciudades = state.segmentationData?.points
                     ? state.segmentationData.points.map(p => p.cityName || 'Cargando...').join(', ')
-                    : state.debugResponse.dailyItinerary.map((d: any) => d.to).join(', ');
+                    : state.debugResponse?.dailyItinerary?.map((d: any) => d.to).join(', ') || '';
 
                   const timestamp = new Date().toLocaleString('es-ES');
                   const testNum = prompt('¿Número de test? (1-10)', '1');
