@@ -240,8 +240,27 @@ export default function TripMap({
                     />
                 )}
 
+                {/* Marcadores de pernocta con círculos verdes y nombre de ciudad */}
                 {dailyItinerary?.map((day, i) => day.coordinates && (
-                    <Marker key={`itinerary-${i}`} position={day.coordinates} icon={day.type === 'tactical' ? ICONS_ITINERARY.tactical : ICONS_ITINERARY.startEnd} title={day.to} label={{ text: `${i+1}`, color: "white", fontSize: "10px", fontWeight: "bold" }} />
+                    <Marker 
+                        key={`itinerary-${i}`} 
+                        position={day.coordinates}
+                        label={{
+                            text: day.to,
+                            color: '#1e7e34',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                        }}
+                        icon={{
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 12,
+                            fillColor: '#4CAF50',
+                            fillOpacity: 1,
+                            strokeColor: '#fff',
+                            strokeWeight: 2,
+                        }}
+                        title={`📍 ${day.to} (${day.distance?.toFixed(0) || '?'} km)`}
+                    />
                 ))}
 
                 {Object.keys(places).map((key) => {
