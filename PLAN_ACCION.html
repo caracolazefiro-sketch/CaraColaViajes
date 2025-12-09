@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Acción - CaraColaViajes (09/DIC/2025)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header p { font-size: 1.1rem; opacity: 0.9; }
+        main { padding: 2rem; }
+        
+        .section {
+            margin-bottom: 2.5rem;
+            border-left: 4px solid #667eea;
+            padding-left: 1.5rem;
+        }
+        
+        .section h2 {
+            font-size: 1.8rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        
+        .card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card h3 { color: #1f2937; margin-bottom: 0.5rem; }
+        .card p { color: #4b5563; line-height: 1.6; margin-bottom: 0.5rem; }
+        
+        .highlights {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        
+        .highlights ul {
+            margin-left: 1.5rem;
+            color: #1e40af;
+        }
+        
+        .highlights li { margin-bottom: 0.5rem; }
+        
+        code {
+            background: #f3f4f6;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            color: #92400e;
+        }
+        
+        .commit-hash {
+            font-family: 'Courier New', monospace;
+            background: #f3f4f6;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.85rem;
+        }
+        
+        footer {
+            background: #f3f4f6;
+            padding: 1.5rem;
+            text-align: center;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>??? Plan de Acción - CaraColaViajes</h1>
+            <p>Sesión 09/DIC/2025 - RESUMEN FINAL DEL DÍA</p>
+        </header>
+        
+        <main>
+            <section class="section">
+                <h2>?? Resumen de Hoy (09 DIC 2025)</h2>
+                <div class="highlights">
+                    <strong>HOY COMPLETADO:</strong>
+                    <ul>
+                        <li>? Motor Malo = Producción con todos los fixes de Motor Bueno</li>
+                        <li>? Backup de Motor Bueno archivado en BACKUPS/motor-bueno-20251209-stable/</li>
+                        <li>? Análisis exhaustivo de optimización de APIs creado (ANALISIS_OPTIMIZACION_APIS.md)</li>
+                        <li>? Seed caché geocoding expandido (4 ? 50 ciudades europeas)</li>
+                        <li>? Análisis detallado de servicios API creado (ANALISIS_SERVICIOS_API.md)</li>
+                        <li>? ROADMAP.md actualizado con sección de optimización</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>?? MAÑANA: VER CON DETALLE</h2>
+                
+                <div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left-color: #f59e0b;">
+                    <h3 style="color: #92400e;">?? IMPORTANTE: Leer estos archivos</h3>
+                    <p style="color: #92400e; margin-top: 1rem;">Cuando empieces la sesión mañana (10/DIC), lee en este orden:</p>
+                </div>
+
+                <div class="card">
+                    <h3>1?? ARCHIVO CRÍTICO: ANALISIS_SERVICIOS_API.md</h3>
+                    <p><strong>¿Qué es?</strong> Análisis exhaustivo sobre cómo funcionan los servicios (camping, gas, restaurantes, etc.) y cómo ahorrar dinero en Google Places API.</p>
+                    <p><strong>Hallazgos clave:</strong></p>
+                    <ul style="margin-left: 1.5rem; color: #4b5563;">
+                        <li>Sistema actual: -40-60% en caché de sesión</li>
+                        <li>Portero filtrado: Rechaza falsos positivos</li>
+                        <li>Coste actual: .032 por búsqueda</li>
+                        <li>Hay 6 oportunidades de ahorro sin romper nada</li>
+                    </ul>
+                    <p style="margin-top: 1rem;"><strong>Recomendación para mañana:</strong></p>
+                    <div style="background: #ecfdf5; padding: 1rem; border-radius: 6px; border-left: 4px solid #10b981; margin: 0.5rem 0;">
+                        <strong style="color: #065f46;">Implementar "OPCIÓN LIGHT":</strong>
+                        <ol style="margin-left: 1.5rem; color: #065f46; margin-top: 0.5rem;">
+                            <li>Ajustar radios de búsqueda (1h, 0 riesgo)</li>
+                            <li>Precarga inteligente opt-in (2h, 0 riesgo)</li>
+                            <li>Beneficio: +UX, mismo coste</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>2?? REFERENCIA: ANALISIS_OPTIMIZACION_APIS.md</h3>
+                    <p><strong>¿Qué es?</strong> Análisis técnico sobre cuáles APIs pueden ser cacheadas y cuáles no.</p>
+                    <p><strong>Conclusiones:</strong></p>
+                    <ul style="margin-left: 1.5rem; color: #4b5563;">
+                        <li>? Directions API: NO cacheable (combinatoria explosiva)</li>
+                        <li>? Geocoding API: SÍ cacheable (ya hecho, 63.2% ? 80% con seed)</li>
+                        <li>? Places API: NO cacheable (dinámico, personal)</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>3?? REFERENCIA: ROADMAP.md</h3>
+                    <p>Nueva sección: <strong>?? Optimización de APIs</strong></p>
+                    <p>Timeline propuesto: Esta semana (light), mes 1 (OSM hybrid), mes 2 (backend custom API).</p>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>?? Archivos Clave Creados Hoy</h2>
+                <div class="highlights">
+                    <strong>DOCUMENTACIÓN (Leer mañana):</strong>
+                    <ul>
+                        <li>?? <code>ANALISIS_SERVICIOS_API.md</code> (353 líneas) - Campings, gas, restaurantes</li>
+                        <li>?? <code>ANALISIS_OPTIMIZACION_APIS.md</code> (460 líneas) - Directions, Geocoding, Places</li>
+                        <li>?? <code>ROADMAP.md</code> (actualizado) - Sección nueva de APIs</li>
+                    </ul>
+                    <strong style="display: block; margin-top: 1rem;">ARCHIVOS TÉCNICOS:</strong>
+                    <ul>
+                        <li>?? <code>data/geocoding-cache.json</code> - Seed: 50 ciudades europeas (git tracked)</li>
+                        <li>??? <code>BACKUPS/motor-bueno-20251209-stable/</code> - Copia segura (20 archivos)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>? Estado Actual (Producción)</h2>
+                <div class="card">
+                    <h3>Motor Malo (PRODUCCIÓN en Vercel)</h3>
+                    <p><strong>URL:</strong> <code>https://cara-cola-viajes-pruebas-git-testing-caracola.vercel.app/</code></p>
+                    <p><strong>Status:</strong> ? Funcionando correctamente</p>
+                    <ul style="margin-left: 1.5rem; color: #4b5563; margin-top: 0.5rem;">
+                        <li>? Distancias correctas (300 km, no 254 km)</li>
+                        <li>? Nombres de ciudad visibles (no coordenadas)</li>
+                        <li>? Marcadores verdes con tooltips</li>
+                        <li>? Caché geocoding funcionando</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>?? Commits de Hoy</h2>
+                <div style="background: #1f2937; color: #e5e7eb; padding: 1.5rem; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.9rem; line-height: 1.8;">
+ff619f2 - MOTOR MALO: apply admin3 + distance fixes<br>
+9a468f0 - UI: Upgrade map markers to green circles<br>
+950ef67 - CLEANUP: Remove unused cache headers<br>
+a627218 - BACKUP: Motor bueno stable copy (20251209)<br>
+6476bc2 - chore: seed geocoding cache + API optimization roadmap<br>
+f45a2a3 - docs: Add comprehensive services API analysis
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>?? Plan para Mañana (10/DIC)</h2>
+                <div class="card" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-left-color: #667eea;">
+                    <h3 style="color: #667eea;">Al empezar la sesión:</h3>
+                    <ol style="margin-left: 1.5rem; color: #4b5563; line-height: 2;">
+                        <li>Abre <code>ANALISIS_SERVICIOS_API.md</code> y lee completo</li>
+                        <li>Decide: ¿Quieres implementar la "optimización light"? (3 horas, 0 riesgo)</li>
+                        <li>Si SÍ ? Crea tasks y empieza a implementar</li>
+                        <li>Si NO ? El sistema es eficiente igual, deja así</li>
+                    </ol>
+                    <p style="margin-top: 1.5rem; padding: 1rem; background: white; border-radius: 6px; color: #6b7280;">
+                        <strong>Nota:</strong> El sistema actual es bueno. Las optimizaciones son para hacerlo aún mejor, pero no son críticas.
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Plan de Acción - CaraColaViajes | Sesión 09/DIC/2025</p>
+        </footer>
+    </div>
+</body>
+</html>
