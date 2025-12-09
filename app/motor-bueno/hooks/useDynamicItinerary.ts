@@ -8,6 +8,7 @@ interface SegmentationPoint {
   day: number;
   distance: number;
   cityName?: string;
+  coordinates?: { lat: number; lng: number };
   cityCoordinates?: { lat: number; lng: number };
   realDistance?: number;
   isManualWaypoint?: boolean;
