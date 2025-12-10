@@ -208,12 +208,11 @@ export function useTripPlaces(map: google.maps.Map | null) {
         });
     }, [map]);
 
-    // --- BÚSQUEDA LIBRE (TEXT SEARCH) ---
-    const searchByQuery = useCallback((query: string, centerLat: number, centerLng: number) => {
-        if (!map || typeof google === 'undefined') return;
+    // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
+    const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {
         if (!query.trim()) return;
 
-        // También cacheamos las búsquedas libres
+        // Cacheamos las búsquedas libres
         const cacheKey = `search_${query.trim()}_${centerLat.toFixed(4)}_${centerLng.toFixed(4)}`;
         
         if (placesCache.current[cacheKey]) {
@@ -221,82 +220,101 @@ export function useTripPlaces(map: google.maps.Map | null) {
             return;
         }
 
-        const service = new google.maps.places.PlacesService(map);
-        const centerPoint = new google.maps.LatLng(centerLat, centerLng);
-
         setLoadingPlaces(prev => ({...prev, search: true}));
         setToggles(prev => ({...prev, search: true}));
 
-        const request = {
-            location: centerPoint,
-            radius: 20000, 
-            query: query
-        };
-
-        console.log(`🔍 [search] Búsqueda textSearch iniciada:`, {
+        console.log(`🔍 [search] Búsqueda Nominatim (OSM) iniciada:`, {
             query,
             location: `${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}`,
-            radius: '20km'
+            radius: '20km',
+            costo: '$0.00 (gratis)'
         });
 
-        service.textSearch(request, (res, status) => {
-            setLoadingPlaces(prev => ({...prev, search: false}));
+        try {
+            // Llamar a Nominatim (OpenStreetMap) - GRATIS
+            const nominatimUrl = new URL('https://nominatim.openstreetmap.org/search');
+            nominatimUrl.searchParams.append('q', query.trim());
+            nominatimUrl.searchParams.append('format', 'json');
+            nominatimUrl.searchParams.append('limit', '10');
+            nominatimUrl.searchParams.append('viewbox', `${centerLng - 0.18},${centerLat + 0.18},${centerLng + 0.18},${centerLat - 0.18}`); // ~20km box
+            nominatimUrl.searchParams.append('bounded', '1'); // Limitar a viewbox
+
+            const response = await fetch(nominatimUrl.toString());
             
-            console.log(`📊 [search] Respuesta de Google:`, {
-                status,
-                resultados: res?.length || 0
+            if (!response.ok) {
+                throw new Error(`Nominatim error: ${response.status}`);
+            }
+
+            const results = await response.json() as Array<{
+                osm_id: number;
+                name: string;
+                address: string;
+                lat: string;
+                lon: string;
+                type: string;
+                importance: number;
+            }>;
+
+            console.log(`📊 [search] Respuesta Nominatim:`, {
+                status: 'OK',
+                resultados: results.length
             });
-            
+
             let finalSpots: PlaceWithDistance[] = [];
 
-            if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-                 finalSpots = res.map(spot => {
-                    let dist = 999999;
-                    if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
+            if (results && results.length > 0) {
+                finalSpots = results.map(spot => {
+                    const spotLat = parseFloat(spot.lat);
+                    const spotLng = parseFloat(spot.lon);
                     
-                    // Obtener URL de foto
-                    let photoUrl: string | undefined;
-                    if (spot.photos && spot.photos.length > 0) {
-                        try {
-                            photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                        } catch (e) {
-                            console.warn(`[search] Error getting photo URL for`, spot.name, ':', e);
-                        }
-                    }
+                    // Calcular distancia usando la fórmula de Haversine
+                    const R = 6371; // Radio de la tierra en km
+                    const dLat = (spotLat - centerLat) * Math.PI / 180;
+                    const dLng = (spotLng - centerLng) * Math.PI / 180;
+                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                              Math.cos(centerLat * Math.PI / 180) * Math.cos(spotLat * Math.PI / 180) *
+                              Math.sin(dLng/2) * Math.sin(dLng/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    const dist = R * c * 1000; // Convertir a metros
                     
-                    // Convertir geometry de Google Maps a nuestro formato
-                    const geometry = spot.geometry?.location ? {
-                        location: {
-                            lat: spot.geometry.location.lat(),
-                            lng: spot.geometry.location.lng()
-                        }
-                    } : undefined;
-                    return { 
-                        name: spot.name, rating: spot.rating, vicinity: spot.formatted_address, 
-                        place_id: spot.place_id, geometry, distanceFromCenter: dist, 
-                        type: 'search' as ServiceType, 
-                        opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types 
+                    return {
+                        name: spot.name,
+                        vicinity: spot.address || spot.type,
+                        place_id: `osm-${spot.osm_id}`,
+                        geometry: {
+                            location: {
+                                lat: spotLat,
+                                lng: spotLng
+                            }
+                        },
+                        distanceFromCenter: dist,
+                        type: 'search' as ServiceType,
+                        user_ratings_total: undefined,
+                        rating: undefined,
+                        types: [spot.type],
+                        photoUrl: undefined
                     };
                 });
             } else {
-                // No alertamos aquí para no ser intrusivos si falla silenciosamente, 
-                // o lo manejamos en la UI.
-                if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-                    alert("No se encontraron resultados para: " + query);
-                }
-                console.warn(`❌ [search] Sin resultados:`, status);
+                console.warn(`❌ [search] Sin resultados de Nominatim:`, {query});
             }
 
             // Guardar en caché y actualizar estado
             placesCache.current[cacheKey] = finalSpots;
             setPlaces(prev => ({...prev, search: finalSpots}));
             
-            console.log(`✅ [search] Búsqueda completada:`, {
+            console.log(`✅ [search] Búsqueda Nominatim completada:`, {
                 resultadosFinales: finalSpots.length,
-                cacheKey
+                cacheKey,
+                costo: '$0.00'
             });
-        });
-    }, [map]);
+        } catch (error) {
+            console.error(`❌ [search] Error en Nominatim:`, error);
+            setPlaces(prev => ({...prev, search: []}));
+        } finally {
+            setLoadingPlaces(prev => ({...prev, search: false}));
+        }
+    }, []);
 
     const clearSearch = () => {
         setPlaces(prev => ({...prev, search: []}));
