@@ -1,0 +1,79 @@
+{
+  "tripId": "trip_1765231403922",
+  "startTime": "2025-12-08T22:03:23.922Z",
+  "origin": "Madrid, Spain",
+  "destination": "Lisbon, Portugal",
+  "kmMaximo": 300,
+  "apiCalls": [
+    {
+      "type": "DIRECTIONS",
+      "endpoint": "directions",
+      "params": {
+        "origin": "Madrid, Spain",
+        "destination": "Lisbon, Portugal",
+        "waypoints": [
+          "Huelva, Spain"
+        ],
+        "mode": "driving"
+      },
+      "response": {
+        "status": "OK",
+        "routesCount": 1
+      },
+      "duration": 387,
+      "timestamp": "2025-12-08T22:03:24.309Z"
+    },
+    {
+      "type": "GEOCODING",
+      "endpoint": "geocode",
+      "params": {
+        "lat": 39.09211,
+        "lng": -6.01717,
+        "attempt": 1
+      },
+      "response": {
+        "status": "OK",
+        "resultsCount": 1
+      },
+      "cached": false,
+      "duration": 112,
+      "timestamp": "2025-12-08T22:03:24.630Z"
+    },
+    {
+      "type": "GEOCODING",
+      "endpoint": "geocode",
+      "params": {
+        "lat": 37.32517,
+        "lng": -6.83426,
+        "attempt": 1
+      },
+      "response": {
+        "status": "OK",
+        "resultsCount": 1
+      },
+      "cached": false,
+      "duration": 118,
+      "timestamp": "2025-12-08T22:03:24.971Z"
+    },
+    {
+      "type": "GEOCODING",
+      "endpoint": "geocode",
+      "params": {
+        "lat": 38.49325,
+        "lng": -8.56523
+      },
+      "cached": true,
+      "duration": 0,
+      "timestamp": "2025-12-08T22:03:25.180Z"
+    }
+  ],
+  "endTime": "2025-12-08T22:03:25.200Z",
+  "totalDistance": 988.005,
+  "daysCount": 5,
+  "summary": {
+    "directionsAPICalls": 1,
+    "geocodingAPICalls": 2,
+    "geocodingCached": 1,
+    "totalDuration": 617
+  }
+}

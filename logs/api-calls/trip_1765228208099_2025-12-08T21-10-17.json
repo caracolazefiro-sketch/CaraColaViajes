@@ -1,0 +1,36 @@
+{
+  "tripId": "trip_1765228208099",
+  "startTime": "2025-12-08T21:10:08.100Z",
+  "origin": "Madrid, Spain",
+  "destination": "Lisbon, Portugal",
+  "kmMaximo": 300,
+  "apiCalls": [
+    {
+      "type": "DIRECTIONS",
+      "endpoint": "directions",
+      "params": {
+        "origin": "Madrid, Spain",
+        "destination": "Lisbon, Portugal",
+        "waypoints": [
+          "Huelva, Spain"
+        ],
+        "mode": "driving"
+      },
+      "response": {
+        "status": "OK",
+        "routesCount": 1
+      },
+      "duration": 5714,
+      "timestamp": "2025-12-08T21:10:14.576Z"
+    }
+  ],
+  "endTime": "2025-12-08T21:10:17.260Z",
+  "totalDistance": 988.005,
+  "daysCount": 2,
+  "summary": {
+    "directionsAPICalls": 1,
+    "geocodingAPICalls": 0,
+    "geocodingCached": 0,
+    "totalDuration": 5714
+  }
+}

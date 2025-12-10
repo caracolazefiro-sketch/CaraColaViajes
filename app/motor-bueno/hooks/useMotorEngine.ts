@@ -53,7 +53,7 @@ export function useMotor() {
 
     try {
       const { getDirectionsAndCost } = await import('@/app/actions');
-      
+
       addLog(`🔗 Llamando Google Directions API...`);
       const result = await getDirectionsAndCost({
         origin: state.origen,

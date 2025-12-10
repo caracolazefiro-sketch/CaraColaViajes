@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MOTOR Test Results - Dashboard Interactivo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    header p {
+      opacity: 0.9;
+      font-size: 0.95em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #eee;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .controls label {
+      font-weight: 600;
+      margin-right: 10px;
+    }
+
+    .controls select,
+    .controls input {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.95em;
+    }
+
+    .controls button {
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+
+    .controls button:hover {
+      background: #764ba2;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+
+    .stat {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      border-left: 4px solid #667eea;
+    }
+
+    .stat-value {
+      font-size: 1.8em;
+      font-weight: bold;
+      color: #667eea;
+      margin: 10px 0;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    .routes-list {
+      padding: 20px;
+    }
+
+    .route-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .route-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(-2px);
+    }
+
+    .route-card.expanded {
+      background: #f9f9f9;
+    }
+
+    .route-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .route-title {
+      font-weight: 600;
+      font-size: 1.1em;
+    }
+
+    .route-stats {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .route-details {
+      display: none;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .route-card.expanded .route-details {
+      display: block;
+    }
+
+    .stage {
+      background: white;
+      padding: 10px;
+      margin: 8px 0;
+      border-left: 3px solid #667eea;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+
+    .stage-distance {
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .tier-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #667eea;
+      color: white;
+      border-radius: 4px;
+      font-size: 0.75em;
+      font-weight: 600;
+      margin-right: 10px;
+    }
+
+    .status-pass {
+      color: #4caf50;
+      font-weight: 600;
+    }
+
+    .status-fail {
+      color: #f44336;
+      font-weight: 600;
+    }
+
+    .google-maps-btn {
+      background: #ea4335;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      margin-left: 10px;
+    }
+
+    .google-maps-btn:hover {
+      background: #c5221f;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px;
+    }
+
+    .footer {
+      padding: 20px;
+      background: #f9f9f9;
+      border-top: 1px solid #eee;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🧪 MOTOR Test Results Dashboard</h1>
+      <p>Resultados en Tiempo Real - 16 Rutas Validadas</p>
+    </header>
+
+    <div class="controls">
+      <label>Archivo JSON:</label>
+      <select id="fileSelector">
+        <option value="latest">Más Reciente</option>
+        <option value="motor-real-api-2025-12-08-1765201716387">Test 1765201716387</option>
+        <option value="motor-real-api-2025-12-08-1765187772981">Test 1765187772981</option>
+      </select>
+      
+      <label style="margin-left: 20px;">Filtrar por Tier:</label>
+      <select id="tierFilter">
+        <option value="">Todos</option>
+        <option value="MOUNTAIN">🏔️ Mountain</option>
+        <option value="CROSS-CONTINENT">🌍 Cross-Continent</option>
+        <option value="SMALL_TOWNS">🏘️ Small Towns</option>
+        <option value="EXTREME">⚡ Extreme</option>
+        <option value="COMPLEX">🔧 Complex</option>
+      </select>
+
+      <button onclick="loadData()" style="margin-left: 20px;">Cargar Datos</button>
+    </div>
+
+    <div class="summary" id="summaryStats" style="display: none;">
+      <div class="stat">
+        <div class="stat-label">Total Tests</div>
+        <div class="stat-value" id="totalTests">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Passed</div>
+        <div class="stat-value" id="passedTests" style="color: #4caf50;">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Pass Rate</div>
+        <div class="stat-value" id="passRate">-</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Total Distance</div>
+        <div class="stat-value" id="totalDistance" style="color: #ff9800;">-</div>
+      </div>
+    </div>
+
+    <div id="loading" class="loading">Haz clic en "Cargar Datos" para comenzar...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="routesList" class="routes-list" style="display: none;"></div>
+
+    <div class="footer">
+      <strong>ℹ️ Instrucciones:</strong> Selecciona un archivo JSON y haz clic en "Cargar Datos". Luego haz clic en cada ruta para ver detalles y opciones de Google Maps.
+    </div>
+  </div>
+
+  <script>
+    let allRoutes = [];
+    let currentData = null;
+
+    function buildMotorUrl(route) {
+      // Construir URL para abrir el viaje en MOTOR
+      // Si tiene waypoints, incluirlos en la URL
+      const baseUrl = 'http://localhost:3000/motor'; // cambiar a producción si es necesario
+      
+      const params = new URLSearchParams();
+      if (route.origin) params.append('origin', route.origin);
+      if (route.destination) params.append('destination', route.destination);
+      if (route.waypoints && route.waypoints.length > 0) {
+        params.append('waypoints', route.waypoints.join('|'));
+      }
+      if (route.startDate) params.append('startDate', route.startDate);
+      if (route.endDate) params.append('endDate', route.endDate);
+      
+      return `${baseUrl}?${params.toString()}`;
+    }
+
+    async function loadData() {
+      const fileSelector = document.getElementById('fileSelector');
+      const errorDiv = document.getElementById('error');
+      const loadingDiv = document.getElementById('loading');
+      const routesList = document.getElementById('routesList');
+      const summaryStats = document.getElementById('summaryStats');
+
+      errorDiv.style.display = 'none';
+      loadingDiv.style.display = 'block';
+      routesList.style.display = 'none';
+      summaryStats.style.display = 'none';
+
+      let filename = fileSelector.value;
+      if (filename === 'latest') {
+        filename = 'motor-real-api-2025-12-08-1765201716387';
+      }
+
+      try {
+        const response = await fetch(`${filename}.json`);
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        currentData = data;
+        allRoutes = data.routes || data.dailyItinerary || [];
+
+        renderSummary();
+        renderRoutes();
+
+        loadingDiv.style.display = 'none';
+        summaryStats.style.display = 'grid';
+        routesList.style.display = 'block';
+      } catch (error) {
+        errorDiv.textContent = `❌ Error al cargar: ${error.message}`;
+        errorDiv.style.display = 'block';
+        loadingDiv.style.display = 'none';
+      }
+    }
+
+    function renderSummary() {
+      const passed = allRoutes.filter(r => r.passed !== false).length;
+      const total = allRoutes.length;
+      const passRate = ((passed / total) * 100).toFixed(1);
+      const totalDistance = allRoutes.reduce((sum, r) => sum + (r.distanceKm || 0), 0).toFixed(1);
+
+      document.getElementById('totalTests').textContent = total;
+      document.getElementById('passedTests').textContent = passed;
+      document.getElementById('passRate').textContent = passRate + '%';
+      document.getElementById('totalDistance').textContent = totalDistance + ' km';
+    }
+
+    function renderRoutes() {
+      const tierFilter = document.getElementById('tierFilter').value;
+      const routesList = document.getElementById('routesList');
+      routesList.innerHTML = '';
+
+      let filtered = allRoutes;
+      if (tierFilter) {
+        filtered = allRoutes.filter(r => r.tier === tierFilter);
+      }
+
+      filtered.forEach((route, index) => {
+        const status = route.passed !== false ? '✅ PASS' : '❌ FAIL';
+        const statusClass = route.passed !== false ? 'status-pass' : 'status-fail';
+
+        const card = document.createElement('div');
+        card.className = 'route-card';
+        card.onclick = () => card.classList.toggle('expanded');
+
+        const distance = route.distanceKm || (route.stages ? route.stages.reduce((s, st) => s + st.distance, 0) : 0);
+        const days = route.actualDays || (route.stages ? route.stages.length : 0);
+
+        let detailsHtml = '';
+        if (route.stages) {
+          detailsHtml = route.stages.map((stage, i) => `
+            <div class="stage">
+              Día ${i + 1}: <strong>${stage.from}</strong> → <strong>${stage.to}</strong>
+              <span class="stage-distance">${Math.round(stage.distance)} km</span>
+              <span style="color: #999; margin-left: 10px;">${stage.date || 'N/A'}</span>
+            </div>
+          `).join('');
+        }
+
+        const mapsUrl = route.origin && route.destination 
+          ? `https://www.google.com/maps/dir/${encodeURIComponent(route.origin)}/${encodeURIComponent(route.destination)}`
+          : '#';
+
+        // URL para abrir en MOTOR (producción o local)
+        const motorUrl = buildMotorUrl(route);
+
+        card.innerHTML = `
+          <div class="route-header">
+            <div>
+              <span class="tier-badge">${route.tier || 'N/A'}</span>
+              <span class="route-title">${route.name || `Ruta ${route.id}`}</span>
+              <span class="${statusClass}" style="margin-left: 15px;">${status}</span>
+            </div>
+            <div>
+              <a href="${mapsUrl}" target="_blank" class="google-maps-btn">🗺️ Google Maps</a>
+              <a href="${motorUrl}" target="_blank" class="google-maps-btn" style="background: #1f88e5; margin-left: 5px;">🚗 Ver en MOTOR</a>
+            </div>
+          </div>
+          <div class="route-stats">
+            <span>📏 ${Math.round(distance)} km</span>
+            <span>📅 ${days} días</span>
+            ${route.waypoints && route.waypoints.length > 0 ? `<span>📍 ${route.waypoints.length} waypoints</span>` : ''}
+          </div>
+          <div class="route-details">
+            <strong>Origen:</strong> ${route.origin || 'N/A'}<br>
+            <strong>Destino:</strong> ${route.destination || 'N/A'}<br>
+            ${route.waypoints && route.waypoints.length > 0 ? `<strong>Waypoints:</strong> ${route.waypoints.join(', ')}<br>` : ''}
+            <br>
+            <strong>Etapas Diarias:</strong>
+            ${detailsHtml}
+          </div>
+        `;
+
+        routesList.appendChild(card);
+      });
+    }
+
+    document.getElementById('tierFilter').addEventListener('change', renderRoutes);
+
+    // Auto-load on page load
+    window.addEventListener('load', () => {
+      document.getElementById('loading').textContent = '⏳ Intenta cargar datos...';
+    });
+  </script>
+</body>
+</html>

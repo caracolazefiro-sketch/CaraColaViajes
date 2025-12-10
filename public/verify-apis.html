@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificador de APIs Google - CaraColaViajes</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.05em;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-bottom: 30px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .api-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+        .api-card:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .api-card.success { border-left: 5px solid #4caf50; }
+        .api-card.error { border-left: 5px solid #f44336; }
+        .api-card.warning { border-left: 5px solid #ff9800; }
+        .api-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .api-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+        }
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        .status-badge.success { background: #c8e6c9; color: #2e7d32; }
+        .status-badge.error { background: #ffcdd2; color: #c62828; }
+        .status-badge.warning { background: #fff9c4; color: #f57c00; }
+        .api-message {
+            color: #666;
+            margin-bottom: 12px;
+            font-size: 1.05em;
+        }
+        .api-details {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #555;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .summary h2 {
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .summary-card {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .summary-card h3 {
+            font-size: 2.5em;
+            margin-bottom: 8px;
+        }
+        .summary-card p {
+            font-size: 1em;
+            opacity: 0.95;
+        }
+        .recommendation {
+            background: #fff;
+            border: 3px solid #667eea;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+        }
+        .recommendation.success { border-color: #4caf50; background: #e8f5e9; }
+        .recommendation.error { border-color: #f44336; background: #ffebee; }
+        .instructions {
+            background: #f5f5f5;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .instructions ol {
+            margin-left: 25px;
+            line-height: 1.8;
+        }
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        .instructions a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .instructions a:hover {
+            text-decoration: underline;
+        }
+        .key-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+        .key-info strong {
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Verificador de APIs Google</h1>
+        <p class="subtitle">Comprueba que todas las APIs necesarias están habilitadas en tu Google Cloud Console</p>
+
+        <button class="btn" id="verifyBtn" onclick="verifyAPIs()">
+            🔍 Verificar APIs
+        </button>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <div>Verificando APIs de Google...</div>
+        </div>
+
+        <div id="results" style="display: none;">
+            <div id="summarySection"></div>
+            <div id="recommendationSection"></div>
+            <div id="apisSection"></div>
+            <div id="instructionsSection"></div>
+        </div>
+    </div>
+
+    <script>
+        async function verifyAPIs() {
+            const btn = document.getElementById('verifyBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/verify-apis');
+                const data = await response.json();
+
+                renderResults(data);
+                results.style.display = 'block';
+            } catch (error) {
+                alert('Error al verificar APIs: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function renderResults(data) {
+            // Summary
+            const summaryHTML = `
+                <div class="summary">
+                    <h2>📊 Resumen de Verificación</h2>
+                    <div class="key-info">
+                        <strong>API Key:</strong> ${data.apiKey}<br>
+                        <strong>Verificado:</strong> ${new Date(data.timestamp).toLocaleString('es-ES')}
+                    </div>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <h3>${data.summary.total}</h3>
+                            <p>APIs verificadas</p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>${data.summary.enabled}</h3>
+                            <p>APIs habilitadas</p>
+                        </div>
+                        <div class="summary-card">
+                            <h3>${data.summary.requiredEnabled}/${data.summary.required}</h3>
+                            <p>APIs requeridas OK</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('summarySection').innerHTML = summaryHTML;
+
+            // Recommendation
+            const recClass = data.summary.allRequired ? 'success' : 'error';
+            const recHTML = `
+                <div class="recommendation ${recClass}">
+                    ${data.recommendation}
+                </div>
+            `;
+            document.getElementById('recommendationSection').innerHTML = recHTML;
+
+            // APIs
+            let apisHTML = '<h2 style="margin-bottom: 20px; color: #333;">🔧 Estado de las APIs</h2>';
+            data.tests.forEach(test => {
+                apisHTML += `
+                    <div class="api-card ${test.status}">
+                        <div class="api-header">
+                            <div class="api-name">${test.api}</div>
+                            <div class="status-badge ${test.status}">
+                                ${test.enabled ? '✅ Habilitada' : '❌ No habilitada'}
+                            </div>
+                        </div>
+                        <div class="api-message">${test.message}</div>
+                        ${test.details ? `
+                            <div class="api-details">
+                                ${JSON.stringify(test.details, null, 2)}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            document.getElementById('apisSection').innerHTML = apisHTML;
+
+            // Instructions (si hay errores)
+            if (!data.summary.allRequired) {
+                const instructionsHTML = `
+                    <div class="instructions">
+                        <h3>📚 Cómo habilitar las APIs faltantes</h3>
+                        <ol>
+                            <li>Ve a <a href="https://console.cloud.google.com/apis/library" target="_blank">Google Cloud Console - API Library</a></li>
+                            <li>Busca cada API marcada con ❌ arriba</li>
+                            <li>Click en el nombre de la API</li>
+                            <li>Click en el botón "HABILITAR"</li>
+                            <li>Espera 2-3 minutos a que se active</li>
+                            <li>Vuelve a verificar aquí clickando "🔍 Verificar APIs"</li>
+                        </ol>
+                        <p style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                            <strong>💡 Importante:</strong> Las APIs pueden tardar unos minutos en activarse después de habilitarlas.
+                        </p>
+                    </div>
+                `;
+                document.getElementById('instructionsSection').innerHTML = instructionsHTML;
+            } else {
+                document.getElementById('instructionsSection').innerHTML = `
+                    <div class="instructions">
+                        <h3>🎉 ¡Todo listo!</h3>
+                        <p style="font-size: 1.1em; line-height: 1.6;">
+                            Todas las APIs necesarias están habilitadas correctamente.
+                            Ya puedes usar CaraColaViajes sin problemas.
+                        </p>
+                        <p style="margin-top: 15px;">
+                            <a href="/motor" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                                ▶️ Ir al Motor de Viajes
+                            </a>
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-verificar al cargar la página
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('auto') === 'true') {
+                verifyAPIs();
+            }
+        });
+    </script>
+</body>
+</html>

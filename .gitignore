@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Archived backups with Windows path length issues
+.archive/backups/BACKUP_PRE_MIGRATION*/
+

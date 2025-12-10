@@ -148,6 +148,6 @@ Una vez completado este protocolo:
 
 ---
 
-_Protocolo: BUENOS DÍAS_  
-_Duración: ~5-10 minutos_  
+_Protocolo: BUENOS DÍAS_
+_Duración: ~5-10 minutos_
 _Frecuencia: Diaria (al empezar sesión)_

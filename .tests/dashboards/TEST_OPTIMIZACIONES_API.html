@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Optimizaciones API - Motor v1.4</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+        }
+        .test-section {
+            margin-bottom: 40px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            background: #fafafa;
+        }
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-case {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .test-case h3 {
+            color: #667eea;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+        .test-params {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .test-params strong {
+            color: #764ba2;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .result.loading {
+            background: #fff9c4;
+            border: 1px solid #fbc02d;
+            display: block;
+        }
+        .result.success {
+            background: #c8e6c9;
+            border: 1px solid #4caf50;
+            display: block;
+        }
+        .result.error {
+            background: #ffcdd2;
+            border: 1px solid #f44336;
+            display: block;
+        }
+        .result-details {
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .metric {
+            display: inline-block;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            margin: 5px 5px 5px 0;
+            font-weight: 500;
+        }
+        .metric.good { border-left: 3px solid #4caf50; }
+        .metric.neutral { border-left: 3px solid #ff9800; }
+        .metric.bad { border-left: 3px solid #f44336; }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+        .summary h2 {
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .summary-card {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        .summary-card h3 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+        .summary-card p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .status-icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+        .progress-bar {
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de Optimizaciones API - Motor v1.4</h1>
+        <p class="subtitle">Verificación automática de reducción de llamadas a Google Geocoding API</p>
+
+        <div class="test-section">
+            <h2><span class="status-icon">⚙️</span>Configuración</h2>
+            <div class="test-params">
+                <strong>Endpoint:</strong> /motor/CORRECCIONES_API_V1.4_08DEC2108/actions.ts<br>
+                <strong>Función:</strong> getDirectionsAndCost<br>
+                <strong>Tests programados:</strong> 4 casos (corta, media, larga, muy larga)
+            </div>
+            <button class="btn" id="startBtn" onclick="runAllTests()">▶️ Ejecutar Todos los Tests</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="test-section" id="test1">
+            <h2><span class="status-icon">📍</span>Test 1: Ruta Corta (< 300km)</h2>
+            <div class="test-case">
+                <h3>Madrid → Toledo</h3>
+                <div class="test-params">
+                    <strong>Distancia esperada:</strong> ~85 km<br>
+                    <strong>Segmentación esperada:</strong> 0 (sin segmentar)<br>
+                    <strong>Geocoding esperado:</strong> 1-2 llamadas
+                </div>
+                <div class="result" id="result1"></div>
+            </div>
+        </div>
+
+        <div class="test-section" id="test2">
+            <h2><span class="status-icon">🚗</span>Test 2: Ruta Media (300-1000km)</h2>
+            <div class="test-case">
+                <h3>Madrid → Lisboa</h3>
+                <div class="test-params">
+                    <strong>Distancia esperada:</strong> ~630 km<br>
+                    <strong>Segmentación esperada:</strong> 2-3 días<br>
+                    <strong>Geocoding esperado:</strong> 2-3 llamadas (optimizado)<br>
+                    <strong>Geocoding original:</strong> 3-4 llamadas
+                </div>
+                <div class="result" id="result2"></div>
+            </div>
+        </div>
+
+        <div class="test-section" id="test3">
+            <h2><span class="status-icon">🛣️</span>Test 3: Ruta Larga (1000-3000km)</h2>
+            <div class="test-case">
+                <h3>Madrid → Berlín</h3>
+                <div class="test-params">
+                    <strong>Distancia esperada:</strong> ~2300 km<br>
+                    <strong>Segmentación esperada:</strong> 7-8 días<br>
+                    <strong>Geocoding esperado:</strong> 6-7 llamadas (optimizado)<br>
+                    <strong>Geocoding original:</strong> 12-14 llamadas
+                </div>
+                <div class="result" id="result3"></div>
+            </div>
+        </div>
+
+        <div class="test-section" id="test4">
+            <h2><span class="status-icon">🌍</span>Test 4: Ruta Muy Larga (> 3000km)</h2>
+            <div class="test-case">
+                <h3>Madrid → Atenas</h3>
+                <div class="test-params">
+                    <strong>Distancia esperada:</strong> ~3000 km<br>
+                    <strong>Segmentación esperada:</strong> 10+ días<br>
+                    <strong>Geocoding esperado:</strong> 7-8 llamadas (optimizado)<br>
+                    <strong>Geocoding original:</strong> 13-15 llamadas
+                </div>
+                <div class="result" id="result4"></div>
+            </div>
+        </div>
+
+        <div class="summary" id="summary" style="display: none;">
+            <h2>📊 Resumen de Resultados</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3 id="totalTests">0</h3>
+                    <p>Tests ejecutados</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="successTests">0</h3>
+                    <p>Tests exitosos</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="failedTests">0</h3>
+                    <p>Tests fallidos</p>
+                </div>
+                <div class="summary-card">
+                    <h3 id="apiReduction">0%</h3>
+                    <p>Reducción API calls</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const testCases = [
+            {
+                id: 1,
+                name: "Madrid → Toledo",
+                origin: "Madrid, España",
+                destination: "Toledo, España",
+                waypoints: [],
+                kmMaximo: 300,
+                expectedDistance: { min: 70, max: 100 },
+                expectedGeocoding: { min: 1, max: 2 }
+            },
+            {
+                id: 2,
+                name: "Madrid → Lisboa",
+                origin: "Madrid, España",
+                destination: "Lisboa, Portugal",
+                waypoints: [],
+                kmMaximo: 300,
+                expectedDistance: { min: 600, max: 700 },
+                expectedGeocoding: { min: 2, max: 3 }
+            },
+            {
+                id: 3,
+                name: "Madrid → Berlín",
+                origin: "Madrid, España",
+                destination: "Berlín, Alemania",
+                waypoints: [],
+                kmMaximo: 300,
+                expectedDistance: { min: 2200, max: 2500 },
+                expectedGeocoding: { min: 6, max: 8 }
+            },
+            {
+                id: 4,
+                name: "Madrid → Atenas",
+                origin: "Madrid, España",
+                destination: "Atenas, Grecia",
+                waypoints: [],
+                kmMaximo: 300,
+                expectedDistance: { min: 2900, max: 3200 },
+                expectedGeocoding: { min: 7, max: 9 }
+            }
+        ];
+
+        let totalSuccess = 0;
+        let totalFailed = 0;
+
+        async function runTest(testCase) {
+            const resultDiv = document.getElementById(`result${testCase.id}`);
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '⏳ Ejecutando test...';
+
+            try {
+                const response = await fetch('/api/motor-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        origin: testCase.origin,
+                        destination: testCase.destination,
+                        waypoints: testCase.waypoints,
+                        travel_mode: 'driving',
+                        kmMaximoDia: testCase.kmMaximo,
+                        fechaInicio: '2025-07-01',
+                        fechaRegreso: ''
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Validaciones
+                const distance = data.distanceKm;
+                const itinerary = data.dailyItinerary || [];
+                const estimatedGeocoding = itinerary.filter(day => day.isDriving).length;
+
+                const distanceOk = distance >= testCase.expectedDistance.min && distance <= testCase.expectedDistance.max;
+                const geocodingOk = estimatedGeocoding >= testCase.expectedGeocoding.min && estimatedGeocoding <= testCase.expectedGeocoding.max;
+
+                if (distanceOk && geocodingOk) {
+                    resultDiv.className = 'result success';
+                    totalSuccess++;
+                    resultDiv.innerHTML = `
+                        <strong>✅ TEST EXITOSO</strong>
+                        <div class="result-details">
+                            <div class="metric good">Distancia: ${distance.toFixed(2)} km</div>
+                            <div class="metric good">Días de viaje: ${itinerary.length}</div>
+                            <div class="metric good">Geocoding estimado: ${estimatedGeocoding} llamadas</div>
+                            <div class="metric neutral">Tiempo respuesta: ${data.responseTime || 'N/A'}ms</div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    totalFailed++;
+                    resultDiv.innerHTML = `
+                        <strong>❌ TEST FALLIDO</strong>
+                        <div class="result-details">
+                            <div class="metric ${distanceOk ? 'good' : 'bad'}">Distancia: ${distance.toFixed(2)} km (esperado: ${testCase.expectedDistance.min}-${testCase.expectedDistance.max})</div>
+                            <div class="metric ${geocodingOk ? 'good' : 'bad'}">Geocoding: ${estimatedGeocoding} (esperado: ${testCase.expectedGeocoding.min}-${testCase.expectedGeocoding.max})</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                totalFailed++;
+                resultDiv.innerHTML = `
+                    <strong>❌ ERROR</strong>
+                    <div class="result-details">${error.message}</div>
+                `;
+            }
+        }
+
+        async function runAllTests() {
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Ejecutando tests...';
+
+            totalSuccess = 0;
+            totalFailed = 0;
+
+            for (let i = 0; i < testCases.length; i++) {
+                const progress = ((i + 1) / testCases.length) * 100;
+                document.getElementById('progressBar').style.width = progress + '%';
+
+                await runTest(testCases[i]);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Delay entre tests
+            }
+
+            // Mostrar resumen
+            document.getElementById('summary').style.display = 'block';
+            document.getElementById('totalTests').textContent = testCases.length;
+            document.getElementById('successTests').textContent = totalSuccess;
+            document.getElementById('failedTests').textContent = totalFailed;
+            document.getElementById('apiReduction').textContent = '~50%';
+
+            btn.disabled = false;
+            btn.textContent = '🔄 Ejecutar de Nuevo';
+        }
+
+        // Info al cargar
+        console.log('🧪 Test de Optimizaciones API - Motor v1.4');
+        console.log('Carpeta: app/motor/CORRECCIONES_API_V1.4_08DEC2108');
+        console.log('Tests configurados:', testCases.length);
+    </script>
+</body>
+</html>

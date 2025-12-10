@@ -1,0 +1,9 @@
+tripId,timestamp,origin,destination,distance_km,days,directions_calls,geocoding_calls,geocoding_cached,duration_ms
+trip_1765228208099,2025-12-08T21:10:08.100Z,Madrid, Spain,Lisbon, Portugal,988.005,2,1,0,0,5714
+trip_1765229491577,2025-12-08T21:31:31.578Z,Madrid, Spain,Lisbon, Portugal,988.005,5,1,3,0,1037
+trip_1765230561329,2025-12-08T21:49:21.329Z,Salamanca, Spain,Lisbon, Portugal,920.173,4,1,2,0,751
+trip_1765230904521,2025-12-08T21:55:04.521Z,Salamanca, Spain,Lisbon, Portugal,920.173,4,1,0,2,378
+trip_1765231403922,2025-12-08T22:03:23.922Z,Madrid, Spain,Lisbon, Portugal,988.005,5,1,2,1,617
+trip_1765231858001,2025-12-08T22:10:58.001Z,Madrid, Spain,Lisbon, Portugal,988.005,5,1,0,3,592
+trip_1765232392206,2025-12-08T22:19:52.206Z,Madrid, Spain,Lisbon, Portugal,988.005,5,1,0,3,585
+trip_1765232496840,2025-12-08T22:21:36.840Z,Madrid, Spain,Lisbon, Portugal,988.005,4,1,0,3,322

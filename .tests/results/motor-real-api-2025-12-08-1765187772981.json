@@ -1,0 +1,1132 @@
+{
+  "summary": {
+    "testType": "MOTOR REAL API - 16 ROUTES VALIDATION",
+    "generatedAt": "2025-12-08T09:56:12.981Z",
+    "totalTests": 16,
+    "passed": 16,
+    "failed": 0,
+    "passRate": 100,
+    "totalDistance": 17325.277000000002,
+    "totalDays": 101,
+    "coverage": {
+      "tiers": 5,
+      "countries": "15+",
+      "continents": "3",
+      "routeTypes": [
+        "Mountain",
+        "Cross-Continent",
+        "Small Towns",
+        "Extreme",
+        "Complex"
+      ]
+    }
+  },
+  "routes": [
+    {
+      "id": 1,
+      "tier": "MOUNTAIN",
+      "name": "Alpine Crossing (Suiza)",
+      "origin": "Zurich, Switzerland",
+      "destination": "Chamonix, France",
+      "waypoints": [],
+      "distanceKm": 294.38,
+      "actualDays": 4,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Zurich, Switzerland",
+          "to": "Chamonix, France",
+          "distance": 294.38,
+          "date": "15/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Chamonix-Mont-Blanc",
+          "to": "Chamonix-Mont-Blanc",
+          "distance": 0,
+          "date": "16/06/2025",
+          "isDriving": false
+        },
+        {
+          "day": 3,
+          "from": "Chamonix-Mont-Blanc",
+          "to": "Chamonix-Mont-Blanc",
+          "distance": 0,
+          "date": "17/06/2025",
+          "isDriving": false
+        },
+        {
+          "day": 4,
+          "from": "Chamonix-Mont-Blanc",
+          "to": "Chamonix-Mont-Blanc",
+          "distance": 0,
+          "date": "18/06/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-06-15",
+      "endDate": "2025-06-18",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:46.317Z",
+      "recreateUrl": "/test-recreation/1"
+    },
+    {
+      "id": 2,
+      "tier": "MOUNTAIN",
+      "name": "Pyrenees North Slope",
+      "origin": "Barcelona, Spain",
+      "destination": "Saint-Jean-de-Luz, France",
+      "waypoints": [],
+      "distanceKm": 594.766,
+      "actualDays": 3,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Barcelona, Spain",
+          "to": "Huesca",
+          "distance": 300,
+          "date": "20/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Huesca",
+          "to": "Saint-Jean-de-Luz, France",
+          "distance": 294.76599999999996,
+          "date": "21/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "San Juan de Luz",
+          "to": "San Juan de Luz",
+          "distance": 0,
+          "date": "22/06/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-06-20",
+      "endDate": "2025-06-21",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:47.681Z",
+      "recreateUrl": "/test-recreation/2"
+    },
+    {
+      "id": 3,
+      "tier": "MOUNTAIN",
+      "name": "Norway Fjords",
+      "origin": "Oslo, Norway",
+      "destination": "Geirangerfjord, Norway",
+      "waypoints": [],
+      "distanceKm": 573.472,
+      "actualDays": 4,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Oslo, Norway",
+          "to": "Vestre Slidre",
+          "distance": 300,
+          "date": "01/07/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Vestre Slidre",
+          "to": "Geirangerfjord, Norway",
+          "distance": 273.472,
+          "date": "02/07/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Geiranger",
+          "to": "Geiranger",
+          "distance": 0,
+          "date": "03/07/2025",
+          "isDriving": false
+        },
+        {
+          "day": 4,
+          "from": "Geiranger",
+          "to": "Geiranger",
+          "distance": 0,
+          "date": "04/07/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-07-01",
+      "endDate": "2025-07-03",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:48.924Z",
+      "recreateUrl": "/test-recreation/3"
+    },
+    {
+      "id": 4,
+      "tier": "MOUNTAIN",
+      "name": "Trans-Balkans",
+      "origin": "Belgrade, Serbia",
+      "destination": "Kotor, Montenegro",
+      "waypoints": [],
+      "distanceKm": 540.54,
+      "actualDays": 4,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Belgrade, Serbia",
+          "to": "Pribojska Goleša",
+          "distance": 300,
+          "date": "10/07/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Pribojska Goleša",
+          "to": "Kotor, Montenegro",
+          "distance": 240.53999999999996,
+          "date": "11/07/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Kotor",
+          "to": "Kotor",
+          "distance": 0,
+          "date": "12/07/2025",
+          "isDriving": false
+        },
+        {
+          "day": 4,
+          "from": "Kotor",
+          "to": "Kotor",
+          "distance": 0,
+          "date": "13/07/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-07-10",
+      "endDate": "2025-07-12",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:50.124Z",
+      "recreateUrl": "/test-recreation/4"
+    },
+    {
+      "id": 5,
+      "tier": "MOUNTAIN",
+      "name": "Alpine Loop",
+      "origin": "Salzburg, Austria",
+      "destination": "Salzburg, Austria",
+      "waypoints": [
+        "Innsbruck, Austria"
+      ],
+      "distanceKm": 378.027,
+      "actualDays": 2,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Salzburg, Austria",
+          "to": "Innsbruck, Austria",
+          "distance": 188.609,
+          "date": "15/07/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Innsbruck, Austria",
+          "to": "Salzburg, Austria",
+          "distance": 189.418,
+          "date": "16/07/2025",
+          "isDriving": true
+        }
+      ],
+      "startDate": "2025-07-15",
+      "endDate": "2025-07-16",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:50.914Z",
+      "recreateUrl": "/test-recreation/5"
+    },
+    {
+      "id": 6,
+      "tier": "MOUNTAIN",
+      "name": "Scottish Highlands",
+      "origin": "Edinburgh, Scotland",
+      "destination": "Isle of Skye, Scotland",
+      "waypoints": [],
+      "distanceKm": 365.531,
+      "actualDays": 4,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Edinburgh, Scotland",
+          "to": "Highland",
+          "distance": 300,
+          "date": "01/08/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Highland",
+          "to": "Isle of Skye, Scotland",
+          "distance": 65.531,
+          "date": "02/08/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Highland",
+          "to": "Highland",
+          "distance": 0,
+          "date": "03/08/2025",
+          "isDriving": false
+        },
+        {
+          "day": 4,
+          "from": "Highland",
+          "to": "Highland",
+          "distance": 0,
+          "date": "04/08/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-08-01",
+      "endDate": "2025-08-03",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:52.208Z",
+      "recreateUrl": "/test-recreation/6"
+    },
+    {
+      "id": 7,
+      "tier": "CROSS-CONTINENT",
+      "name": "Western Europe Grand Tour",
+      "origin": "London, United Kingdom",
+      "destination": "Rome, Italy",
+      "waypoints": [
+        "Paris, France",
+        "Geneva, Switzerland"
+      ],
+      "distanceKm": 1954.984,
+      "actualDays": 10,
+      "stages": [
+        {
+          "day": 1,
+          "from": "London, United Kingdom",
+          "to": "Fesques",
+          "distance": 300,
+          "date": "01/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Fesques",
+          "to": "Paris, France",
+          "distance": 159.81900000000002,
+          "date": "02/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Paris, France",
+          "to": "Saint-Thibault",
+          "distance": 300,
+          "date": "03/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 4,
+          "from": "Saint-Thibault",
+          "to": "Geneva, Switzerland",
+          "distance": 240.46500000000003,
+          "date": "04/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 5,
+          "from": "Geneva, Switzerland",
+          "to": "Asti",
+          "distance": 300,
+          "date": "05/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 6,
+          "from": "Asti",
+          "to": "Punto en Ruta (43.50, 10.13)",
+          "distance": 300,
+          "date": "06/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 7,
+          "from": "Punto en Ruta (43.50, 10.13)",
+          "to": "Roma",
+          "distance": 300,
+          "date": "07/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 8,
+          "from": "Roma",
+          "to": "Rome, Italy",
+          "distance": 54.700000000000045,
+          "date": "08/05/2025",
+          "isDriving": true
+        },
+        {
+          "day": 9,
+          "from": "Roma",
+          "to": "Roma",
+          "distance": 0,
+          "date": "09/05/2025",
+          "isDriving": false
+        },
+        {
+          "day": 10,
+          "from": "Roma",
+          "to": "Roma",
+          "distance": 0,
+          "date": "10/05/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-05-01",
+      "endDate": "2025-05-05",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:54.916Z",
+      "recreateUrl": "/test-recreation/7"
+    },
+    {
+      "id": 8,
+      "tier": "CROSS-CONTINENT",
+      "name": "Eastern Europe Deep Dive",
+      "origin": "Warsaw, Poland",
+      "destination": "Istanbul, Turkey",
+      "waypoints": [
+        "Budapest, Hungary",
+        "Belgrade, Serbia"
+      ],
+      "distanceKm": 2184.098,
+      "actualDays": 11,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Warsaw, Poland",
+          "to": "Jędrzejów County",
+          "distance": 300,
+          "date": "01/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Jędrzejów County",
+          "to": "Brezno",
+          "distance": 300,
+          "date": "02/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Brezno",
+          "to": "Budapest, Hungary",
+          "distance": 258.28499999999997,
+          "date": "03/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 4,
+          "from": "Budapest, Hungary",
+          "to": "Žabalj",
+          "distance": 300,
+          "date": "04/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 5,
+          "from": "Žabalj",
+          "to": "Belgrade, Serbia",
+          "distance": 79.43099999999998,
+          "date": "05/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 6,
+          "from": "Belgrade, Serbia",
+          "to": "Medkovets",
+          "distance": 300,
+          "date": "06/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 7,
+          "from": "Medkovets",
+          "to": "Stara Zagora Municipality",
+          "distance": 300,
+          "date": "07/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 8,
+          "from": "Stara Zagora Municipality",
+          "to": "Nakkaş",
+          "distance": 300,
+          "date": "08/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 9,
+          "from": "Nakkaş",
+          "to": "Istanbul, Turkey",
+          "distance": 46.38199999999995,
+          "date": "09/06/2025",
+          "isDriving": true
+        },
+        {
+          "day": 10,
+          "from": "Estambul",
+          "to": "Estambul",
+          "distance": 0,
+          "date": "10/06/2025",
+          "isDriving": false
+        },
+        {
+          "day": 11,
+          "from": "Estambul",
+          "to": "Estambul",
+          "distance": 0,
+          "date": "11/06/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-06-01",
+      "endDate": "2025-06-05",
+      "passed": true,
+      "timestamp": "2025-12-08T09:55:57.317Z",
+      "recreateUrl": "/test-recreation/8"
+    },
+    {
+      "id": 9,
+      "tier": "CROSS-CONTINENT",
+      "name": "Mediterranean Coast",
+      "origin": "Barcelona, Spain",
+      "destination": "Athens, Greece",
+      "waypoints": [
+        "Nice, France",
+        "Rome, Italy"
+      ],
+      "distanceKm": 2591.267,
+      "actualDays": 13,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Barcelona, Spain",
+          "to": "Punto en Ruta (42.44, 4.48)",
+          "distance": 300,
+          "date": "01/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Punto en Ruta (42.44, 4.48)",
+          "to": "Fréjus",
+          "distance": 300,
+          "date": "02/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Fréjus",
+          "to": "Nice, France",
+          "distance": 61.67999999999995,
+          "date": "03/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 4,
+          "from": "Nice, France",
+          "to": "Punto en Ruta (42.93, 9.52)",
+          "distance": 300,
+          "date": "04/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 5,
+          "from": "Punto en Ruta (42.93, 9.52)",
+          "to": "Roma",
+          "distance": 300,
+          "date": "05/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 6,
+          "from": "Roma",
+          "to": "Rome, Italy",
+          "distance": 93.918,
+          "date": "06/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 7,
+          "from": "Rome, Italy",
+          "to": "Avellino",
+          "distance": 300,
+          "date": "07/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 8,
+          "from": "Avellino",
+          "to": "Punto en Ruta (40.00, 17.94)",
+          "distance": 300,
+          "date": "08/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 9,
+          "from": "Punto en Ruta (40.00, 17.94)",
+          "to": "Punto en Ruta (39.05, 20.67)",
+          "distance": 300,
+          "date": "09/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 10,
+          "from": "Punto en Ruta (39.05, 20.67)",
+          "to": "Ática",
+          "distance": 300,
+          "date": "10/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 11,
+          "from": "Ática",
+          "to": "Athens, Greece",
+          "distance": 35.669000000000096,
+          "date": "11/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 12,
+          "from": "Atenas",
+          "to": "Atenas",
+          "distance": 0,
+          "date": "12/09/2025",
+          "isDriving": false
+        },
+        {
+          "day": 13,
+          "from": "Atenas",
+          "to": "Atenas",
+          "distance": 0,
+          "date": "13/09/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-09-01",
+      "endDate": "2025-09-05",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:00.648Z",
+      "recreateUrl": "/test-recreation/9"
+    },
+    {
+      "id": 10,
+      "tier": "SMALL_TOWNS",
+      "name": "Tuscany Wine Route",
+      "origin": "Montepulciano, Italy",
+      "destination": "Volterra, Italy",
+      "waypoints": [
+        "Montalcino, Italy"
+      ],
+      "distanceKm": 129.733,
+      "actualDays": 2,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Montepulciano, Italy",
+          "to": "Montalcino, Italy",
+          "distance": 35.987,
+          "date": "01/10/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Montalcino, Italy",
+          "to": "Volterra, Italy",
+          "distance": 93.746,
+          "date": "02/10/2025",
+          "isDriving": true
+        }
+      ],
+      "startDate": "2025-10-01",
+      "endDate": "2025-10-02",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:01.372Z",
+      "recreateUrl": "/test-recreation/10"
+    },
+    {
+      "id": 11,
+      "tier": "SMALL_TOWNS",
+      "name": "Cotswolds Circuit",
+      "origin": "Bourton-on-the-Water, England",
+      "destination": "Winchcombe, England",
+      "waypoints": [
+        "Chipping Campden, England"
+      ],
+      "distanceKm": 47.538,
+      "actualDays": 2,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Bourton-on-the-Water, England",
+          "to": "Chipping Campden, England",
+          "distance": 22.326,
+          "date": "10/08/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Chipping Campden, England",
+          "to": "Winchcombe, England",
+          "distance": 25.212,
+          "date": "11/08/2025",
+          "isDriving": true
+        }
+      ],
+      "startDate": "2025-08-10",
+      "endDate": "2025-08-11",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:02.081Z",
+      "recreateUrl": "/test-recreation/11"
+    },
+    {
+      "id": 12,
+      "tier": "SMALL_TOWNS",
+      "name": "Loire Valley Towns",
+      "origin": "Amboise, France",
+      "destination": "Chenonceaux, France",
+      "waypoints": [
+        "Montrichard, France"
+      ],
+      "distanceKm": 26.985,
+      "actualDays": 2,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Amboise, France",
+          "to": "Montrichard, France",
+          "distance": 18.077,
+          "date": "15/09/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Montrichard, France",
+          "to": "Chenonceaux, France",
+          "distance": 8.908,
+          "date": "16/09/2025",
+          "isDriving": true
+        }
+      ],
+      "startDate": "2025-09-15",
+      "endDate": "2025-09-16",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:02.748Z",
+      "recreateUrl": "/test-recreation/12"
+    },
+    {
+      "id": 13,
+      "tier": "EXTREME",
+      "name": "Across Turkey",
+      "origin": "Istanbul, Turkey",
+      "destination": "Cappadocia, Turkey",
+      "waypoints": [
+        "Ankara, Turkey"
+      ],
+      "distanceKm": 750.968,
+      "actualDays": 6,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Istanbul, Turkey",
+          "to": "Nallıhan",
+          "distance": 300,
+          "date": "01/11/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Nallıhan",
+          "to": "Ankara, Turkey",
+          "distance": 144.78199999999998,
+          "date": "02/11/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Ankara, Turkey",
+          "to": "Nevşehir Merkez",
+          "distance": 300,
+          "date": "03/11/2025",
+          "isDriving": true
+        },
+        {
+          "day": 4,
+          "from": "Nevşehir Merkez",
+          "to": "Cappadocia, Turkey",
+          "distance": 6.185999999999979,
+          "date": "04/11/2025",
+          "isDriving": true
+        },
+        {
+          "day": 5,
+          "from": "Avanos",
+          "to": "Avanos",
+          "distance": 0,
+          "date": "05/11/2025",
+          "isDriving": false
+        },
+        {
+          "day": 6,
+          "from": "Avanos",
+          "to": "Avanos",
+          "distance": 0,
+          "date": "06/11/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-11-01",
+      "endDate": "2025-11-04",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:04.243Z",
+      "recreateUrl": "/test-recreation/13"
+    },
+    {
+      "id": 14,
+      "tier": "EXTREME",
+      "name": "North Africa Desert",
+      "origin": "Fez, Morocco",
+      "destination": "Merzouga, Morocco",
+      "waypoints": [],
+      "distanceKm": 462.004,
+      "actualDays": 4,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Fez, Morocco",
+          "to": "Provincia de Errachidía",
+          "distance": 300,
+          "date": "10/11/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Provincia de Errachidía",
+          "to": "Merzouga, Morocco",
+          "distance": 162.00400000000002,
+          "date": "11/11/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Merzouga",
+          "to": "Merzouga",
+          "distance": 0,
+          "date": "12/11/2025",
+          "isDriving": false
+        },
+        {
+          "day": 4,
+          "from": "Merzouga",
+          "to": "Merzouga",
+          "distance": 0,
+          "date": "13/11/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-11-10",
+      "endDate": "2025-11-12",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:05.338Z",
+      "recreateUrl": "/test-recreation/14"
+    },
+    {
+      "id": 15,
+      "tier": "COMPLEX",
+      "name": "European Tech Hub Tour",
+      "origin": "Lisbon, Portugal",
+      "destination": "Budapest, Hungary",
+      "waypoints": [
+        "Dublin, Ireland",
+        "Berlin, Germany",
+        "Prague, Czech Republic"
+      ],
+      "distanceKm": 5338.34,
+      "actualDays": 25,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Lisbon, Portugal",
+          "to": "Figueira da Foz",
+          "distance": 300,
+          "date": "01/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Figueira da Foz",
+          "to": "Bico",
+          "distance": 300,
+          "date": "02/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Bico",
+          "to": "Punto en Ruta (43.46, -8.21)",
+          "distance": 300,
+          "date": "03/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 4,
+          "from": "Punto en Ruta (43.46, -8.21)",
+          "to": "Punto en Ruta (45.04, -7.90)",
+          "distance": 300,
+          "date": "04/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 5,
+          "from": "Punto en Ruta (45.04, -7.90)",
+          "to": "Punto en Ruta (46.62, -7.58)",
+          "distance": 300,
+          "date": "05/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 6,
+          "from": "Punto en Ruta (46.62, -7.58)",
+          "to": "Punto en Ruta (48.20, -7.27)",
+          "distance": 300,
+          "date": "06/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 7,
+          "from": "Punto en Ruta (48.20, -7.27)",
+          "to": "Punto en Ruta (49.78, -6.96)",
+          "distance": 300,
+          "date": "07/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 8,
+          "from": "Punto en Ruta (49.78, -6.96)",
+          "to": "Punto en Ruta (51.36, -6.65)",
+          "distance": 300,
+          "date": "08/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 9,
+          "from": "Punto en Ruta (51.36, -6.65)",
+          "to": "Condado de Wicklow",
+          "distance": 300,
+          "date": "09/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 10,
+          "from": "Condado de Wicklow",
+          "to": "Dublin, Ireland",
+          "distance": 77,
+          "date": "10/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 11,
+          "from": "Dublin, Ireland",
+          "to": "Cheshire West and Chester",
+          "distance": 300,
+          "date": "11/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 12,
+          "from": "Cheshire West and Chester",
+          "to": "Punto en Ruta (53.06, 0.72)",
+          "distance": 300,
+          "date": "12/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 13,
+          "from": "Punto en Ruta (53.06, 0.72)",
+          "to": "Punto en Ruta (52.91, 4.22)",
+          "distance": 300,
+          "date": "13/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 14,
+          "from": "Punto en Ruta (52.91, 4.22)",
+          "to": "Löningen",
+          "distance": 300,
+          "date": "14/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 15,
+          "from": "Löningen",
+          "to": "Klötze",
+          "distance": 300,
+          "date": "15/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 16,
+          "from": "Klötze",
+          "to": "Berlin, Germany",
+          "distance": 189.53199999999993,
+          "date": "16/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 17,
+          "from": "Berlin, Germany",
+          "to": "Prague, Czech Republic",
+          "distance": 347.013,
+          "date": "17/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 18,
+          "from": "Prague, Czech Republic",
+          "to": "Borský Svätý Jur",
+          "distance": 300,
+          "date": "18/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 19,
+          "from": "Borský Svätý Jur",
+          "to": "Budapest, Hungary",
+          "distance": 224.79499999999996,
+          "date": "19/04/2025",
+          "isDriving": true
+        },
+        {
+          "day": 20,
+          "from": "Budapest",
+          "to": "Budapest",
+          "distance": 0,
+          "date": "20/04/2025",
+          "isDriving": false
+        },
+        {
+          "day": 21,
+          "from": "Budapest",
+          "to": "Budapest",
+          "distance": 0,
+          "date": "21/04/2025",
+          "isDriving": false
+        },
+        {
+          "day": 22,
+          "from": "Budapest",
+          "to": "Budapest",
+          "distance": 0,
+          "date": "22/04/2025",
+          "isDriving": false
+        },
+        {
+          "day": 23,
+          "from": "Budapest",
+          "to": "Budapest",
+          "distance": 0,
+          "date": "23/04/2025",
+          "isDriving": false
+        },
+        {
+          "day": 24,
+          "from": "Budapest",
+          "to": "Budapest",
+          "distance": 0,
+          "date": "24/04/2025",
+          "isDriving": false
+        },
+        {
+          "day": 25,
+          "from": "Budapest",
+          "to": "Budapest",
+          "distance": 0,
+          "date": "25/04/2025",
+          "isDriving": false
+        }
+      ],
+      "startDate": "2025-04-01",
+      "endDate": "2025-04-10",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:11.048Z",
+      "recreateUrl": "/test-recreation/15"
+    },
+    {
+      "id": 16,
+      "tier": "COMPLEX",
+      "name": "Wine Tourism Circuit",
+      "origin": "Bordeaux, France",
+      "destination": "Avignon, France",
+      "waypoints": [
+        "Dijon, France",
+        "Lyon, France"
+      ],
+      "distanceKm": 1092.644,
+      "actualDays": 5,
+      "stages": [
+        {
+          "day": 1,
+          "from": "Bordeaux, France",
+          "to": "Chavanat",
+          "distance": 300,
+          "date": "01/10/2025",
+          "isDriving": true
+        },
+        {
+          "day": 2,
+          "from": "Chavanat",
+          "to": "Viévy",
+          "distance": 300,
+          "date": "02/10/2025",
+          "isDriving": true
+        },
+        {
+          "day": 3,
+          "from": "Viévy",
+          "to": "Dijon, France",
+          "distance": 68.92999999999995,
+          "date": "03/10/2025",
+          "isDriving": true
+        },
+        {
+          "day": 4,
+          "from": "Dijon, France",
+          "to": "Lyon, France",
+          "distance": 195.318,
+          "date": "04/10/2025",
+          "isDriving": true
+        },
+        {
+          "day": 5,
+          "from": "Lyon, France",
+          "to": "Avignon, France",
+          "distance": 228.396,
+          "date": "05/10/2025",
+          "isDriving": true
+        }
+      ],
+      "startDate": "2025-10-01",
+      "endDate": "2025-10-03",
+      "passed": true,
+      "timestamp": "2025-12-08T09:56:12.478Z",
+      "recreateUrl": "/test-recreation/16"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "tripId": "trip_1765230904521",
+  "startTime": "2025-12-08T21:55:04.521Z",
+  "origin": "Salamanca, Spain",
+  "destination": "Lisbon, Portugal",
+  "kmMaximo": 300,
+  "apiCalls": [
+    {
+      "type": "DIRECTIONS",
+      "endpoint": "directions",
+      "params": {
+        "origin": "Salamanca, Spain",
+        "destination": "Lisbon, Portugal",
+        "waypoints": [
+          "Huelva, Spain"
+        ],
+        "mode": "driving"
+      },
+      "response": {
+        "status": "OK",
+        "routesCount": 1
+      },
+      "duration": 378,
+      "timestamp": "2025-12-08T21:55:04.913Z"
+    },
+    {
+      "type": "GEOCODING",
+      "endpoint": "geocode",
+      "params": {
+        "lat": 38.6963,
+        "lng": -6.38722
+      },
+      "cached": true,
+      "duration": 0,
+      "timestamp": "2025-12-08T21:55:05.126Z"
+    },
+    {
+      "type": "GEOCODING",
+      "endpoint": "geocode",
+      "params": {
+        "lat": 38.49325,
+        "lng": -8.56523
+      },
+      "cached": true,
+      "duration": 0,
+      "timestamp": "2025-12-08T21:55:05.330Z"
+    }
+  ],
+  "endTime": "2025-12-08T21:55:05.661Z",
+  "totalDistance": 920.173,
+  "daysCount": 4,
+  "summary": {
+    "directionsAPICalls": 1,
+    "geocodingAPICalls": 0,
+    "geocodingCached": 2,
+    "totalDuration": 378
+  }
+}

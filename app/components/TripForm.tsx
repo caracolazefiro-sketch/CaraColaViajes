@@ -46,14 +46,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="p-1.5 rounded text-green-600 hover:bg-green-50 transition" title={t('ACTION_SHARE')}><IconShare /></button>
                 )}
                 <button onClick={(e) => { e.stopPropagation(); onSave(); }} disabled={isSaving} className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" title={t('ACTION_SAVE')}><IconCloud /></button>
-                <button 
-                    onClick={(e) => { 
-                        console.log('🗑️ Botón Reset clickeado'); 
-                        e.preventDefault(); 
-                        e.stopPropagation(); 
-                        onReset(); 
-                    }} 
-                    className="p-1.5 rounded text-red-500 hover:bg-red-50 transition" 
+                <button
+                    onClick={(e) => {
+                        console.log('🗑️ Botón Reset clickeado');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onReset();
+                    }}
+                    className="p-1.5 rounded text-red-500 hover:bg-red-50 transition"
                     title={t('ACTION_DELETE')}
                 >
                     <IconReset />
@@ -97,15 +97,15 @@ interface TripFormProps {
     convert: (value: number, unit: 'km' | 'liter' | 'currency' | 'kph') => number; // Conversión
 }
 
-export default function TripForm({ 
+export default function TripForm({
     formData, setFormData, loading, results, onSubmit, showWaypoints, setShowWaypoints,
     auditMode, setAuditMode, isSaving, onSave, onShare, onReset, currentTripId,
     t, convert
 }: TripFormProps) {
-    
-    const [isExpanded, setIsExpanded] = useState(true); 
+
+    const [isExpanded, setIsExpanded] = useState(true);
     const [tempStop, setTempStop] = useState('');
-    
+
     const originRef = useRef<google.maps.places.Autocomplete | null>(null);
     const destRef = useRef<google.maps.places.Autocomplete | null>(null);
     const stopRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -134,10 +134,10 @@ export default function TripForm({
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
         let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
-        
+
         // NO normalizar al guardar - solo guardar valores tal como vienen
         // La normalización se hace solo cuando se envía a Google Directions
-        
+
         setFormData({ ...formData, [id]: finalValue } as FormData);
     };
 
@@ -183,7 +183,7 @@ export default function TripForm({
         console.log(`➕ Agregando waypoint:`, tempStop);
         const newStops = [...currentStops, tempStop];
         setFormData({ ...formData, etapas: newStops.join('|') });
-        setTempStop(''); 
+        setTempStop('');
     };
 
     const removeWaypoint = (indexToRemove: number) => {
@@ -195,13 +195,13 @@ export default function TripForm({
     const unitKm = convert(1, 'km') === 1 ? 'km' : 'mi';
     const unitLiter = convert(1, 'liter') === 1 ? 'L' : 'gal';
     const unitCurrency = convert(1, 'currency') === 1 ? '€' : '$';
-    
+
     // Calcular distancia total sumando días del itinerario (igual que ItineraryPanel para consistencia)
     const totalDistance = results.dailyItinerary?.reduce((sum, day) => sum + day.distance, 0) || results.distanceKm || 0;
     const displayKm = totalDistance ? convert(totalDistance, 'km').toFixed(0) : '0';
     const displayCost = results.totalCost ? convert(results.totalCost, 'currency').toFixed(0) : '0';
     const displayDays = results.totalDays || '0';
-    
+
     // Rango de KM MÁXIMO (Ajustado a la conversión)
     const maxKmValue = formData.kmMaximoDia ? convert(formData.kmMaximoDia, 'km').toFixed(0) : '400';
     const maxRangeValue = convert(1000, 'km').toFixed(0);
@@ -210,10 +210,10 @@ export default function TripForm({
     // --- MODO RESUMEN (DASHBOARD ULTRA-COMPACTO) ---
     if (!isExpanded && results.totalDays) {
         const displayTripName = formData.tripName || `${formData.origen?.split(',')[0] || 'Origen'} → ${formData.destino?.split(',')[0] || 'Destino'}`;
-        
+
         return (
-            <div 
-                className="bg-white rounded-xl shadow-md border border-gray-200 no-print cursor-pointer hover:shadow-lg hover:border-red-300 transition-all duration-300 flex flex-col md:flex-row items-center justify-between p-2 gap-2 md:gap-4" 
+            <div
+                className="bg-white rounded-xl shadow-md border border-gray-200 no-print cursor-pointer hover:shadow-lg hover:border-red-300 transition-all duration-300 flex flex-col md:flex-row items-center justify-between p-2 gap-2 md:gap-4"
                 onClick={() => setIsExpanded(true)}
             >
                 {/* 1. NOMBRE DEL VIAJE / RUTA (Izquierda) */}
@@ -282,14 +282,14 @@ export default function TripForm({
                 {/* CARGA RÁPIDA DE DATOS DE PRUEBA */}
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex justify-between items-center">
                     <span className="text-xs font-bold text-blue-700">⚡ Datos de prueba (Salamanca → Punta Umbría)</span>
-                    <button 
+                    <button
                         type="button"
                         onClick={() => {
                           const tomorrow = new Date();
                           tomorrow.setDate(tomorrow.getDate() + 1);
                           const returnDate = new Date(tomorrow);
                           returnDate.setDate(returnDate.getDate() + 4);
-                          
+
                           setFormData({
                             ...formData,
                             tripName: 'Test Salamanca → Punta Umbría',
@@ -311,19 +311,19 @@ export default function TripForm({
                 {/* NOMBRE DEL VIAJE */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{t('FORM_TRIP_NAME')}</label>
-                    <input 
-                        type="text" 
-                        id="tripName" 
-                        value={formData.tripName} 
-                        onChange={handleChange} 
+                    <input
+                        type="text"
+                        id="tripName"
+                        value={formData.tripName}
+                        onChange={handleChange}
                         placeholder={`${formData.origen?.split(',')[0] || 'Origen'} → ${formData.destino?.split(',')[0] || 'Destino'} ${formData.fechaInicio ? `(${new Date(formData.fechaInicio).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })})` : ''}`}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-2 focus:ring-red-500 outline-none text-base font-semibold text-gray-800 placeholder:text-gray-400 placeholder:font-normal" 
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-2 focus:ring-red-500 outline-none text-base font-semibold text-gray-800 placeholder:text-gray-400 placeholder:font-normal"
                     />
                     <p className="text-[10px] text-gray-400 mt-1">💡 Dale un nombre memorable a tu viaje (opcional)</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    
+
                     {/* FECHAS */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_START_DATE')}</label>
@@ -333,7 +333,7 @@ export default function TripForm({
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_END_DATE')}</label>
                         <input type="date" id="fechaRegreso" value={formData.fechaRegreso} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" />
                     </div>
-                    
+
                     {/* ORIGEN */}
                     <div className="space-y-1 relative">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_ORIGIN')}</label>
@@ -375,11 +375,11 @@ export default function TripForm({
                             <div className="flex gap-2 items-center">
                                 <div className="flex-1 relative">
                                     <Autocomplete onLoad={ref => stopRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStop')}>
-                                        <input 
-                                            type="text" 
-                                            value={tempStop} 
-                                            onChange={(e) => setTempStop(e.target.value)} 
-                                            placeholder={t('FORM_WAYPOINT_SEARCH_PLACEHOLDER')} 
+                                        <input
+                                            type="text"
+                                            value={tempStop}
+                                            onChange={(e) => setTempStop(e.target.value)}
+                                            placeholder={t('FORM_WAYPOINT_SEARCH_PLACEHOLDER')}
                                             className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
                                         />
                                     </Autocomplete>
@@ -388,15 +388,15 @@ export default function TripForm({
                                     <IconPlusCircle /> {t('MAP_ADD')}
                                 </button>
                             </div>
-                            
+
                             {currentStops.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {currentStops.map((stop: string, index: number) => (
                                         <div key={index} className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-full text-xs shadow-sm animate-fadeIn">
                                             <span className="font-medium">📍 {stop}</span>
-                                            <button 
-                                                type="button" 
-                                                onClick={() => removeWaypoint(index)} 
+                                            <button
+                                                type="button"
+                                                onClick={() => removeWaypoint(index)}
                                                 className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 rounded-full p-0.5 transition-colors"
                                             >
                                                 <IconTrash />

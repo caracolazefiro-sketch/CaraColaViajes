@@ -110,7 +110,7 @@ Esta funcionalidad permite al usuario modificar cualquier parada técnica del vi
 
 ## 🔧 MEJORAS TÉCNICAS (Backlog)
 
-### 📊 Optimización de APIs (Ver: `ANALISIS_OPTIMIZACION_APIS.md`)
+### 📊 Optimización de APIs (Ver: `../CHEMA/ANALISIS/ANALISIS_OPTIMIZACION_APIS.md`)
 **Estado actual:** Óptimo (coste $0.02/viaje sin búsquedas, $0.12 con búsquedas)
 
 #### Implementado ✅
@@ -155,7 +155,7 @@ Esta funcionalidad permite al usuario modificar cualquier parada técnica del vi
   - Google actualiza resultados constantemente
   - Solución: User-driven design (búsquedas bajo demanda)
 
-**Referencia técnica completa:** Ver `ANALISIS_OPTIMIZACION_APIS.md` para detalles arquitectónicos, benchmarks reales (16 rutas testadas), y proyecciones de costes.
+**Referencia técnica completa:** Ver `../CHEMA/ANALISIS/ANALISIS_OPTIMIZACION_APIS.md` para detalles arquitectónicos, benchmarks reales (16 rutas testadas), y proyecciones de costes.
 
 ### Performance
 - [x] **Geocoding API caché** (COMPLETADO - 63.2% hit rate)

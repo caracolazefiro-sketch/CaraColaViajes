@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MOTOR Test Comparador - 16 Rutas</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e1e1e 0%, #2d2d30 100%);
+      color: #e0e0e0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid #007acc;
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      color: #00d4ff;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
+    }
+
+    .header p {
+      color: #b0b0b0;
+      font-size: 1.1em;
+    }
+
+    .instructions {
+      background: rgba(0, 212, 255, 0.1);
+      border: 2px solid #007acc;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+      color: #b0b0b0;
+    }
+
+    .instructions strong {
+      color: #00d4ff;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 35px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #1e1e1e 0%, #2d2d30 100%);
+      border: 2px solid #007acc;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      border-color: #00d4ff;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .stat-label {
+      color: #b0b0b0;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 2em;
+      font-weight: bold;
+      color: #00d4ff;
+    }
+
+    .routes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .route-card {
+      background: linear-gradient(135deg, #252526 0%, #2d2d30 100%);
+      border: 1px solid #3e3e42;
+      border-radius: 8px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .route-card:hover {
+      border-color: #007acc;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+      transform: translateY(-5px);
+    }
+
+    .route-number {
+      font-size: 0.8em;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .route-name {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #00d4ff;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #3e3e42;
+      padding-bottom: 10px;
+    }
+
+    .route-data {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 15px;
+      font-size: 0.95em;
+    }
+
+    .data-item {
+      background: rgba(0, 212, 255, 0.05);
+      border-left: 3px solid #007acc;
+      padding: 10px;
+      border-radius: 4px;
+    }
+
+    .data-label {
+      color: #b0b0b0;
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+    }
+
+    .data-value {
+      color: #00d4ff;
+      font-weight: 600;
+      font-size: 1.05em;
+      word-break: break-word;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #007acc;
+      background: #2d2d30;
+      color: #00d4ff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9em;
+      transition: all 0.3s;
+    }
+
+    .btn:hover {
+      background: #007acc;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    }
+
+    .btn-copy {
+      background: #1e5a1e;
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+
+    .btn-copy:hover {
+      background: #2a7a2a;
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    }
+
+    .stages {
+      background: rgba(0, 212, 255, 0.05);
+      border: 1px solid #007acc;
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #b0b0b0;
+    }
+
+    .stage {
+      margin: 5px 0;
+      padding: 5px 0;
+      border-bottom: 1px solid #3e3e42;
+    }
+
+    .stage:last-child {
+      border-bottom: none;
+    }
+
+    .stage-day {
+      color: #00d4ff;
+      font-weight: 600;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 50px;
+      padding-top: 30px;
+      border-top: 1px solid #3e3e42;
+      color: #b0b0b0;
+      font-size: 0.9em;
+    }
+
+    @media (max-width: 768px) {
+      .routes-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .route-data {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 1.8em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧪 MOTOR Test Comparador</h1>
+      <p>16 Rutas - 100% PASS - Comprobación Manual</p>
+    </div>
+
+    <div class="instructions">
+      <strong>📋 Instrucciones:</strong><br>
+      1. Copia el <strong>Origen</strong>, <strong>Destino</strong> y <strong>Paradas</strong> (si las hay)<br>
+      2. Abre <strong>MOTOR</strong> en otra pestaña<br>
+      3. Pega los datos y configura el viaje<br>
+      4. Haz clic en <strong>"Calcular"</strong><br>
+      5. Compara los <strong>km totales</strong> y <strong>días</strong> con los datos del test<br>
+      6. El botón 🗺️ abre la ruta en Google Maps
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Rutas</div>
+        <div class="stat-value" id="totalRoutes">16</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Tasa de Éxito</div>
+        <div class="stat-value">100%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Distancia Total</div>
+        <div class="stat-value" id="totalDistance">17,325km</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Días Totales</div>
+        <div class="stat-value">90</div>
+      </div>
+    </div>
+
+    <div class="routes-grid" id="routesContainer"></div>
+
+    <div class="footer">
+      <p>✅ Todos los tests pasaron en la ejecución original del motor.</p>
+      <p style="margin-top: 10px; font-size: 0.85em; color: #666;">Generado: 2025-12-08 - Dashboard de comparación manual</p>
+    </div>
+  </div>
+
+  <script>
+    // Datos reales del test
+    const testData = {
+      "summary": {
+        "totalTests": 16,
+        "totalDistance": 17325.073,
+        "totalDays": 90
+      },
+      "routes": [
+        {"id": 1, "tier": "MOUNTAIN", "name": "Alpine Crossing (Suiza)", "origin": "Zurich, Switzerland", "destination": "Chamonix, France", "waypoints": [], "distanceKm": 294.38, "actualDays": 3, "stages": [{"day": 1, "from": "Zurich, Switzerland", "to": "Chamonix, France", "distance": 294.38}, {"day": 2, "from": "Chamonix-Mont-Blanc", "to": "Chamonix-Mont-Blanc", "distance": 0}, {"day": 3, "from": "Chamonix-Mont-Blanc", "to": "Chamonix-Mont-Blanc", "distance": 0}]},
+        {"id": 2, "tier": "MOUNTAIN", "name": "Pyrenees North Slope", "origin": "Barcelona, Spain", "destination": "Saint-Jean-de-Luz, France", "waypoints": [], "distanceKm": 594.766, "actualDays": 2, "stages": [{"day": 1, "from": "Barcelona, Spain", "to": "Huesca", "distance": 300}, {"day": 2, "from": "Huesca", "to": "Saint-Jean-de-Luz, France", "distance": 294.766}]},
+        {"id": 3, "tier": "MOUNTAIN", "name": "Norway Fjords", "origin": "Oslo, Norway", "destination": "Geirangerfjord, Norway", "waypoints": [], "distanceKm": 573.472, "actualDays": 3, "stages": [{"day": 1, "from": "Oslo, Norway", "to": "Vestre Slidre", "distance": 300}, {"day": 2, "from": "Vestre Slidre", "to": "Geirangerfjord, Norway", "distance": 273.472}, {"day": 3, "from": "Geiranger", "to": "Geiranger", "distance": 0}]},
+        {"id": 4, "tier": "MOUNTAIN", "name": "Trans-Balkans", "origin": "Belgrade, Serbia", "destination": "Kotor, Montenegro", "waypoints": [], "distanceKm": 540.54, "actualDays": 3, "stages": [{"day": 1, "from": "Belgrade, Serbia", "to": "Pribojska Goleša", "distance": 300}, {"day": 2, "from": "Pribojska Goleša", "to": "Kotor, Montenegro", "distance": 240.54}, {"day": 3, "from": "Kotor", "to": "Kotor", "distance": 0}]},
+        {"id": 5, "tier": "MOUNTAIN", "name": "Alpine Loop", "origin": "Salzburg, Austria", "destination": "Salzburg, Austria", "waypoints": ["Innsbruck, Austria"], "distanceKm": 378.027, "actualDays": 2, "stages": [{"day": 1, "from": "Salzburg, Austria", "to": "Innsbruck, Austria", "distance": 188.609}, {"day": 2, "from": "Innsbruck, Austria", "to": "Salzburg, Austria", "distance": 189.418}]},
+        {"id": 6, "tier": "MOUNTAIN", "name": "Scottish Highlands", "origin": "Edinburgh, Scotland", "destination": "Isle of Skye, Scotland", "waypoints": [], "distanceKm": 365.531, "actualDays": 3, "stages": [{"day": 1, "from": "Edinburgh, Scotland", "to": "Highland", "distance": 300}, {"day": 2, "from": "Highland", "to": "Isle of Skye, Scotland", "distance": 65.531}, {"day": 3, "from": "Highland", "to": "Highland", "distance": 0}]},
+        {"id": 7, "tier": "CROSS-CONTINENT", "name": "Western Europe Grand Tour", "origin": "London, United Kingdom", "destination": "Rome, Italy", "waypoints": ["Paris, France", "Geneva, Switzerland"], "distanceKm": 1954.78, "actualDays": 9, "stages": [{"day": 1, "from": "London, United Kingdom", "to": "Fesques", "distance": 300}, {"day": 2, "from": "Fesques", "to": "Paris, France", "distance": 159.615}, {"day": 3, "from": "Paris, France", "to": "Saint-Thibault", "distance": 300}, {"day": 4, "from": "Saint-Thibault", "to": "Geneva, Switzerland", "distance": 240.465}, {"day": 5, "from": "Geneva, Switzerland", "to": "Asti", "distance": 300}, {"day": 6, "from": "Asti", "to": "Punto en Ruta", "distance": 300}, {"day": 7, "from": "Punto en Ruta", "to": "Roma", "distance": 300}, {"day": 8, "from": "Roma", "to": "Rome, Italy", "distance": 54.7}, {"day": 9, "from": "Roma", "to": "Roma", "distance": 0}]},
+        {"id": 8, "tier": "CROSS-CONTINENT", "name": "Eastern Europe Deep Dive", "origin": "Warsaw, Poland", "destination": "Istanbul, Turkey", "waypoints": ["Budapest, Hungary", "Belgrade, Serbia"], "distanceKm": 2184.098, "actualDays": 10, "stages": [{"day": 1, "from": "Warsaw, Poland", "to": "Jędrzejów County", "distance": 300}, {"day": 2, "from": "Jędrzejów County", "to": "Brezno", "distance": 300}, {"day": 3, "from": "Brezno", "to": "Budapest, Hungary", "distance": 258.285}, {"day": 4, "from": "Budapest, Hungary", "to": "Žabalj", "distance": 300}, {"day": 5, "from": "Žabalj", "to": "Belgrade, Serbia", "distance": 79.431}, {"day": 6, "from": "Belgrade, Serbia", "to": "Medkovets", "distance": 300}, {"day": 7, "from": "Medkovets", "to": "Stara Zagora", "distance": 300}, {"day": 8, "from": "Stara Zagora", "to": "Nakkaş", "distance": 300}, {"day": 9, "from": "Nakkaş", "to": "Istanbul, Turkey", "distance": 46.382}, {"day": 10, "from": "Estambul", "to": "Estambul", "distance": 0}]},
+        {"id": 9, "tier": "CROSS-CONTINENT", "name": "Mediterranean Coast", "origin": "Barcelona, Spain", "destination": "Athens, Greece", "waypoints": ["Nice, France", "Rome, Italy"], "distanceKm": 2591.267, "actualDays": 12, "stages": [{"day": 1, "from": "Barcelona, Spain", "to": "Punto en Ruta", "distance": 300}, {"day": 2, "from": "Punto en Ruta", "to": "Fréjus", "distance": 300}, {"day": 3, "from": "Fréjus", "to": "Nice, France", "distance": 61.68}, {"day": 4, "from": "Nice, France", "to": "Punto en Ruta", "distance": 300}, {"day": 5, "from": "Punto en Ruta", "to": "Roma", "distance": 300}, {"day": 6, "from": "Roma", "to": "Rome, Italy", "distance": 93.918}, {"day": 7, "from": "Rome, Italy", "to": "Avellino", "distance": 300}, {"day": 8, "from": "Avellino", "to": "Punto en Ruta", "distance": 300}, {"day": 9, "from": "Punto en Ruta", "to": "Punto en Ruta", "distance": 300}, {"day": 10, "from": "Punto en Ruta", "to": "Ática", "distance": 300}, {"day": 11, "from": "Ática", "to": "Athens, Greece", "distance": 35.669}, {"day": 12, "from": "Atenas", "to": "Atenas", "distance": 0}]},
+        {"id": 10, "tier": "SMALL_TOWNS", "name": "Tuscany Wine Route", "origin": "Montepulciano, Italy", "destination": "Volterra, Italy", "waypoints": ["Montalcino, Italy"], "distanceKm": 129.733, "actualDays": 2, "stages": [{"day": 1, "from": "Montepulciano, Italy", "to": "Montalcino, Italy", "distance": 35.987}, {"day": 2, "from": "Montalcino, Italy", "to": "Volterra, Italy", "distance": 93.746}]},
+        {"id": 11, "tier": "SMALL_TOWNS", "name": "Cotswolds Circuit", "origin": "Bourton-on-the-Water, England", "destination": "Winchcombe, England", "waypoints": ["Chipping Campden, England"], "distanceKm": 47.538, "actualDays": 2, "stages": [{"day": 1, "from": "Bourton-on-the-Water, England", "to": "Chipping Campden, England", "distance": 22.326}, {"day": 2, "from": "Chipping Campden, England", "to": "Winchcombe, England", "distance": 25.212}]},
+        {"id": 12, "tier": "SMALL_TOWNS", "name": "Loire Valley Towns", "origin": "Amboise, France", "destination": "Chenonceaux, France", "waypoints": ["Montrichard, France"], "distanceKm": 26.985, "actualDays": 2, "stages": [{"day": 1, "from": "Amboise, France", "to": "Montrichard, France", "distance": 18.077}, {"day": 2, "from": "Montrichard, France", "to": "Chenonceaux, France", "distance": 8.908}]},
+        {"id": 13, "tier": "EXTREME", "name": "Across Turkey", "origin": "Istanbul, Turkey", "destination": "Cappadocia, Turkey", "waypoints": ["Ankara, Turkey"], "distanceKm": 750.968, "actualDays": 5, "stages": [{"day": 1, "from": "Istanbul, Turkey", "to": "Nallıhan", "distance": 300}, {"day": 2, "from": "Nallıhan", "to": "Ankara, Turkey", "distance": 144.782}, {"day": 3, "from": "Ankara, Turkey", "to": "Nevşehir", "distance": 300}, {"day": 4, "from": "Nevşehir", "to": "Cappadocia, Turkey", "distance": 6.186}, {"day": 5, "from": "Avanos", "to": "Avanos", "distance": 0}]},
+        {"id": 14, "tier": "EXTREME", "name": "North Africa Desert", "origin": "Fez, Morocco", "destination": "Merzouga, Morocco", "waypoints": [], "distanceKm": 462.004, "actualDays": 3, "stages": [{"day": 1, "from": "Fez, Morocco", "to": "Provincia de Errachidía", "distance": 300}, {"day": 2, "from": "Provincia de Errachidía", "to": "Merzouga, Morocco", "distance": 162.004}, {"day": 3, "from": "Merzouga", "to": "Merzouga", "distance": 0}]},
+        {"id": 15, "tier": "COMPLEX", "name": "European Tech Hub Tour", "origin": "Lisbon, Portugal", "destination": "Budapest, Hungary", "waypoints": ["Dublin, Ireland", "Berlin, Germany", "Prague, Czech Republic"], "distanceKm": 5338.34, "actualDays": 24, "stages": []},
+        {"id": 16, "tier": "COMPLEX", "name": "Wine Tourism Circuit", "origin": "Bordeaux, France", "destination": "Avignon, France", "waypoints": ["Dijon, France", "Lyon, France"], "distanceKm": 1092.644, "actualDays": 5, "stages": []}
+      ]
+    };
+
+    function renderRoutes() {
+      const container = document.getElementById('routesContainer');
+      
+      container.innerHTML = testData.routes.map(route => {
+        const stagesHtml = route.stages && route.stages.length > 0
+          ? `<div class="stages"><strong>Etapas:</strong>` + route.stages.map(s => 
+              `<div class="stage"><span class="stage-day">Día ${s.day}:</span> ${s.from} → ${s.to} (${s.distance}km)</div>`
+            ).join('') + `</div>`
+          : '';
+
+        const waypointsText = route.waypoints && route.waypoints.length > 0 
+          ? route.waypoints.join(' → ') 
+          : '-';
+
+        return `
+          <div class="route-card">
+            <div class="route-number">Test #${route.id}</div>
+            <div class="route-name">${route.name}</div>
+            
+            <div class="route-data">
+              <div class="data-item">
+                <div class="data-label">Origen</div>
+                <div class="data-value">${route.origin}</div>
+              </div>
+              <div class="data-item">
+                <div class="data-label">Destino</div>
+                <div class="data-value">${route.destination}</div>
+              </div>
+              <div class="data-item">
+                <div class="data-label">Paradas</div>
+                <div class="data-value">${waypointsText}</div>
+              </div>
+              <div class="data-item">
+                <div class="data-label">Distancia (Test)</div>
+                <div class="data-value">${route.distanceKm.toFixed(2)} km</div>
+              </div>
+              <div class="data-item">
+                <div class="data-label">Días (Test)</div>
+                <div class="data-value">${route.actualDays}</div>
+              </div>
+              <div class="data-item">
+                <div class="data-label">Categoría</div>
+                <div class="data-value">${route.tier}</div>
+              </div>
+            </div>
+
+            ${stagesHtml}
+
+            <div class="button-group">
+              <button class="btn btn-copy" onclick="copyData('${route.origin}', '${route.destination}', '${route.waypoints.join('|')}')">📋 Copiar Datos</button>
+              <a href="https://maps.google.com/maps?q=${encodeURIComponent(route.origin)}+to+${encodeURIComponent(route.destination)}" target="_blank" class="btn">🗺️ Google Maps</a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function copyData(origin, destination, waypoints) {
+      let text = `Origen: ${origin}\n`;
+      text += `Destino: ${destination}\n`;
+      if (waypoints && waypoints !== '') {
+        text += `Paradas: ${waypoints.split('|').join(' → ')}\n`;
+      }
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert('✅ Datos copiados al portapapeles. Abre MOTOR y pega.');
+      }).catch(() => {
+        alert('Error al copiar. Copia manualmente desde la tarjeta.');
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('totalDistance').textContent = testData.summary.totalDistance.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + 'km';
+      renderRoutes();
+    });
+  </script>
+</body>
+</html>
