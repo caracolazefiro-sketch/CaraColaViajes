@@ -242,8 +242,8 @@ export default function TripMap({
 
                 {/* Marcadores de pernocta con círculos verdes y nombre de ciudad */}
                 {dailyItinerary?.map((day, i) => day.coordinates && (
-                    <Marker 
-                        key={`itinerary-${i}`} 
+                    <Marker
+                        key={`itinerary-${i}`}
                         position={day.coordinates}
                         label={{
                             text: day.to,
@@ -409,7 +409,7 @@ export default function TripMap({
                         {/* Sort Slider - ROJO DEGRADADO */}
                         <div className="flex flex-col items-center gap-1.5">
                             <label className="text-[11px] font-light text-red-600 flex items-center gap-1.5">
-                                <IconTrendingUp size={13} /> 
+                                <IconTrendingUp size={13} />
                                 {sortBy === 'score' ? 'Score' : sortBy === 'distance' ? 'Dist.' : 'Rate'}
                             </label>
                             <input

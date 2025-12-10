@@ -25,7 +25,7 @@ const IconLock = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w
 const IconEye = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>);
 
 const CATEGORY_ORDER: Record<string, number> = {
-    camping: 1, water: 2, gas: 3, supermarket: 4, laundry: 5, restaurant: 6, tourism: 7, custom: 8
+    camping: 1, gas: 2, supermarket: 3, laundry: 4, restaurant: 5, tourism: 6, custom: 7
 };
 
 interface ServiceButtonProps {
@@ -503,7 +503,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
                     {/* Grid de botones de servicios compacto */}
-                    <div className="grid grid-cols-4 gap-2 mb-4">
+                    <div className="grid grid-cols-3 gap-2 mb-4">
                         <ServiceButton 
                             type="camping" 
                             label="Spots" 
@@ -511,22 +511,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.camping?.length || 0}
                             filteredCount={saved.filter(s => s.type === 'camping').length + filterAndSort(places.camping || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="water" 
-                            label={t('SERVICE_WATER')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.water?.length || 0}
-                            filteredCount={saved.filter(s => s.type === 'water').length + filterAndSort(places.water || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="gas" 
-                            label={t('SERVICE_GAS')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.gas?.length || 0}
-                            filteredCount={saved.filter(s => s.type === 'gas').length + filterAndSort(places.gas || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="restaurant" 
@@ -543,6 +527,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             onToggle={onToggle} 
                             count={places.supermarket?.length || 0}
                             filteredCount={saved.filter(s => s.type === 'supermarket').length + filterAndSort(places.supermarket || [], minRating, searchRadius, sortBy).length}
+                        />
+                        <ServiceButton 
+                            type="gas" 
+                            label={t('SERVICE_GAS')} 
+                            toggles={toggles} 
+                            onToggle={onToggle} 
+                            count={places.gas?.length || 0}
+                            filteredCount={saved.filter(s => s.type === 'gas').length + filterAndSort(places.gas || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
                             type="laundry" 
@@ -675,7 +667,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
                     <div className="space-y-2">
                         <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
-                        <ServiceList type="water" title={t('SERVICE_WATER')} colorClass="text-cyan-600" markerColor="bg-cyan-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" markerColor="bg-orange-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         <ServiceList type="restaurant" title={t('SERVICE_EAT')} colorClass="text-blue-800" markerColor="bg-blue-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         <ServiceList type="supermarket" title={t('SERVICE_SUPERMARKET')} colorClass="text-green-700" markerColor="bg-green-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />

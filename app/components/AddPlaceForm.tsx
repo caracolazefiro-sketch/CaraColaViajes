@@ -34,22 +34,6 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
     const [customLng, setCustomLng] = useState(initialData?.geometry?.location ? String(initialData.geometry.location.lng) : '');
     const [customType, setCustomType] = useState<ServiceType>(initialData?.type || 'custom');
     const [customPublic, setCustomPublic] = useState(initialData?.isPublic || false);
-    const [geocoding, setGeocoding] = useState(false);    const handleGeocodeAddress = () => {
-        if (!customDesc) { alert("Escribe una dirección o nombre de lugar primero."); return; }
-        if (typeof google === 'undefined') return;
-        setGeocoding(true);
-        const geocoder = new google.maps.Geocoder();
-        const searchAddress = `${customDesc} near ${rawCityName}`;
-        geocoder.geocode({ address: searchAddress }, (results, status) => {
-            setGeocoding(false);
-            if (status === 'OK' && results && results[0]) {
-                const loc = results[0].geometry.location;
-                setCustomLat(loc.lat().toString());
-                setCustomLng(loc.lng().toString());
-                alert("✅ Ubicación encontrada.");
-            } else { alert("❌ No pudimos localizar ese sitio."); }
-        });
-    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -88,9 +72,9 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
                             <option value="custom">Otro</option>
                             <option value="camping">Pernocta</option>
                             <option value="restaurant">Restaurante</option>
-                            <option value="water">Aguas</option>
                             <option value="gas">Gasolinera</option>
                             <option value="supermarket">Super</option>
+                            <option value="laundry">Lavandería</option>
                             <option value="tourism">Turismo</option>
                             <option value="search">Buscado</option>
                             <option value="found">Encontrado</option>
@@ -102,9 +86,6 @@ export default function AddPlaceForm({ initialData, rawCityName, onSave, onCance
                 </div>
                 <div className="flex gap-2">
                     <input type="text" placeholder="Dirección (ej: Calle Mayor 1)" value={customDesc} onChange={e => setCustomDesc(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
-                    <button type="button" onClick={handleGeocodeAddress} disabled={geocoding} className="bg-blue-500 text-white px-3 rounded text-xs font-bold hover:bg-blue-600 flex items-center justify-center" title="Buscar coordenadas">
-                        {geocoding ? '...' : <IconSearchLoc />}
-                    </button>
                 </div>
                 <input type="text" placeholder="Link URL (Opcional)" value={customLink} onChange={e => setCustomLink(e.target.value)} className="w-full p-2 text-xs rounded border border-gray-300 outline-none" />
                 <textarea 

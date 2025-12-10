@@ -43,7 +43,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         e.stopPropagation();
         if (typeof window !== 'undefined') {
             // Limpiar específicamente las claves de CaraColaViajes (preservar otras datos si existen)
-            const keysToRemove = Object.keys(localStorage).filter(k => 
+            const keysToRemove = Object.keys(localStorage).filter(k =>
                 k.startsWith('caracola_trip_v1') // Cubre caracola_trip_v1 y caracola_trip_v1_${userId}
             );
             keysToRemove.forEach(key => {

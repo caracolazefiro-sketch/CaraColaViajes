@@ -4,13 +4,13 @@ import { Coordinates, PlaceWithDistance, ServiceType } from '../types';
 export function useTripPlaces(map: google.maps.Map | null) {
     // AÑADIDO 'search' y 'found' AL ESTADO INICIAL
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
-        camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: []
+        camping: [], restaurant: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: []
     });
     const [loadingPlaces, setLoadingPlaces] = useState<Record<ServiceType, boolean>>({
-        camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false
+        camping: false, restaurant: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false
     });
     const [toggles, setToggles] = useState<Record<ServiceType, boolean>>({
-        camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false
+        camping: false, restaurant: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false
     });
 
     // 💰 CACHÉ EN MEMORIA (Ahorro de API Calls)
@@ -41,18 +41,29 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
         switch(type) {
             case 'camping': 
-                // Búsqueda ampliada: campgrounds + áreas de autocaravanas (RV parks)
+                // COMBO 1: camping + restaurant + supermarket (bilingüe)
                 placeType = 'campground'; 
-                radius = 30000; 
+                radius = 10000; 
                 useKeyword = true;
-                searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta';
+                searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
                 break;
-            case 'restaurant': placeType = 'restaurant'; radius = 10000; break;
-            case 'water': placeType = 'campground'; radius = 25000; break; // No hay tipo específico, usamos campground
-            case 'gas': placeType = 'gas_station'; radius = 20000; break;
-            case 'supermarket': placeType = 'supermarket'; radius = 15000; break;
-            case 'laundry': placeType = 'laundry'; radius = 20000; break;
-            case 'tourism': placeType = 'tourist_attraction'; radius = 15000; break;
+            case 'restaurant': 
+                // COMBO 1: usa mismo caché que camping
+                return; // No hacemos búsqueda individual, se trae con camping
+            case 'supermarket': 
+                // COMBO 1: usa mismo caché que camping
+                return; // No hacemos búsqueda individual, se trae con camping
+            case 'gas': placeType = 'gas_station'; radius = 10000; break;
+            case 'laundry': 
+                // COMBO 2: gas + laundry + tourism (bilingüe)
+                placeType = 'laundry'; 
+                radius = 10000; 
+                useKeyword = true;
+                searchKeyword = 'laundry OR "self-service laundry" OR "lavandería autoservicio"';
+                break;
+            case 'tourism': 
+                // COMBO 2: usa mismo caché que gas/laundry
+                return; // No hacemos búsqueda individual
         }
 
         setLoadingPlaces(prev => ({...prev, [type]: true}));
@@ -111,7 +122,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     let pasa = true;
                     let razon = '';
                     
-                    if (type === 'camping') {
+                    if (type === 'camping') { // COMBO 1: camping + restaurant + supermarket
                         // Filtro estricto: debe ser campground/rv_park Y NO ser tienda/ferretería
                         const esCamping = tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && /camping|area|camper|autocaravana/i.test(spot.name || ''));
                         const esTienda = tags.includes('hardware_store') || tags.includes('store') || tags.includes('locksmith') || tags.includes('clothing_store') || tags.includes('sporting_goods_store') || tags.includes('shopping_mall');
@@ -120,24 +131,15 @@ export function useTripPlaces(map: google.maps.Map | null) {
                             if (esTienda) razon = 'Es tienda/ferretería, no camping real';
                             else razon = 'No es campground, rv_park ni parking con nombre camping/autocaravana';
                         }
-                    } else if (type === 'gas') {
+                    } else if (type === 'gas') { // COMBO 2: gas + laundry + tourism
                         pasa = tags.includes('gas_station');
                         if (!pasa) razon = 'No tiene tag gas_station';
-                    } else if (type === 'restaurant') {
-                        // Filtro: debe ser restaurant/café Y NO ser hotel/alojamiento
-                        const esRestaurante = tags.includes('restaurant') || tags.includes('cafe') || tags.includes('meal_takeaway') || tags.includes('meal_delivery');
-                        const esHotel = tags.includes('lodging') || tags.includes('hotel') || tags.includes('motel') || tags.includes('resort');
-                        pasa = esRestaurante && !esHotel;
-                        if (!pasa) {
-                            if (esHotel) razon = 'Es hotel/alojamiento con restaurante, no restaurante independiente';
-                            else razon = 'No es restaurant, cafe ni meal_takeaway';
-                        }
-                    } else if (type === 'supermarket') {
-                        pasa = tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('convenience_store');
-                        if (!pasa) razon = 'No es supermarket, grocery ni convenience_store';
-                    } else if (type === 'laundry') {
+                    } else if (type === 'laundry') { // Filtro secundario para combo 2
                         pasa = tags.includes('laundry') && !tags.includes('lodging');
                         if (!pasa) razon = tags.includes('laundry') ? 'Es lodging (hotel con lavandería)' : 'No tiene tag laundry';
+                    } else if (type === 'tourism') { // Filtro secundario para combo 2
+                        pasa = tags.includes('tourist_attraction') || tags.includes('museum') || tags.includes('park') || tags.includes('point_of_interest');
+                        if (!pasa) razon = 'No es atracción turística reconocida';
                     }
                     
                     if (!pasa) {
@@ -305,17 +307,44 @@ export function useTripPlaces(map: google.maps.Map | null) {
     const handleToggle = (type: ServiceType, coordinates?: Coordinates) => {
         const newState = !toggles[type];
         setToggles(prev => ({...prev, [type]: newState}));
+        
         // Solo buscamos si se enciende Y tenemos coordenadas
         if (newState && coordinates) {
-            searchPlaces(coordinates, type);
+            // COMBO 1: camping, restaurant, supermarket - todos comparten la misma búsqueda
+            if (type === 'camping' || type === 'restaurant' || type === 'supermarket') {
+                searchPlaces(coordinates, 'camping'); // Usa 'camping' como tipo para la búsqueda combinada
+                setToggles(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
+                // Distribuir resultados entre los tres tipos
+                setPlaces(prev => ({
+                    ...prev,
+                    camping: prev.camping,
+                    restaurant: prev.camping, // Mismo set de resultados
+                    supermarket: prev.camping // Mismo set de resultados
+                }));
+            } 
+            // COMBO 2: gas, laundry, tourism - todos comparten la misma búsqueda
+            else if (type === 'gas' || type === 'laundry' || type === 'tourism') {
+                searchPlaces(coordinates, 'gas'); // Usa 'gas' como tipo para la búsqueda combinada
+                setToggles(prev => ({...prev, gas: true, laundry: true, tourism: true}));
+                // Distribuir resultados entre los tres tipos
+                setPlaces(prev => ({
+                    ...prev,
+                    gas: prev.gas,
+                    laundry: prev.gas, // Mismo set de resultados
+                    tourism: prev.gas // Mismo set de resultados
+                }));
+            }
+            else {
+                searchPlaces(coordinates, type);
+            }
         }
     };
 
     const resetPlaces = () => {
         // Opcional: Podríamos limpiar la caché aquí si quisiéramos forzar recarga al cambiar de viaje
         // placesCache.current = {}; 
-        setToggles({ camping: false, restaurant: false, water: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false });
-        setPlaces({ camping: [], restaurant: [], water: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: [] });
+        setToggles({ camping: false, restaurant: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false });
+        setPlaces({ camping: [], restaurant: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: [] });
     };
 
     return { 

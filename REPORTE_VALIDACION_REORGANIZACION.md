@@ -1,7 +1,7 @@
 # 🔍 REPORTE DE VALIDACIÓN - Reorganización de Estructura
 
-**Fecha:** 10/DIC/2025  
-**Estado:** ✅ VALIDACIÓN COMPLETADA  
+**Fecha:** 10/DIC/2025
+**Estado:** ✅ VALIDACIÓN COMPLETADA
 **Riesgo General:** 🟡 MEDIO (Mitigable con procedimiento correcto)
 
 ---
@@ -53,8 +53,8 @@ Reorganización propuesta es **SEGURA** si seguimos este protocolo:
 ```bat
 set HTML_FILE=%SCRIPT_DIR%\DASHBOARD_REAL_TEST_RESULTADOS.html
 ```
-**Problema:** Busca HTML en raíz con ruta relativa  
-**Plan:** 
+**Problema:** Busca HTML en raíz con ruta relativa
+**Plan:**
 - Mover script a `.tests/scripts/`
 - Actualizar ruta: `..\results\TEST_RESULTS_INTERACTIVE.html` o similar
 - O: Crear wrapper en raíz que siga funcionando
@@ -66,7 +66,7 @@ const csvPath = `motor-real-api-${dateStr}-${timestamp}.csv`;
 const mdPath = `motor-real-api-${dateStr}-${timestamp}.md`;
 fs.writeFileSync(jsonPath, ...);
 ```
-**Problema:** Genera archivos en carpeta de ejecución (raíz o cwd)  
+**Problema:** Genera archivos en carpeta de ejecución (raíz o cwd)
 **Plan:**
 - Actualizar rutas: ``./.tests/results/motor-real-api...`
 - O: Pasar parámetro `--output-dir` a script
@@ -75,7 +75,7 @@ fs.writeFileSync(jsonPath, ...);
 ```html
 <option value="motor-real-api-2025-12-08-1765201716387">Test 1765201716387</option>
 ```
-**Problema:** Hardcoded filenames en dropdown  
+**Problema:** Hardcoded filenames en dropdown
 **Plan:** Será relocalizado a `.tests/dashboards/`, referencias no cambian (usa nombres solo, no paths)
 
 ---

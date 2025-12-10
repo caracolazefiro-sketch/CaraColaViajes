@@ -103,13 +103,13 @@ Proyecto 1: cara-cola-viajes
   - Conectado a: caracolazefiro-sketch/CaraColaViajes
   - Configurado para: rama "testing" (probablemente manual)
 
-Proyecto 2: cara-cola-viajes-pruebas  
+Proyecto 2: cara-cola-viajes-pruebas
   - Conectado a: caracolazefiro-sketch/CaraColaViajes
   - Configurado para: rama "testing" (probablemente manual)
 ```
 
 Ambos escuchan el **mismo webhook de GitHub**, así que:
-- Push a `testing` 
+- Push a `testing`
   → GitHub envía webhook a Vercel
   → Proyecto 1 lo recibe: "Ah, testing cambió, déjame desplegar"
   → Proyecto 2 lo recibe: "Ah, testing cambió, déjame desplegar"
@@ -165,7 +165,7 @@ vercel.json:
 Commit 1: 5fbce37 - feat: Add server start button to /search
 Commit 2: 64fb328 - fix: Disable testing branch deploy, keep only pruebas
   ❌ Problema: Deshabilitó testing, habilitó "pruebas" (rama fantasma)
-  
+
 Commit 3: e335cda - feat: Add offline server startup landing page
   → Debería desplegar a ambos (pero no desplegaba a ninguno)
 

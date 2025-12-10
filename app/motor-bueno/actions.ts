@@ -21,8 +21,8 @@ interface DirectionsRequest {
     waypoints: string[];
     travel_mode: 'driving';
     kmMaximoDia: number;
-    fechaInicio: string; 
-    fechaRegreso: string; 
+    fechaInicio: string;
+    fechaRegreso: string;
 }
 
 interface DirectionsResult {
@@ -83,7 +83,7 @@ function decodePolyline(encoded: string): LatLng[] {
 }
 
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371e3; 
+    const R = 6371e3;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -100,7 +100,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
         const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_2&key=${apiKey}&language=es`;
         const res = await fetch(url);
         const data = await res.json();
-        
+
         if (data.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             await sleep(1000 * attempt);
             return getCityNameFromCoords(lat, lng, apiKey, attempt + 1);
@@ -120,46 +120,46 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 // Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
 async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
     const segmented: DailyPlan[] = [];
-    
+
     for (const day of itinerary) {
         if (day.distance > maxKmPerDay && day.isDriving) {
             // Esta etapa necesita dividirse
             const numSegments = Math.ceil(day.distance / maxKmPerDay);
             const kmPerSegment = day.distance / numSegments;
-            
+
             console.log(`🔀 POST-segmentando: ${day.from} → ${day.to} (${Math.round(day.distance)} km) en ${numSegments} partes`);
-            
+
             let currentDate = new Date(day.isoDate);
             let currentStartCoords = day.startCoordinates || { lat: 0, lng: 0 };
             let currentStartName = day.from;
-            
+
             for (let i = 0; i < numSegments; i++) {
                 const isLast = i === numSegments - 1;
-                
+
                 let segmentEndName = day.to;
                 let segmentEndCoords = day.coordinates || { lat: 0, lng: 0 };
-                
+
                 // Para segmentos intermedios, buscar ciudad real en el punto interpolado
                 if (!isLast && day.startCoordinates && day.coordinates) {
                     const ratio = (i + 1) / numSegments;
-                    
+
                     const intermediateCoords = {
                         lat: day.startCoordinates.lat + (day.coordinates.lat - day.startCoordinates.lat) * ratio,
                         lng: day.startCoordinates.lng + (day.coordinates.lng - day.startCoordinates.lng) * ratio
                     };
-                    
+
                     // Obtener nombre real de la ciudad en ese punto
                     await sleep(100);
                     const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey);
                     segmentEndName = cityName;
                     segmentEndCoords = intermediateCoords;
                 }
-                
+
                 const segmentDay: DailyPlan = {
                     ...day,
                     date: formatDate(currentDate),
                     isoDate: currentDate.toISOString(),
-                    distance: isLast 
+                    distance: isLast
                         ? day.distance - (kmPerSegment * i)
                         : kmPerSegment,
                     from: currentStartName,
@@ -169,9 +169,9 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
                     coordinates: segmentEndCoords,
                     day: segmented.length + 1
                 };
-                
+
                 segmented.push(segmentDay);
-                
+
                 // Preparar para siguiente segmento
                 currentDate = addDays(currentDate, 1);
                 currentStartCoords = segmentEndCoords;
@@ -182,14 +182,14 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
             segmented.push({ ...day, day: segmented.length + 1 });
         }
     }
-    
+
     return segmented;
 }
 
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
-    
+
     const debugLog: string[] = [];
-    
+
     // Prefer a server-side API key for Google Maps. If a server key is not set,
     // fall back to the public key if available, but return a clear error when
     // neither exists.
@@ -236,34 +236,34 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             debugLog.push(`❌ Google API Response: status=${directionsResult.status}, error=${directionsResult.error_message}`);
             return { error: `Google API Error: ${directionsResult.error_message || directionsResult.status}`, debugLog };
         }
-        
+
         debugLog.push('✅ Google API Response OK');
-        
+
         const route = directionsResult.routes[0];
-        
+
         let totalDistanceMeters = 0;
         route.legs.forEach((leg: { distance: { value: number } }) => { totalDistanceMeters += leg.distance.value; });
         const distanceKm = totalDistanceMeters / 1000;
-        
+
         // Estructura temporal para guardar paradas con sus coordenadas de inicio y fin
-        const allDrivingStops: { 
-            from: string, to: string, distance: number, 
+        const allDrivingStops: {
+            from: string, to: string, distance: number,
             startCoords: {lat: number, lng: number}, // ✅ Start
             endCoords: {lat: number, lng: number}    // ✅ End (antes coordinates)
         }[] = [];
-        
-        const finalWaypointsForMap: string[] = []; 
+
+        const finalWaypointsForMap: string[] = [];
         const maxMeters = data.kmMaximoDia * 1000;
-        
-        let currentLegStartName = allStops[0]; 
+
+        let currentLegStartName = allStops[0];
         // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
         let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
-        
+
         let dayAccumulatorMeters = 0;
 
         for (let i = 0; i < route.legs.length; i++) {
             const leg = route.legs[i];
-            const nextStopName = allStops[i + 1]; 
+            const nextStopName = allStops[i + 1];
             let legDistanceMeters = 0;
 
             // Calcular la distancia total de este leg
@@ -287,7 +287,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
                         while (metersLeftInStep >= metersNeeded) {
                             let distWalked = 0;
-                            let stopCoords = path[currentPathIndex]; 
+                            let stopCoords = path[currentPathIndex];
 
                             for (let p = currentPathIndex; p < path.length - 1; p++) {
                                 const segment = getDistanceFromLatLonInM(path[p].lat, path[p].lng, path[p+1].lat, path[p+1].lng);
@@ -300,7 +300,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 distWalked += segment;
                             }
 
-                        await sleep(200); 
+                        await sleep(200);
                         const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
                         // Usar directamente el nombre de la ciudad (sin prefijo)
                         const stopName = stopNameRaw;
@@ -316,10 +316,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             endCoords: stopCoords
                         });                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
 
-                            currentLegStartName = stopNameRaw; 
+                            currentLegStartName = stopNameRaw;
                             currentLegStartCoords = stopCoords;
                             dayAccumulatorMeters = 0;
-                            metersNeeded = maxMeters; 
+                            metersNeeded = maxMeters;
                         }
                         dayAccumulatorMeters += metersLeftInStep;
                     }
@@ -331,7 +331,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
             // FORZAR: Cada waypoint es fin de etapa obligatorio
             const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
-            
+
             allDrivingStops.push({
                 from: currentLegStartName,
                 to: nextStopName,
@@ -345,20 +345,20 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             // Preparar para el siguiente waypoint
             currentLegStartName = nextStopName;
             currentLegStartCoords = legEndCoords;
-            dayAccumulatorMeters = 0; 
+            dayAccumulatorMeters = 0;
         }
 
         // --- CONSTRUCCIÓN DEL ITINERARIO ---
         const dailyItinerary: DailyPlan[] = [];
         let currentDate = new Date(data.fechaInicio);
         let dayCounter = 1;
-        
+
         for (const stop of allDrivingStops) {
              // Usar nombre directamente de allStops (ya es correcto)
              // Las coordenadas se usan solo para el mapa
              const distanceKm = Math.round(stop.distance);
              debugLog.push(`  📍 Etapa ${dayCounter}: ${stop.from} → ${stop.to} (${distanceKm} km)`);
-             
+
              dailyItinerary.push({
                 date: formatDate(currentDate),
                 isoDate: currentDate.toISOString(),
@@ -374,17 +374,17 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             currentDate = addDays(currentDate, 1);
             dayCounter++;
         }
-        
+
         if (data.fechaRegreso) {
             const dateEnd = new Date(data.fechaRegreso);
             const diffTime = dateEnd.getTime() - currentDate.getTime();
-            const daysStay = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            const daysStay = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             debugLog.push(`📅 Fecha regreso: ${data.fechaRegreso}, días de estancia: ${daysStay}`);
 
             if (daysStay > 0) {
                 const lastLeg = route.legs[route.legs.length - 1];
                 const stayCoords = { lat: lastLeg.end_location.lat, lng: lastLeg.end_location.lng };
-                
+
                 // Reverse geocodificar destino
                 let stayLocation = data.destination;
                 try {
@@ -411,12 +411,12 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 }
             }
         }
-        
+
         // DEBUG: Verificar que dailyItinerary tiene nombres, no coordenadas
         dailyItinerary.forEach((day, idx) => {
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to}`);
         });
-        
+
         // POST-PROCESAMIENTO: Segmentar etapas > 300km/día
         debugLog.push(`\n📊 Itinerario ANTES de post-segmentación: ${dailyItinerary.length} días`);
         const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey);
@@ -424,16 +424,16 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         segmentedItinerary.forEach((day, idx) => {
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
         });
-        
+
         const embedParams = {
             key: apiKey,
             origin: data.origin,
             destination: data.destination,
-            waypoints: finalWaypointsForMap.join('|'), 
+            waypoints: finalWaypointsForMap.join('|'),
             mode: data.travel_mode,
         };
         const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
-        
+
         return { distanceKm, mapUrl, dailyItinerary: segmentedItinerary, debugLog };
 
     } catch (e: unknown) {
