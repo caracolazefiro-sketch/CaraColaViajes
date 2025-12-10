@@ -26,6 +26,51 @@
 
 ## 🟡 MEDIA PRIORIDAD (Mencionado pero no iniciado)
 
+### 🔍 BUG: Buscador `/search` no funciona como se esperaba
+**Estado:** Parcialmente implementado (10 DIC 2025)
+
+**Problema identificado:**
+- ❌ Índice de búsqueda no carga correctamente en el navegador (error 404 o fetch fallido)
+- ❌ PARA_DUMMIES.md tiene 0 líneas en algunos casos (índice corrupto)
+- ❌ Al hacer clic en resultado NO actualiza URL con query como se esperaba
+- ❌ Funcionalidad deseada NO completamente implementada
+
+**Funcionalidad deseada:**
+1. Usuario ingresa término en caja de búsqueda
+2. Se muestran opciones donde aparece el término
+3. **Al hacer clic en una opción, la URL debe actualizarse a `/search?q=termino`**
+4. URL debe ser persistente y compartible
+
+**Cambios intentados:**
+- ✅ Script `generate-search-index.js` actualizado para buscar recursivamente en CHEMA/
+- ✅ Índice regenerado con estructura `entries` (no `files`)
+- ✅ Componente `app/search/page.tsx` actualizado con onClick handlers
+- ❌ **PERO** el índice aún no carga en Vercel o hay lag en la actualización
+
+**Archivos involucrados:**
+- `app/search/page.tsx` (componente principal)
+- `scripts/generate-search-index.js` (generador del índice)
+- `public/search-index.json` (archivo generado, 1.17 MB)
+
+**Causas posibles:**
+1. Tamaño del archivo JSON (464 KB) causa timeout en fetch
+2. Vercel no ha sincronizado el último push (esperar rebuild)
+3. Hook `useEffect` tiene race condition al cargar URL query
+4. Estructura del índice aún no coincide con lo que espera el componente
+
+**Pasos a investigar:**
+- [ ] Verificar en DevTools Network si search-index.json carga correctamente
+- [ ] Revisar console.log para ver exactamente dónde falla (loadIndex vs performSearch)
+- [ ] Considerar comprimir/chunkar el índice si es problema de tamaño
+- [ ] Validar que la query URL se lee correctamente con URLSearchParams
+- [ ] Testear localmente con `npm run dev` (PERO NO usar, ralentiza PC)
+
+**Tiempo estimado:** 1-2 horas
+
+**Prioridad:** MEDIA (feature estética, no crítica para core)
+
+---
+
 ### Drag & Drop de Etapas en Mapa
 **Contexto:** Usuario mencionó como idea futura en ROADMAP
 
