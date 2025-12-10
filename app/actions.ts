@@ -1,5 +1,8 @@
  'use server';
 
+// 💾 Importar funciones de caché persistente
+import { getCachedCityName, setCachedCityName } from './motor-bueno/geocoding-cache';
+
 // Definiciones de interfaces locales para el server action
 interface DailyPlan {
   date: string;
@@ -97,6 +100,13 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, attempt = 1): Promise<string> {
     try {
+        // 💾 PRIMERO: Verificar caché persistente
+        const cachedName = await getCachedCityName(lat, lng);
+        if (cachedName) {
+            return cachedName;
+        }
+
+        // ❌ MISS: Si no está en caché, llamar a Google API
         const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_2&key=${apiKey}&language=es`;
         const res = await fetch(url);
         const data = await res.json();
@@ -111,7 +121,11 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
             const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
             const admin3 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_3'))?.long_name;
             const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
-            return locality || admin3 || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+            const cityName = locality || admin3 || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+            
+            // 💾 Guardar en caché para futuras llamadas
+            await setCachedCityName(lat, lng, cityName);
+            return cityName;
         }
     } catch (e) { console.error("Geocode error", e); }
     return `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;

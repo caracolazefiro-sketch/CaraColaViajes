@@ -1,61 +1,143 @@
-# 🌙 Protocolo "BUENAS NOCHES"
+# 🌙 Protocolo "BUENAS NOCHES" - OPERATIVO v2.0
 
 **Ejecutable cuando:** User escriba exactamente `BUENAS NOCHES`
 
-## 📋 Checklist Automático
+**Versión:** 2.0 (Operativo + Integrado con ROADMAP)  
+**Estado:** ✅ 90% Automático | 10% User aprobación
 
-Cuando se ejecute este protocolo, realizar EN ORDEN:
+---
 
-### 1️⃣ **Snapshot del Chat**
+## 🎯 FLUJO OPERATIVO (FASE 1)
+
+### PASO 1️⃣: DETECCIÓN AUTOMÁTICA
 ```bash
-# Leer archivo de sesión actual
-cat CHAT_SESSION_*.md
-
-# Crear nuevo snapshot con:
-# - Timestamp (fecha y hora)
-# - Rama actual (git branch)
-# - Status (git status)
-# - Build status (npm run build)
-# - Cambios realizados (git log --oneline -5)
+Agent automáticamente:
+  ├─ Ejecuta: git status
+  ├─ Detecta archivos modificados
+  ├─ Extrae: últimos 5 commits (git log -1)
+  └─ Calcula: LOC changes, tipos de cambio (feat/fix/docs)
 ```
 
-### 2️⃣ **Archivo de Sesión**
-- Archivo: `CHAT_SESSION_YYYYMMDD.md`
-- Ubicación: Raíz del proyecto
-- Contenido:
-  - Resumen de conversación
-  - Archivos modificados
-  - Commits realizados
-  - Estado final
+### PASO 2️⃣: SNAPSHOT INTELIGENTE (NUEVO)
+Agent crea archivo: `BUENAS_NOCHES_YYYYMMDD.md` con:
 
-### 3️⃣ **Git Cleanup**
-```bash
-# Ver status
-git status
+```markdown
+# 🌙 BUENAS NOCHES - [FECHA Y HORA]
 
-# Agregar archivo de sesión
-git add CHAT_SESSION_*.md
+## 📊 SESIÓN METRICS
+- Duración: [Detectada automáticamente]
+- Commits realizados: N
+- Archivos modificados: N
+- Líneas cambiadas: +N -N
 
-# Commit (SIEMPRE solo en testing)
-git commit -m "docs: Chat session snapshot - YYYYMMDD"
+## 🎯 ROADMAP TRACKING (INTEGRACIÓN)
+Agent pregunta al user:
+"¿Qué ideas del ROADMAP completaste hoy?"
+  - [ ] P1 🔴 Migrar PlaceAutocompleteElement
+  - [ ] P2 🟠 Nominatim en Geocoding
+  - [ ] P2 🟠 Option B: Caché Nominatim+localStorage
+  - [ ] P3 🟡 Expandir caché Places
+  - [ ] Otro (describir):
 
-# Push SOLO a testing
-git push origin testing
+## 💡 CAMBIOS REALIZADOS
+- [Auto-lista archivos modificados]
+- [Auto-extrae commits]
 
-# ⚠️ NUNCA pushear a main ni previews
+## 💰 IMPACTO ESTIMADO
+- API calls evitados: N
+- $ ahorrado (estimado): $X.XX
+- Bugs cerrados: N
+- Features completadas: N
+
+## 📍 PRÓXIMA PRIORIDAD (SUGERENCIA)
+Agent sugiere (basado en ROADMAP.md):
+"Mañana con BUENOS DÍAS, podría empezar con: [P1/P2]"
+
+## 🔄 GIT SUMMARY
+- Branch: testing
+- Status: Clean/Cambios pendientes
+- Último commit: [hash - mensaje]
 ```
 
-### 4️⃣ **Validación Final**
-```bash
-# Verificar rama
-git branch --show-current  # Debe ser: testing
-
-# Verificar ultimo commit
-git log -1 --oneline
-
-# Verificar no hay cambios pendientes
-git status  # clean working tree
+### PASO 3️⃣: DIÁLOGO INTELIGENTE CON ROADMAP
 ```
+Agent pregunta al user:
+"Quieres incluir algo de esto en ROADMAP?"
+
+Si user dice "A ROADMAP [idea]":
+  ├─ Agent: "¿Bajo qué prioridad? (P1/P2/P3/P4)"
+  ├─ Agent: "¿Estado? (En progreso/Completada)"
+  ├─ Agent: "¿Dónde agregar exactamente?"
+  └─ Agent: [Actualiza ROADMAP.md automáticamente]
+
+Si user dice "SÍ" (aprobación general):
+  ├─ Agent: [Usa detección automática]
+  ├─ Agent: [Mapea con ROADMAP]
+  └─ Agent: [Sugiere ubicación]
+```
+
+### PASO 4️⃣: GIT AUTOMÁTICO (CON APROBACIÓN)
+```bash
+Agent prepara:
+  ├─ git add [Archivos snapshot]
+  ├─ git commit -m "[auto] Sesión [FECHA]: [Resumen]"
+  └─ Muestra preview al user
+
+User aprueba con:
+  "✅" → git push origin testing
+  "❌" → Cancela (sin pushear)
+```
+
+### PASO 5️⃣: CONFIRMACIÓN FINAL
+```
+Agent muestra:
+  ├─ Snapshot creado: ✅ BUENAS_NOCHES_[FECHA].md
+  ├─ ROADMAP actualizado: [Sí/No]
+  ├─ Git status: Branch testing, clean
+  └─ Próxima: "Mañana BUENOS DÍAS te sugiero..."
+```
+
+---
+
+## 🔗 INTEGRACIÓN CON ROADMAP
+
+Cuando user dice **"A ROADMAP"**, el protocolo:
+
+1. **Abre diálogo inteligente:**
+   ```
+   User: "A ROADMAP - agregamos la idea de caché"
+   Agent: "¿Es una nueva idea o completa una existente?
+           ¿Bajo qué prioridad? ¿Estado?"
+   ```
+
+2. **Mapea automáticamente:**
+   ```
+   Agent lee ROADMAP.md
+   Agent identifica P1-P4 existentes
+   Agent sugiere ubicación ideal
+   ```
+
+3. **Actualiza ROADMAP:**
+   ```
+   Agent modifica ROADMAP.md
+   Agent registra fecha/hora de actualización
+   Agent comitea cambios
+   ```
+
+---
+
+## 🚨 RESTRICCIONES CRÍTICAS
+
+| Acción | ❌ NUNCA | ✅ SIEMPRE |
+|--------|---------|----------|
+| **Push** | main, previews | testing |
+| **Commit msg** | Vago | [auto] Sesión [FECHA]: [resumen] |
+| **Build check** | Ignorar | Validar npm run build primero |
+| **ROADMAP update** | Sin confirmar | Con user approval |
+
+---
+
+## 📝 EJEMPLO: Flujo Completo
 
 ---
 
