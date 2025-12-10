@@ -2,8 +2,8 @@
   "git": {
     "deploymentEnabled": {
       "main": false,
-      "testing": false,
-      "pruebas": true
+      "testing": true,
+      "pruebas": false
     }
   }
 }
