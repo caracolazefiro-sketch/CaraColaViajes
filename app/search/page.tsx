@@ -15,11 +15,11 @@ interface SearchResult {
   matchIndices: number[];
 }
 
-interface SearchResponse {
-  query: string;
-  totalResults: number;
-  results: SearchResult[];
-  executionTime: number;
+interface IndexEntry {
+  filename: string;
+  path: string;
+  content: string;
+  lines: string[];
 }
 
 export default function SearchPage() {
@@ -30,47 +30,26 @@ export default function SearchPage() {
   const [totalResults, setTotalResults] = useState(0);
   const [executionTime, setExecutionTime] = useState(0);
   const [showContext, setShowContext] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [serverRunning, setServerRunning] = useState<boolean | null>(null);
-  const [startingServer, setStartingServer] = useState(false);
+  const [indexLoaded, setIndexLoaded] = useState(false);
+  const [indexData, setIndexData] = useState<IndexEntry[]>([]);
 
-  // Check server status on mount
+  // Cargar índice al montar
   useEffect(() => {
-    checkServerStatus();
-    const interval = setInterval(checkServerStatus, 3000); // Check every 3 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const checkServerStatus = useCallback(async () => {
-    try {
-      const response = await fetch('/api/dev/server');
-      const data = await response.json();
-      setServerRunning(data.running);
-    } catch (error) {
-      setServerRunning(false);
-    }
-  }, []);
-
-  const startServer = useCallback(async () => {
-    setStartingServer(true);
-    try {
-      const response = await fetch('/api/dev/server', { method: 'POST' });
-      if (response.ok) {
-        setServerRunning(true);
-        // Wait 3 seconds before checking
-        setTimeout(() => {
-          checkServerStatus();
-        }, 3000);
-      } else {
-        const error = await response.json();
-        setError(error.error || 'Failed to start server');
+    const loadIndex = async () => {
+      try {
+        const response = await fetch('/search-index.json');
+        if (!response.ok) throw new Error('Failed to load index');
+        const data = await response.json();
+        setIndexData(data.entries || []);
+        setIndexLoaded(true);
+      } catch (err) {
+        setError('No se pudo cargar el índice de búsqueda');
+        console.error(err);
       }
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setStartingServer(false);
-    }
-  }, [checkServerStatus]);
+    };
+    loadIndex();
+  }, []);
+
   useEffect(() => {
     if (!query || query.length < 2) {
       setResults([]);
@@ -80,45 +59,72 @@ export default function SearchPage() {
     }
 
     const timer = setTimeout(() => {
-      performSearch(query, false);
+      performSearch(query);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, indexLoaded, indexData]);
 
-  const performSearch = useCallback(async (searchQuery: string, forceRefresh: boolean) => {
+  const performSearch = useCallback((searchQuery: string) => {
+    const startTime = performance.now();
     setLoading(true);
     setError('');
-    setRefreshing(forceRefresh);
 
     try {
-      const params = new URLSearchParams();
-      params.set('q', searchQuery);
-      params.set('limit', '100');
-      if (forceRefresh) {
-        params.set('refresh', 'true');
+      if (!indexData.length) {
+        setError('Índice no cargado. Por favor recarga la página.');
+        setResults([]);
+        setTotalResults(0);
+        return;
       }
 
-      const response = await fetch(`/api/search?${params}`);
+      const results: SearchResult[] = [];
+      const queryLower = searchQuery.toLowerCase();
+      const queryRegex = new RegExp(`\\b${searchQuery.toLowerCase()}`, 'gi');
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Search failed');
-      }
+      indexData.forEach((entry) => {
+        const contentLower = entry.content.toLowerCase();
+        
+        // Búsqueda por palabra completa
+        if (!contentLower.includes(queryLower)) return;
 
-      const data: SearchResponse = await response.json();
-      setResults(data.results);
-      setTotalResults(data.totalResults);
-      setExecutionTime(data.executionTime);
+        entry.lines.forEach((line, lineIndex) => {
+          const lineLower = line.toLowerCase();
+          if (!lineLower.includes(queryLower)) return;
+
+          const matches = [...line.matchAll(queryRegex)];
+          if (matches.length === 0) return;
+
+          const matchIndices = matches.map((m) => m.index || 0);
+
+          const context = {
+            before: entry.lines.slice(Math.max(0, lineIndex - 2), lineIndex),
+            after: entry.lines.slice(lineIndex + 1, Math.min(entry.lines.length, lineIndex + 3)),
+          };
+
+          results.push({
+            filename: entry.filename,
+            path: entry.path,
+            lineNumber: lineIndex + 1,
+            lineContent: line,
+            context,
+            matchIndices,
+          });
+        });
+      });
+
+      const endTime = performance.now();
+      setResults(results.slice(0, 100));
+      setTotalResults(results.length);
+      setExecutionTime(Math.round(endTime - startTime));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : 'Error en búsqueda');
       setResults([]);
       setTotalResults(0);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  }, []);
+  }, [indexData]);
 
   const highlightMatch = (text: string, indices: number[]) => {
     if (indices.length === 0) return text;
@@ -126,11 +132,11 @@ export default function SearchPage() {
     const parts: (string | React.ReactNode)[] = [];
     let lastIndex = 0;
 
-    indices.forEach((index) => {
+    indices.forEach((index, i) => {
       const queryLen = query.length;
       parts.push(text.slice(lastIndex, index));
       parts.push(
-        <mark key={`${index}-${queryLen}`} className="bg-yellow-200 font-semibold">
+        <mark key={`${index}-${i}`} className="bg-yellow-300 font-semibold text-gray-900">
           {text.slice(index, index + queryLen)}
         </mark>
       );
@@ -149,45 +155,16 @@ export default function SearchPage() {
           <Link href="/" className="text-2xl font-bold text-white hover:text-slate-300 transition">
             ← Cara Cola Viajes
           </Link>
-
-          {/* Server Status Button */}
-          <button
-            onClick={startServer}
-            disabled={startingServer || serverRunning === true}
-            className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 whitespace-nowrap ${
-              serverRunning === true
-                ? 'bg-green-600/30 text-green-300 border border-green-500'
-                : startingServer
-                ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-500 animate-pulse'
-                : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-500'
-            }`}
-          >
-            {serverRunning ? (
-              <>
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                ✓ Servidor activo
-              </>
-            ) : startingServer ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                Iniciando...
-              </>
-            ) : (
-              <>
-                <span>▶</span>
-                Arrancar Servidor
-              </>
-            )}
-          </button>
+          <div className="text-slate-400 text-sm">🔍 Búsqueda en documentación</div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">📚 Búsqueda de Referencias</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">📚 Búsqueda Rápida</h1>
           <p className="text-slate-300">
-            Busca en toda la documentación del proyecto (docs/ + CHEMA/ANALISIS/)
+            Busca en documentación y código {!indexLoaded && '(cargando índice...)'}
           </p>
         </div>
 
@@ -198,36 +175,27 @@ export default function SearchPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Busca: 'optimizacion', 'api', 'motor', etc..."
+              placeholder="Busca: 'optimizacion', 'api', 'motor', 'hook'..."
               className="w-full px-6 py-4 text-lg bg-slate-700 text-white border-2 border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               autoFocus
+              disabled={!indexLoaded}
             />
             <span className="absolute right-4 top-4 text-slate-400 text-sm">
-              {query.length >= 2 ? '✓' : 'min 2 caracteres'}
+              {!indexLoaded ? '⏳' : query.length >= 2 ? '✓' : 'min 2 caracteres'}
             </span>
           </div>
 
           {/* Options */}
-          <div className="flex gap-4 mt-4 flex-wrap">
-            <label className="flex items-center gap-2 text-slate-300 cursor-pointer hover:text-white">
+          <div className="flex gap-4 mt-4 flex-wrap items-center">
+            <label className="flex items-center gap-2 text-slate-300 cursor-pointer hover:text-white transition px-3 py-2 bg-slate-700/30 rounded-lg border border-slate-600">
               <input
                 type="checkbox"
                 checked={showContext}
                 onChange={(e) => setShowContext(e.target.checked)}
-                className="w-4 h-4"
+                className="w-4 h-4 cursor-pointer"
               />
-              Mostrar contexto (líneas antes/después)
+              <span>📍 Contexto</span>
             </label>
-
-            {query.length >= 2 && (
-              <button
-                onClick={() => performSearch(query, true)}
-                disabled={refreshing}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white rounded-lg transition"
-              >
-                {refreshing ? '🔄 Actualizando...' : '🔄 Actualizar índice'}
-              </button>
-            )}
           </div>
         </div>
 
@@ -272,27 +240,26 @@ export default function SearchPage() {
               className="bg-slate-700/50 border border-slate-600 rounded-lg overflow-hidden hover:border-slate-500 transition"
             >
               {/* File Header */}
-              <div className="bg-slate-800/80 px-6 py-3 flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-slate-400 text-sm font-mono">{result.path}</p>
-                  <p className="text-white font-semibold">{result.filename}</p>
+              <div className="bg-slate-800/80 px-6 py-3 flex items-center justify-between border-b border-slate-700">
+                <div className="flex-1 min-w-0">
+                  <p className="text-slate-500 text-xs font-mono mb-1">📄 {result.path}</p>
+                  <p className="text-white font-semibold text-sm">{result.filename}</p>
                 </div>
                 <Link
                   href={`/${result.path.replace(/^docs\//, '').replace(/^CHEMA\/ANALISIS\//, '')}`}
                   target="_blank"
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition whitespace-nowrap ml-4"
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition whitespace-nowrap ml-4 font-medium"
                 >
-                  Ver →
+                  Abrir →
                 </Link>
               </div>
-
               {/* Line Info */}
               <div className="px-6 py-4">
-                <p className="text-slate-400 text-xs mb-2">Línea {result.lineNumber}</p>
+                <p className="text-slate-500 text-xs mb-3 font-semibold">📍 Línea {result.lineNumber}</p>
 
                 {/* Main Match Line */}
-                <div className="bg-slate-900 px-4 py-2 rounded border-l-4 border-yellow-500 mb-3 overflow-x-auto">
-                  <code className="text-slate-100 text-sm whitespace-pre-wrap break-words">
+                <div className="bg-slate-950 px-4 py-3 rounded border-l-4 border-yellow-400 mb-4 overflow-x-auto">
+                  <code className="text-yellow-100 text-sm whitespace-pre-wrap break-words font-mono">
                     {highlightMatch(result.lineContent, result.matchIndices)}
                   </code>
                 </div>
@@ -333,22 +300,29 @@ export default function SearchPage() {
         {/* Help Section */}
         {!query && (
           <div className="mt-12 bg-slate-700/30 border border-slate-600 rounded-lg p-8">
-            <h2 className="text-xl font-bold text-white mb-4">💡 Cómo usar</h2>
+            <h2 className="text-xl font-bold text-white mb-4">💡 Cómo usar el buscador</h2>
             <ul className="text-slate-300 space-y-2">
-              <li>✨ <strong>Escribe para buscar</strong>: Obtén resultados en tiempo real mientras escribes</li>
-              <li>🔍 <strong>Mínimo 2 caracteres</strong>: Busca con términos de al menos 2 caracteres</li>
-              <li>📂 <strong>Scope limitado</strong>: Solo busca en documentación (docs/ y CHEMA/ANALISIS/)</li>
-              <li>📍 <strong>Contexto</strong>: Activa/desactiva líneas de contexto antes y después</li>
-              <li>🔄 <strong>Actualizar</strong>: Haz clic en "Actualizar índice" para buscar archivos recientes</li>
+              <li>✨ <strong>Escribe para buscar</strong>: Obtén resultados en tiempo real mientras escribes (mín. 2 caracteres)</li>
+              <li>📂 <strong>Scope</strong>: Busca en documentación (docs/) y análisis (CHEMA/ANALISIS/)</li>
+              <li>📍 <strong>Contexto</strong>: Activa/desactiva líneas antes y después del match</li>
+              <li>🔄 <strong>Actualizar</strong>: Haz clic en "🔄 Actualizar índice" para incluir archivos recientes</li>
               <li>🔗 <strong>Ver archivo</strong>: Haz clic en "Ver →" para abrir el archivo completo</li>
+              <li>⚡ <strong>Búsqueda rápida</strong>: Los resultados se filtran automáticamente al escribir</li>
             </ul>
 
             <div className="mt-6 p-4 bg-slate-800/50 rounded border border-slate-600">
-              <p className="text-slate-400 text-sm">
-                <strong>Ejemplos de búsqueda:</strong>
+              <p className="text-slate-400 text-sm mb-2">
+                <strong>🔍 Sugerencias de búsqueda:</strong>
               </p>
-              <p className="text-slate-500 text-sm mt-2 font-mono">
-                "optimizacion" • "api" • "motor" • "supabase" • "cache" • "routes"
+              <div className="text-slate-500 text-sm font-mono space-y-1">
+                <p>motor • optimize • api • cache • supabase • routes • type • hook • component</p>
+                <p>performance • cost • algorithm • validation • security • database • auth</p>
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-slate-900/50 rounded border border-slate-700">
+              <p className="text-slate-400 text-xs">
+                💾 Archivo índice: <code>public/search-index.json</code> ({totalResults} resultados en caché)
               </p>
             </div>
           </div>
