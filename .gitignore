@@ -43,3 +43,15 @@ next-env.d.ts
 # Archived backups with Windows path length issues
 .archive/backups/BACKUP_PRE_MIGRATION*/
 
+# 🔒 SECURITY: Never commit API keys, test scripts with credentials
+.tests/
+tests/
+**/test-*api*.js
+**/test-*api*.ts
+**/*-api-key*.js
+**/*-api-key*.ts
+*.key
+*.secret
+*credentials*
+*token*
+
