@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Coordinates, WeatherData } from '../types';
+import { apiLogger } from '../utils/api-logger';
 
 interface RouteWeather {
     start?: WeatherData;
@@ -23,8 +24,17 @@ export function useWeather(
             try {
                 // Añadimos wind_speed_10m_max a la petición
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+                
+                // 🔍 Timing de Weather API
+                const weatherStartTime = performance.now();
                 const res = await fetch(url);
                 const data = await res.json();
+                const weatherEndTime = performance.now();
+                const weatherDuration = weatherEndTime - weatherStartTime;
+                
+                // 🔍 Log de Weather API
+                apiLogger.logWeather({ lat, lng, date: isoDate }, data, weatherDuration);
+                
                 if (data.daily) {
                     return {
                         code: data.daily.weather_code[0],
