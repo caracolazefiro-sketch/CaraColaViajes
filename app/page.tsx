@@ -12,9 +12,8 @@ import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 import ToastContainer from './components/ToastContainer';
-import UpcomingTripsNotification from './components/UpcomingTripsNotification';
 import AdjustStageModal from './components/AdjustStageModal';
-import DebugTools from './components/DebugTools';
+
 
 // HOOKS
 import { useTripCalculator } from './hooks/useTripCalculator';
@@ -93,21 +92,6 @@ export default function Home() {
       formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
       () => { setSelectedDayIndex(null); setMapBounds(null); }
   );
-
-  // Wrapper para cargar viaje desde notificación (solo con tripId)
-  const handleLoadTripFromNotification = async (tripId: number) => {
-      if (!supabase) return;
-
-      const { data: trip } = await supabase
-          .from('trips')
-          .select('*')
-          .eq('id', tripId)
-          .single();
-
-      if (trip && trip.trip_data) {
-          handleLoadCloudTrip(trip.trip_data, trip.id);
-      }
-  };
 
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
@@ -516,8 +500,7 @@ export default function Home() {
         )}
 
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-        <UpcomingTripsNotification onLoadTrip={handleLoadTripFromNotification} />
-        <DebugTools />
+
                 {/* Modal para ajustar etapa */}
         {adjustModalOpen && adjustingDayIndex !== null && results.dailyItinerary && (
           <AdjustStageModal
