@@ -305,35 +305,6 @@ export default function TripForm({
             </div>
 
             <form onSubmit={onSubmit} className="p-5 text-sm">
-                {/* CARGA RÁPIDA DE DATOS DE PRUEBA */}
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex justify-between items-center">
-                    <span className="text-xs font-bold text-blue-700">⚡ Datos de prueba (Salamanca → Punta Umbría)</span>
-                    <button
-                        type="button"
-                        onClick={() => {
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          const returnDate = new Date(tomorrow);
-                          returnDate.setDate(returnDate.getDate() + 4);
-
-                          setFormData({
-                            ...formData,
-                            tripName: 'Test Salamanca → Punta Umbría',
-                            origen: 'Salamanca, España',
-                            destino: '21100 Punta Umbría, Huelva, España',
-                            etapas: 'Valencia',
-                            fechaInicio: tomorrow.toISOString().split('T')[0],
-                            fechaRegreso: returnDate.toISOString().split('T')[0],
-                            kmMaximoDia: 300,
-                          });
-                          console.log('✅ Datos de prueba cargados');
-                        }}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition"
-                    >
-                      Cargar
-                    </button>
-                </div>
-
                 {/* NOMBRE DEL VIAJE */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">{t('FORM_TRIP_NAME')}</label>
