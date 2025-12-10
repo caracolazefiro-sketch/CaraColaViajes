@@ -32,8 +32,9 @@ export default function SearchPage() {
   const [showContext, setShowContext] = useState(true);
   const [indexLoaded, setIndexLoaded] = useState(false);
   const [indexData, setIndexData] = useState<IndexEntry[]>([]);
+  const [selectedResult, setSelectedResult] = useState<number | null>(null);
 
-  // Cargar índice al montar
+  // Cargar índice y query inicial de URL
   useEffect(() => {
     const loadIndex = async () => {
       try {
@@ -42,6 +43,13 @@ export default function SearchPage() {
         const data = await response.json();
         setIndexData(data.entries || []);
         setIndexLoaded(true);
+
+        // Cargar query desde URL si existe
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlQuery = urlParams.get('q');
+        if (urlQuery) {
+          setQuery(decodeURIComponent(urlQuery));
+        }
       } catch (err) {
         setError('No se pudo cargar el índice de búsqueda');
         console.error(err);
@@ -84,7 +92,7 @@ export default function SearchPage() {
 
       indexData.forEach((entry) => {
         const contentLower = entry.content.toLowerCase();
-        
+
         // Búsqueda por palabra completa
         if (!contentLower.includes(queryLower)) return;
 
@@ -237,7 +245,13 @@ export default function SearchPage() {
           {results.map((result, idx) => (
             <div
               key={`${result.path}-${result.lineNumber}-${idx}`}
-              className="bg-slate-700/50 border border-slate-600 rounded-lg overflow-hidden hover:border-slate-500 transition"
+              onClick={() => {
+                // Actualizar URL con el término buscado
+                const newUrl = `/search?q=${encodeURIComponent(query)}`;
+                window.history.pushState({ query }, '', newUrl);
+                setSelectedResult(idx);
+              }}
+              className="bg-slate-700/50 border-2 border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 hover:bg-slate-600/50 transition cursor-pointer"
             >
               {/* File Header */}
               <div className="bg-slate-800/80 px-6 py-3 flex items-center justify-between border-b border-slate-700">
@@ -245,13 +259,9 @@ export default function SearchPage() {
                   <p className="text-slate-500 text-xs font-mono mb-1">📄 {result.path}</p>
                   <p className="text-white font-semibold text-sm">{result.filename}</p>
                 </div>
-                <Link
-                  href={`/${result.path.replace(/^docs\//, '').replace(/^CHEMA\/ANALISIS\//, '')}`}
-                  target="_blank"
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition whitespace-nowrap ml-4 font-medium"
-                >
-                  Abrir →
-                </Link>
+                <span className="px-2 py-1 bg-blue-600/30 text-blue-300 text-xs rounded font-medium">
+                  Línea {result.lineNumber}
+                </span>
               </div>
               {/* Line Info */}
               <div className="px-6 py-4">
@@ -303,11 +313,11 @@ export default function SearchPage() {
             <h2 className="text-xl font-bold text-white mb-4">💡 Cómo usar el buscador</h2>
             <ul className="text-slate-300 space-y-2">
               <li>✨ <strong>Escribe para buscar</strong>: Obtén resultados en tiempo real mientras escribes (mín. 2 caracteres)</li>
-              <li>📂 <strong>Scope</strong>: Busca en documentación (docs/) y análisis (CHEMA/ANALISIS/)</li>
+              <li>📂 <strong>Scope</strong>: Busca en documentación completa (ROADMAP, PARA_DUMMIES, análisis, etc.)</li>
               <li>📍 <strong>Contexto</strong>: Activa/desactiva líneas antes y después del match</li>
-              <li>🔄 <strong>Actualizar</strong>: Haz clic en "🔄 Actualizar índice" para incluir archivos recientes</li>
-              <li>🔗 <strong>Ver archivo</strong>: Haz clic en "Ver →" para abrir el archivo completo</li>
-              <li>⚡ <strong>Búsqueda rápida</strong>: Los resultados se filtran automáticamente al escribir</li>
+              <li>🖱️ <strong>Seleccionar resultado</strong>: Haz clic en cualquier resultado para actualizar la URL con el término buscado</li>
+              <li>⚡ <strong>URL persistente</strong>: Puedes compartir la URL con `?q=tuTermino` para que otros vean los resultados</li>
+              <li>🔍 <strong>Búsqueda rápida</strong>: Los resultados se filtran automáticamente al escribir</li>
             </ul>
 
             <div className="mt-6 p-4 bg-slate-800/50 rounded border border-slate-600">
@@ -315,14 +325,15 @@ export default function SearchPage() {
                 <strong>🔍 Sugerencias de búsqueda:</strong>
               </p>
               <div className="text-slate-500 text-sm font-mono space-y-1">
-                <p>motor • optimize • api • cache • supabase • routes • type • hook • component</p>
-                <p>performance • cost • algorithm • validation • security • database • auth</p>
+                <p>github • vercel • next.js • typescript • react • api • database</p>
+                <p>motor • hook • component • cache • authentication • security • performance</p>
+                <p>dummies • roadmap • arquitectura • optimizacion • viaje • ruta</p>
               </div>
             </div>
 
             <div className="mt-4 p-4 bg-slate-900/50 rounded border border-slate-700">
               <p className="text-slate-400 text-xs">
-                💾 Archivo índice: <code>public/search-index.json</code> ({totalResults} resultados en caché)
+                💾 Archivo índice: <code>public/search-index.json</code> (18 documentos indexados)
               </p>
             </div>
           </div>
