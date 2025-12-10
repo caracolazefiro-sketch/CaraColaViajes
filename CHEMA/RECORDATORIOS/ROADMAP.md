@@ -1,6 +1,6 @@
 # CaraColaViajes - Roadmap Operativo 2025
 
-> **Última actualización:** 10 Diciembre 2025  
+> **Última actualización:** 10 Diciembre 2025 - COSTES NOMINATIM ADDED  
 > **Próxima revisión:** 17 Diciembre 2025  
 > **Estructura:** Priorizado por Urgencia + Impacto (ver matriz abajo)
 
@@ -26,6 +26,164 @@ URGENCIA ↑
 | 🟠 **P2 - ALTO** | Revenue-impacting, API costs | 1-2 semanas |
 | 🟡 **P3 - MEDIO** | UX, performance, migrations | 2-4 semanas |
 | 🟢 **P4 - BAJO** | Polish, nice-to-have, backlog | Cuando haya tiempo |
+
+---
+
+## 💰 ANÁLISIS DE COSTES: GOOGLE MAPS API vs OPENSTREETMAP/NOMINATIM
+
+> **CRÍTICO PARA EL ROADMAP:** Este análisis justifica la prioridad P2 de las optimizaciones Nominatim
+
+### 📊 COMPARATIVA DE COSTES POR FUNCIÓN
+
+| API/Función | Proveedor | Costo/Call | Llamadas/Año (Est.) | Costo Anual | Alternativa | Ahorro |
+|---|---|---|---|---|---|---|
+| **Geocoding** (convertir dirección → coords) | Google | $0.005 | 1,500 | **$7.50** | **Nominatim** | **$7.50 (100%)** |
+| **Reverse Geocoding** (coords → dirección) | Google | $0.005 | 500 | **$2.50** | **Nominatim** | **$2.50 (100%)** |
+| **Places Text Search** (buscar restaurantes, campings) | Google | $0.032 | 3,000 | **$96.00** | **Nominatim + localStorage caché** | **$96.00 (100%)** |
+| **Directions API** (calcular ruta) | Google | $0.10 | 100 | **$10.00** | ❌ No hay alternativa | $0.00 |
+| **Maps JS API** (visualización mapa) | Google | Gratis (con límites) | N/A | Varía | OpenStreetMap (Leaflet) | Potencial futuro |
+| **TOTAL ANUAL ACTUAL** | | | | **~$116.00** | | |
+| **TOTAL CON OPTIMIZACIONES P2** | | | | **~$10.00** | | **$106.00 (91%)** |
+
+### 🎯 DESGLOSE DE OPORTUNIDADES (EN ORDEN DE PRIORIDAD)
+
+#### **1️⃣ NOMINATIM GEOCODING (P2 - URGENTE - 15 min)**
+```
+Ubicación:     app/page.tsx línea 112
+API Actual:    google.maps.Geocoder()
+Costo:         $0.005/call → $0.00/call
+Frecuencia:    ~1,500 llamadas/año (usuarios ingresando ciudades)
+Ahorro Anual:  $7.50
+
+Solución:      Reemplazar con fetch() a Nominatim Search API
+Esfuerzo:      ⭐ Trivial (15 minutos)
+Complejidad:   Baja (una línea de código)
+
+Documentación: CHEMA/ANALISIS/NOMINATIM_DETALLES_TECNICOS_10DIC25.md
+```
+
+**Por qué es tan fácil:**
+- Nominatim retorna lat/lng directamente como Google
+- No requiere componentes nuevos
+- Sin dependencias adicionales (solo fetch nativo)
+
+---
+
+#### **2️⃣ OPTION B: CACHÉ NOMINATIM + LOCALSTORAGE (P2 - MEDIANO PLAZO - 2-3 sem)**
+```
+Ubicación:        app/components/TripForm.tsx (Places Text Search)
+API Actual:       google.places.textSearch()
+Costo:            $0.032/call → $0.00/call (con caché hit)
+Frecuencia:       ~3,000 búsquedas/año
+Hit Rate Actual:  ~30-40% (sin optimización)
+Hit Rate Objetivo: ~80%+ (con localStorage 30 días)
+
+Ahorro Anual:     ~$72-96 (si alcanzamos 80% hit rate)
+
+Arquitectura:
+  1. localStorage clave: 'nominatim_queries_v1'
+  2. Estructura: {query: {results, timestamp}}
+  3. TTL (Time-To-Live): 30 días automático
+  4. Fallback: localStorage → Google Places (si no hay caché)
+
+Esfuerzo:         ⭐⭐⭐ Moderado (2-3 semanas)
+Beneficio Extra:  Faster UX (queries en caché = 0ms vs 200-400ms API)
+
+Archivos:         app/hooks/useNominatimCache.ts (ya creado 300+ líneas)
+Documentación:    CHEMA/ANALISIS/NOMINATIM_DETALLES_TECNICOS_10DIC25.md
+```
+
+**Por qué vale la pena:**
+- $7.50 + $96 = ~$103.50/año de potencial ahorro
+- Mejor UX (resultados instantáneos desde caché)
+- Reducción de latencia de red
+- Menos carga en servidores Google
+
+---
+
+#### **3️⃣ EXPANDIR CACHÉ PLACES (P3 - FUTURO - 1-2 sem)**
+```
+Ubicación:       app/hooks/useTripPlaces.ts
+API Actual:      google.places.nearbySearch()
+Costo:           $0.035/call → $0.00/call (con caché)
+Frecuencia:      ~2,000 búsquedas/año
+Caché Actual:    Session-based (desaparece al refresh)
+Caché Objetivo:  localStorage persistent (7 días TTL)
+
+Ahorro Potencial: ~$70/año
+
+Arquitectura:
+  1. localStorage clave: 'places_cache_v1'
+  2. Key: `${type}_${lat}_${lng}` (ej: "restaurant_40.4_-3.7")
+  3. TTL: 7 días (Places se actualiza frecuentemente)
+  4. Reutilizar hook useNominatimCache existente
+
+Esfuerzo:        ⭐⭐ Media (1-2 semanas)
+Timeline:        Después de Option B
+```
+
+---
+
+### 🌍 OPENSTREETMAP/NOMINATIM - DATOS DISPONIBLES
+
+**Base de datos:** OpenStreetMap (colaborativa, libre)  
+**Cobertura mundial:** 50+ millones de lugares con nombres  
+**Actualización:** Diaria (datos en tiempo real)  
+**Licencia:** ODbL (libre uso comercial con atribución)
+
+#### Datos disponibles por categoría:
+| Categoría | Cantidad | Tipos |
+|---|---|---|
+| **Ciudades principales** | ~1-2 millones | city, town, village |
+| **Servicios turísticos** | ~50+ millones | restaurant, hotel, camping, gas_station |
+| **Carreteras** | 650+ millones | autopista, carretera, calle |
+| **POIs naturales** | 10+ millones | mountain, lake, river, park |
+| **Nodos georeferenciados** | 9+ mil millones | Todos los puntos del planeta |
+
+**Ejemplo:** Nuestro seed actual es **52 ciudades** de ~1-2M disponibles. Podríamos expandir a **50,000+ sin costo adicional**.
+
+---
+
+### 📈 IMPACTO EN PRESUPUESTO ANUAL
+
+```
+ESCENARIO ACTUAL (Sin optimizaciones)
+├─ Google APIs/mes: ~$9.67
+├─ Google APIs/año: ~$116
+└─ Alertas: ⚠️ Crece con usuarios
+
+ESCENARIO OPTIMIZADO (Con P2)
+├─ Geocoding: $0.00 (Nominatim)
+├─ Places Search: $0.00-2.00 (80% caché, 20% API)
+├─ Directions: $10.00 (no optimizable)
+├─ TOTAL/AÑO: ~$10-12
+└─ AHORRO: $104-106/año (91% reducción)
+
+ESCENARIO FUTURO (Con P2 + P3)
+├─ Google APIs/año: ~$10
+├─ TOTAL: ~$10-12
+└─ AHORRO: $104-106/año (91% reducción)
+```
+
+---
+
+### 🎯 RECOMENDACIÓN EJECUTIVA
+
+**P2 NO ES OPCIONAL - ES CRÍTICO:**
+1. **Nominatim Geocoding** (15 min) → Implementar HOY
+2. **Option B** (2-3 sem) → Iniciar ESTA SEMANA
+3. **Expandir Places** (1-2 sem) → Después de Option B
+
+**Por qué prioritario:**
+- 91% reducción de costos API
+- Mejor UX (caché = respuestas 10x más rápidas)
+- Escalabilidad (no crece costo con usuarios)
+- Sostenibilidad a largo plazo
+
+**Referencias documentales:**
+- `CHEMA/ANALISIS/NOMINATIM_DETALLES_TECNICOS_10DIC25.md`
+- `CHEMA/ANALISIS/ANALISIS_OPTIMIZACION_APIS.md`
+- `app/hooks/useNominatimCache.ts` (ya implementado)
 
 ---
 
@@ -447,6 +605,48 @@ Funcionalidades para versión de pago:
          Prioridad: 🔴 SECURITY
          Archivos: AdjustStageModal.tsx, TripForm.tsx
 ```
+
+
+---
+
+## 📌 RESUMEN EJECUTIVO - ANÁLISIS DE COSTES (CRÍTICO)
+
+**Descubrimiento clave (10 DIC 2025):**
+
+Tenemos acceso a **OpenStreetMap/Nominatim** (base de datos global de 50+ millones de lugares) **completamente gratuita**, mientras pagamos $116/año a Google por funciones que Nominatim puede hacer sin costo.
+
+### El problema de hoy:
+- Geocoding (convertir dirección → coords): Google $0.005/call → Nominatim $0.00 ✅
+- Places Search (buscar restaurantes/campings): Google $0.032/call → Nominatim caché localStorage $0.00 ✅
+- **Total anual sin optimizar:** ~$116
+- **Total anual optimizado:** ~$10-12 (91% reducción)
+
+### La solución:
+1. **Hoy (15 min):** Reemplazar Geocoding con Nominatim
+2. **Esta semana (2-3 sem):** Implementar caché Nominatim + localStorage
+3. **Objetivo:** $10-12/año en lugar de $116/año
+
+### Datos disponibles en Nominatim/OpenStreetMap:
+- **50+ millones de lugares** con nombres, coordenadas y categorías
+- **650 millones de vías** (carreteras, calles)
+- **9 mil millones de nodos** georeferenciados
+- **Actualización diaria** con datos de colaboradores worldwide
+- **Licencia ODbL** = uso comercial libre con atribución
+
+### Recomendación:
+**NO ES OPCIONAL.** P2 debe ser prioritario para sostenibilidad:
+- Reduce costos en 91%
+- Mejora UX (caché = respuestas 10x más rápidas)
+- Escalable sin preocuparse por presupuesto
+- Futuro-proof (no depende de Google)
+
+**Próximas acciones:**
+- Nominatim Geocoding: Implementar HOY (15 min)
+- Option B: Iniciar sesión siguiente (2-3 semanas)
+
+**Referencias:**
+- `CHEMA/ANALISIS/NOMINATIM_DETALLES_TECNICOS_10DIC25.md` (completo)
+- `app/hooks/useNominatimCache.ts` (ya implementado 300+ líneas)
 
 ---
 
