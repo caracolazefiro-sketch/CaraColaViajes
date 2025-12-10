@@ -13,7 +13,7 @@ const path = require('path');
 
 const SEARCH_DIRS = [
   path.join(__dirname, '../docs'),
-  path.join(__dirname, '../CHEMA/ANALISIS'),
+  path.join(__dirname, '../CHEMA'),
 ];
 
 const OUTPUT_FILE = path.join(__dirname, '../public/search-index.json');
@@ -58,6 +58,7 @@ function generateIndex() {
     files: [],
   };
 
+  // Process directories
   SEARCH_DIRS.forEach((dirPath) => {
     if (!fs.existsSync(dirPath)) {
       console.warn(`⚠️  Directory not found: ${dirPath}`);
