@@ -1,8 +1,8 @@
 {
   "version": "1.0",
-  "generatedAt": "2025-12-10T09:44:39.136Z",
+  "generatedAt": "2025-12-10T09:47:20.436Z",
   "fileCount": 57,
-  "files": [
+  "entries": [
     {
       "path": "docs\\diarios\\2025-12-02.md",
       "filename": "2025-12-02.md",
@@ -255,7 +255,7 @@
       ],
       "ext": ".md",
       "size": 8260,
-      "generatedAt": "2025-12-10T09:44:39.344Z"
+      "generatedAt": "2025-12-10T09:47:21.076Z"
     },
     {
       "path": "docs\\GOOGLE_CLOUD_LOGGING.md",
@@ -501,7 +501,7 @@
       ],
       "ext": ".md",
       "size": 5747,
-      "generatedAt": "2025-12-10T09:44:39.354Z"
+      "generatedAt": "2025-12-10T09:47:21.111Z"
     },
     {
       "path": "docs\\MOTOR_DASHBOARD.html",
@@ -783,7 +783,7 @@
       ],
       "ext": ".html",
       "size": 24156,
-      "generatedAt": "2025-12-10T09:44:39.409Z"
+      "generatedAt": "2025-12-10T09:47:21.133Z"
     },
     {
       "path": "docs\\PLAN_ACCION.html",
@@ -1034,7 +1034,7 @@
       ],
       "ext": ".html",
       "size": 11016,
-      "generatedAt": "2025-12-10T09:44:39.432Z"
+      "generatedAt": "2025-12-10T09:47:21.164Z"
     },
     {
       "path": "docs\\README_root.md",
@@ -1161,7 +1161,7 @@
       ],
       "ext": ".md",
       "size": 5100,
-      "generatedAt": "2025-12-10T09:44:39.432Z"
+      "generatedAt": "2025-12-10T09:47:21.164Z"
     },
     {
       "path": "docs\\ROADMAP.md",
@@ -1452,7 +1452,7 @@
       ],
       "ext": ".md",
       "size": 11916,
-      "generatedAt": "2025-12-10T09:44:39.440Z"
+      "generatedAt": "2025-12-10T09:47:21.172Z"
     },
     {
       "path": "docs\\TODO-NEXT-SESSION.md",
@@ -1667,7 +1667,7 @@
       ],
       "ext": ".md",
       "size": 5477,
-      "generatedAt": "2025-12-10T09:44:39.446Z"
+      "generatedAt": "2025-12-10T09:47:21.178Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_CACHE_STORAGE.md",
@@ -1972,7 +1972,7 @@
       ],
       "ext": ".md",
       "size": 7990,
-      "generatedAt": "2025-12-10T09:44:39.497Z"
+      "generatedAt": "2025-12-10T09:47:21.212Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_MIGRACION_MOTOR.md",
@@ -2284,7 +2284,7 @@
       ],
       "ext": ".md",
       "size": 10048,
-      "generatedAt": "2025-12-10T09:44:39.547Z"
+      "generatedAt": "2025-12-10T09:47:21.246Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_MOTOR_BUENO.md",
@@ -3543,7 +3543,7 @@
       ],
       "ext": ".md",
       "size": 41962,
-      "generatedAt": "2025-12-10T09:44:39.602Z"
+      "generatedAt": "2025-12-10T09:47:21.285Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_OPTIMIZACION_APIS.md",
@@ -4018,7 +4018,7 @@
       ],
       "ext": ".md",
       "size": 12518,
-      "generatedAt": "2025-12-10T09:44:39.613Z"
+      "generatedAt": "2025-12-10T09:47:21.295Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_RESUMEN_EJECUTIVO.md",
@@ -4262,7 +4262,7 @@
       ],
       "ext": ".md",
       "size": 7126,
-      "generatedAt": "2025-12-10T09:44:39.625Z"
+      "generatedAt": "2025-12-10T09:47:21.307Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_SERVICIOS_API.md",
@@ -4626,7 +4626,7 @@
       ],
       "ext": ".md",
       "size": 10379,
-      "generatedAt": "2025-12-10T09:44:39.657Z"
+      "generatedAt": "2025-12-10T09:47:21.314Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_TRIPTICK_OPORTUNIDAD.md",
@@ -4978,7 +4978,7 @@
       ],
       "ext": ".md",
       "size": 10329,
-      "generatedAt": "2025-12-10T09:44:39.669Z"
+      "generatedAt": "2025-12-10T09:47:21.325Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_TRIPTICK_VISUAL.html",
@@ -5379,7 +5379,7 @@
       ],
       "ext": ".html",
       "size": 17638,
-      "generatedAt": "2025-12-10T09:44:39.680Z"
+      "generatedAt": "2025-12-10T09:47:21.337Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ANALISIS_WEB_EN_PRODUCCION.md",
@@ -6152,7 +6152,7 @@
       ],
       "ext": ".md",
       "size": 27853,
-      "generatedAt": "2025-12-10T09:44:39.689Z"
+      "generatedAt": "2025-12-10T09:47:21.346Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\ESTRUCTURA_VERCEL_INVESTIGACION.md",
@@ -6390,7 +6390,7 @@
       ],
       "ext": ".md",
       "size": 5946,
-      "generatedAt": "2025-12-10T09:44:39.698Z"
+      "generatedAt": "2025-12-10T09:47:21.355Z"
     },
     {
       "path": "CHEMA\\ANALISIS\\PITCH_TORRE_JUANA_TRIPTICK.md",
@@ -6734,7 +6734,7 @@
       ],
       "ext": ".md",
       "size": 9208,
-      "generatedAt": "2025-12-10T09:44:39.706Z"
+      "generatedAt": "2025-12-10T09:47:21.363Z"
     },
     {
       "path": "CHEMA\\MANTENIMIENTO\\ACCIONES_INMEDIATAS.md",
@@ -6878,7 +6878,7 @@
       ],
       "ext": ".md",
       "size": 3711,
-      "generatedAt": "2025-12-10T09:44:39.714Z"
+      "generatedAt": "2025-12-10T09:47:21.371Z"
     },
     {
       "path": "CHEMA\\MANTENIMIENTO\\aplica-forma-de-trabajar-de-CHEMA.md",
@@ -7058,7 +7058,7 @@
       ],
       "ext": ".md",
       "size": 6139,
-      "generatedAt": "2025-12-10T09:44:39.721Z"
+      "generatedAt": "2025-12-10T09:47:21.378Z"
     },
     {
       "path": "CHEMA\\MANTENIMIENTO\\GUIA_OPTIMIZAR_SEVERO.md",
@@ -7236,7 +7236,7 @@
       ],
       "ext": ".md",
       "size": 4367,
-      "generatedAt": "2025-12-10T09:44:39.727Z"
+      "generatedAt": "2025-12-10T09:47:21.385Z"
     },
     {
       "path": "CHEMA\\MANTENIMIENTO\\OPTIMIZACIONES_PC.md",
@@ -7422,7 +7422,7 @@
       ],
       "ext": ".md",
       "size": 3974,
-      "generatedAt": "2025-12-10T09:44:39.728Z"
+      "generatedAt": "2025-12-10T09:47:21.385Z"
     },
     {
       "path": "CHEMA\\MANTENIMIENTO\\README.md",
@@ -7607,7 +7607,7 @@
       ],
       "ext": ".md",
       "size": 4196,
-      "generatedAt": "2025-12-10T09:44:39.730Z"
+      "generatedAt": "2025-12-10T09:47:21.404Z"
     },
     {
       "path": "CHEMA\\PARA_DUMMIES.md",
@@ -7946,7 +7946,7 @@
       ],
       "ext": ".md",
       "size": 10306,
-      "generatedAt": "2025-12-10T09:44:39.731Z"
+      "generatedAt": "2025-12-10T09:47:21.404Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\ANALISIS_BUG_AJUSTE_ETAPAS_20251205.md",
@@ -8104,7 +8104,7 @@
       ],
       "ext": ".md",
       "size": 4665,
-      "generatedAt": "2025-12-10T09:44:39.758Z"
+      "generatedAt": "2025-12-10T09:47:21.415Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\CHAT_SESSION_20241203.md",
@@ -8262,7 +8262,7 @@
       ],
       "ext": ".md",
       "size": 4638,
-      "generatedAt": "2025-12-10T09:44:39.769Z"
+      "generatedAt": "2025-12-10T09:47:21.426Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\CHAT_SESSION_20251203_ICONS_SLIDERS.md",
@@ -8462,7 +8462,7 @@
       ],
       "ext": ".md",
       "size": 5963,
-      "generatedAt": "2025-12-10T09:44:39.778Z"
+      "generatedAt": "2025-12-10T09:47:21.435Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\FIX_AJUSTE_ETAPAS_20251205.md",
@@ -8658,7 +8658,7 @@
       ],
       "ext": ".md",
       "size": 5019,
-      "generatedAt": "2025-12-10T09:44:39.779Z"
+      "generatedAt": "2025-12-10T09:47:21.436Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\INSTRUCCIONES_CREAR_PROYECTO_GOOGLE.md",
@@ -8731,7 +8731,7 @@
       ],
       "ext": ".md",
       "size": 1871,
-      "generatedAt": "2025-12-10T09:44:39.779Z"
+      "generatedAt": "2025-12-10T09:47:21.437Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\PROTOCOLO_ANALISIS_Y_DECISION.md",
@@ -8925,7 +8925,7 @@
       ],
       "ext": ".md",
       "size": 3968,
-      "generatedAt": "2025-12-10T09:44:39.790Z"
+      "generatedAt": "2025-12-10T09:47:21.464Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\PROTOCOLO_BUENAS_NOCHES.md",
@@ -9048,7 +9048,7 @@
       ],
       "ext": ".md",
       "size": 2300,
-      "generatedAt": "2025-12-10T09:44:39.797Z"
+      "generatedAt": "2025-12-10T09:47:21.471Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\PROTOCOLO_BUENOS_DIAS.md",
@@ -9212,7 +9212,7 @@
       ],
       "ext": ".md",
       "size": 3069,
-      "generatedAt": "2025-12-10T09:44:39.803Z"
+      "generatedAt": "2025-12-10T09:47:21.494Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\PROTOCOLO_OPTIMIZAR.md",
@@ -9494,7 +9494,7 @@
       ],
       "ext": ".md",
       "size": 6293,
-      "generatedAt": "2025-12-10T09:44:39.810Z"
+      "generatedAt": "2025-12-10T09:47:21.500Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\PROTOCOLO_PROYECTO_CARACOLA.md",
@@ -9802,7 +9802,7 @@
       ],
       "ext": ".md",
       "size": 10450,
-      "generatedAt": "2025-12-10T09:44:39.831Z"
+      "generatedAt": "2025-12-10T09:47:21.513Z"
     },
     {
       "path": "CHEMA\\PROTOCOLOS\\SNAPSHOT_BUENAS_NOCHES_20251203.md",
@@ -9988,7 +9988,7 @@
       ],
       "ext": ".md",
       "size": 4251,
-      "generatedAt": "2025-12-10T09:44:39.880Z"
+      "generatedAt": "2025-12-10T09:47:21.528Z"
     },
     {
       "path": "CHEMA\\README.md",
@@ -10136,7 +10136,7 @@
       ],
       "ext": ".md",
       "size": 3081,
-      "generatedAt": "2025-12-10T09:44:39.884Z"
+      "generatedAt": "2025-12-10T09:47:21.533Z"
     },
     {
       "path": "CHEMA\\RECORDATORIOS\\CHECKLIST_PROXIMOS_PASOS.md",
@@ -10432,7 +10432,7 @@
       ],
       "ext": ".md",
       "size": 7737,
-      "generatedAt": "2025-12-10T09:44:40.015Z"
+      "generatedAt": "2025-12-10T09:47:21.539Z"
     },
     {
       "path": "CHEMA\\RECORDATORIOS\\DIARIO_2025_12_03.md",
@@ -10700,7 +10700,7 @@
       ],
       "ext": ".md",
       "size": 7791,
-      "generatedAt": "2025-12-10T09:44:40.070Z"
+      "generatedAt": "2025-12-10T09:47:21.544Z"
     },
     {
       "path": "CHEMA\\RECORDATORIOS\\OPTIMIZACION_BUSCADOR_10DIC25.md",
@@ -10800,7 +10800,7 @@
       ],
       "ext": ".md",
       "size": 2543,
-      "generatedAt": "2025-12-10T09:44:40.077Z"
+      "generatedAt": "2025-12-10T09:47:21.568Z"
     },
     {
       "path": "CHEMA\\RECORDATORIOS\\RECORDATORIO_ANALISIS_TARDE.md",
@@ -10833,7 +10833,7 @@
       ],
       "ext": ".md",
       "size": 651,
-      "generatedAt": "2025-12-10T09:44:40.112Z"
+      "generatedAt": "2025-12-10T09:47:21.594Z"
     },
     {
       "path": "CHEMA\\RECORDATORIOS\\ROTACION_CLAVE_GCP_10DIC25.md",
@@ -10900,7 +10900,7 @@
       ],
       "ext": ".md",
       "size": 1700,
-      "generatedAt": "2025-12-10T09:44:40.136Z"
+      "generatedAt": "2025-12-10T09:47:21.602Z"
     },
     {
       "path": "CHEMA\\TESTING\\CARMEN_TESTING_EMAIL.html",
@@ -11211,7 +11211,7 @@
       ],
       "ext": ".html",
       "size": 12799,
-      "generatedAt": "2025-12-10T09:44:40.147Z"
+      "generatedAt": "2025-12-10T09:47:21.613Z"
     },
     {
       "path": "CHEMA\\TESTING\\CARMEN_TESTING_SETUP.md",
@@ -11371,7 +11371,7 @@
       ],
       "ext": ".md",
       "size": 5108,
-      "generatedAt": "2025-12-10T09:44:40.152Z"
+      "generatedAt": "2025-12-10T09:47:21.617Z"
     },
     {
       "path": "CHEMA\\TESTING\\EMAIL_CARMEN_TESTING_IPHONE.md",
@@ -11510,7 +11510,7 @@
       ],
       "ext": ".md",
       "size": 3773,
-      "generatedAt": "2025-12-10T09:44:40.162Z"
+      "generatedAt": "2025-12-10T09:47:21.627Z"
     },
     {
       "path": "CHEMA\\TESTING\\INFO_SCRAPER\\MOTOR_ARCHITECTURE.md",
@@ -11911,7 +11911,7 @@
       ],
       "ext": ".md",
       "size": 8887,
-      "generatedAt": "2025-12-10T09:44:40.162Z"
+      "generatedAt": "2025-12-10T09:47:21.628Z"
     },
     {
       "path": "CHEMA\\TESTING\\INFO_SCRAPER\\README.md",
@@ -11974,7 +11974,7 @@
       ],
       "ext": ".md",
       "size": 1568,
-      "generatedAt": "2025-12-10T09:44:40.169Z"
+      "generatedAt": "2025-12-10T09:47:21.634Z"
     },
     {
       "path": "CHEMA\\TESTING\\ONBOARDING_TESTING.html",
@@ -12357,7 +12357,7 @@
       ],
       "ext": ".html",
       "size": 13897,
-      "generatedAt": "2025-12-10T09:44:40.179Z"
+      "generatedAt": "2025-12-10T09:47:21.645Z"
     },
     {
       "path": "CHEMA\\TESTING\\ONBOARDING_TESTING.md",
@@ -12632,7 +12632,7 @@
       ],
       "ext": ".md",
       "size": 6569,
-      "generatedAt": "2025-12-10T09:44:40.180Z"
+      "generatedAt": "2025-12-10T09:47:21.646Z"
     },
     {
       "path": "CHEMA\\TESTING\\RESULTADOS_TESTS.md",
@@ -12889,7 +12889,7 @@
       ],
       "ext": ".md",
       "size": 6493,
-      "generatedAt": "2025-12-10T09:44:40.181Z"
+      "generatedAt": "2025-12-10T09:47:21.646Z"
     },
     {
       "path": "CHEMA\\TESTING\\RESUMEN_MEJORA_MOTOR_DEC8.md",
@@ -13091,7 +13091,7 @@
       ],
       "ext": ".md",
       "size": 4882,
-      "generatedAt": "2025-12-10T09:44:40.187Z"
+      "generatedAt": "2025-12-10T09:47:21.653Z"
     },
     {
       "path": "CHEMA\\TESTING\\SETUP_CARMEN.html",
@@ -13581,7 +13581,7 @@
       ],
       "ext": ".html",
       "size": 19467,
-      "generatedAt": "2025-12-10T09:44:40.188Z"
+      "generatedAt": "2025-12-10T09:47:21.653Z"
     },
     {
       "path": "CHEMA\\TESTING\\SETUP_CARMEN.md",
@@ -13700,7 +13700,7 @@
       ],
       "ext": ".md",
       "size": 4698,
-      "generatedAt": "2025-12-10T09:44:40.188Z"
+      "generatedAt": "2025-12-10T09:47:21.653Z"
     },
     {
       "path": "CHEMA\\TESTING\\SVG_TESTING_DONDE.md",
@@ -13835,7 +13835,7 @@
       ],
       "ext": ".md",
       "size": 2589,
-      "generatedAt": "2025-12-10T09:44:40.203Z"
+      "generatedAt": "2025-12-10T09:47:21.660Z"
     },
     {
       "path": "CHEMA\\TESTING\\SVG_TESTING_RESUMEN.md",
@@ -13968,7 +13968,7 @@
       ],
       "ext": ".md",
       "size": 2951,
-      "generatedAt": "2025-12-10T09:44:40.206Z"
+      "generatedAt": "2025-12-10T09:47:21.663Z"
     },
     {
       "path": "CHEMA\\TESTING\\TESTING_SVG_GUIA_COMPLETA.md",
@@ -14286,7 +14286,7 @@
       ],
       "ext": ".md",
       "size": 7380,
-      "generatedAt": "2025-12-10T09:44:40.212Z"
+      "generatedAt": "2025-12-10T09:47:21.669Z"
     },
     {
       "path": "CHEMA\\TESTING\\TEST_CHECKLIST.md",
@@ -14401,7 +14401,7 @@
       ],
       "ext": ".md",
       "size": 3302,
-      "generatedAt": "2025-12-10T09:44:40.256Z"
+      "generatedAt": "2025-12-10T09:47:21.680Z"
     },
     {
       "path": "CHEMA\\TESTING\\TEST_SCRAPER\\MOTOR_33_ROUTES_VALIDATION_20251208\\DASHBOARD_ES.html",
@@ -15283,7 +15283,7 @@
       ],
       "ext": ".html",
       "size": 30148,
-      "generatedAt": "2025-12-10T09:44:40.262Z"
+      "generatedAt": "2025-12-10T09:47:21.686Z"
     }
   ]
 }

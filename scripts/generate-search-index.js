@@ -55,7 +55,7 @@ function generateIndex() {
     version: '1.0',
     generatedAt: new Date().toISOString(),
     fileCount: 0,
-    files: [],
+    entries: [],
   };
 
   // Process directories
@@ -80,7 +80,7 @@ function generateIndex() {
           filePath
         );
 
-        index.files.push({
+        index.entries.push({
           path: relativePath,
           filename: path.basename(filePath),
           content: content,
@@ -97,7 +97,7 @@ function generateIndex() {
     });
   });
 
-  index.fileCount = index.files.length;
+  index.fileCount = index.entries.length;
 
   // Ensure output directory exists
   const outputDir = path.dirname(OUTPUT_FILE);
@@ -109,7 +109,7 @@ function generateIndex() {
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(index, null, 2), 'utf-8');
 
   console.log(
-    `\n📝 Search index generated successfully!\n   Location: ${OUTPUT_FILE}\n   Files indexed: ${index.fileCount}\n   Size: ${(index.files.reduce((sum, f) => sum + f.size, 0) / 1024).toFixed(2)} KB`
+    `\n📝 Search index generated successfully!\n   Location: ${OUTPUT_FILE}\n   Files indexed: ${index.fileCount}\n   Size: ${(index.entries.reduce((sum, f) => sum + f.size, 0) / 1024).toFixed(2)} KB`
   );
 
   return index;
