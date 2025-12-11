@@ -1,7 +1,9 @@
 # ✅ TODO LISTO PARA PRUEBAS - RESUMEN DE PREPARACIÓN
 
-**Fecha:** 10 DIC 2025  
-**Versión:** Logging System v1.0  
+> Nota: actualización menor para redeploy (Preview/testing) 11 DIC 2025.
+
+**Fecha:** 10 DIC 2025
+**Versión:** Logging System v1.0
 **Estado:** ✅ DEPLOYADO EN TESTING
 
 ---
@@ -268,7 +270,7 @@ Deploy: Vercel en progreso
 
 ## 🚀 LISTA PARA PRUEBAS
 
-El sistema está **100% listo**. 
+El sistema está **100% listo**.
 
 Cuando regreses:
 1. Abre el documento `PLAN_PRUEBAS_3_VIAJES.md`
