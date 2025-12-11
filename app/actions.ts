@@ -113,7 +113,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
         // ❌ MISS: Si no está en caché, llamar a Google API
         const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_2&key=${apiKey}&language=es`;
-        
+
         // 🔍 Timing de Geocoding API
         const geocodeStartTime = performance.now();
         const res = await fetch(geocodeUrl);
@@ -132,10 +132,10 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
             const admin3 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_3'))?.long_name;
             const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
             const cityName = locality || admin3 || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
-            
+
             // 🔍 Log de Geocoding API call
             apiLogger.logGeocoding({ lat, lng }, data, geocodeDuration, false);
-            
+
             // 💾 Guardar en caché para futuras llamadas
             await setCachedCityName(lat, lng, cityName);
             return cityName;
@@ -301,6 +301,19 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
         let currentLegStartName = allStops[0];
         // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
+            // Registrar en Supabase (servidor) si está configurado
+            await logApiToSupabase({
+              trip_id: tripId,
+              api: 'google-directions',
+              method: 'GET',
+              url,
+              status: directionsResult.status,
+              duration_ms: Math.round(directionsDuration),
+              cost: 0.005 + (0.005 * data.waypoints.length),
+              cached: false,
+              request: { origin: data.origin, destination: data.destination, waypoints: data.waypoints },
+              response: { status: directionsResult.status, routesCount: directionsResult.routes?.length || 0 }
+            });
         let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
 
         let dayAccumulatorMeters = 0;
