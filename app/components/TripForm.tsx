@@ -109,6 +109,7 @@ interface TripFormProps {
     loading: boolean;
     results: TripResult;
     onSubmit: (e: React.FormEvent) => void;
+    onSubmitServer?: () => void;
     showWaypoints: boolean;
     setShowWaypoints: (show: boolean) => void;
     // Props de Acciones
@@ -124,7 +125,7 @@ interface TripFormProps {
 }
 
 export default function TripForm({
-    formData, setFormData, loading, results, onSubmit, showWaypoints, setShowWaypoints,
+    formData, setFormData, loading, results, onSubmit, onSubmitServer, showWaypoints, setShowWaypoints,
     auditMode, setAuditMode, isSaving, onSave, onShare, onReset, currentTripId,
     t, convert
 }: TripFormProps) {
@@ -431,6 +432,11 @@ export default function TripForm({
                         <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded font-bold text-sm hover:from-red-700 hover:shadow-lg transition transform hover:-translate-y-0.5 disabled:opacity-50">
                             {loading ? t('FORM_LOADING') : t('FORM_CALCULATE')}
                         </button>
+                                                {onSubmitServer && (
+                                                    <button type="button" onClick={onSubmitServer} disabled={loading} className="w-full bg-gray-800 text-white py-3 rounded font-bold text-sm hover:bg-black transition disabled:opacity-50">
+                                                        {t('FORM_CALCULATE')} (Servidor beta)
+                                                    </button>
+                                                )}
                     </div>
                 </div>
             </form>
