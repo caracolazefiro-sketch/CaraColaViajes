@@ -179,6 +179,13 @@ export default function DebugTools() {
         >
           🖥️ Consola
         </button>
+        <a
+          href="/logs-viewer-supabase"
+          title="Ver logs de API (Supabase)"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded text-xs font-bold transition-all shadow-lg cursor-pointer text-center"
+        >
+          📡 API Logs
+        </a>
       </div>
 
       {/* Consola flotante */}
