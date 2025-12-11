@@ -6,6 +6,64 @@
 
 ---
 
+## 🗺️ Mapa de Deploys y Entornos (Vercel/GitHub)
+
+Resumen para ordenar proyectos/ramas/URLs y evitar confusiones entre Preview y Producción.
+
+- **Repositorios (GitHub):**
+  - `caracolazefiro-sketch/CaraColaViajes` (principal)
+  - Rama activa de trabajo: `testing`
+
+- **Proyectos (Vercel):**
+  - Proyecto PRODUCCIÓN (dominio principal): configuración estándar; usa `Production` env.
+  - Proyecto PRUEBAS (Preview dedicado): despliega ramas y commits de `testing`; usa `Preview` env.
+
+- **Dominios observados (Preview):**
+  - `cara-cola-viajes-git-testing-caracola.vercel.app`
+  - `cara-cola-viajes-22emosen6-caracola.vercel.app`
+  - `cara-cola-viajes-pruebas-git-testing-caracola.vercel.app` (el que ha mostrado “Supabase server not configured”)
+
+- **Diferencias entre entornos Vercel:**
+  - `Development`: local (`npm run dev`), variables `.env.local`.
+  - `Preview`: cada commit/PR en ramas (p.ej. `testing`); requiere configurar envs específicas de Preview.
+  - `Production`: despliegue estable del dominio principal; variables `Production`.
+
+- **Variables de entorno críticas (servidor):**
+  - `SUPABASE_URL` (ej. `https://<projectRef>.supabase.co`)
+  - `SUPABASE_SERVICE_ROLE_KEY` (prefijo `eyJ...`, NO `sb_`)
+  - Nota: estas dos son necesarias para que `supabaseServer` exista; si faltan, endpoints devuelven “Servidor de Supabase no configurado”.
+
+- **Variables de entorno cliente (opcionales para visor):**
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+- **Endpoints de diagnóstico (Preview/Prod):**
+  - Salud: `/api/supabase-health` → `ok: true` cuando URL/Key son válidos. Incluye `details.projectRef` y `keyPrefix` para detectar mismatches.
+  - Insert test: `/api/logs-supabase-test` → valida escritura.
+  - Lectura: `/api/logs-supabase?limit=20` → devuelve `logs`.
+  - Visor: `/logs-viewer-supabase` → tabla con llamadas y costes.
+
+- **Causa típica de fallo tras un commit (como el caso observado):**
+  - El código no tocó Supabase, pero el despliegue cayó en un Proyecto de Vercel “de pruebas” sin `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` en `Preview`.
+  - Solución: añadir esas envs en el proyecto de Preview y redeploy (commit vacío sirve).
+
+### 🔧 Plan de Limpieza/Organización
+
+1. Inventariar proyectos Vercel y vincularlos a ramas:
+   - Producción ↔ rama `main` (o la estable que uses)
+   - Preview (pruebas) ↔ rama `testing`
+2. Alinear variables de entorno por entorno:
+   - Preview: añadir `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` del mismo `projectRef` (ver `/api/supabase-health`).
+   - Production: mismas variables, verificadas.
+3. Estandarizar dominios de referencia en documentación interna:
+   - Añadir sección “Entornos” en `README_LOGGING_SYSTEM.md` con los dominios activos.
+4. Automatizar validación en cada deploy:
+   - Endpoint `supabase-health` en la página de visor: si falla, mostrar `reason` y `details` para diagnóstico inmediato.
+5. Rama de características separada para cambios sensibles (Google-only, costes):
+   - Crear `feature/google-only-search` → desplegar en Preview con envs correctas → validar → merge a `testing`.
+
+---
+
 ## 🚨 MATRIZ DE PRIORIDAD
 
 ```
