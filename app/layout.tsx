@@ -27,12 +27,31 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const buildStamp =
+    typeof process !== 'undefined'
+      ? `${process.env.VERCEL_ENV ?? 'local'} · ${process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev'} · ${new Date().toISOString().slice(0, 10)}`
+      : undefined
   return (
     <html lang="es">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <footer style={{
+          position: 'fixed',
+          right: 8,
+          bottom: 8,
+          fontSize: '12px',
+          background: 'rgba(0,0,0,0.6)',
+          color: '#fff',
+          padding: '4px 8px',
+          borderRadius: '6px',
+          zIndex: 1000,
+        }}>
+          <span title="Entorno · commit · fecha">
+            {buildStamp}
+          </span>
+        </footer>
       </body>
     </html>
   );
