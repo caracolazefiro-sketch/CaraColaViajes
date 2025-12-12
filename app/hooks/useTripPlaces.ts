@@ -219,10 +219,16 @@ export function useTripPlaces(map: google.maps.Map | null) {
         setLoadingPlaces(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
 
         const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
-        service.nearbySearch(request, (res, status) => {
+        const collected: google.maps.places.PlaceResult[] = [];
+        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination) => {
             setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
-            if (status !== google.maps.places.PlacesServiceStatus.OK || !res) {
-                setPlaces(prev => ({...prev, camping: [], restaurant: [], supermarket: [] }));
+            if (status === google.maps.places.PlacesServiceStatus.OK && res) {
+                collected.push(...res);
+            }
+            const shouldContinue = pagination && pagination.hasNextPage && collected.length < 60;
+            if (shouldContinue) {
+                // nextPage requiere una pequeña espera según la API
+                setTimeout(() => pagination!.nextPage(), 300);
                 return;
             }
             const toPlace = (spot: google.maps.places.PlaceResult): PlaceWithDistance => {
@@ -231,7 +237,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
                 const dist = spot.geometry?.location ? google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location) : 999999;
                 return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type: 'camping', opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
             };
-            const all = res.map(toPlace);
+            const all = collected.map(toPlace);
             // Asignación exclusiva por prioridad: camping > supermarket > restaurant
             const assignType = (p: PlaceWithDistance): ServiceType | null => {
                 const tags = p.types || [];
@@ -258,7 +264,8 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
             // Actualizamos resultados sin modificar el estado de otros toggles
             setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
-        });
+        };
+        service.nearbySearch(request, handlePage);
     }, [map]);
 
     // BÚSQUEDA COMBINADA: gas + laundry + tourism
@@ -272,10 +279,15 @@ export function useTripPlaces(map: google.maps.Map | null) {
         setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));
 
         const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
-        service.nearbySearch(request, (res, status) => {
+        const collected: google.maps.places.PlaceResult[] = [];
+        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination) => {
             setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
-            if (status !== google.maps.places.PlacesServiceStatus.OK || !res) {
-                setPlaces(prev => ({...prev, gas: [], laundry: [], tourism: [] }));
+            if (status === google.maps.places.PlacesServiceStatus.OK && res) {
+                collected.push(...res);
+            }
+            const shouldContinue = pagination && pagination.hasNextPage && collected.length < 60;
+            if (shouldContinue) {
+                setTimeout(() => pagination!.nextPage(), 300);
                 return;
             }
             const toPlace = (spot: google.maps.places.PlaceResult): PlaceWithDistance => {
@@ -284,7 +296,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
                 const dist = spot.geometry?.location ? google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location) : 999999;
                 return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type: 'gas', opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
             };
-            const all = res.map(toPlace);
+            const all = collected.map(toPlace);
             const isGas = (p: PlaceWithDistance) => (p.types || []).includes('gas_station');
             const isLaundry = (p: PlaceWithDistance) => {
                 const tags = p.types || [];
@@ -304,7 +316,8 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
             // Actualizamos resultados sin activar otros toggles automáticamente
             setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList, tourism: tourismList }));
-        });
+        };
+        service.nearbySearch(request, handlePage);
     }, [map]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
