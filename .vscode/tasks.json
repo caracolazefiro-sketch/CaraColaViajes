@@ -109,6 +109,11 @@
 			"label": "🏗️ Build",
 			"type": "shell",
 			"command": "npm run build"
+		},
+		{
+			"label": "🏗️ Build",
+			"type": "shell",
+			"command": "npm run build"
 		}
 	]
 }

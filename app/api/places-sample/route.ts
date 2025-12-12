@@ -67,7 +67,7 @@ export async function GET() {
     const supermarket = results1.filter(classifySupermarket);
 
     // Supercategoría 2: Gas+Lavar+Turismo
-    const keyword2 = 'gas OR gas_station OR laundry OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
+    const keyword2 = 'gas OR gas_station OR laundry OR "self-service laundry" OR "self service laundry" OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
     const r2 = await nearbySearch(center, radius, keyword2, apiKey);
     const results2: PlaceResult[] = r2.results || [];
     const gas = results2.filter(classifyGas);

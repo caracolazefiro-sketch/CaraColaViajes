@@ -264,7 +264,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
         const service = new google.maps.places.PlacesService(map);
         const centerPoint = new google.maps.LatLng(location.lat, location.lng);
         const radius = 20000;
-        const keyword = 'gas OR gas_station OR laundry OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
+        const keyword = 'gas OR gas_station OR laundry OR "self-service laundry" OR "self service laundry" OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
 
         setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));
 
