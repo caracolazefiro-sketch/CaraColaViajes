@@ -253,8 +253,8 @@ export function useTripPlaces(map: google.maps.Map | null) {
             const restaurantList = all.filter(isRestaurant).map(p => ({ ...p, type: 'restaurant' as ServiceType }));
             const supermarketList = all.filter(isSupermarket).map(p => ({ ...p, type: 'supermarket' as ServiceType }));
 
+            // Actualizamos resultados sin modificar el estado de otros toggles
             setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
-            setToggles(prev => ({ ...prev, camping: true, restaurant: true, supermarket: true }));
         });
     }, [map]);
 
@@ -289,6 +289,9 @@ export function useTripPlaces(map: google.maps.Map | null) {
             };
             const isTourism = (p: PlaceWithDistance) => {
                 const tags = p.types || [];
+                // Evitar clasificar como turismo si ya es lavandería (confusión visual)
+                const esLaundry = tags.includes('laundry') && !tags.includes('lodging');
+                if (esLaundry) return false;
                 return tags.includes('tourist_attraction') || tags.includes('museum') || tags.includes('park') || tags.includes('point_of_interest');
             };
 
@@ -296,8 +299,8 @@ export function useTripPlaces(map: google.maps.Map | null) {
             const laundryList = all.filter(isLaundry).map(p => ({ ...p, type: 'laundry' as ServiceType }));
             const tourismList = all.filter(isTourism).map(p => ({ ...p, type: 'tourism' as ServiceType }));
 
+            // Actualizamos resultados sin activar otros toggles automáticamente
             setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList, tourism: tourismList }));
-            setToggles(prev => ({ ...prev, gas: true, laundry: true, tourism: true }));
         });
     }, [map]);
 
@@ -417,6 +420,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
     // ... (Resto igual)
     const handleToggle = (type: ServiceType, coordinates?: Coordinates) => {
         const newState = !toggles[type];
+        // Solo cambiamos el toggle clicado; no tocamos los demás
         setToggles(prev => ({...prev, [type]: newState}));
         
         // Solo buscamos si se enciende Y tenemos coordenadas
