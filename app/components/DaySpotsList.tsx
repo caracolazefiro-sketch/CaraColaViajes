@@ -35,9 +35,11 @@ interface ServiceButtonProps {
     onToggle: (type: ServiceType) => void;
     count?: number;
     filteredCount?: number; // Nuevo: contador post-filtro
+    loading?: boolean;
+    showCount?: boolean;
 }
 
-const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, filteredCount }) => {
+const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, filteredCount, loading = false, showCount = false }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
     // Mostrar count (resultados brutos de Google), no filteredCount
@@ -61,8 +63,13 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
             {/* Label */}
             <span className="text-[10px] leading-tight text-center">{label}</span>
             
-            {/* Contador de resultados */}
-            {count > 0 && (
+            {/* Loader */}
+            {loading && (
+                <span className={`absolute -top-1 -left-1 w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-gray-500'} animate-pulse`} title="Buscando..." />
+            )}
+
+            {/* Contador de resultados (solo cuando debe mostrarse) */}
+            {showCount && count > 0 && (
                 <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
                     isActive 
                         ? 'bg-red-500 text-white' 
@@ -510,6 +517,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             toggles={toggles} 
                             onToggle={onToggle} 
                             count={places.camping?.length || 0}
+                            loading={loading.camping}
+                            showCount={toggles.camping || toggles.restaurant || toggles.supermarket}
                             filteredCount={saved.filter(s => s.type === 'camping').length + filterAndSort(places.camping || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
@@ -518,6 +527,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             toggles={toggles} 
                             onToggle={onToggle} 
                             count={places.restaurant?.length || 0}
+                            loading={loading.restaurant}
+                            showCount={toggles.camping || toggles.restaurant || toggles.supermarket}
                             filteredCount={saved.filter(s => s.type === 'restaurant').length + filterAndSort(places.restaurant || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
@@ -526,6 +537,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             toggles={toggles} 
                             onToggle={onToggle} 
                             count={places.supermarket?.length || 0}
+                            loading={loading.supermarket}
+                            showCount={toggles.camping || toggles.restaurant || toggles.supermarket}
                             filteredCount={saved.filter(s => s.type === 'supermarket').length + filterAndSort(places.supermarket || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
@@ -534,6 +547,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             toggles={toggles} 
                             onToggle={onToggle} 
                             count={places.gas?.length || 0}
+                            loading={loading.gas}
+                            showCount={toggles.gas || toggles.laundry || toggles.tourism}
                             filteredCount={saved.filter(s => s.type === 'gas').length + filterAndSort(places.gas || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
@@ -542,6 +557,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             toggles={toggles} 
                             onToggle={onToggle} 
                             count={places.laundry?.length || 0}
+                            loading={loading.laundry}
+                            showCount={toggles.gas || toggles.laundry || toggles.tourism}
                             filteredCount={saved.filter(s => s.type === 'laundry').length + filterAndSort(places.laundry || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 
@@ -550,6 +567,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             toggles={toggles} 
                             onToggle={onToggle} 
                             count={places.tourism?.length || 0}
+                            loading={loading.tourism}
+                            showCount={toggles.gas || toggles.laundry || toggles.tourism}
                             filteredCount={saved.filter(s => s.type === 'tourism').length + filterAndSort(places.tourism || [], minRating, searchRadius, sortBy).length}
                         />
                         <ServiceButton 

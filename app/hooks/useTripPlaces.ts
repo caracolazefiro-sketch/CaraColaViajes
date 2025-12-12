@@ -219,12 +219,12 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
         const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
         const collected: google.maps.places.PlaceResult[] = [];
-        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination) => {
+        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination | null) => {
             setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
             if (status === google.maps.places.PlacesServiceStatus.OK && res) {
                 collected.push(...res);
             }
-            const shouldContinue = pagination && pagination.hasNextPage && collected.length < 60;
+            const shouldContinue = !!pagination && pagination.hasNextPage && collected.length < 60;
             if (shouldContinue) {
                 // nextPage requiere una pequeña espera según la API
                 setTimeout(() => pagination!.nextPage(), 300);
@@ -279,12 +279,12 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
         const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
         const collected: google.maps.places.PlaceResult[] = [];
-        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination) => {
+        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination | null) => {
             setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
             if (status === google.maps.places.PlacesServiceStatus.OK && res) {
                 collected.push(...res);
             }
-            const shouldContinue = pagination && pagination.hasNextPage && collected.length < 60;
+            const shouldContinue = !!pagination && pagination.hasNextPage && collected.length < 60;
             if (shouldContinue) {
                 setTimeout(() => pagination!.nextPage(), 300);
                 return;
