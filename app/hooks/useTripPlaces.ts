@@ -167,7 +167,6 @@ export function useTripPlaces(map: google.maps.Map | null) {
                     const rating = spot.rating || 0;
                     const reviews = spot.user_ratings_total || 0;
                     // Usar optional chaining sin acceder a open_now deprecado
-                    const isOpen = spot.opening_hours ? undefined : undefined; // Ignoramos open_now deprecado
                     
                     // Score de distancia (40%): exponencial, mejor cerca
                     const distanceScore = Math.max(0, 100 * Math.exp(-dist / 5000)); // Decae rápido después de 5km
