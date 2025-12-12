@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { supabaseServer } from '../../supabase';
 
 export async function GET() {
+  const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
+  if (env === 'production') {
+    return NextResponse.json({ ok: false, reason: 'disabled-in-production' }, { status: 404 });
+  }
   const hasUrl = !!process.env.SUPABASE_URL;
   const hasKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
   const url = process.env.SUPABASE_URL || '';

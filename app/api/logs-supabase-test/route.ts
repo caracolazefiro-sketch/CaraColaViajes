@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { supabaseServer } from '../../supabase';
 
 export async function GET() {
+  const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
+  if (env === 'production') {
+    return NextResponse.json({ ok: false, reason: 'disabled-in-production' }, { status: 404 });
+  }
   if (!supabaseServer) {
     return NextResponse.json({ ok: false, reason: 'no-supabase-server' }, { status: 500 });
   }
   const payload = {
-    env: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
+    env,
     trip_id: 'health-test',
     api: 'other',
     method: 'GET',

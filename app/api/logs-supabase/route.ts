@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { supabaseServer } from '../../supabase';
 
 export async function GET(req: Request) {
   try {
+    const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
+    if (env === 'production') {
+      return NextResponse.json({ error: 'disabled-in-production' }, { status: 404 });
+    }
     if (!supabaseServer) {
       return NextResponse.json({ error: 'Supabase server not configured' }, { status: 500 });
     }
