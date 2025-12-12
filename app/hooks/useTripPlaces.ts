@@ -232,26 +232,29 @@ export function useTripPlaces(map: google.maps.Map | null) {
                 return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type: 'camping', opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
             };
             const all = res.map(toPlace);
-            const isCamping = (p: PlaceWithDistance) => {
+            // Asignación exclusiva por prioridad: camping > supermarket > restaurant
+            const assignType = (p: PlaceWithDistance): ServiceType | null => {
                 const tags = p.types || [];
                 const name = p.name || '';
                 const campingTag = tags.includes('campground') || tags.includes('rv_park');
                 const parkingCamping = tags.includes('parking') && /camping|area|camper|autocaravana/i.test(name);
-                const esTienda = tags.includes('hardware_store') || tags.includes('store') || tags.includes('shopping_mall');
-                return (campingTag || parkingCamping) && !esTienda;
+                const esTienda = tags.includes('hardware_store') || tags.includes('shopping_mall');
+                if ((campingTag || parkingCamping) && !esTienda) return 'camping';
+                const esSuper = tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('grocery_store');
+                if (esSuper) return 'supermarket';
+                const esComer = tags.includes('restaurant') || tags.includes('cafe') || tags.includes('food') || tags.includes('meal_takeaway');
+                if (esComer) return 'restaurant';
+                return null;
             };
-            const isRestaurant = (p: PlaceWithDistance) => {
-                const tags = p.types || [];
-                return tags.includes('restaurant') || tags.includes('cafe') || tags.includes('food') || tags.includes('meal_takeaway');
-            };
-            const isSupermarket = (p: PlaceWithDistance) => {
-                const tags = p.types || [];
-                return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('grocery_store');
-            };
-
-            const campingList = all.filter(isCamping).map(p => ({ ...p, type: 'camping' as ServiceType }));
-            const restaurantList = all.filter(isRestaurant).map(p => ({ ...p, type: 'restaurant' as ServiceType }));
-            const supermarketList = all.filter(isSupermarket).map(p => ({ ...p, type: 'supermarket' as ServiceType }));
+            const exclusive = all.map(p => {
+                const at = assignType(p);
+                return at ? { ...p, type: at } : null;
+            }).filter(Boolean) as PlaceWithDistance[];
+            // Dedupe por place_id
+            const uniqById = (arr: PlaceWithDistance[]) => arr.filter((v,i,a)=>a.findIndex(t=>t.place_id===v.place_id)===i);
+            const campingList = uniqById(exclusive.filter(p => p.type === 'camping'));
+            const restaurantList = uniqById(exclusive.filter(p => p.type === 'restaurant'));
+            const supermarketList = uniqById(exclusive.filter(p => p.type === 'supermarket'));
 
             // Actualizamos resultados sin modificar el estado de otros toggles
             setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
