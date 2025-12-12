@@ -19,7 +19,8 @@ type LogRow = {
 };
 
 export default function LogsViewerSupabase() {
-  if (process.env.NEXT_PUBLIC_DEPLOY_ENV === 'production' || process.env.NODE_ENV === 'production') {
+  const isProdHost = typeof window !== 'undefined' && window.location.hostname === (process.env.NEXT_PUBLIC_PROD_HOST || 'cara-cola-viajes.vercel.app');
+  if (isProdHost) {
     return <div style={{ padding: '2rem' }}>❌ Página no disponible en producción.</div>;
   }
   const [logs, setLogs] = useState<LogRow[]>([]);

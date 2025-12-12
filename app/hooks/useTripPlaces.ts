@@ -213,7 +213,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
         if (!map || typeof google === 'undefined') return;
         const service = new google.maps.places.PlacesService(map);
         const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        const radius = 10000;
+        const radius = 20000;
         const keyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
 
         setLoadingPlaces(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
@@ -263,7 +263,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
         if (!map || typeof google === 'undefined') return;
         const service = new google.maps.places.PlacesService(map);
         const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        const radius = 10000;
+        const radius = 20000;
         const keyword = 'gas OR gas_station OR laundry OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
 
         setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));

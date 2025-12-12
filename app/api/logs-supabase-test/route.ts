@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { supabaseServer } from '../../supabase';
 
-export async function GET() {
+export async function GET(req: Request) {
   const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
-  if (env === 'production') {
-    return NextResponse.json({ ok: false, reason: 'disabled-in-production' }, { status: 404 });
+  const host = new URL(req.url).host;
+  const prodHost = process.env.NEXT_PUBLIC_PROD_HOST || 'cara-cola-viajes.vercel.app';
+  if (host === prodHost) {
+    return NextResponse.json({ ok: false, reason: 'disabled-on-production-host' }, { status: 404 });
   }
   if (!supabaseServer) {
     return NextResponse.json({ ok: false, reason: 'no-supabase-server' }, { status: 500 });

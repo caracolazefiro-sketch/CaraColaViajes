@@ -4,9 +4,10 @@ import { supabaseServer } from '../../supabase';
 
 export async function GET(req: Request) {
   try {
-    const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
-    if (env === 'production') {
-      return NextResponse.json({ error: 'disabled-in-production' }, { status: 404 });
+    const host = new URL(req.url).host;
+    const prodHost = process.env.NEXT_PUBLIC_PROD_HOST || 'cara-cola-viajes.vercel.app';
+    if (host === prodHost) {
+      return NextResponse.json({ error: 'disabled-on-production-host' }, { status: 404 });
     }
     if (!supabaseServer) {
       return NextResponse.json({ error: 'Supabase server not configured' }, { status: 500 });
