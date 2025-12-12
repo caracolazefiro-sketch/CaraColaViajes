@@ -19,6 +19,9 @@ type LogRow = {
 };
 
 export default function LogsViewerSupabase() {
+  if (process.env.NEXT_PUBLIC_DEPLOY_ENV === 'production' || process.env.NODE_ENV === 'production') {
+    return <div style={{ padding: '2rem' }}>❌ Página no disponible en producción.</div>;
+  }
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

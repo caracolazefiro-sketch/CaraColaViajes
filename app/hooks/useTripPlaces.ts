@@ -48,11 +48,11 @@ export function useTripPlaces(map: google.maps.Map | null) {
                 searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
                 break;
             case 'restaurant': 
-                // COMBO 1: usa mismo caché que camping
-                return; // No hacemos búsqueda individual, se trae con camping
+                // COMBO 1: gestionado por función combinada
+                return; // No hacemos búsqueda individual, se trae con función combinada
             case 'supermarket': 
-                // COMBO 1: usa mismo caché que camping
-                return; // No hacemos búsqueda individual, se trae con camping
+                // COMBO 1: gestionado por función combinada
+                return; // No hacemos búsqueda individual, se trae con función combinada
             case 'gas': placeType = 'gas_station'; radius = 10000; break;
             case 'laundry': 
                 // COMBO 2: gas + laundry + tourism (bilingüe)
@@ -62,7 +62,7 @@ export function useTripPlaces(map: google.maps.Map | null) {
                 searchKeyword = 'laundry OR "self-service laundry" OR "lavandería autoservicio"';
                 break;
             case 'tourism': 
-                // COMBO 2: usa mismo caché que gas/laundry
+                // COMBO 2: gestionado por función combinada
                 return; // No hacemos búsqueda individual
         }
 
@@ -208,6 +208,99 @@ export function useTripPlaces(map: google.maps.Map | null) {
         });
     }, [map]);
 
+    // BÚSQUEDA COMBINADA: camping + restaurant + supermarket
+    const searchComboCampingRestaurantSuper = useCallback((location: Coordinates) => {
+        if (!map || typeof google === 'undefined') return;
+        const service = new google.maps.places.PlacesService(map);
+        const centerPoint = new google.maps.LatLng(location.lat, location.lng);
+        const radius = 10000;
+        const keyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
+
+        setLoadingPlaces(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
+
+        const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
+        service.nearbySearch(request, (res, status) => {
+            setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !res) {
+                setPlaces(prev => ({...prev, camping: [], restaurant: [], supermarket: [] }));
+                return;
+            }
+            const toPlace = (spot: google.maps.places.PlaceResult): PlaceWithDistance => {
+                const geometry = spot.geometry?.location ? { location: { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() } } : undefined;
+                const photoUrl = spot.photos && spot.photos.length > 0 ? (() => { try { return spot.photos![0].getUrl({ maxWidth: 400, maxHeight: 400 }); } catch { return undefined; } })() : undefined;
+                const dist = spot.geometry?.location ? google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location) : 999999;
+                return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type: 'camping', opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
+            };
+            const all = res.map(toPlace);
+            const isCamping = (p: PlaceWithDistance) => {
+                const tags = p.types || [];
+                const name = p.name || '';
+                const campingTag = tags.includes('campground') || tags.includes('rv_park');
+                const parkingCamping = tags.includes('parking') && /camping|area|camper|autocaravana/i.test(name);
+                const esTienda = tags.includes('hardware_store') || tags.includes('store') || tags.includes('shopping_mall');
+                return (campingTag || parkingCamping) && !esTienda;
+            };
+            const isRestaurant = (p: PlaceWithDistance) => {
+                const tags = p.types || [];
+                return tags.includes('restaurant') || tags.includes('cafe') || tags.includes('food') || tags.includes('meal_takeaway');
+            };
+            const isSupermarket = (p: PlaceWithDistance) => {
+                const tags = p.types || [];
+                return tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('grocery_store');
+            };
+
+            const campingList = all.filter(isCamping).map(p => ({ ...p, type: 'camping' as ServiceType }));
+            const restaurantList = all.filter(isRestaurant).map(p => ({ ...p, type: 'restaurant' as ServiceType }));
+            const supermarketList = all.filter(isSupermarket).map(p => ({ ...p, type: 'supermarket' as ServiceType }));
+
+            setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
+            setToggles(prev => ({ ...prev, camping: true, restaurant: true, supermarket: true }));
+        });
+    }, [map]);
+
+    // BÚSQUEDA COMBINADA: gas + laundry + tourism
+    const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
+        if (!map || typeof google === 'undefined') return;
+        const service = new google.maps.places.PlacesService(map);
+        const centerPoint = new google.maps.LatLng(location.lat, location.lng);
+        const radius = 10000;
+        const keyword = 'gas OR gas_station OR laundry OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
+
+        setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));
+
+        const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
+        service.nearbySearch(request, (res, status) => {
+            setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !res) {
+                setPlaces(prev => ({...prev, gas: [], laundry: [], tourism: [] }));
+                return;
+            }
+            const toPlace = (spot: google.maps.places.PlaceResult): PlaceWithDistance => {
+                const geometry = spot.geometry?.location ? { location: { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() } } : undefined;
+                const photoUrl = spot.photos && spot.photos.length > 0 ? (() => { try { return spot.photos![0].getUrl({ maxWidth: 400, maxHeight: 400 }); } catch { return undefined; } })() : undefined;
+                const dist = spot.geometry?.location ? google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location) : 999999;
+                return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type: 'gas', opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
+            };
+            const all = res.map(toPlace);
+            const isGas = (p: PlaceWithDistance) => (p.types || []).includes('gas_station');
+            const isLaundry = (p: PlaceWithDistance) => {
+                const tags = p.types || [];
+                return tags.includes('laundry') && !tags.includes('lodging');
+            };
+            const isTourism = (p: PlaceWithDistance) => {
+                const tags = p.types || [];
+                return tags.includes('tourist_attraction') || tags.includes('museum') || tags.includes('park') || tags.includes('point_of_interest');
+            };
+
+            const gasList = all.filter(isGas).map(p => ({ ...p, type: 'gas' as ServiceType }));
+            const laundryList = all.filter(isLaundry).map(p => ({ ...p, type: 'laundry' as ServiceType }));
+            const tourismList = all.filter(isTourism).map(p => ({ ...p, type: 'tourism' as ServiceType }));
+
+            setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList, tourism: tourismList }));
+            setToggles(prev => ({ ...prev, gas: true, laundry: true, tourism: true }));
+        });
+    }, [map]);
+
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {
         if (!query.trim()) return;
@@ -328,29 +421,13 @@ export function useTripPlaces(map: google.maps.Map | null) {
         
         // Solo buscamos si se enciende Y tenemos coordenadas
         if (newState && coordinates) {
-            // COMBO 1: camping, restaurant, supermarket - todos comparten la misma búsqueda
+            // COMBO 1: camping, restaurant, supermarket
             if (type === 'camping' || type === 'restaurant' || type === 'supermarket') {
-                searchPlaces(coordinates, 'camping'); // Usa 'camping' como tipo para la búsqueda combinada
-                setToggles(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
-                // Distribuir resultados entre los tres tipos
-                setPlaces(prev => ({
-                    ...prev,
-                    camping: prev.camping,
-                    restaurant: prev.camping, // Mismo set de resultados
-                    supermarket: prev.camping // Mismo set de resultados
-                }));
+                searchComboCampingRestaurantSuper(coordinates);
             } 
-            // COMBO 2: gas, laundry, tourism - todos comparten la misma búsqueda
+            // COMBO 2: gas, laundry, tourism
             else if (type === 'gas' || type === 'laundry' || type === 'tourism') {
-                searchPlaces(coordinates, 'gas'); // Usa 'gas' como tipo para la búsqueda combinada
-                setToggles(prev => ({...prev, gas: true, laundry: true, tourism: true}));
-                // Distribuir resultados entre los tres tipos
-                setPlaces(prev => ({
-                    ...prev,
-                    gas: prev.gas,
-                    laundry: prev.gas, // Mismo set de resultados
-                    tourism: prev.gas // Mismo set de resultados
-                }));
+                searchComboGasLaundryTourism(coordinates);
             }
             else {
                 searchPlaces(coordinates, type);

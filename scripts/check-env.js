@@ -2,6 +2,28 @@
 // scripts/check-env.js
 // Simple environment-check script. Exits with 0 when required vars are set,
 // exits 1 and prints helpful messages when missing.
+// Loads local env files via dotenv so you can run it outside Next.js.
+
+try {
+  const path = require('path');
+  const fs = require('fs');
+  const dotenv = require('dotenv');
+
+  // Load in order of precedence similar to Next.js dev:
+  // .env.local (ignored by git), then .env
+  const root = process.cwd();
+  const candidates = [
+    path.join(root, '.env.local'),
+    path.join(root, '.env'),
+  ];
+  for (const file of candidates) {
+    if (fs.existsSync(file)) {
+      dotenv.config({ path: file });
+    }
+  }
+} catch (_) {
+  // dotenv is optional; if not present, continue with process.env
+}
 
 const requiredEither = ['GOOGLE_MAPS_API_KEY_FIXED', 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'];
 const supabaseVars = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'];

@@ -120,7 +120,7 @@
   "update.enableWindowsBackgroundUpdates": false,
   "telemetry.telemetryLevel": "off",
   "editor.parameterHints.enabled": false,
-  "editor.hover.enabled": false,
+  "editor.hover.enabled": "off",
   "editor.lightbulb.enabled": "off",
   "editor.inlineCompletionsAccessibilityVerbosenessSetting": "off",
   "files.hotExit": "off",

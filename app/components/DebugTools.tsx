@@ -179,13 +179,15 @@ export default function DebugTools() {
         >
           🖥️ Consola
         </button>
-        <a
-          href="/logs-viewer-supabase"
-          title="Ver logs de API (Supabase)"
-          className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded text-xs font-bold transition-all shadow-lg cursor-pointer text-center"
-        >
-          📡 API Logs
-        </a>
+        {!(process.env.NEXT_PUBLIC_DEPLOY_ENV === 'production' || process.env.NODE_ENV === 'production') && (
+          <a
+            href="/logs-viewer-supabase"
+            title="Ver logs de API (Supabase)"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded text-xs font-bold transition-all shadow-lg cursor-pointer text-center"
+          >
+            📡 API Logs
+          </a>
+        )}
       </div>
 
       {/* Consola flotante */}
