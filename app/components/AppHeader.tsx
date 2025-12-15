@@ -44,6 +44,12 @@ export default function AppHeader({
                         alt={t('APP_TITLE')} 
                         className="h-12 w-auto object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 rounded-lg"
                     />
+                    {/* Badge visible en móvil */}
+                    {envLabel && (
+                        <span className={`md:hidden px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${envClass}`}>
+                            {envLabel}
+                        </span>
+                    )}
                     <div className="hidden md:block text-left">
                         <div className="flex items-center gap-2">
                             <h1 className="text-xl font-black text-red-600 leading-none tracking-tight">{t('APP_TITLE')}</h1>
