@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import UserArea from './UserArea';
 import type { TripData } from '../hooks/useTripPersistence';
 
@@ -15,6 +15,24 @@ interface AppHeaderProps {
 export default function AppHeader({ 
     onLoadTrip, currentTripId, t, setLang, language 
 }: AppHeaderProps) {
+    const envLabel = useMemo(() => {
+        if (typeof window === 'undefined') return null;
+        const host = window.location.hostname.toLowerCase();
+        if (host === 'cara-cola-viajes-pruebas.vercel.app') return 'MAIN';
+        if (host === 'cara-cola-viajes-staging-git-staging-caracola.vercel.app') return 'STAGING';
+        if (host === 'cara-cola-viajes-staging-git-testing-caracola.vercel.app') return 'TESTING';
+        if (host.includes('localhost')) return 'LOCAL';
+        return null;
+    }, []);
+
+    const envClass = envLabel === 'MAIN'
+        ? 'bg-green-600 text-white'
+        : envLabel === 'STAGING'
+        ? 'bg-amber-600 text-white'
+        : envLabel === 'TESTING'
+        ? 'bg-purple-600 text-white'
+        : 'bg-gray-500 text-white';
+
     return (
         <div className="relative mb-6 no-print w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 py-3 shadow-sm">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 max-w-6xl mx-auto">
@@ -27,7 +45,14 @@ export default function AppHeader({
                         className="h-12 w-auto object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 rounded-lg"
                     />
                     <div className="hidden md:block text-left">
-                        <h1 className="text-xl font-black text-red-600 leading-none tracking-tight">{t('APP_TITLE')}</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl font-black text-red-600 leading-none tracking-tight">{t('APP_TITLE')}</h1>
+                            {envLabel && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${envClass}`}>
+                                    {envLabel}
+                                </span>
+                            )}
+                        </div>
                         <p className="text-gray-400 text-[10px] font-bold tracking-widest uppercase mt-0.5">{t('APP_SUBTITLE')}</p>
                     </div>
                 </div>
