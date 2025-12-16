@@ -29,12 +29,44 @@ export async function GET() {
   }
 
   try {
-    // minimal auth check: query a known empty select
-    const { error, data } = await supabaseServer.from('api_logs').select('id').limit(1);
-    if (error) {
-      return NextResponse.json({ ok: false, reason: 'query-error', message: error.message, details: { projectRef, keyPrefix } }, { status: 500 });
+    const checkTable = async (table: string) => {
+      const { error, data } = await supabaseServer.from(table).select('key').limit(1);
+      if (error) return { ok: false as const, table, error: error.message };
+      return { ok: true as const, table, rows: Array.isArray(data) ? data.length : 0 };
+    };
+
+    const checkApiLogs = async () => {
+      const { error, data } = await supabaseServer.from('api_logs').select('id').limit(1);
+      if (error) return { ok: false as const, table: 'api_logs', error: error.message };
+      return { ok: true as const, table: 'api_logs', rows: Array.isArray(data) ? data.length : 0 };
+    };
+
+    const results = await Promise.all([
+      checkApiLogs(),
+      checkTable('api_cache_geocoding'),
+      checkTable('api_cache_places_supercat'),
+    ]);
+
+    const ok = results.every(r => r.ok);
+    if (!ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: 'missing-table-or-permissions',
+          details: { projectRef, keyPrefix },
+          checks: results,
+          hint: 'Apply supabase/migrations/004_api_cache.sql in this Supabase project, then reload schema cache.',
+        },
+        { status: 500 }
+      );
     }
-    return NextResponse.json({ ok: true, message: 'supabase server configured and query ok', details: { projectRef, keyPrefix, count: Array.isArray(data) ? data.length : 0 } });
+
+    return NextResponse.json({
+      ok: true,
+      message: 'supabase server configured and tables available',
+      details: { projectRef, keyPrefix },
+      checks: results,
+    });
   } catch (err) {
     return NextResponse.json({ ok: false, reason: 'exception', message: err instanceof Error ? err.message : 'unknown', details: { projectRef, keyPrefix } }, { status: 500 });
   }
