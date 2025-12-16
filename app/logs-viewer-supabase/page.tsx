@@ -254,6 +254,20 @@ export default function LogsViewerSupabase() {
                         usefulRows.push({ label: 'Aporta', value: '—' });
                       }
 
+                      const aportaInline = (() => {
+                        if (isGeocoding) {
+                          const city = response.cityName ? String(response.cityName) : '';
+                          return city ? `Aporta: ${city}` : 'Aporta: —';
+                        }
+                        if (isDirections) {
+                          const parts: string[] = [];
+                          if (response.distanceKm != null) parts.push(`${response.distanceKm} km`);
+                          if (response.durationMin != null) parts.push(`${response.durationMin} min`);
+                          return `Aporta: ${parts.length ? parts.join(' · ') : '—'}`;
+                        }
+                        return 'Aporta: —';
+                      })();
+
                       return (
                         <details
                           key={`details-${r.id}`}
@@ -265,7 +279,8 @@ export default function LogsViewerSupabase() {
                           }}
                         >
                           <summary style={{ cursor: 'pointer', color: '#111827', fontWeight: 600 }}>
-                            {title}
+                            <span>{title}</span>
+                            <span style={{ color: '#6b7280', fontWeight: 500 }}> · {aportaInline}</span>
                           </summary>
 
                           <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
