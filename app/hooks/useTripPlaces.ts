@@ -1,7 +1,21 @@
 import { useState, useCallback, useRef } from 'react';
 import { Coordinates, PlaceWithDistance, ServiceType } from '../types';
 
-export function useTripPlaces(map: google.maps.Map | null) {
+type Supercat = 1 | 2;
+
+type ServerPlace = {
+    name?: string;
+    rating?: number;
+    user_ratings_total?: number;
+    vicinity?: string;
+    place_id?: string;
+    types?: string[];
+    geometry?: { location?: Coordinates };
+    opening_hours?: { open_now?: boolean };
+    photos?: Array<{ photo_reference?: string }>;
+};
+
+export function useTripPlaces(map: google.maps.Map | null, tripId?: string | null, tripName?: string) {
     // AÑADIDO 'search' y 'found' AL ESTADO INICIAL
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: []
@@ -16,6 +30,81 @@ export function useTripPlaces(map: google.maps.Map | null) {
     // 💰 CACHÉ EN MEMORIA (Ahorro de API Calls)
     // Estructura: { "gas_40.41_3.70": [Array de sitios], ... }
     const placesCache = useRef<Record<string, PlaceWithDistance[]>>({});
+
+    const haversineDistanceM = (a: Coordinates, b: Coordinates) => {
+        const R = 6371e3;
+        const φ1 = (a.lat * Math.PI) / 180;
+        const φ2 = (b.lat * Math.PI) / 180;
+        const Δφ = ((b.lat - a.lat) * Math.PI) / 180;
+        const Δλ = ((b.lng - a.lng) * Math.PI) / 180;
+        const sinΔφ = Math.sin(Δφ / 2);
+        const sinΔλ = Math.sin(Δλ / 2);
+        const x = sinΔφ * sinΔφ + Math.cos(φ1) * Math.cos(φ2) * sinΔλ * sinΔλ;
+        return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+    };
+
+    const distanceFromCenter = (center: Coordinates, spot: Coordinates) => {
+        try {
+            if (typeof google !== 'undefined' && google.maps?.geometry?.spherical?.computeDistanceBetween) {
+                const c = new google.maps.LatLng(center.lat, center.lng);
+                const s = new google.maps.LatLng(spot.lat, spot.lng);
+                return google.maps.geometry.spherical.computeDistanceBetween(c, s);
+            }
+        } catch {
+            // ignore
+        }
+        return haversineDistanceM(center, spot);
+    };
+
+    const toPhotoUrl = (p: ServerPlace): string | undefined => {
+        const ref = p.photos?.[0]?.photo_reference;
+        if (!ref) return undefined;
+        const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+        if (!key) return undefined;
+        return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${encodeURIComponent(ref)}&key=${encodeURIComponent(key)}`;
+    };
+
+    const toPlace = (center: Coordinates, type: ServiceType, p: ServerPlace): PlaceWithDistance => {
+        const loc = p.geometry?.location;
+        const dist = loc ? distanceFromCenter(center, loc) : 999999;
+        return {
+            name: p.name,
+            rating: p.rating,
+            user_ratings_total: p.user_ratings_total,
+            vicinity: p.vicinity,
+            place_id: p.place_id,
+            geometry: loc ? { location: loc } : undefined,
+            distanceFromCenter: dist,
+            type,
+            opening_hours: p.opening_hours as PlaceWithDistance['opening_hours'],
+            photoUrl: toPhotoUrl(p),
+            types: p.types,
+        };
+    };
+
+    const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates) => {
+        const radius = 20000;
+        const res = await fetch('/api/places-supercat', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                tripId: tripId || undefined,
+                tripName: tripName || undefined,
+                center,
+                radius,
+                supercat,
+            })
+        });
+        const json = await res.json();
+        if (!res.ok || !json?.ok) {
+            throw new Error(json?.reason || `places-supercat failed (${res.status})`);
+        }
+        return json as {
+            ok: true;
+            supercat: Supercat;
+            categories: Record<string, ServerPlace[]>;
+        };
+    }, [tripId, tripName]);
 
     // BÚSQUEDA ESTÁNDAR (Categorías)
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
@@ -209,115 +298,83 @@ export function useTripPlaces(map: google.maps.Map | null) {
 
     // BÚSQUEDA COMBINADA: camping + restaurant + supermarket
     const searchComboCampingRestaurantSuper = useCallback((location: Coordinates) => {
-        if (!map || typeof google === 'undefined') return;
-        const service = new google.maps.places.PlacesService(map);
-        const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        const radius = 20000;
-        const keyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
-
         setLoadingPlaces(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
+        const cacheKey = `supercat1_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
 
-        const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
-        const collected: google.maps.places.PlaceResult[] = [];
-        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination | null) => {
+        if (placesCache.current[cacheKey]) {
+            const cached = placesCache.current[cacheKey];
+            setPlaces(prev => ({
+                ...prev,
+                camping: cached.filter(p => p.type === 'camping'),
+                restaurant: cached.filter(p => p.type === 'restaurant'),
+                supermarket: cached.filter(p => p.type === 'supermarket'),
+            }));
             setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
-            if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-                collected.push(...res);
-            }
-            const shouldContinue = !!pagination && pagination.hasNextPage && collected.length < 60;
-            if (shouldContinue) {
-                // nextPage requiere una pequeña espera según la API
-                setTimeout(() => pagination!.nextPage(), 300);
-                return;
-            }
-            const toPlace = (spot: google.maps.places.PlaceResult): PlaceWithDistance => {
-                const geometry = spot.geometry?.location ? { location: { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() } } : undefined;
-                const photoUrl = spot.photos && spot.photos.length > 0 ? (() => { try { return spot.photos![0].getUrl({ maxWidth: 400, maxHeight: 400 }); } catch { return undefined; } })() : undefined;
-                const dist = spot.geometry?.location ? google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location) : 999999;
-                return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type: 'camping', opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
-            };
-            const all = collected.map(toPlace);
-            // Asignación exclusiva por prioridad: camping > supermarket > restaurant
-            const assignType = (p: PlaceWithDistance): ServiceType | null => {
-                const tags = p.types || [];
-                const name = p.name || '';
-                const campingTag = tags.includes('campground') || tags.includes('rv_park');
-                const parkingCamping = tags.includes('parking') && /camping|area|camper|autocaravana/i.test(name);
-                const esTienda = tags.includes('hardware_store') || tags.includes('shopping_mall');
-                if ((campingTag || parkingCamping) && !esTienda) return 'camping';
-                const esSuper = tags.includes('supermarket') || tags.includes('grocery_or_supermarket') || tags.includes('grocery_store');
-                if (esSuper) return 'supermarket';
-                const esComer = tags.includes('restaurant') || tags.includes('cafe') || tags.includes('food') || tags.includes('meal_takeaway');
-                if (esComer) return 'restaurant';
-                return null;
-            };
-            const exclusive = all.map(p => {
-                const at = assignType(p);
-                return at ? { ...p, type: at } : null;
-            }).filter(Boolean) as PlaceWithDistance[];
-            // Dedupe por place_id
-            const uniqById = (arr: PlaceWithDistance[]) => arr.filter((v,i,a)=>a.findIndex(t=>t.place_id===v.place_id)===i);
-            const campingList = uniqById(exclusive.filter(p => p.type === 'camping'));
-            const restaurantList = uniqById(exclusive.filter(p => p.type === 'restaurant'));
-            const supermarketList = uniqById(exclusive.filter(p => p.type === 'supermarket'));
+            return;
+        }
 
-            // Actualizamos resultados sin modificar el estado de otros toggles
-            setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
-        };
-        service.nearbySearch(request, handlePage);
-    }, [map]);
+        (async () => {
+            try {
+                const data = await fetchSupercat(1, location);
+                const campingRaw = (data.categories.camping || []) as ServerPlace[];
+                const restaurantRaw = (data.categories.restaurant || []) as ServerPlace[];
+                const supermarketRaw = (data.categories.supermarket || []) as ServerPlace[];
+
+                const campingList = campingRaw.map(p => toPlace(location, 'camping', p));
+                const restaurantList = restaurantRaw.map(p => toPlace(location, 'restaurant', p));
+                const supermarketList = supermarketRaw.map(p => toPlace(location, 'supermarket', p));
+
+                const merged = [...campingList, ...restaurantList, ...supermarketList];
+                placesCache.current[cacheKey] = merged;
+                setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
+            } catch (e) {
+                console.error('❌ [places-supercat-1] Error:', e);
+                setPlaces(prev => ({ ...prev, camping: [], restaurant: [], supermarket: [] }));
+            } finally {
+                setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
+            }
+        })();
+    }, [fetchSupercat]);
 
     // BÚSQUEDA COMBINADA: gas + laundry + tourism
     const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
-        if (!map || typeof google === 'undefined') return;
-        const service = new google.maps.places.PlacesService(map);
-        const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        const radius = 20000;
-        const keyword = 'gas OR gas_station OR laundry OR "self-service laundry" OR "self service laundry" OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
-
         setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));
+        const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
 
-        const request: google.maps.places.PlaceSearchRequest = { location: centerPoint, radius, keyword };
-        const collected: google.maps.places.PlaceResult[] = [];
-        const handlePage = (res: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus, pagination?: google.maps.places.PlaceSearchPagination | null) => {
+        if (placesCache.current[cacheKey]) {
+            const cached = placesCache.current[cacheKey];
+            setPlaces(prev => ({
+                ...prev,
+                gas: cached.filter(p => p.type === 'gas'),
+                laundry: cached.filter(p => p.type === 'laundry'),
+                tourism: cached.filter(p => p.type === 'tourism'),
+            }));
             setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
-            if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-                collected.push(...res);
-            }
-            const shouldContinue = !!pagination && pagination.hasNextPage && collected.length < 60;
-            if (shouldContinue) {
-                setTimeout(() => pagination!.nextPage(), 300);
-                return;
-            }
-            const toPlace = (spot: google.maps.places.PlaceResult): PlaceWithDistance => {
-                const geometry = spot.geometry?.location ? { location: { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() } } : undefined;
-                const photoUrl = spot.photos && spot.photos.length > 0 ? (() => { try { return spot.photos![0].getUrl({ maxWidth: 400, maxHeight: 400 }); } catch { return undefined; } })() : undefined;
-                const dist = spot.geometry?.location ? google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location) : 999999;
-                return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type: 'gas', opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
-            };
-            const all = collected.map(toPlace);
-            const isGas = (p: PlaceWithDistance) => (p.types || []).includes('gas_station');
-            const isLaundry = (p: PlaceWithDistance) => {
-                const tags = p.types || [];
-                return tags.includes('laundry') && !tags.includes('lodging');
-            };
-            const isTourism = (p: PlaceWithDistance) => {
-                const tags = p.types || [];
-                // Evitar clasificar como turismo si ya es lavandería (confusión visual)
-                const esLaundry = tags.includes('laundry') && !tags.includes('lodging');
-                if (esLaundry) return false;
-                return tags.includes('tourist_attraction') || tags.includes('museum') || tags.includes('park') || tags.includes('point_of_interest');
-            };
+            return;
+        }
 
-            const gasList = all.filter(isGas).map(p => ({ ...p, type: 'gas' as ServiceType }));
-            const laundryList = all.filter(isLaundry).map(p => ({ ...p, type: 'laundry' as ServiceType }));
-            const tourismList = all.filter(isTourism).map(p => ({ ...p, type: 'tourism' as ServiceType }));
+        (async () => {
+            try {
+                const data = await fetchSupercat(2, location);
+                const gasRaw = (data.categories.gas || []) as ServerPlace[];
+                const laundryRaw = (data.categories.laundry || []) as ServerPlace[];
+                const tourismRaw = (data.categories.tourism || []) as ServerPlace[];
 
-            // Actualizamos resultados sin activar otros toggles automáticamente
-            setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList, tourism: tourismList }));
-        };
-        service.nearbySearch(request, handlePage);
-    }, [map]);
+                const gasList = gasRaw.map(p => toPlace(location, 'gas', p));
+                const laundryList = laundryRaw.map(p => toPlace(location, 'laundry', p));
+                const tourismList = tourismRaw.map(p => toPlace(location, 'tourism', p));
+
+                const merged = [...gasList, ...laundryList, ...tourismList];
+                placesCache.current[cacheKey] = merged;
+                setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList, tourism: tourismList }));
+            } catch (e) {
+                console.error('❌ [places-supercat-2] Error:', e);
+                setPlaces(prev => ({ ...prev, gas: [], laundry: [], tourism: [] }));
+            } finally {
+                setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
+            }
+        })();
+    }, [fetchSupercat]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {

@@ -56,6 +56,9 @@ export default function Home() {
   const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
   const [auditMode, setAuditMode] = useState(false);
 
+  // tripId único para correlacionar logs server-side (Supabase) por viaje
+  const [apiTripId, setApiTripId] = useState<string | null>(null);
+
   const [formData, setFormData] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -84,7 +87,7 @@ export default function Home() {
   const {
       places, loadingPlaces, toggles,
       searchPlaces, searchByQuery, clearSearch, handleToggle, resetPlaces
-  } = useTripPlaces(map);
+  } = useTripPlaces(map, apiTripId, formData.tripName);
 
   // Hook para filtros de búsqueda (rating, radio, sort)
   const { minRating, setMinRating, searchRadius, setSearchRadius, sortBy, setSortBy } = useSearchFilters();
@@ -96,6 +99,10 @@ export default function Home() {
 
   const handleCalculateWrapper = (e: React.FormEvent) => {
       e.preventDefault();
+
+      // Nuevo tripId para correlación de logs (directions/geocoding/places)
+      const newTripId = `trip-${Date.now()}`;
+      setApiTripId(newTripId);
 
       // Auto-generar nombre del viaje si está vacío
       if (!formData.tripName) {
@@ -127,6 +134,11 @@ export default function Home() {
     setSelectedDayIndex(null);
     setCurrentTripId(null);
     resetPlaces();
+
+    // Reutilizar tripId ya generado (o crear uno si venimos sin)
+    const tripIdForLogs = apiTripId || `trip-${Date.now()}`;
+    if (!apiTripId) setApiTripId(tripIdForLogs);
+
     calculateRoute(formData);
 
     // 2) Logs = server action (único cometido del botón negro)
@@ -146,6 +158,7 @@ export default function Home() {
         .map(normalizeForGoogle);
 
       const res = await getDirectionsAndCost({
+        tripId: tripIdForLogs,
         tripName: tripNameForLogs,
         origin: normalizeForGoogle(formData.origen),
         destination: normalizeForGoogle(formData.destino),

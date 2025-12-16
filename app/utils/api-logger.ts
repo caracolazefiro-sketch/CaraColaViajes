@@ -91,9 +91,9 @@ class APILogger {
   /**
    * Iniciar tracking de un nuevo viaje
    */
-  startTrip(origin: string, destination: string, waypoints: string[]) {
+  startTrip(origin: string, destination: string, waypoints: string[], tripIdOverride?: string) {
     this.currentTrip = {
-      tripId: `trip-${Date.now()}`,
+      tripId: tripIdOverride || `trip-${Date.now()}`,
       startTime: new Date().toISOString(),
       origin,
       destination,

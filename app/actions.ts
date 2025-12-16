@@ -31,6 +31,7 @@ interface DirectionsRequest {
     fechaInicio: string;
     fechaRegreso: string;
     tripName?: string;
+    tripId?: string;
 }
 
 interface DirectionsResult {
@@ -277,7 +278,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
     const debugLog: string[] = [];
 
     // 🔍 Iniciar tracking de viaje
-    const tripId = apiLogger.startTrip(data.origin, data.destination, data.waypoints);
+    const tripId = apiLogger.startTrip(data.origin, data.destination, data.waypoints, data.tripId);
     debugLog.push(`🆔 Trip ID: ${tripId}`);
 
     // Prefer a server-side API key for Google Maps. If a server key is not set,

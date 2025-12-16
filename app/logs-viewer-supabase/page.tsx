@@ -99,9 +99,10 @@ export default function LogsViewerSupabase() {
           acc.cost += Number(r.cost || 0);
           acc.directions += r.api === 'google-directions' ? 1 : 0;
           acc.geocoding += r.api === 'google-geocoding' ? 1 : 0;
+          acc.places += r.api === 'google-places' ? 1 : 0;
           return acc;
         },
-        { calls: 0, cost: 0, directions: 0, geocoding: 0 }
+        { calls: 0, cost: 0, directions: 0, geocoding: 0, places: 0 }
       );
       return {
         tripId,
@@ -130,15 +131,16 @@ export default function LogsViewerSupabase() {
       acc.cost += t.totals.cost;
       acc.directions += t.totals.directions;
       acc.geocoding += t.totals.geocoding;
+      acc.places += t.totals.places;
       return acc;
     },
-    { trips: 0, calls: 0, cost: 0, directions: 0, geocoding: 0 }
+    { trips: 0, calls: 0, cost: 0, directions: 0, geocoding: 0, places: 0 }
   );
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
       <h1>📡 API Logs (Supabase)</h1>
-      <p style={{ color: '#666' }}>Viajes: {totalsAllTrips.trips} | Total calls: {totalsAllTrips.calls} | Directions: {totalsAllTrips.directions} | Geocoding: {totalsAllTrips.geocoding} | Coste: €{totalsAllTrips.cost.toFixed(3)}</p>
+      <p style={{ color: '#666' }}>Viajes: {totalsAllTrips.trips} | Total calls: {totalsAllTrips.calls} | Directions: {totalsAllTrips.directions} | Geocoding: {totalsAllTrips.geocoding} | Places: {totalsAllTrips.places} | Coste: €{totalsAllTrips.cost.toFixed(3)}</p>
 
       <div style={{ marginTop: '0.75rem' }}>
         <input
@@ -195,7 +197,7 @@ export default function LogsViewerSupabase() {
               {isOpen && (
                 <div style={{ borderTop: '1px solid #eef2f7', padding: '12px' }}>
                   <div style={{ color: '#111827', marginBottom: 8 }}>
-                    Directions: {t.totals.directions} · Geocoding: {t.totals.geocoding}
+                    Directions: {t.totals.directions} · Geocoding: {t.totals.geocoding} · Places: {t.totals.places}
                   </div>
 
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -232,6 +234,7 @@ export default function LogsViewerSupabase() {
 
                       const isDirections = r.api === 'google-directions';
                       const isGeocoding = r.api === 'google-geocoding';
+                      const isPlaces = r.api === 'google-places';
 
                       const usefulRows: Array<{ label: string; value: string }> = [];
                       if (isDirections) {
@@ -248,6 +251,18 @@ export default function LogsViewerSupabase() {
                         }
                         if (response.resolvedFrom) usefulRows.push({ label: 'Fuente', value: String(response.resolvedFrom) });
                         if (response.resultsCount != null) usefulRows.push({ label: 'Resultados', value: String(response.resultsCount) });
+                      } else if (isPlaces) {
+                        const supercat = response?.supercat ?? request?.supercat;
+                        if (supercat != null) {
+                          const label = String(supercat) === '1'
+                            ? '1 (Spots+Comer+Super)'
+                            : String(supercat) === '2'
+                              ? '2 (Gas+Lavar+Turismo)'
+                              : String(supercat);
+                          usefulRows.push({ label: 'Supercat', value: label });
+                        }
+                        const resultsCount = response?.resultsCount;
+                        if (resultsCount != null) usefulRows.push({ label: 'Resultados', value: String(resultsCount) });
                       }
                       if (usefulRows.length === 0) {
                         if (response.status) usefulRows.push({ label: 'Status', value: String(response.status) });
@@ -263,6 +278,14 @@ export default function LogsViewerSupabase() {
                           const parts: string[] = [];
                           if (response.distanceKm != null) parts.push(`${response.distanceKm} km`);
                           if (response.durationMin != null) parts.push(`${response.durationMin} min`);
+                          return `Aporta: ${parts.length ? parts.join(' · ') : '—'}`;
+                        }
+                        if (isPlaces) {
+                          const supercat = response?.supercat ?? request?.supercat;
+                          const resultsCount = response?.resultsCount;
+                          const parts: string[] = [];
+                          if (supercat != null) parts.push(`Supercat ${String(supercat)}`);
+                          if (resultsCount != null) parts.push(`${String(resultsCount)} resultados`);
                           return `Aporta: ${parts.length ? parts.join(' · ') : '—'}`;
                         }
                         return 'Aporta: —';
