@@ -111,10 +111,24 @@ export default function Home() {
   };
 
   const handleCalculateServer = async () => {
+    // 1) UI = mismo flujo que el botón rojo (cliente) para que el mapa/itinerario sea idéntico
+    if (!formData.tripName) {
+      const origen = formData.origen.split(',')[0];
+      const destino = formData.destino.split(',')[0];
+      const fecha = new Date(formData.fechaInicio).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+      const autoName = `${origen} → ${destino} (${fecha})`;
+      setFormData({ ...formData, tripName: autoName });
+    }
+
+    setSelectedDayIndex(null);
+    setCurrentTripId(null);
+    resetPlaces();
+    calculateRoute(formData);
+
+    // 2) Logs = server action (único cometido del botón negro)
     try {
       const { getDirectionsAndCost } = await import('./actions');
 
-      // Normalizar igual que en cliente (ciudad + país, sin acentos)
       const normalizeForGoogle = (text: string) => {
         const parts = text.split(',');
         const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
@@ -138,27 +152,12 @@ export default function Home() {
       });
 
       if (res.error) {
-        showToast('Error servidor: ' + res.error, 'error');
-        return;
+        showToast('Logs servidor: ' + res.error, 'error');
+      } else {
+        showToast('Logs generados en servidor', 'success');
       }
-
-      const distanceKm = res.distanceKm ?? null;
-      const liters = distanceKm !== null ? (distanceKm * formData.consumo) / 100 : null;
-      const totalCost = liters !== null ? liters * formData.precioGasoil : null;
-
-      setResults({
-        totalDays: res.dailyItinerary?.length || null,
-        distanceKm,
-        totalCost,
-        liters,
-        overviewPolyline: res.overviewPolyline ?? null,
-        dailyItinerary: res.dailyItinerary || null,
-        error: null,
-      });
-
-      showToast('Itinerario generado en servidor', 'success');
     } catch (err) {
-      showToast('Error al llamar servidor', 'error');
+      showToast('Error generando logs (servidor)', 'error');
       console.error(err);
     }
   };
