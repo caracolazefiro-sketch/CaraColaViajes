@@ -18,6 +18,14 @@ type LogRow = {
   response?: any;
 };
 
+const formatJson = (value: unknown) => {
+  try {
+    return JSON.stringify(value ?? null, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
 export default function LogsViewerSupabase() {
   const isProdHost = typeof window !== 'undefined' && window.location.hostname === (process.env.NEXT_PUBLIC_PROD_HOST || 'cara-cola-viajes.vercel.app');
   if (isProdHost) {
@@ -212,6 +220,70 @@ export default function LogsViewerSupabase() {
                       ))}
                     </tbody>
                   </table>
+
+                  <div style={{ marginTop: 14, fontWeight: 700, color: '#111827' }}>Detalles por llamada</div>
+                  <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+                    {t.logs.map((r) => {
+                      const createdAt = new Date(r.created_at);
+                      const title = `${createdAt.toLocaleString('es-ES')} · ${r.api} · ${r.status ?? '-'} · €${Number(r.cost || 0).toFixed(3)} · ${r.duration_ms ?? 0} ms`;
+                      return (
+                        <details
+                          key={`details-${r.id}`}
+                          style={{
+                            border: '1px solid #e5e7eb',
+                            borderRadius: 10,
+                            background: '#ffffff',
+                            padding: '10px 12px',
+                          }}
+                        >
+                          <summary style={{ cursor: 'pointer', color: '#111827', fontWeight: 600 }}>
+                            {title}
+                          </summary>
+
+                          <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Meta</div>
+                              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                                <div><span style={{ color: '#6b7280' }}>id:</span> <span style={{ fontFamily: 'monospace' }}>{r.id}</span></div>
+                                <div><span style={{ color: '#6b7280' }}>created_at:</span> {createdAt.toISOString()}</div>
+                                <div><span style={{ color: '#6b7280' }}>env:</span> {r.env}</div>
+                                <div><span style={{ color: '#6b7280' }}>trip_id:</span> <span style={{ fontFamily: 'monospace' }}>{r.trip_id || '-'}</span></div>
+                                <div><span style={{ color: '#6b7280' }}>api:</span> {r.api}</div>
+                              </div>
+                            </div>
+
+                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <div style={{ fontWeight: 700, marginBottom: 6 }}>HTTP / Métricas</div>
+                              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                                <div><span style={{ color: '#6b7280' }}>method:</span> {r.method || '-'}</div>
+                                <div><span style={{ color: '#6b7280' }}>status:</span> {r.status || '-'}</div>
+                                <div><span style={{ color: '#6b7280' }}>duration_ms:</span> {r.duration_ms ?? '-'}</div>
+                                <div><span style={{ color: '#6b7280' }}>cost:</span> €{Number(r.cost || 0).toFixed(3)}</div>
+                                <div><span style={{ color: '#6b7280' }}>cached:</span> {String(Boolean(r.cached))}</div>
+                                <div style={{ marginTop: 6 }}><span style={{ color: '#6b7280' }}>url:</span></div>
+                                <pre style={{ marginTop: 6, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{r.url || '-'}</pre>
+                              </div>
+                            </div>
+
+                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Request</div>
+                              <pre style={{ background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.request)}</pre>
+                            </div>
+
+                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Response</div>
+                              <pre style={{ background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.response)}</pre>
+                            </div>
+
+                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Row JSON (completo)</summary>
+                              <pre style={{ marginTop: 10, background: '#111827', color: '#e5e7eb', padding: '1rem', borderRadius: 6, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r)}</pre>
+                            </details>
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
 
                   <details style={{ marginTop: '1rem' }}>
                     <summary style={{ cursor: 'pointer' }}>Ver JSON de este viaje</summary>
