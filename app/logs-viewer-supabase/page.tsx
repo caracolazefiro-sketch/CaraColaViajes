@@ -250,8 +250,18 @@ export default function LogsViewerSupabase() {
                           return { label: 'HIT', detail: 'cache (flag cached=true)', cost: '€0.000' };
                         }
 
-                        // If request indicates a cache attempt but miss
+                        // If request indicates a cache attempt but miss / unavailable
                         if (cacheProvider === 'supabase') {
+                          const cacheOk = reqCache.ok;
+                          const reasonRaw = reqCache.reason != null ? String(reqCache.reason) : '';
+                          const reason = reasonRaw.length > 90 ? `${reasonRaw.slice(0, 90)}…` : reasonRaw;
+                          if (cacheOk === false) {
+                            return {
+                              label: 'MISS',
+                              detail: `supabase unavailable${reason ? ` (${reason})` : ''}${cacheKey ? ` (${cacheKey})` : ''}`,
+                              cost: `€${Number(r.cost || 0).toFixed(3)}`,
+                            };
+                          }
                           return {
                             label: 'MISS',
                             detail: `supabase miss${cacheKey ? ` (${cacheKey})` : ''}`,
@@ -306,6 +316,19 @@ export default function LogsViewerSupabase() {
                         const table = String(resWrite.table ?? reqCache.table ?? '');
                         const key = String(resWrite.key ?? reqCache.key ?? '');
                         const action = String(resWrite.action ?? (r.status === 'SUPABASE_CACHE_UPSERT' ? 'upsert' : ''));
+
+                        if (action === 'upsert' && table) {
+                          const ok = resWrite.ok;
+                          const ttlDays = resWrite.ttlDays != null ? String(resWrite.ttlDays) : (isRecord(response) && response.ttlDays != null ? String(response.ttlDays) : '');
+                          const reasonRaw = resWrite.reason != null ? String(resWrite.reason) : '';
+                          const reason = reasonRaw.length > 90 ? `${reasonRaw.slice(0, 90)}…` : reasonRaw;
+                          if (ok === false) {
+                            return `Supabase cache: upsert FAILED ${table}${key ? ` (${key})` : ''}${reason ? ` · ${reason}` : ''}`;
+                          }
+                          if (ok === true) {
+                            return `Supabase cache: upsert ${table}${key ? ` (${key})` : ''}${ttlDays ? ` ttlDays=${ttlDays}` : ''}`;
+                          }
+                        }
 
                         if (r.status === 'SUPABASE_CACHE_UPSERT' && table && key) {
                           const ttlDays = isRecord(response) && response.ttlDays != null ? String(response.ttlDays) : '';

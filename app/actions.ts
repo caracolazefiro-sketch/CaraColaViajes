@@ -194,30 +194,10 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
             // 🔍 Log de Geocoding API call (cliente/local)
             apiLogger.logGeocoding({ lat, lng }, data, geocodeDuration, false);
 
-            // Supabase server logging (respuesta útil)
-            await logApiToSupabase({
-                trip_id: tripId,
-                api: 'google-geocoding',
-                method: 'GET',
-                url: geocodeUrl,
-                status: data.status,
-                duration_ms: Math.round(geocodeDuration),
-                cost: 0.005,
-                cached: false,
-                request: { lat, lng, cache: { provider: 'supabase', key: geoKey.key, hit: false } },
-                response: {
-                    status: data.status,
-                    resultsCount: data.results?.length || 0,
-                    cityName,
-                    resolvedFrom,
-                    cacheWrite: { provider: 'supabase', action: 'pending', table: 'api_cache_geocoding', key: geoKey.key },
-                }
-            });
-
             // 💾 Guardar en caché para futuras llamadas
             await setCachedCityName(lat, lng, cityName);
 
-            // 💾 Guardar en Supabase cache (best-effort)
+            // 💾 Guardar en Supabase cache (best-effort) y reflejar resultado en el MISMO log
             const up = await upsertGeocodingCache({
                 key: geoKey.key,
                 lat: geoKey.lat,
@@ -227,20 +207,49 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
                 payload: { status: data.status, resultsCount: data.results?.length || 0 },
                 ttlDays: 30,
             });
-            if (up.ok) {
-                await logApiToSupabase({
-                    trip_id: tripId,
-                    api: 'other',
-                    method: 'POST',
-                    url: 'supabase:api_cache_geocoding',
-                    status: 'SUPABASE_CACHE_UPSERT',
-                    duration_ms: 0,
-                    cost: 0,
-                    cached: true,
-                    request: { cache: { provider: 'supabase', table: 'api_cache_geocoding', key: geoKey.key } },
-                    response: { ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays },
-                });
-            }
+
+            const reqCache: Record<string, unknown> = sbCache.ok
+                ? { provider: 'supabase', key: geoKey.key, hit: false }
+                : { provider: 'supabase', key: geoKey.key, ok: false, reason: sbCache.reason };
+
+            const cacheWrite: Record<string, unknown> = up.ok
+                ? {
+                    provider: 'supabase',
+                    action: 'upsert',
+                    table: 'api_cache_geocoding',
+                    key: geoKey.key,
+                    ok: true,
+                    expiresAt: up.expiresAt,
+                    ttlDays: up.ttlDays,
+                }
+                : {
+                    provider: 'supabase',
+                    action: 'upsert',
+                    table: 'api_cache_geocoding',
+                    key: geoKey.key,
+                    ok: false,
+                    reason: up.reason,
+                };
+
+            // Supabase server logging (respuesta útil + estado real de escritura en caché)
+            await logApiToSupabase({
+                trip_id: tripId,
+                api: 'google-geocoding',
+                method: 'GET',
+                url: geocodeUrl,
+                status: data.status,
+                duration_ms: Math.round(geocodeDuration),
+                cost: 0.005,
+                cached: false,
+                request: { lat, lng, cache: reqCache },
+                response: {
+                    status: data.status,
+                    resultsCount: data.results?.length || 0,
+                    cityName,
+                    resolvedFrom,
+                    cacheWrite,
+                }
+            });
             return cityName;
         }
 
