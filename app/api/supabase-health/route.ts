@@ -28,15 +28,17 @@ export async function GET() {
     return NextResponse.json({ ok: false, reason: 'client-null', details: { projectRef, keyPrefix } }, { status: 500 });
   }
 
+  const sb = supabaseServer;
+
   try {
     const checkTable = async (table: string) => {
-      const { error, data } = await supabaseServer.from(table).select('key').limit(1);
+      const { error, data } = await sb.from(table).select('key').limit(1);
       if (error) return { ok: false as const, table, error: error.message };
       return { ok: true as const, table, rows: Array.isArray(data) ? data.length : 0 };
     };
 
     const checkApiLogs = async () => {
-      const { error, data } = await supabaseServer.from('api_logs').select('id').limit(1);
+      const { error, data } = await sb.from('api_logs').select('id').limit(1);
       if (error) return { ok: false as const, table: 'api_logs', error: error.message };
       return { ok: true as const, table: 'api_logs', rows: Array.isArray(data) ? data.length : 0 };
     };
