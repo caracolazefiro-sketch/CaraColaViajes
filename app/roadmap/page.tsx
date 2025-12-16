@@ -96,6 +96,7 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
 ## 🐛 BUGS CONOCIDOS
 - [ ] Actualizar \`baseline-browser-mapping\` (warning en build)
+- [ ] Sanitizar logs: redacción de API keys (Google \`key=...\`) antes de guardar/mostrar en Supabase
 
 ---
 
