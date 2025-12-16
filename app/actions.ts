@@ -102,7 +102,14 @@ function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, attempt = 1): Promise<string> {
+type CityNameContext = {
+    tripId?: string;
+    attempt?: number;
+};
+
+async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, ctx?: CityNameContext): Promise<string> {
+    const attempt = ctx?.attempt ?? 1;
+    const tripId = ctx?.tripId;
     try {
         // 💾 PRIMERO: Verificar caché persistente
         const cachedName = await getCachedCityName(lat, lng);
@@ -111,6 +118,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
                         apiLogger.logGeocoding({ lat, lng }, { status: 'CACHE_HIT' }, 0, true);
                         // Registrar cache hit en Supabase (coste 0)
                         await logApiToSupabase({
+                            trip_id: tripId,
                             api: 'google-geocoding',
                             method: 'GET',
                             url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}`,
@@ -136,7 +144,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
         if (data.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             await sleep(1000 * attempt);
-            return getCityNameFromCoords(lat, lng, apiKey, attempt + 1);
+            return getCityNameFromCoords(lat, lng, apiKey, { tripId, attempt: attempt + 1 });
         }
 
         if (data.status === 'OK' && data.results?.[0]) {
@@ -151,6 +159,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
                         // Supabase server logging
                         await logApiToSupabase({
+                            trip_id: tripId,
                             api: 'google-geocoding',
                             method: 'GET',
                             url: geocodeUrl,
@@ -171,7 +180,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 }
 
 // Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
-async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
+async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string, tripId?: string): Promise<DailyPlan[]> {
     const segmented: DailyPlan[] = [];
 
     for (const day of itinerary) {
@@ -203,7 +212,7 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
 
                     // Obtener nombre real de la ciudad en ese punto
                     await sleep(100);
-                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey);
+                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey, { tripId });
                     segmentEndName = cityName;
                     segmentEndCoords = intermediateCoords;
                 }
@@ -385,7 +394,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             }
 
                         await sleep(200);
-                        const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey);
+                        const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId });
                         // Usar directamente el nombre de la ciudad (sin prefijo)
                         const stopName = stopNameRaw;
 
@@ -472,7 +481,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 // Reverse geocodificar destino
                 let stayLocation = data.destination;
                 try {
-                    stayLocation = await getCityNameFromCoords(stayCoords.lat, stayCoords.lng, apiKey);
+                    stayLocation = await getCityNameFromCoords(stayCoords.lat, stayCoords.lng, apiKey, { tripId });
                 } catch {
                     // usar destino original
                 }
@@ -503,7 +512,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
         // POST-PROCESAMIENTO: Segmentar etapas > 300km/día
         debugLog.push(`\n📊 Itinerario ANTES de post-segmentación: ${dailyItinerary.length} días`);
-        const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey);
+        const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey, tripId);
         debugLog.push(`📊 Itinerario DESPUÉS de post-segmentación: ${segmentedItinerary.length} días`);
         segmentedItinerary.forEach((day, idx) => {
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
