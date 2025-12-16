@@ -14,8 +14,12 @@ type LogRow = {
   duration_ms?: number;
   cost?: number;
   cached?: boolean;
-  request?: any;
-  response?: any;
+  request?: unknown;
+  response?: unknown;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
 const formatJson = (value: unknown) => {
@@ -27,17 +31,19 @@ const formatJson = (value: unknown) => {
 };
 
 export default function LogsViewerSupabase() {
-  const isProdHost = typeof window !== 'undefined' && window.location.hostname === (process.env.NEXT_PUBLIC_PROD_HOST || 'cara-cola-viajes.vercel.app');
-  if (isProdHost) {
-    return <div style={{ padding: '2rem' }}>❌ Página no disponible en producción.</div>;
-  }
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
 
+  const isProdHost =
+    typeof window !== 'undefined' &&
+    window.location.hostname ===
+      (process.env.NEXT_PUBLIC_PROD_HOST || 'cara-cola-viajes.vercel.app');
+
   useEffect(() => {
+    if (isProdHost) return;
     fetch('/api/logs-supabase?limit=200')
       .then(res => res.json())
       .then(data => {
@@ -45,7 +51,11 @@ export default function LogsViewerSupabase() {
         setLoading(false);
       })
       .catch(err => { setError(err.message); setLoading(false); });
-  }, []);
+  }, [isProdHost]);
+
+  if (isProdHost) {
+    return <div style={{ padding: '2rem' }}>❌ Página no disponible en producción.</div>;
+  }
 
   if (loading) return <div style={{ padding: '2rem' }}>⏳ Cargando logs de Supabase…</div>;
   if (error) return <div style={{ padding: '2rem', color: 'red' }}>❌ {error}</div>;
@@ -54,13 +64,15 @@ export default function LogsViewerSupabase() {
     if (!r.trip_id) return acc;
     if (acc[r.trip_id]) return acc;
 
-    if (r.api === 'google-directions' && r.request?.origin && r.request?.destination) {
-      if (r.request?.tripName && String(r.request.tripName).trim().length > 0) {
-        acc[r.trip_id] = String(r.request.tripName).trim();
+    const request = isRecord(r.request) ? r.request : {};
+
+    if (r.api === 'google-directions' && request.origin && request.destination) {
+      if (request.tripName && String(request.tripName).trim().length > 0) {
+        acc[r.trip_id] = String(request.tripName).trim();
         return acc;
       }
-      const origin = String(r.request.origin);
-      const destination = String(r.request.destination);
+      const origin = String(request.origin);
+      const destination = String(request.destination);
       acc[r.trip_id] = `${origin} → ${destination}`;
     }
 
@@ -69,11 +81,12 @@ export default function LogsViewerSupabase() {
 
   const getTripName = (r: LogRow): string => {
     if (r.trip_id && tripNameById[r.trip_id]) return tripNameById[r.trip_id];
-    if (r.api === 'google-directions' && r.request?.origin && r.request?.destination) {
-      if (r.request?.tripName && String(r.request.tripName).trim().length > 0) {
-        return String(r.request.tripName).trim();
+    const request = isRecord(r.request) ? r.request : {};
+    if (r.api === 'google-directions' && request.origin && request.destination) {
+      if (request.tripName && String(request.tripName).trim().length > 0) {
+        return String(request.tripName).trim();
       }
-      return `${String(r.request.origin)} → ${String(r.request.destination)}`;
+      return `${String(request.origin)} → ${String(request.destination)}`;
     }
     return r.trip_id || '-';
   };
@@ -200,69 +213,74 @@ export default function LogsViewerSupabase() {
                   <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
                     {t.logs.map((r) => {
                       const createdAt = new Date(r.created_at);
-                      const title = `${createdAt.toLocaleString('es-ES')} · ${r.api} · ${r.status ?? '-'} · €${Number(r.cost || 0).toFixed(3)} · ${r.duration_ms ?? 0} ms`;
+                      const title = `${createdAt.toLocaleString('es-ES')} · ${r.api} · €${Number(r.cost || 0).toFixed(3)}`;
 
-                      const response = r.response || {};
-                      const request = r.request || {};
+                      const response = isRecord(r.response) ? r.response : {};
+                      const request = isRecord(r.request) ? r.request : {};
 
                       const isDirections = r.api === 'google-directions';
                       const isGeocoding = r.api === 'google-geocoding';
                       const isPlaces = r.api === 'google-places';
 
-                      const usefulRows: Array<{ label: string; value: string }> = [];
-                      if (isDirections) {
-                        if (response.distanceKm != null) usefulRows.push({ label: 'Distancia', value: `${response.distanceKm} km` });
-                        if (response.durationMin != null) usefulRows.push({ label: 'Duración', value: `${response.durationMin} min` });
-                        if (response.legsCount != null) usefulRows.push({ label: 'Tramos', value: String(response.legsCount) });
-                        if (response.waypointsCount != null) usefulRows.push({ label: 'Waypoints', value: String(response.waypointsCount) });
-                        if (response.routesCount != null) usefulRows.push({ label: 'Rutas', value: String(response.routesCount) });
-                        if (response.error_message) usefulRows.push({ label: 'Error', value: String(response.error_message) });
-                      } else if (isGeocoding) {
-                        if (response.cityName) usefulRows.push({ label: 'Lugar', value: String(response.cityName) });
-                        if (request.lat != null && request.lng != null) {
-                          usefulRows.push({ label: 'Coord', value: `${Number(request.lat).toFixed(4)}, ${Number(request.lng).toFixed(4)}` });
+                      const cacheInfo = (() => {
+                        const status = String(r.status || response.status || '').toUpperCase();
+                        if (status === 'CACHE_HIT') {
+                          return { label: 'HIT', detail: 'cache local (no Supabase aún)', cost: '€0.000' };
                         }
-                        if (response.resolvedFrom) usefulRows.push({ label: 'Fuente', value: String(response.resolvedFrom) });
-                        if (response.resultsCount != null) usefulRows.push({ label: 'Resultados', value: String(response.resultsCount) });
-                      } else if (isPlaces) {
-                        const supercat = response?.supercat ?? request?.supercat;
-                        if (supercat != null) {
-                          const label = String(supercat) === '1'
-                            ? '1 (Spots+Comer+Super)'
-                            : String(supercat) === '2'
-                              ? '2 (Gas+Lavar+Turismo)'
-                              : String(supercat);
-                          usefulRows.push({ label: 'Supercat', value: label });
+                        if (r.cached === true) {
+                          return { label: 'HIT', detail: 'cache (flag cached=true)', cost: '€0.000' };
                         }
-                        const resultsCount = response?.resultsCount;
-                        if (resultsCount != null) usefulRows.push({ label: 'Resultados', value: String(resultsCount) });
-                      }
-                      if (usefulRows.length === 0) {
-                        if (response.status) usefulRows.push({ label: 'Status', value: String(response.status) });
-                        usefulRows.push({ label: 'Aporta', value: '—' });
-                      }
+                        return { label: 'MISS', detail: 'llamada real a API', cost: `€${Number(r.cost || 0).toFixed(3)}` };
+                      })();
 
-                      const aportaInline = (() => {
+                      const apiResponseSummary = (() => {
                         if (isGeocoding) {
-                          const city = response.cityName ? String(response.cityName) : '';
-                          return city ? `Aporta: ${city}` : 'Aporta: —';
+                          const cityName = response.cityName ? String(response.cityName) : null;
+                          const resolvedFrom = response.resolvedFrom ? String(response.resolvedFrom) : null;
+                          const resultsCount = response.resultsCount != null ? String(response.resultsCount) : null;
+                          const parts: string[] = [];
+                          if (cityName) parts.push(`Lugar=${cityName}`);
+                          if (resolvedFrom) parts.push(`Fuente=${resolvedFrom}`);
+                          if (resultsCount != null) parts.push(`Resultados=${resultsCount}`);
+                          return parts.length ? parts.join(' · ') : `Status=${String(r.status || response.status || '-')}`;
                         }
                         if (isDirections) {
                           const parts: string[] = [];
-                          if (response.distanceKm != null) parts.push(`${response.distanceKm} km`);
-                          if (response.durationMin != null) parts.push(`${response.durationMin} min`);
-                          return `Aporta: ${parts.length ? parts.join(' · ') : '—'}`;
+                          if (response.distanceKm != null) parts.push(`Distancia=${response.distanceKm} km`);
+                          if (response.durationMin != null) parts.push(`Duración=${response.durationMin} min`);
+                          if (response.legsCount != null) parts.push(`Tramos=${response.legsCount}`);
+                          if (response.waypointsCount != null) parts.push(`Waypoints=${response.waypointsCount}`);
+                          if (response.error_message) parts.push(`Error=${String(response.error_message)}`);
+                          return parts.length ? parts.join(' · ') : `Status=${String(r.status || response.status || '-')}`;
                         }
                         if (isPlaces) {
                           const supercat = response?.supercat ?? request?.supercat;
                           const resultsCount = response?.resultsCount;
                           const parts: string[] = [];
-                          if (supercat != null) parts.push(`Supercat ${String(supercat)}`);
-                          if (resultsCount != null) parts.push(`${String(resultsCount)} resultados`);
-                          return `Aporta: ${parts.length ? parts.join(' · ') : '—'}`;
+                          if (supercat != null) {
+                            const label = String(supercat) === '1'
+                              ? '1(Spots+Comer+Super)'
+                              : String(supercat) === '2'
+                                ? '2(Gas+Lavar+Turismo)'
+                                : String(supercat);
+                            parts.push(`Supercat=${label}`);
+                          }
+                          if (resultsCount != null) parts.push(`Resultados=${String(resultsCount)}`);
+                          return parts.length ? parts.join(' · ') : `Status=${String(r.status || response.status || '-')}`;
                         }
-                        return 'Aporta: —';
+                        return `Status=${String(r.status || response.status || '-')}`;
                       })();
+
+                      const supabaseWriteSummary = (() => {
+                        // En TANDA 1 solo garantizamos el log en api_logs.
+                        // En TANDA 2 añadiremos caches reales en Supabase y podremos detallar upsert/insert.
+                        if (isGeocoding) return 'Guardamos en Supabase: api_logs + cityName/resolvedFrom/resultsCount';
+                        if (isDirections) return 'Guardamos en Supabase: api_logs + distance/duration/legs/waypoints';
+                        if (isPlaces) return 'Guardamos en Supabase: api_logs + supercat/resultsCount (por página)';
+                        return 'Guardamos en Supabase: api_logs';
+                      })();
+
+                      const summaryInline = `Cache:${cacheInfo.label} · ${apiResponseSummary}`;
 
                       return (
                         <details
@@ -276,51 +294,40 @@ export default function LogsViewerSupabase() {
                         >
                           <summary style={{ cursor: 'pointer', color: '#111827', fontWeight: 600 }}>
                             <span>{title}</span>
-                            <span style={{ color: '#6b7280', fontWeight: 500 }}> · {aportaInline}</span>
+                            <span style={{ color: '#6b7280', fontWeight: 500 }}> · {summaryInline}</span>
                           </summary>
 
-                          <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Aporta (resultado útil)</div>
-                              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                                {usefulRows.map((x) => (
-                                  <div key={`${r.id}-${x.label}`}>
-                                    <span style={{ color: '#6b7280' }}>{x.label}:</span> {x.value}
-                                  </div>
-                                ))}
-                              </div>
+                          <div style={{ marginTop: 10, border: '1px solid #eef2f7', borderRadius: 10, padding: 10 }}>
+                            <div style={{ fontSize: 13, lineHeight: 1.7, color: '#111827' }}>
+                              <div><span style={{ color: '#6b7280' }}>1) API + coste:</span> {r.api} · {cacheInfo.cost} · {r.duration_ms ?? 0} ms</div>
+                              <div><span style={{ color: '#6b7280' }}>2) Caché:</span> {cacheInfo.label} · {cacheInfo.detail}</div>
+                              <div><span style={{ color: '#6b7280' }}>3) Respuesta API:</span> {apiResponseSummary}</div>
+                              <div><span style={{ color: '#6b7280' }}>4) Guardado en Supabase:</span> {supabaseWriteSummary}</div>
                             </div>
 
-                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Debug técnico (meta / http / url)</summary>
-                              <div style={{ fontSize: 13, lineHeight: 1.6, marginTop: 10 }}>
+                            <details style={{ marginTop: 10, borderTop: '1px solid #eef2f7', paddingTop: 10 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#111827' }}>Ver debug (url + request/response + row)</summary>
+                              <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6 }}>
                                 <div><span style={{ color: '#6b7280' }}>id:</span> <span style={{ fontFamily: 'monospace' }}>{r.id}</span></div>
                                 <div><span style={{ color: '#6b7280' }}>created_at:</span> {createdAt.toISOString()}</div>
                                 <div><span style={{ color: '#6b7280' }}>env:</span> {r.env}</div>
                                 <div><span style={{ color: '#6b7280' }}>trip_id:</span> <span style={{ fontFamily: 'monospace' }}>{r.trip_id || '-'}</span></div>
                                 <div><span style={{ color: '#6b7280' }}>method:</span> {r.method || '-'}</div>
                                 <div><span style={{ color: '#6b7280' }}>status:</span> {r.status || '-'}</div>
-                                <div><span style={{ color: '#6b7280' }}>duration_ms:</span> {r.duration_ms ?? '-'}</div>
-                                <div><span style={{ color: '#6b7280' }}>cost:</span> €{Number(r.cost || 0).toFixed(3)}</div>
                                 <div><span style={{ color: '#6b7280' }}>cached:</span> {String(Boolean(r.cached))}</div>
-                                <div style={{ marginTop: 6 }}><span style={{ color: '#6b7280' }}>url:</span></div>
+
+                                <div style={{ marginTop: 10 }}><span style={{ color: '#6b7280' }}>url:</span></div>
                                 <pre style={{ marginTop: 6, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{r.url || '-'}</pre>
+
+                                <div style={{ marginTop: 10 }}><span style={{ color: '#6b7280' }}>request:</span></div>
+                                <pre style={{ marginTop: 6, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.request)}</pre>
+
+                                <div style={{ marginTop: 10 }}><span style={{ color: '#6b7280' }}>response:</span></div>
+                                <pre style={{ marginTop: 6, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.response)}</pre>
+
+                                <div style={{ marginTop: 10 }}><span style={{ color: '#6b7280' }}>row:</span></div>
+                                <pre style={{ marginTop: 6, background: '#111827', color: '#e5e7eb', padding: '1rem', borderRadius: 6, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r)}</pre>
                               </div>
-                            </details>
-
-                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Ver request JSON</summary>
-                              <pre style={{ marginTop: 10, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.request)}</pre>
-                            </details>
-
-                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Ver response JSON</summary>
-                              <pre style={{ marginTop: 10, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.response)}</pre>
-                            </details>
-
-                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Row JSON (completo)</summary>
-                              <pre style={{ marginTop: 10, background: '#111827', color: '#e5e7eb', padding: '1rem', borderRadius: 6, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r)}</pre>
                             </details>
                           </div>
                         </details>
