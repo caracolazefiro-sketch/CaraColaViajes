@@ -112,12 +112,16 @@ export default function Home() {
 
   const handleCalculateServer = async () => {
     // 1) UI = mismo flujo que el botón rojo (cliente) para que el mapa/itinerario sea idéntico
-    if (!formData.tripName) {
+    const tripNameForLogs = (() => {
+      if (formData.tripName) return formData.tripName;
       const origen = formData.origen.split(',')[0];
       const destino = formData.destino.split(',')[0];
       const fecha = new Date(formData.fechaInicio).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
-      const autoName = `${origen} → ${destino} (${fecha})`;
-      setFormData({ ...formData, tripName: autoName });
+      return `${origen} → ${destino} (${fecha})`;
+    })();
+
+    if (!formData.tripName) {
+      setFormData({ ...formData, tripName: tripNameForLogs });
     }
 
     setSelectedDayIndex(null);
@@ -142,6 +146,7 @@ export default function Home() {
         .map(normalizeForGoogle);
 
       const res = await getDirectionsAndCost({
+        tripName: tripNameForLogs,
         origin: normalizeForGoogle(formData.origen),
         destination: normalizeForGoogle(formData.destino),
         waypoints: normalizedWaypoints,
@@ -350,6 +355,7 @@ export default function Home() {
 
       // PASO 3: Enviar a Google la ruta NUEVA
       const recalcResult = await getDirectionsAndCost({
+        tripName: formData.tripName || '',
         origin: originCityName,
         destination: destCityName,
         waypoints: normalizedWaypoints,

@@ -30,6 +30,7 @@ interface DirectionsRequest {
     kmMaximoDia: number;
     fechaInicio: string;
     fechaRegreso: string;
+    tripName?: string;
 }
 
 interface DirectionsResult {
@@ -320,7 +321,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     duration_ms: Math.round(directionsDuration),
                     cost: 0.005 + (0.005 * data.waypoints.length),
                     cached: false,
-                    request: { origin: data.origin, destination: data.destination, waypoints: data.waypoints },
+                    request: { tripName: data.tripName, origin: data.origin, destination: data.destination, waypoints: data.waypoints },
                     response: { status: directionsResult.status, routesCount: directionsResult.routes?.length || 0 }
                 });
 

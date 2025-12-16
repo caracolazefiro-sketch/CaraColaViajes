@@ -46,6 +46,10 @@ export default function LogsViewerSupabase() {
     if (acc[r.trip_id]) return acc;
 
     if (r.api === 'google-directions' && r.request?.origin && r.request?.destination) {
+      if (r.request?.tripName && String(r.request.tripName).trim().length > 0) {
+        acc[r.trip_id] = String(r.request.tripName).trim();
+        return acc;
+      }
       const origin = String(r.request.origin);
       const destination = String(r.request.destination);
       acc[r.trip_id] = `${origin} → ${destination}`;
@@ -57,6 +61,9 @@ export default function LogsViewerSupabase() {
   const getTripName = (r: LogRow): string => {
     if (r.trip_id && tripNameById[r.trip_id]) return tripNameById[r.trip_id];
     if (r.api === 'google-directions' && r.request?.origin && r.request?.destination) {
+      if (r.request?.tripName && String(r.request.tripName).trim().length > 0) {
+        return String(r.request.tripName).trim();
+      }
       return `${String(r.request.origin)} → ${String(r.request.destination)}`;
     }
     return r.trip_id || '-';
