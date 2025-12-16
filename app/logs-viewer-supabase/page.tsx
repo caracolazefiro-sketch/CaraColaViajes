@@ -196,33 +196,6 @@ export default function LogsViewerSupabase() {
 
               {isOpen && (
                 <div style={{ borderTop: '1px solid #eef2f7', padding: '12px' }}>
-                  <div style={{ color: '#111827', marginBottom: 8 }}>
-                    Directions: {t.totals.directions} · Geocoding: {t.totals.geocoding} · Places: {t.totals.places}
-                  </div>
-
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Hora</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>API</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Estado</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Duración</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Coste</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {t.logs.map((r) => (
-                        <tr key={r.id}>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{new Date(r.created_at).toLocaleString('es-ES')}</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{r.api}</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{r.status}</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{r.duration_ms} ms</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>€{Number(r.cost || 0).toFixed(3)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
                   <div style={{ marginTop: 14, fontWeight: 700, color: '#111827' }}>Detalles por llamada</div>
                   <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
                     {t.logs.map((r) => {
