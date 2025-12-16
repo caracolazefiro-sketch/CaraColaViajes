@@ -35,6 +35,7 @@ interface DirectionsRequest {
 interface DirectionsResult {
     distanceKm?: number;
     mapUrl?: string;
+    overviewPolyline?: string;
     error?: string;
     dailyItinerary?: DailyPlan[];
     debugLog?: string[]; // Logs del servidor para debugging
@@ -533,7 +534,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         debugLog.push(`   Session guardada en localStorage con key: 'api-logger-session-v1'`);
         debugLog.push(`   Ejecuta en consola: apiLogger.printReport()`);
 
-        return { distanceKm, mapUrl, dailyItinerary: segmentedItinerary, debugLog };
+        const overviewPolyline = route?.overview_polyline?.points;
+
+        return { distanceKm, mapUrl, overviewPolyline, dailyItinerary: segmentedItinerary, debugLog };
 
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);

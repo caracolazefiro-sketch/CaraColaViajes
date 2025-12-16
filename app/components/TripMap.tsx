@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { GoogleMap, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { GoogleMap, DirectionsRenderer, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
 import { ICONS_ITINERARY } from '../constants';
 import { createMarkerIcon, ServiceIcons } from './ServiceIcons';
@@ -44,6 +44,7 @@ interface TripMapProps {
     setMap: (map: google.maps.Map | null) => void;
     mapBounds: google.maps.LatLngBounds | null;
     directionsResponse: google.maps.DirectionsResult | null;
+    overviewPolyline?: string | null;
     dailyItinerary: DailyPlan[] | null;
     places: Record<ServiceType, PlaceWithDistance[]>;
     toggles: Record<ServiceType, boolean>;
@@ -65,7 +66,7 @@ interface TripMapProps {
 }
 
 export default function TripMap({
-    setMap, mapBounds, directionsResponse, dailyItinerary, places, toggles,
+    setMap, mapBounds, directionsResponse, overviewPolyline, dailyItinerary, places, toggles,
     selectedDayIndex, hoveredPlace, setHoveredPlace, onPlaceClick, onAddPlace,
     onSearch, onClearSearch, mapInstance, t, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }: TripMapProps) {
@@ -76,6 +77,42 @@ export default function TripMap({
     // CONTROL DE INTERACCIÓN (SISTEMA VS HUMANO)
     const hasUserInteracted = useRef(false);
     const isProgrammaticMove = useRef(false);
+
+    // Decode an encoded Google polyline (same algorithm as server side)
+    const decodedOverviewPath = useMemo(() => {
+        if (!overviewPolyline) return null;
+        const poly: google.maps.LatLngLiteral[] = [];
+        let index = 0;
+        let lat = 0;
+        let lng = 0;
+
+        while (index < overviewPolyline.length) {
+            let b = 0;
+            let shift = 0;
+            let result = 0;
+            do {
+                b = overviewPolyline.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
+            lat += dlat;
+
+            shift = 0;
+            result = 0;
+            do {
+                b = overviewPolyline.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
+            lng += dlng;
+
+            poly.push({ lat: lat / 1e5, lng: lng / 1e5 });
+        }
+
+        return poly;
+    }, [overviewPolyline]);
 
     // Listener para el mapa
     const handleMapLoad = (map: google.maps.Map) => {
@@ -166,7 +203,13 @@ export default function TripMap({
             const routeBounds = directionsResponse.routes[0].bounds;
             if (routeBounds) applyBounds(routeBounds);
         }
-    }, [mapInstance, mapBounds, directionsResponse, selectedDayIndex]);
+        // CASO 3: Server-beta fallback (polyline) sin DirectionsResult
+        else if (!directionsResponse && decodedOverviewPath && !hasUserInteracted.current && selectedDayIndex === null) {
+            const bounds = new google.maps.LatLngBounds();
+            decodedOverviewPath.forEach((p) => bounds.extend(p));
+            applyBounds(bounds);
+        }
+    }, [mapInstance, mapBounds, directionsResponse, decodedOverviewPath, selectedDayIndex]);
 
     const handleSearchSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -184,7 +227,7 @@ export default function TripMap({
 
     // Generamos una clave única para forzar el repintado de la ruta si cambia
     // Usamos el polyline codificado como ID único de la ruta
-    const routeKey = directionsResponse?.routes?.[0]?.overview_polyline || 'no-route';
+    const routeKey = (directionsResponse?.routes?.[0]?.overview_polyline as unknown as string) || overviewPolyline || 'no-route';
 
     return (
         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
@@ -237,6 +280,14 @@ export default function TripMap({
                             suppressMarkers: false,
                             preserveViewport: true // 🛑 PROHIBIDO TOCAR EL ZOOM: Nosotros mandamos
                         }}
+                    />
+                )}
+
+                {!directionsResponse && decodedOverviewPath && (
+                    <Polyline
+                        key={routeKey}
+                        path={decodedOverviewPath}
+                        options={{ strokeColor: '#DC2626', strokeOpacity: 1, strokeWeight: 4 }}
                     />
                 )}
 
