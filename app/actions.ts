@@ -117,20 +117,20 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
         const cachedName = await getCachedCityName(lat, lng);
         if (cachedName) {
             // 🔍 Log de cache hit
-                        apiLogger.logGeocoding({ lat, lng }, { status: 'CACHE_HIT' }, 0, true);
-                        // Registrar cache hit en Supabase (coste 0)
-                        await logApiToSupabase({
-                            trip_id: tripId,
-                            api: 'google-geocoding',
-                            method: 'GET',
-                            url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}`,
-                            status: 'CACHE_HIT',
-                            duration_ms: 0,
-                            cost: 0,
-                            cached: true,
-                            request: { lat, lng },
-                            response: { status: 'CACHE_HIT' }
-                        });
+            apiLogger.logGeocoding({ lat, lng }, { status: 'CACHE_HIT' }, 0, true);
+            // Registrar cache hit en Supabase (coste 0)
+            await logApiToSupabase({
+                trip_id: tripId,
+                api: 'google-geocoding',
+                method: 'GET',
+                url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}`,
+                status: 'CACHE_HIT',
+                duration_ms: 0,
+                cost: 0,
+                cached: true,
+                request: { lat, lng },
+                response: { status: 'CACHE_HIT', cityName: cachedName }
+            });
             return cachedName;
         }
 
@@ -154,29 +154,51 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
             const locality = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('locality'))?.long_name;
             const admin3 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_3'))?.long_name;
             const admin2 = comp.find((c: { types: string[]; long_name?: string }) => c.types.includes('administrative_area_level_2'))?.long_name;
+
+            const resolvedFrom: 'locality' | 'administrative_area_level_3' | 'administrative_area_level_2' | 'fallback' =
+                locality ? 'locality' : admin3 ? 'administrative_area_level_3' : admin2 ? 'administrative_area_level_2' : 'fallback';
             const cityName = locality || admin3 || admin2 || `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
 
-                        // 🔍 Log de Geocoding API call (cliente/local)
-                        apiLogger.logGeocoding({ lat, lng }, data, geocodeDuration, false);
+            // 🔍 Log de Geocoding API call (cliente/local)
+            apiLogger.logGeocoding({ lat, lng }, data, geocodeDuration, false);
 
-                        // Supabase server logging
-                        await logApiToSupabase({
-                            trip_id: tripId,
-                            api: 'google-geocoding',
-                            method: 'GET',
-                            url: geocodeUrl,
-                            status: data.status,
-                            duration_ms: Math.round(geocodeDuration),
-                            cost: 0.005,
-                            cached: false,
-                            request: { lat, lng },
-                            response: { status: data.status, resultsCount: data.results?.length || 0 }
-                        });
+            // Supabase server logging (respuesta útil)
+            await logApiToSupabase({
+                trip_id: tripId,
+                api: 'google-geocoding',
+                method: 'GET',
+                url: geocodeUrl,
+                status: data.status,
+                duration_ms: Math.round(geocodeDuration),
+                cost: 0.005,
+                cached: false,
+                request: { lat, lng },
+                response: {
+                    status: data.status,
+                    resultsCount: data.results?.length || 0,
+                    cityName,
+                    resolvedFrom,
+                }
+            });
 
             // 💾 Guardar en caché para futuras llamadas
             await setCachedCityName(lat, lng, cityName);
             return cityName;
         }
+
+        // Log también cuando la llamada responde pero no aporta una ciudad (para que el viewer sea coherente)
+        await logApiToSupabase({
+            trip_id: tripId,
+            api: 'google-geocoding',
+            method: 'GET',
+            url: geocodeUrl,
+            status: data?.status,
+            duration_ms: Math.round(geocodeDuration),
+            cost: 0.005,
+            cached: false,
+            request: { lat, lng },
+            response: { status: data?.status, resultsCount: data?.results?.length || 0 }
+        });
     } catch (e) { console.error("Geocode error", e); }
     return `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
 }
@@ -311,19 +333,39 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
           directionsDuration
         );
 
-                // Registrar en Supabase (servidor) si está configurado
-                await logApiToSupabase({
-                    trip_id: tripId,
-                    api: 'google-directions',
-                    method: 'GET',
-                    url,
-                    status: directionsResult.status,
-                    duration_ms: Math.round(directionsDuration),
-                    cost: 0.005 + (0.005 * data.waypoints.length),
-                    cached: false,
-                    request: { tripName: data.tripName, origin: data.origin, destination: data.destination, waypoints: data.waypoints },
-                    response: { status: directionsResult.status, routesCount: directionsResult.routes?.length || 0 }
-                });
+        const routesCount = directionsResult.routes?.length || 0;
+        const waypointsCount = data.waypoints.length;
+        const usefulDirectionsResponse: Record<string, any> = { status: directionsResult.status, routesCount, waypointsCount };
+
+        if (directionsResult.status === 'OK' && directionsResult.routes?.[0]?.legs?.length) {
+            const route0 = directionsResult.routes[0];
+            const legsCount = route0.legs.length;
+            let totalDistanceMeters = 0;
+            let totalDurationSeconds = 0;
+            route0.legs.forEach((leg: { distance?: { value?: number }, duration?: { value?: number } }) => {
+                totalDistanceMeters += Number(leg?.distance?.value || 0);
+                totalDurationSeconds += Number(leg?.duration?.value || 0);
+            });
+            usefulDirectionsResponse.legsCount = legsCount;
+            usefulDirectionsResponse.distanceKm = Math.round((totalDistanceMeters / 1000) * 10) / 10;
+            usefulDirectionsResponse.durationMin = Math.round((totalDurationSeconds / 60) * 10) / 10;
+        } else if (directionsResult.error_message) {
+            usefulDirectionsResponse.error_message = directionsResult.error_message;
+        }
+
+        // Registrar en Supabase (servidor) si está configurado
+        await logApiToSupabase({
+            trip_id: tripId,
+            api: 'google-directions',
+            method: 'GET',
+            url,
+            status: directionsResult.status,
+            duration_ms: Math.round(directionsDuration),
+            cost: 0.005 + (0.005 * waypointsCount),
+            cached: false,
+            request: { tripName: data.tripName, origin: data.origin, destination: data.destination, waypoints: data.waypoints },
+            response: usefulDirectionsResponse
+        });
 
         if (directionsResult.status !== 'OK') {
             debugLog.push(`❌ Google API Response: status=${directionsResult.status}, error=${directionsResult.error_message}`);

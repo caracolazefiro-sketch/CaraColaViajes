@@ -226,6 +226,34 @@ export default function LogsViewerSupabase() {
                     {t.logs.map((r) => {
                       const createdAt = new Date(r.created_at);
                       const title = `${createdAt.toLocaleString('es-ES')} · ${r.api} · ${r.status ?? '-'} · €${Number(r.cost || 0).toFixed(3)} · ${r.duration_ms ?? 0} ms`;
+
+                      const response = r.response || {};
+                      const request = r.request || {};
+
+                      const isDirections = r.api === 'google-directions';
+                      const isGeocoding = r.api === 'google-geocoding';
+
+                      const usefulRows: Array<{ label: string; value: string }> = [];
+                      if (isDirections) {
+                        if (response.distanceKm != null) usefulRows.push({ label: 'Distancia', value: `${response.distanceKm} km` });
+                        if (response.durationMin != null) usefulRows.push({ label: 'Duración', value: `${response.durationMin} min` });
+                        if (response.legsCount != null) usefulRows.push({ label: 'Tramos', value: String(response.legsCount) });
+                        if (response.waypointsCount != null) usefulRows.push({ label: 'Waypoints', value: String(response.waypointsCount) });
+                        if (response.routesCount != null) usefulRows.push({ label: 'Rutas', value: String(response.routesCount) });
+                        if (response.error_message) usefulRows.push({ label: 'Error', value: String(response.error_message) });
+                      } else if (isGeocoding) {
+                        if (response.cityName) usefulRows.push({ label: 'Lugar', value: String(response.cityName) });
+                        if (request.lat != null && request.lng != null) {
+                          usefulRows.push({ label: 'Coord', value: `${Number(request.lat).toFixed(4)}, ${Number(request.lng).toFixed(4)}` });
+                        }
+                        if (response.resolvedFrom) usefulRows.push({ label: 'Fuente', value: String(response.resolvedFrom) });
+                        if (response.resultsCount != null) usefulRows.push({ label: 'Resultados', value: String(response.resultsCount) });
+                      }
+                      if (usefulRows.length === 0) {
+                        if (response.status) usefulRows.push({ label: 'Status', value: String(response.status) });
+                        usefulRows.push({ label: 'Aporta', value: '—' });
+                      }
+
                       return (
                         <details
                           key={`details-${r.id}`}
@@ -242,19 +270,23 @@ export default function LogsViewerSupabase() {
 
                           <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
                             <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Meta</div>
+                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Aporta (resultado útil)</div>
                               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                                {usefulRows.map((x) => (
+                                  <div key={`${r.id}-${x.label}`}>
+                                    <span style={{ color: '#6b7280' }}>{x.label}:</span> {x.value}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Debug técnico (meta / http / url)</summary>
+                              <div style={{ fontSize: 13, lineHeight: 1.6, marginTop: 10 }}>
                                 <div><span style={{ color: '#6b7280' }}>id:</span> <span style={{ fontFamily: 'monospace' }}>{r.id}</span></div>
                                 <div><span style={{ color: '#6b7280' }}>created_at:</span> {createdAt.toISOString()}</div>
                                 <div><span style={{ color: '#6b7280' }}>env:</span> {r.env}</div>
                                 <div><span style={{ color: '#6b7280' }}>trip_id:</span> <span style={{ fontFamily: 'monospace' }}>{r.trip_id || '-'}</span></div>
-                                <div><span style={{ color: '#6b7280' }}>api:</span> {r.api}</div>
-                              </div>
-                            </div>
-
-                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <div style={{ fontWeight: 700, marginBottom: 6 }}>HTTP / Métricas</div>
-                              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
                                 <div><span style={{ color: '#6b7280' }}>method:</span> {r.method || '-'}</div>
                                 <div><span style={{ color: '#6b7280' }}>status:</span> {r.status || '-'}</div>
                                 <div><span style={{ color: '#6b7280' }}>duration_ms:</span> {r.duration_ms ?? '-'}</div>
@@ -263,17 +295,17 @@ export default function LogsViewerSupabase() {
                                 <div style={{ marginTop: 6 }}><span style={{ color: '#6b7280' }}>url:</span></div>
                                 <pre style={{ marginTop: 6, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{r.url || '-'}</pre>
                               </div>
-                            </div>
+                            </details>
 
-                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Request</div>
-                              <pre style={{ background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.request)}</pre>
-                            </div>
+                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Ver request JSON</summary>
+                              <pre style={{ marginTop: 10, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.request)}</pre>
+                            </details>
 
-                            <div style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
-                              <div style={{ fontWeight: 700, marginBottom: 6 }}>Response</div>
-                              <pre style={{ background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.response)}</pre>
-                            </div>
+                            <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Ver response JSON</summary>
+                              <pre style={{ marginTop: 10, background: '#f9fafb', color: '#111827', padding: 10, borderRadius: 8, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(r.response)}</pre>
+                            </details>
 
                             <details style={{ border: '1px solid #eef2f7', borderRadius: 8, padding: 10 }}>
                               <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Row JSON (completo)</summary>
