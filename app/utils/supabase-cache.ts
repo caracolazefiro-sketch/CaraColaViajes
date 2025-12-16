@@ -1,4 +1,5 @@
 import { supabaseServer } from '../supabase';
+import { createHash } from 'crypto';
 
 export type CacheProvider = 'supabase';
 
@@ -32,6 +33,24 @@ export function makePlacesSupercatCacheKey(params: { supercat: 1 | 2; lat: numbe
     lng: lngR,
     radius,
     supercat: params.supercat,
+  };
+}
+
+export function makeDirectionsCacheKey(params: {
+  origin: string;
+  destination: string;
+  waypoints: string[];
+  travelMode: string;
+}) {
+  const canonical = `${params.travelMode}|${params.origin}|${params.destination}|${params.waypoints.join('|')}`;
+  const hash = createHash('sha256').update(canonical, 'utf8').digest('hex').slice(0, 16);
+  return {
+    key: `directions:${hash}`,
+    hash,
+    origin: params.origin,
+    destination: params.destination,
+    waypoints: params.waypoints,
+    travelMode: params.travelMode,
   };
 }
 
@@ -152,6 +171,68 @@ export async function upsertPlacesSupercatCache(params: {
         center_lng: params.centerLng,
         radius: params.radius,
         payload: params.payload as unknown,
+        expires_at,
+        updated_at: nowIso(),
+      },
+      { onConflict: 'key' }
+    );
+
+  if (error) return { ok: false as const, reason: error.message };
+  return { ok: true as const, expiresAt: expires_at, ttlDays };
+}
+
+export async function getDirectionsCache(params: { key: string }) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const { data, error } = await supabaseServer
+    .from('api_cache_directions')
+    .select('payload, summary, expires_at')
+    .eq('key', params.key)
+    .maybeSingle();
+
+  if (error) return { ok: false as const, reason: error.message };
+  if (!data) return { ok: true as const, hit: false as const };
+
+  const expiresAt = data.expires_at ? new Date(String(data.expires_at)).getTime() : null;
+  if (expiresAt != null && expiresAt <= Date.now()) {
+    return { ok: true as const, hit: false as const };
+  }
+
+  return {
+    ok: true as const,
+    hit: true as const,
+    payload: data.payload as unknown,
+    summary: data.summary as unknown,
+    expiresAt: data.expires_at ? String(data.expires_at) : undefined,
+  };
+}
+
+export async function upsertDirectionsCache(params: {
+  key: string;
+  origin: string;
+  destination: string;
+  waypoints: string[];
+  travelMode: string;
+  payload: unknown;
+  summary?: unknown;
+  ttlDays?: number;
+}) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const ttlDays = params.ttlDays ?? 30;
+  const expires_at = addDaysIso(ttlDays);
+
+  const { error } = await supabaseServer
+    .from('api_cache_directions')
+    .upsert(
+      {
+        key: params.key,
+        origin: params.origin,
+        destination: params.destination,
+        waypoints: params.waypoints,
+        travel_mode: params.travelMode,
+        payload: params.payload as unknown,
+        summary: (params.summary ?? null) as unknown,
         expires_at,
         updated_at: nowIso(),
       },

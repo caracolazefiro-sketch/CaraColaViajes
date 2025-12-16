@@ -174,7 +174,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
-          cache: { provider: 'supabase', key: cacheKey.key },
+          cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
         },
         response: {
           status: 'CACHE_HIT_SUPABASE',
@@ -190,7 +190,9 @@ export async function POST(req: Request) {
     }
 
     const allResults: ServerPlace[] = [];
-    const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null }> = [];
+    const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null; url?: string }> = [];
+    let firstPageUrl: string | null = null;
+    let totalDurationMs = 0;
 
     let nextToken: string | undefined = undefined;
     let pages = 0;
@@ -204,42 +206,16 @@ export async function POST(req: Request) {
 
       const { json, durationMs, url } = await fetchNearbyPage({ center, radius, keyword, apiKey, pageToken: nextToken });
       pages++;
+      totalDurationMs += durationMs;
 
       const status = json.status || 'UNKNOWN';
       const results = json.results || [];
       allResults.push(...results);
 
       const redactedUrl = redactGoogleKey(url);
+      if (!firstPageUrl) firstPageUrl = redactedUrl;
       const next = json.next_page_token || null;
-      pageLogs.push({ status, resultsCount: results.length, durationMs, nextPageToken: next });
-
-      // Log por página en Supabase
-      await logApiToSupabase({
-        trip_id: tripId,
-        api: 'google-places',
-        method: 'GET',
-        url: redactedUrl,
-        status,
-        duration_ms: durationMs,
-        cost: 0.003,
-        cached: false,
-        request: {
-          tripName,
-          supercat,
-          center,
-          radius,
-          keyword,
-          page: pages,
-          hasPageToken: Boolean(nextToken),
-        },
-        response: {
-          status,
-          resultsCount: results.length,
-          nextPageToken: next,
-          error_message: json.error_message,
-          cache: { provider: 'supabase', key: cacheKey.key, hit: false },
-        },
-      });
+      pageLogs.push({ status, resultsCount: results.length, durationMs, nextPageToken: next, url: redactedUrl });
 
       if (status !== 'OK' || !json.next_page_token) {
         break;
@@ -286,20 +262,37 @@ export async function POST(req: Request) {
         payload,
         ttlDays: 7,
       });
-      if (up.ok) {
-        await logApiToSupabase({
-          trip_id: tripId,
-          api: 'other',
-          method: 'POST',
-          url: 'supabase:api_cache_places_supercat',
-          status: 'SUPABASE_CACHE_UPSERT',
-          duration_ms: 0,
-          cost: 0,
-          cached: true,
-          request: { cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key } },
-          response: { ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays },
-        });
-      }
+
+      const cacheWrite = up.ok
+        ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
+        : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason };
+
+      await logApiToSupabase({
+        trip_id: tripId,
+        api: 'google-places',
+        method: 'GET',
+        url: firstPageUrl || 'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
+        status: 'OK',
+        duration_ms: totalDurationMs,
+        cost: pages * 0.003,
+        cached: false,
+        request: {
+          tripName,
+          supercat,
+          center,
+          radius,
+          keyword,
+          cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
+        },
+        response: {
+          status: 'OK',
+          resultsCount: resultsTrimmed.length,
+          totals: basePayload.totals,
+          pageLogs,
+          cache: { provider: 'supabase', key: cacheKey.key, hit: false },
+          cacheWrite,
+        },
+      });
 
       return NextResponse.json({
         ...payload,
@@ -325,20 +318,36 @@ export async function POST(req: Request) {
       payload,
       ttlDays: 7,
     });
-    if (up.ok) {
-      await logApiToSupabase({
-        trip_id: tripId,
-        api: 'other',
-        method: 'POST',
-        url: 'supabase:api_cache_places_supercat',
-        status: 'SUPABASE_CACHE_UPSERT',
-        duration_ms: 0,
-        cost: 0,
-        cached: true,
-        request: { cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key } },
-        response: { ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays },
-      });
-    }
+    const cacheWrite = up.ok
+      ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
+      : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason };
+
+    await logApiToSupabase({
+      trip_id: tripId,
+      api: 'google-places',
+      method: 'GET',
+      url: firstPageUrl || 'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
+      status: 'OK',
+      duration_ms: totalDurationMs,
+      cost: pages * 0.003,
+      cached: false,
+      request: {
+        tripName,
+        supercat,
+        center,
+        radius,
+        keyword,
+        cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
+      },
+      response: {
+        status: 'OK',
+        resultsCount: resultsTrimmed.length,
+        totals: basePayload.totals,
+        pageLogs,
+        cache: { provider: 'supabase', key: cacheKey.key, hit: false },
+        cacheWrite,
+      },
+    });
 
     return NextResponse.json({
       ...payload,

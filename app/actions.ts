@@ -10,6 +10,9 @@ import {
     getGeocodingCache,
     makeGeocodingCacheKey,
     upsertGeocodingCache,
+    getDirectionsCache,
+    makeDirectionsCacheKey,
+    upsertDirectionsCache,
 } from './utils/supabase-cache';
 
 // Definiciones de interfaces locales para el server action
@@ -379,6 +382,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
     const waypointsParam = normalizedWaypoints.length > 0 ? `&waypoints=${normalizedWaypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(normalizedOrigin)}&destination=${encodeURIComponent(normalizedDestination)}&mode=${data.travel_mode}${waypointsParam}&key=${apiKey}`;
 
+    const directionsKey = makeDirectionsCacheKey({
+        origin: normalizedOrigin,
+        destination: normalizedDestination,
+        waypoints: normalizedWaypoints,
+        travelMode: data.travel_mode,
+    });
+
     debugLog.push('🔗 Google Directions API Call:');
     debugLog.push(`  Origin: ${normalizedOrigin}`);
     debugLog.push(`  Destination: ${normalizedDestination}`);
@@ -386,6 +396,242 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
     debugLog.push(`  URL (sin key): ${url.substring(0, url.lastIndexOf('&key='))}`);
 
     try {
+        // 0) Supabase cache HIT (directions)
+        const sbDir = await getDirectionsCache({ key: directionsKey.key });
+        if (sbDir.ok && sbDir.hit && sbDir.payload) {
+            const summary = (typeof sbDir.summary === 'object' && sbDir.summary !== null) ? (sbDir.summary as Record<string, unknown>) : {};
+
+            await logApiToSupabase({
+                trip_id: tripId,
+                api: 'google-directions',
+                method: 'GET',
+                url: `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(normalizedOrigin)}&destination=${encodeURIComponent(normalizedDestination)}&mode=${data.travel_mode}${waypointsParam}`,
+                status: 'CACHE_HIT_SUPABASE',
+                duration_ms: 0,
+                cost: 0,
+                cached: true,
+                request: {
+                    tripName: data.tripName,
+                    origin: data.origin,
+                    destination: data.destination,
+                    waypoints: data.waypoints,
+                    cache: { provider: 'supabase', key: directionsKey.key },
+                },
+                response: {
+                    status: 'CACHE_HIT_SUPABASE',
+                    ...summary,
+                    cache: { provider: 'supabase', key: directionsKey.key, expiresAt: sbDir.expiresAt },
+                    cacheWrite: { provider: 'supabase', action: 'none' },
+                },
+            });
+
+            type DirectionsApiLegStep = { distance: { value: number }; polyline: { points: string } };
+            type DirectionsApiLeg = {
+                start_location: { lat: number; lng: number };
+                end_location: { lat: number; lng: number };
+                steps: DirectionsApiLegStep[];
+                distance: { value: number };
+            };
+            type DirectionsApiRoute = {
+                legs: DirectionsApiLeg[];
+                overview_polyline?: { points?: string };
+            };
+            type DirectionsApiResponse = {
+                status: string;
+                error_message?: string;
+                routes: DirectionsApiRoute[];
+            };
+
+            const directionsResult = sbDir.payload as unknown as DirectionsApiResponse;
+            debugLog.push('✅ Google API Response OK (desde caché Supabase)');
+            debugLog.push(`💾 Directions cache HIT: ${directionsKey.key}`);
+
+            if (directionsResult.status !== 'OK') {
+                apiLogger.endTrip();
+                return { error: `Google API Error (cached): ${directionsResult.error_message || directionsResult.status}`, debugLog };
+            }
+
+            const route = directionsResult.routes[0];
+
+            let totalDistanceMeters = 0;
+            route.legs.forEach((leg: { distance: { value: number } }) => { totalDistanceMeters += leg.distance.value; });
+            const distanceKm = totalDistanceMeters / 1000;
+
+            const allDrivingStops: {
+                from: string, to: string, distance: number,
+                startCoords: {lat: number, lng: number},
+                endCoords: {lat: number, lng: number}
+            }[] = [];
+
+            const finalWaypointsForMap: string[] = [];
+            const maxMeters = data.kmMaximoDia * 1000;
+
+            let currentLegStartName = allStops[0];
+            let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
+
+            let dayAccumulatorMeters = 0;
+
+            for (let i = 0; i < route.legs.length; i++) {
+                const leg = route.legs[i];
+                const nextStopName = allStops[i + 1];
+                let legDistanceMeters = 0;
+
+                for (const step of leg.steps) {
+                    legDistanceMeters += step.distance.value;
+                }
+
+                if (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0) {
+                    for (const step of leg.steps) {
+                        const stepDist = step.distance.value;
+
+                        if (dayAccumulatorMeters + stepDist < maxMeters) {
+                            dayAccumulatorMeters += stepDist;
+                        } else {
+                            let metersNeeded = maxMeters - dayAccumulatorMeters;
+                            let metersLeftInStep = stepDist;
+                            const path = decodePolyline(step.polyline.points);
+                            let currentPathIndex = 0;
+
+                            while (metersLeftInStep >= metersNeeded) {
+                                let distWalked = 0;
+                                let stopCoords = path[currentPathIndex];
+
+                                for (let p = currentPathIndex; p < path.length - 1; p++) {
+                                    const segment = getDistanceFromLatLonInM(path[p].lat, path[p].lng, path[p+1].lat, path[p+1].lng);
+                                    if (distWalked + segment >= metersNeeded) {
+                                        stopCoords = path[p+1];
+                                        currentPathIndex = p + 1;
+                                        metersLeftInStep -= metersNeeded;
+                                        break;
+                                    }
+                                    distWalked += segment;
+                                }
+
+                                await sleep(200);
+                                const stopName = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId });
+
+                                const realDistance = maxMeters / 1000;
+
+                                allDrivingStops.push({
+                                    from: currentLegStartName,
+                                    to: stopName,
+                                    distance: realDistance,
+                                    startCoords: currentLegStartCoords,
+                                    endCoords: stopCoords
+                                });
+
+                                currentLegStartCoords = stopCoords;
+                                currentLegStartName = stopName;
+                                dayAccumulatorMeters = 0;
+                                metersNeeded = maxMeters;
+                            }
+
+                            dayAccumulatorMeters += metersLeftInStep;
+                        }
+                    }
+                } else {
+                    dayAccumulatorMeters += legDistanceMeters;
+                }
+
+                const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
+
+                allDrivingStops.push({
+                    from: currentLegStartName,
+                    to: nextStopName,
+                    distance: dayAccumulatorMeters / 1000,
+                    startCoords: currentLegStartCoords,
+                    endCoords: legEndCoords
+                });
+
+                if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
+
+                currentLegStartName = nextStopName;
+                currentLegStartCoords = legEndCoords;
+                dayAccumulatorMeters = 0;
+            }
+
+            const dailyItinerary: DailyPlan[] = [];
+            let currentDate = new Date(data.fechaInicio);
+            let dayCounter = 1;
+
+            for (const stop of allDrivingStops) {
+                const dKm = Math.round(stop.distance);
+                debugLog.push(`  📍 Etapa ${dayCounter}: ${stop.from} → ${stop.to} (${dKm} km)`);
+
+                dailyItinerary.push({
+                    date: formatDate(currentDate),
+                    isoDate: currentDate.toISOString(),
+                    day: dayCounter,
+                    from: stop.from,
+                    to: stop.to,
+                    distance: stop.distance,
+                    isDriving: true,
+                    type: 'overnight',
+                    startCoordinates: stop.startCoords,
+                    coordinates: stop.endCoords
+                });
+                currentDate = addDays(currentDate, 1);
+                dayCounter++;
+            }
+
+            if (data.fechaRegreso) {
+                const dateEnd = new Date(data.fechaRegreso);
+                const diffTime = dateEnd.getTime() - currentDate.getTime();
+                const daysStay = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                debugLog.push(`📅 Fecha regreso: ${data.fechaRegreso}, días de estancia: ${daysStay}`);
+
+                if (daysStay > 0) {
+                    const lastLeg = route.legs[route.legs.length - 1];
+                    const stayCoords = { lat: lastLeg.end_location.lat, lng: lastLeg.end_location.lng };
+
+                    let stayLocation = data.destination;
+                    try {
+                        stayLocation = await getCityNameFromCoords(stayCoords.lat, stayCoords.lng, apiKey, { tripId });
+                    } catch {
+                        // ignore
+                    }
+
+                    for (let s = 0; s < daysStay; s++) {
+                        dailyItinerary.push({
+                            date: formatDate(currentDate),
+                            isoDate: currentDate.toISOString(),
+                            day: dayCounter,
+                            from: stayLocation,
+                            to: stayLocation,
+                            distance: 0,
+                            isDriving: false,
+                            type: 'overnight',
+                            startCoordinates: stayCoords,
+                            coordinates: stayCoords
+                        });
+                        currentDate = addDays(currentDate, 1);
+                        dayCounter++;
+                    }
+                }
+            }
+
+            debugLog.push(`\n📊 Itinerario ANTES de post-segmentación: ${dailyItinerary.length} días`);
+            const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey, tripId);
+            debugLog.push(`📊 Itinerario DESPUÉS de post-segmentación: ${segmentedItinerary.length} días`);
+            segmentedItinerary.forEach((day) => {
+                debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
+            });
+
+            const embedParams = {
+                key: apiKey,
+                origin: data.origin,
+                destination: data.destination,
+                waypoints: finalWaypointsForMap.join('|'),
+                mode: data.travel_mode,
+            };
+            const mapUrl = `https://www.google.com/maps/embed/v1/directions?${new URLSearchParams(embedParams as Record<string, string>).toString()}`;
+
+            apiLogger.endTrip();
+
+            const overviewPolyline = route?.overview_polyline?.points;
+            return { distanceKm, mapUrl, overviewPolyline, dailyItinerary: segmentedItinerary, debugLog };
+        }
+
         // 🔍 Log de Directions API con timing
         const directionsStartTime = performance.now();
         const response = await fetch(url);
@@ -420,7 +666,25 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             usefulDirectionsResponse.error_message = directionsResult.error_message;
         }
 
-        // Registrar en Supabase (servidor) si está configurado
+        // Supabase: intentar escribir en caché (solo si OK) y reflejar cacheWrite en el MISMO log
+        let cacheWrite: Record<string, unknown> = { provider: 'supabase', action: 'upsert', table: 'api_cache_directions', key: directionsKey.key, ok: false, reason: 'skipped' };
+        if (directionsResult.status === 'OK') {
+            const up = await upsertDirectionsCache({
+                key: directionsKey.key,
+                origin: normalizedOrigin,
+                destination: normalizedDestination,
+                waypoints: normalizedWaypoints,
+                travelMode: data.travel_mode,
+                payload: directionsResult,
+                summary: usefulDirectionsResponse,
+                ttlDays: 30,
+            });
+            cacheWrite = up.ok
+                ? { provider: 'supabase', action: 'upsert', table: 'api_cache_directions', key: directionsKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
+                : { provider: 'supabase', action: 'upsert', table: 'api_cache_directions', key: directionsKey.key, ok: false, reason: up.reason };
+        }
+
+        // Registrar en Supabase (servidor)
         await logApiToSupabase({
             trip_id: tripId,
             api: 'google-directions',
@@ -430,8 +694,17 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             duration_ms: Math.round(directionsDuration),
             cost: 0.005 + (0.005 * waypointsCount),
             cached: false,
-            request: { tripName: data.tripName, origin: data.origin, destination: data.destination, waypoints: data.waypoints },
-            response: usefulDirectionsResponse
+            request: {
+                tripName: data.tripName,
+                origin: data.origin,
+                destination: data.destination,
+                waypoints: data.waypoints,
+                cache: { provider: 'supabase', key: directionsKey.key, hit: false },
+            },
+            response: {
+                ...usefulDirectionsResponse,
+                cacheWrite,
+            }
         });
 
         if (directionsResult.status !== 'OK') {

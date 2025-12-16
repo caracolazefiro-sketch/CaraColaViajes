@@ -47,6 +47,7 @@ export async function GET() {
       checkApiLogs(),
       checkTable('api_cache_geocoding'),
       checkTable('api_cache_places_supercat'),
+      checkTable('api_cache_directions'),
     ]);
 
     const ok = results.every(r => r.ok);

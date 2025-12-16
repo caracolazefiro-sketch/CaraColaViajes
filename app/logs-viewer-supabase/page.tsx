@@ -313,6 +313,37 @@ export default function LogsViewerSupabase() {
                         const reqCache = isRecord(request.cache) ? request.cache : {};
                         const resWrite = isRecord(response.cacheWrite) ? response.cacheWrite : {};
 
+                        if (r.status === 'CACHE_HIT_SUPABASE') {
+                          const expiresAt = isRecord(response.cache) && response.cache.expiresAt != null ? String(response.cache.expiresAt) : '';
+                          const keyFromReq = String(reqCache.key ?? '');
+
+                          if (isGeocoding) {
+                            const lat = request.lat != null ? String(request.lat) : '';
+                            const lng = request.lng != null ? String(request.lng) : '';
+                            const cityName = response.cityName ? String(response.cityName) : '';
+                            const resolvedFrom = response.resolvedFrom ? String(response.resolvedFrom) : '';
+                            return `Supabase cache: HIT api_cache_geocoding${keyFromReq ? ` (${keyFromReq})` : ''}${lat && lng ? ` lat=${lat} lng=${lng}` : ''}${cityName ? ` city=${cityName}` : ''}${resolvedFrom ? ` from=${resolvedFrom}` : ''}${expiresAt ? ` expiresAt=${expiresAt}` : ''}`;
+                          }
+
+                          if (isPlaces) {
+                            const supercat = response?.supercat ?? request?.supercat;
+                            const center = request.center && isRecord(request.center) ? request.center : null;
+                            const radius = request.radius != null ? String(request.radius) : '';
+                            const lat = center && center.lat != null ? String(center.lat) : '';
+                            const lng = center && center.lng != null ? String(center.lng) : '';
+                            return `Supabase cache: HIT api_cache_places_supercat${keyFromReq ? ` (${keyFromReq})` : ''}${supercat != null ? ` supercat=${String(supercat)}` : ''}${lat && lng ? ` center=${lat},${lng}` : ''}${radius ? ` radius=${radius}` : ''}${expiresAt ? ` expiresAt=${expiresAt}` : ''}`;
+                          }
+
+                          if (isDirections) {
+                            const origin = request.origin != null ? String(request.origin) : '';
+                            const destination = request.destination != null ? String(request.destination) : '';
+                            const waypoints = Array.isArray(request.waypoints) ? request.waypoints.length : null;
+                            const distanceKm = response.distanceKm != null ? String(response.distanceKm) : '';
+                            const durationMin = response.durationMin != null ? String(response.durationMin) : '';
+                            return `Supabase cache: HIT api_cache_directions${keyFromReq ? ` (${keyFromReq})` : ''}${origin && destination ? ` ${origin}→${destination}` : ''}${waypoints != null ? ` wp=${String(waypoints)}` : ''}${distanceKm ? ` km=${distanceKm}` : ''}${durationMin ? ` min=${durationMin}` : ''}${expiresAt ? ` expiresAt=${expiresAt}` : ''}`;
+                          }
+                        }
+
                         const table = String(resWrite.table ?? reqCache.table ?? '');
                         const key = String(resWrite.key ?? reqCache.key ?? '');
                         const action = String(resWrite.action ?? (r.status === 'SUPABASE_CACHE_UPSERT' ? 'upsert' : ''));
@@ -326,6 +357,25 @@ export default function LogsViewerSupabase() {
                             return `Supabase cache: upsert FAILED ${table}${key ? ` (${key})` : ''}${reason ? ` · ${reason}` : ''}`;
                           }
                           if (ok === true) {
+                            if (isGeocoding) {
+                              const lat = request.lat != null ? String(request.lat) : '';
+                              const lng = request.lng != null ? String(request.lng) : '';
+                              const cityName = response.cityName ? String(response.cityName) : '';
+                              const resolvedFrom = response.resolvedFrom ? String(response.resolvedFrom) : '';
+                              return `Supabase cache: upsert ${table}${key ? ` (${key})` : ''}${ttlDays ? ` ttlDays=${ttlDays}` : ''}${lat && lng ? ` lat=${lat} lng=${lng}` : ''}${cityName ? ` city=${cityName}` : ''}${resolvedFrom ? ` from=${resolvedFrom}` : ''}`;
+                            }
+                            if (isPlaces) {
+                              const supercat = response?.supercat ?? request?.supercat;
+                              const resultsCount = response?.resultsCount;
+                              return `Supabase cache: upsert ${table}${key ? ` (${key})` : ''}${ttlDays ? ` ttlDays=${ttlDays}` : ''}${supercat != null ? ` supercat=${String(supercat)}` : ''}${resultsCount != null ? ` results=${String(resultsCount)}` : ''}`;
+                            }
+                            if (isDirections) {
+                              const distanceKm = response.distanceKm != null ? String(response.distanceKm) : '';
+                              const durationMin = response.durationMin != null ? String(response.durationMin) : '';
+                              const legsCount = response.legsCount != null ? String(response.legsCount) : '';
+                              const waypointsCount = response.waypointsCount != null ? String(response.waypointsCount) : '';
+                              return `Supabase cache: upsert ${table}${key ? ` (${key})` : ''}${ttlDays ? ` ttlDays=${ttlDays}` : ''}${distanceKm ? ` km=${distanceKm}` : ''}${durationMin ? ` min=${durationMin}` : ''}${legsCount ? ` legs=${legsCount}` : ''}${waypointsCount ? ` wp=${waypointsCount}` : ''}`;
+                            }
                             return `Supabase cache: upsert ${table}${key ? ` (${key})` : ''}${ttlDays ? ` ttlDays=${ttlDays}` : ''}`;
                           }
                         }
