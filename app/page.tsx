@@ -398,7 +398,7 @@ export default function Home() {
       // PASO 4: El itinerario ya viene COMPLETO desde el servidor
       // (incluyendo segmentación de 300 km/día con localidades reales)
       // No necesitamos fusionar con días anteriores
-      let finalItinerary = recalcResult.dailyItinerary;
+      const finalItinerary = recalcResult.dailyItinerary;
 
       console.log('📊 Itinerario final (regenerado desde cero, segmentado en servidor):', finalItinerary.length, 'días');
       console.log('📊 Itinerario después de segmentación:', finalItinerary.length, 'días');
@@ -407,8 +407,8 @@ export default function Home() {
       // Extraer waypoints obligatorios del itinerario nuevo
       const obligatoryWaypoints = finalItinerary
         .slice(0, -1)  // Excluir último día (destino)
-        .filter((day: any) => !day.to.includes('📍 Parada Táctica'))
-        .map((day: any) => day.to);
+        .filter((day) => !String((day as { to?: string }).to ?? '').includes('📍 Parada Táctica'))
+        .map((day) => String((day as { to?: string }).to ?? ''));
 
       console.log('📝 Actualizando formData.etapas:', obligatoryWaypoints);
 

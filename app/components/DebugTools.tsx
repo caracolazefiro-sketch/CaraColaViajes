@@ -20,36 +20,54 @@ export default function DebugTools() {
     const originalWarn = console.warn;
     const originalInfo = console.info;
 
-    const addLog = (level: LogEntry['level'], ...args: any[]) => {
+    type ConsoleMethod = (...args: unknown[]) => void;
+    const consoleMethods = console as unknown as Record<'log' | 'error' | 'warn' | 'info', ConsoleMethod>;
+
+    const addLog = (level: LogEntry['level'], ...args: unknown[]) => {
       const timestamp = new Date().toLocaleTimeString();
-      const message = args.map(arg => 
-        typeof arg === 'string' ? arg : JSON.stringify(arg)
-      ).join(' ');
+      const message = args
+        .map((arg) => {
+          if (typeof arg === 'string') return arg;
+          try {
+            return JSON.stringify(arg);
+          } catch {
+            return String(arg);
+          }
+        })
+        .join(' ');
 
       const logEntry: LogEntry = { level, message, timestamp };
       logsRef.current.push(logEntry);
       setLogs([...logsRef.current]);
 
       // Siempre mostrar en consola original
-      switch(level) {
-        case 'log': originalLog(...args); break;
-        case 'error': originalError(...args); break;
-        case 'warn': originalWarn(...args); break;
-        case 'info': originalInfo(...args); break;
+      switch (level) {
+        case 'log':
+          originalLog(...args);
+          break;
+        case 'error':
+          originalError(...args);
+          break;
+        case 'warn':
+          originalWarn(...args);
+          break;
+        case 'info':
+          originalInfo(...args);
+          break;
       }
     };
 
     // Reemplazar console methods
-    (console as any).log = (...args: any[]) => addLog('log', ...args);
-    (console as any).error = (...args: any[]) => addLog('error', ...args);
-    (console as any).warn = (...args: any[]) => addLog('warn', ...args);
-    (console as any).info = (...args: any[]) => addLog('info', ...args);
+    consoleMethods.log = (...args: unknown[]) => addLog('log', ...args);
+    consoleMethods.error = (...args: unknown[]) => addLog('error', ...args);
+    consoleMethods.warn = (...args: unknown[]) => addLog('warn', ...args);
+    consoleMethods.info = (...args: unknown[]) => addLog('info', ...args);
 
     return () => {
-      (console as any).log = originalLog;
-      (console as any).error = originalError;
-      (console as any).warn = originalWarn;
-      (console as any).info = originalInfo;
+      consoleMethods.log = originalLog;
+      consoleMethods.error = originalError;
+      consoleMethods.warn = originalWarn;
+      consoleMethods.info = originalInfo;
     };
   }, []);
 

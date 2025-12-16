@@ -140,7 +140,8 @@ export default function TripForm({
     // Auto-colapsar cuando se completen los resultados
     useEffect(() => {
         if (!loading && results.totalDays !== null) {
-            setIsExpanded(false);
+            const t = window.setTimeout(() => setIsExpanded(false), 0);
+            return () => window.clearTimeout(t);
         }
     }, [loading, results.totalDays]);
 
@@ -160,7 +161,9 @@ export default function TripForm({
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
-        let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+        const finalValue: string | number | boolean = type === 'checkbox'
+            ? checked
+            : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
 
         // NO normalizar al guardar - solo guardar valores tal como vienen
         // La normalización se hace solo cuando se envía a Google Directions

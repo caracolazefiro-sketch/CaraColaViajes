@@ -225,7 +225,7 @@ export default function SearchPage() {
 
         {!loading && query.length >= 2 && totalResults === 0 && !error && (
           <div className="text-center py-12">
-            <p className="text-slate-400 text-lg">No se encontraron resultados para "{query}"</p>
+            <p className="text-slate-400 text-lg">No se encontraron resultados para &quot;{query}&quot;</p>
             <p className="text-slate-500 text-sm mt-2">Intenta con otro término</p>
           </div>
         )}

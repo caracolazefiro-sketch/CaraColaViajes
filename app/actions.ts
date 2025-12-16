@@ -336,7 +336,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
         const routesCount = directionsResult.routes?.length || 0;
         const waypointsCount = data.waypoints.length;
-        const usefulDirectionsResponse: Record<string, any> = { status: directionsResult.status, routesCount, waypointsCount };
+        const usefulDirectionsResponse: Record<string, unknown> = { status: directionsResult.status, routesCount, waypointsCount };
 
         if (directionsResult.status === 'OK' && directionsResult.routes?.[0]?.legs?.length) {
             const route0 = directionsResult.routes[0];

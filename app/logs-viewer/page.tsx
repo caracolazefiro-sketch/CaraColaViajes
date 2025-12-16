@@ -18,7 +18,7 @@ interface TripLog {
     geocodingCached: number;
     totalDuration: number;
   };
-  apiCalls: any[];
+  apiCalls: unknown[];
 }
 
 export default function LogsViewer() {

@@ -9,8 +9,8 @@ export type ApiLogEntry = {
   duration_ms?: number;
   cost?: number;
   cached?: boolean;
-  request?: Record<string, any>;
-  response?: Record<string, any>;
+  request?: Record<string, unknown>;
+  response?: Record<string, unknown>;
   env?: 'development' | 'production';
 };
 

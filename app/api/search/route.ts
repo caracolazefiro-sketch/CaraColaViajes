@@ -82,26 +82,35 @@ export async function GET(request: NextRequest) {
  * Search in pre-generated index
  */
 function searchIndex(
-  indexData: any,
+  indexData: unknown,
   query: string,
   limit: number
 ): SearchResult[] {
   const results: SearchResult[] = [];
   const queryLower = query.toLowerCase();
 
-  indexData.files?.forEach((file: any) => {
-    file.lines?.forEach((line: string, lineNumber: number) => {
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+  const root = isRecord(indexData) ? indexData : {};
+  const files = Array.isArray(root.files) ? root.files : [];
+
+  files.forEach((fileUnknown) => {
+    const file = isRecord(fileUnknown) ? fileUnknown : {};
+    const lines = Array.isArray(file.lines) ? (file.lines.filter((x) => typeof x === 'string') as string[]) : [];
+
+    lines.forEach((line: string, lineNumber: number) => {
       if (line.toLowerCase().includes(queryLower)) {
         const matchIndices = findMatchIndices(line, query);
 
         results.push({
-          filename: file.filename,
-          path: file.path,
+          filename: String(file.filename ?? ''),
+          path: String(file.path ?? ''),
           lineNumber: lineNumber + 1,
           lineContent: line,
           context: {
-            before: file.lines.slice(Math.max(0, lineNumber - 2), lineNumber),
-            after: file.lines.slice(lineNumber + 1, Math.min(file.lines.length, lineNumber + 3)),
+            before: lines.slice(Math.max(0, lineNumber - 2), lineNumber),
+            after: lines.slice(lineNumber + 1, Math.min(lines.length, lineNumber + 3)),
           },
           matchIndices,
         });
