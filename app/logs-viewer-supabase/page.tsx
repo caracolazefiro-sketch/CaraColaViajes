@@ -128,7 +128,7 @@ export default function LogsViewerSupabase() {
   );
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
       <h1>📡 API Logs (Supabase)</h1>
       <p style={{ color: '#666' }}>Viajes: {totalsAllTrips.trips} | Total calls: {totalsAllTrips.calls} | Directions: {totalsAllTrips.directions} | Geocoding: {totalsAllTrips.geocoding} | Coste: €{totalsAllTrips.cost.toFixed(3)}</p>
 
@@ -167,6 +167,7 @@ export default function LogsViewerSupabase() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: 12,
+                  color: '#111827',
                 }}
               >
                 <div style={{ minWidth: 0 }}>
@@ -174,7 +175,7 @@ export default function LogsViewerSupabase() {
                     {t.tripName}
                   </div>
                   <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#6b7280' }}>{t.tripId}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: '#111827', marginTop: 2 }}>
                     {t.latestAt ? new Date(t.latestAt).toLocaleString('es-ES') : '-'} · Calls: {t.totals.calls} · Coste: €{t.totals.cost.toFixed(3)}
                   </div>
                 </div>
@@ -185,28 +186,28 @@ export default function LogsViewerSupabase() {
 
               {isOpen && (
                 <div style={{ borderTop: '1px solid #eef2f7', padding: '12px' }}>
-                  <div style={{ color: '#666', marginBottom: 8 }}>
+                  <div style={{ color: '#111827', marginBottom: 8 }}>
                     Directions: {t.totals.directions} · Geocoding: {t.totals.geocoding}
                   </div>
 
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Hora</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>API</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Estado</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Duración</th>
-                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Coste</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Hora</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>API</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Estado</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Duración</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd', color: '#111827', fontWeight: 700 }}>Coste</th>
                       </tr>
                     </thead>
                     <tbody>
                       {t.logs.map((r) => (
                         <tr key={r.id}>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{new Date(r.created_at).toLocaleString('es-ES')}</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.api}</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.status}</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.duration_ms} ms</td>
-                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>€{Number(r.cost || 0).toFixed(3)}</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{new Date(r.created_at).toLocaleString('es-ES')}</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{r.api}</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{r.status}</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>{r.duration_ms} ms</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee', color: '#111827' }}>€{Number(r.cost || 0).toFixed(3)}</td>
                         </tr>
                       ))}
                     </tbody>
