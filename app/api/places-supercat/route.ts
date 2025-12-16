@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 import { logApiToSupabase } from '../../utils/server-logs';
+import {
+  getPlacesSupercatCache,
+  makePlacesSupercatCacheKey,
+  upsertPlacesSupercatCache,
+} from '../../utils/supabase-cache';
 
 type LatLng = { lat: number; lng: number };
 
@@ -144,6 +149,46 @@ export async function POST(req: Request) {
 
     const keyword = supercat === 1 ? SUPERCAT_1_KEYWORD : SUPERCAT_2_KEYWORD;
 
+    // 0) Supabase cache HIT
+    const cacheKey = makePlacesSupercatCacheKey({
+      supercat,
+      lat: center.lat,
+      lng: center.lng,
+      radius,
+    });
+    const cached = await getPlacesSupercatCache({ key: cacheKey.key });
+    if (cached.ok && cached.hit) {
+      // Log single HIT (cost 0)
+      await logApiToSupabase({
+        trip_id: tripId,
+        api: 'google-places',
+        method: 'GET',
+        url: 'supabase:api_cache_places_supercat',
+        status: 'CACHE_HIT_SUPABASE',
+        duration_ms: 0,
+        cost: 0,
+        cached: true,
+        request: {
+          tripName,
+          supercat,
+          center,
+          radius,
+          keyword,
+          cache: { provider: 'supabase', key: cacheKey.key },
+        },
+        response: {
+          status: 'CACHE_HIT_SUPABASE',
+          cache: { provider: 'supabase', key: cacheKey.key, expiresAt: cached.expiresAt },
+          cacheWrite: { provider: 'supabase', action: 'none' },
+        },
+      });
+
+      return NextResponse.json({
+        ...(cached.payload as object),
+        cache: { provider: 'supabase', key: cacheKey.key, hit: true, expiresAt: cached.expiresAt },
+      });
+    }
+
     const allResults: ServerPlace[] = [];
     const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null }> = [];
 
@@ -192,6 +237,7 @@ export async function POST(req: Request) {
           resultsCount: results.length,
           nextPageToken: next,
           error_message: json.error_message,
+          cache: { provider: 'supabase', key: cacheKey.key, hit: false },
         },
       });
 
@@ -208,34 +254,8 @@ export async function POST(req: Request) {
 
     const resultsTrimmed = allResults.slice(0, 60);
 
-    if (supercat === 1) {
-      const camping = uniqByPlaceId(resultsTrimmed.filter(classifyCamping));
-      const restaurant = uniqByPlaceId(resultsTrimmed.filter(classifyRestaurant));
-      const supermarket = uniqByPlaceId(resultsTrimmed.filter(classifySupermarket));
-
-      return NextResponse.json({
-        ok: true,
-        supercat,
-        center,
-        radius,
-        totals: {
-          pages,
-          totalResults: resultsTrimmed.length,
-        },
-        categories: {
-          camping,
-          restaurant,
-          supermarket,
-        },
-        pageLogs,
-      });
-    }
-
-    const gas = uniqByPlaceId(resultsTrimmed.filter(classifyGas));
-    const laundry = uniqByPlaceId(resultsTrimmed.filter(classifyLaundry));
-    const tourism = uniqByPlaceId(resultsTrimmed.filter(classifyTourism));
-
-    return NextResponse.json({
+    // Build the aggregated payload (same shape as response)
+    const basePayload = {
       ok: true,
       supercat,
       center,
@@ -244,12 +264,85 @@ export async function POST(req: Request) {
         pages,
         totalResults: resultsTrimmed.length,
       },
-      categories: {
-        gas,
-        laundry,
-        tourism,
-      },
       pageLogs,
+    };
+
+    if (supercat === 1) {
+      const camping = uniqByPlaceId(resultsTrimmed.filter(classifyCamping));
+      const restaurant = uniqByPlaceId(resultsTrimmed.filter(classifyRestaurant));
+      const supermarket = uniqByPlaceId(resultsTrimmed.filter(classifySupermarket));
+
+      const payload = {
+        ...basePayload,
+        categories: { camping, restaurant, supermarket },
+      };
+
+      const up = await upsertPlacesSupercatCache({
+        key: cacheKey.key,
+        supercat,
+        centerLat: cacheKey.lat,
+        centerLng: cacheKey.lng,
+        radius: cacheKey.radius,
+        payload,
+        ttlDays: 7,
+      });
+      if (up.ok) {
+        await logApiToSupabase({
+          trip_id: tripId,
+          api: 'other',
+          method: 'POST',
+          url: 'supabase:api_cache_places_supercat',
+          status: 'SUPABASE_CACHE_UPSERT',
+          duration_ms: 0,
+          cost: 0,
+          cached: true,
+          request: { cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key } },
+          response: { ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays },
+        });
+      }
+
+      return NextResponse.json({
+        ...payload,
+        cache: { provider: 'supabase', key: cacheKey.key, hit: false, write: up.ok ? 'upsert' : 'skipped' },
+      });
+    }
+
+    const gas = uniqByPlaceId(resultsTrimmed.filter(classifyGas));
+    const laundry = uniqByPlaceId(resultsTrimmed.filter(classifyLaundry));
+    const tourism = uniqByPlaceId(resultsTrimmed.filter(classifyTourism));
+
+    const payload = {
+      ...basePayload,
+      categories: { gas, laundry, tourism },
+    };
+
+    const up = await upsertPlacesSupercatCache({
+      key: cacheKey.key,
+      supercat,
+      centerLat: cacheKey.lat,
+      centerLng: cacheKey.lng,
+      radius: cacheKey.radius,
+      payload,
+      ttlDays: 7,
+    });
+    if (up.ok) {
+      await logApiToSupabase({
+        trip_id: tripId,
+        api: 'other',
+        method: 'POST',
+        url: 'supabase:api_cache_places_supercat',
+        status: 'SUPABASE_CACHE_UPSERT',
+        duration_ms: 0,
+        cost: 0,
+        cached: true,
+        request: { cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key } },
+        response: { ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays },
+      });
+    }
+
+    return NextResponse.json({
+      ...payload,
+      cache: { provider: 'supabase', key: cacheKey.key, hit: false, write: up.ok ? 'upsert' : 'skipped' },
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown';

@@ -224,11 +224,39 @@ export default function LogsViewerSupabase() {
 
                       const cacheInfo = (() => {
                         const status = String(r.status || response.status || '').toUpperCase();
+                        const reqCache = isRecord(request.cache) ? request.cache : {};
+                        const resCache = isRecord(response.cache) ? response.cache : {};
+                        const cacheProvider = String(resCache.provider ?? reqCache.provider ?? '').toLowerCase();
+                        const cacheKey = String(resCache.key ?? reqCache.key ?? '');
+
+                        if (status === 'CACHE_HIT_SUPABASE') {
+                          return {
+                            label: 'HIT',
+                            detail: `supabase${cacheKey ? ` (${cacheKey})` : ''}`,
+                            cost: '€0.000',
+                          };
+                        }
                         if (status === 'CACHE_HIT') {
                           return { label: 'HIT', detail: 'cache local (no Supabase aún)', cost: '€0.000' };
                         }
                         if (r.cached === true) {
+                          if (cacheProvider === 'supabase') {
+                            return {
+                              label: 'HIT',
+                              detail: `supabase${cacheKey ? ` (${cacheKey})` : ''}`,
+                              cost: '€0.000',
+                            };
+                          }
                           return { label: 'HIT', detail: 'cache (flag cached=true)', cost: '€0.000' };
+                        }
+
+                        // If request indicates a cache attempt but miss
+                        if (cacheProvider === 'supabase') {
+                          return {
+                            label: 'MISS',
+                            detail: `supabase miss${cacheKey ? ` (${cacheKey})` : ''}`,
+                            cost: `€${Number(r.cost || 0).toFixed(3)}`,
+                          };
                         }
                         return { label: 'MISS', detail: 'llamada real a API', cost: `€${Number(r.cost || 0).toFixed(3)}` };
                       })();
@@ -272,8 +300,22 @@ export default function LogsViewerSupabase() {
                       })();
 
                       const supabaseWriteSummary = (() => {
-                        // En TANDA 1 solo garantizamos el log en api_logs.
-                        // En TANDA 2 añadiremos caches reales en Supabase y podremos detallar upsert/insert.
+                        const reqCache = isRecord(request.cache) ? request.cache : {};
+                        const resWrite = isRecord(response.cacheWrite) ? response.cacheWrite : {};
+
+                        const table = String(resWrite.table ?? reqCache.table ?? '');
+                        const key = String(resWrite.key ?? reqCache.key ?? '');
+                        const action = String(resWrite.action ?? (r.status === 'SUPABASE_CACHE_UPSERT' ? 'upsert' : ''));
+
+                        if (r.status === 'SUPABASE_CACHE_UPSERT' && table && key) {
+                          const ttlDays = isRecord(response) && response.ttlDays != null ? String(response.ttlDays) : '';
+                          return `Supabase cache: upsert ${table}${key ? ` (${key})` : ''}${ttlDays ? ` ttlDays=${ttlDays}` : ''}`;
+                        }
+
+                        if (action && table) {
+                          return `Supabase cache: ${action} ${table}${key ? ` (${key})` : ''}`;
+                        }
+
                         if (isGeocoding) return 'Guardamos en Supabase: api_logs + cityName/resolvedFrom/resultsCount';
                         if (isDirections) return 'Guardamos en Supabase: api_logs + distance/duration/legs/waypoints';
                         if (isPlaces) return 'Guardamos en Supabase: api_logs + supercat/resultsCount (por página)';

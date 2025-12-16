@@ -6,6 +6,11 @@ import { getCachedCityName, setCachedCityName } from './motor-bueno/geocoding-ca
 // 🔍 API Logger para tracking de llamadas
 import { apiLogger } from './utils/api-logger';
 import { logApiToSupabase } from './utils/server-logs';
+import {
+    getGeocodingCache,
+    makeGeocodingCacheKey,
+    upsertGeocodingCache,
+} from './utils/supabase-cache';
 
 // Definiciones de interfaces locales para el server action
 interface DailyPlan {
@@ -114,6 +119,32 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
     const attempt = ctx?.attempt ?? 1;
     const tripId = ctx?.tripId;
     try {
+        // 0) Supabase cache (server-side, shared across deployments)
+        const geoKey = makeGeocodingCacheKey(lat, lng);
+        const sbCache = await getGeocodingCache({ key: geoKey.key });
+        if (sbCache.ok && sbCache.hit && sbCache.cityName) {
+            apiLogger.logGeocoding({ lat, lng }, { status: 'CACHE_HIT_SUPABASE' }, 0, true);
+            await logApiToSupabase({
+                trip_id: tripId,
+                api: 'google-geocoding',
+                method: 'GET',
+                url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}`,
+                status: 'CACHE_HIT_SUPABASE',
+                duration_ms: 0,
+                cost: 0,
+                cached: true,
+                request: { lat, lng, cache: { provider: 'supabase', key: geoKey.key } },
+                response: {
+                    status: 'CACHE_HIT_SUPABASE',
+                    cityName: sbCache.cityName,
+                    resolvedFrom: sbCache.resolvedFrom,
+                    cache: { provider: 'supabase', key: geoKey.key, expiresAt: sbCache.expiresAt },
+                    cacheWrite: { provider: 'supabase', action: 'none' },
+                },
+            });
+            return sbCache.cityName;
+        }
+
         // 💾 PRIMERO: Verificar caché persistente
         const cachedName = await getCachedCityName(lat, lng);
         if (cachedName) {
@@ -129,8 +160,8 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
                 duration_ms: 0,
                 cost: 0,
                 cached: true,
-                request: { lat, lng },
-                response: { status: 'CACHE_HIT', cityName: cachedName }
+                request: { lat, lng, cache: { provider: 'local-file' } },
+                response: { status: 'CACHE_HIT', cityName: cachedName, cache: { provider: 'local-file' }, cacheWrite: { provider: 'supabase', action: 'none' } }
             });
             return cachedName;
         }
@@ -173,17 +204,43 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
                 duration_ms: Math.round(geocodeDuration),
                 cost: 0.005,
                 cached: false,
-                request: { lat, lng },
+                request: { lat, lng, cache: { provider: 'supabase', key: geoKey.key, hit: false } },
                 response: {
                     status: data.status,
                     resultsCount: data.results?.length || 0,
                     cityName,
                     resolvedFrom,
+                    cacheWrite: { provider: 'supabase', action: 'pending', table: 'api_cache_geocoding', key: geoKey.key },
                 }
             });
 
             // 💾 Guardar en caché para futuras llamadas
             await setCachedCityName(lat, lng, cityName);
+
+            // 💾 Guardar en Supabase cache (best-effort)
+            const up = await upsertGeocodingCache({
+                key: geoKey.key,
+                lat: geoKey.lat,
+                lng: geoKey.lng,
+                cityName,
+                resolvedFrom,
+                payload: { status: data.status, resultsCount: data.results?.length || 0 },
+                ttlDays: 30,
+            });
+            if (up.ok) {
+                await logApiToSupabase({
+                    trip_id: tripId,
+                    api: 'other',
+                    method: 'POST',
+                    url: 'supabase:api_cache_geocoding',
+                    status: 'SUPABASE_CACHE_UPSERT',
+                    duration_ms: 0,
+                    cost: 0,
+                    cached: true,
+                    request: { cache: { provider: 'supabase', table: 'api_cache_geocoding', key: geoKey.key } },
+                    response: { ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays },
+                });
+            }
             return cityName;
         }
 
@@ -551,7 +608,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         }
 
         // DEBUG: Verificar que dailyItinerary tiene nombres, no coordenadas
-        dailyItinerary.forEach((day, idx) => {
+        dailyItinerary.forEach((day) => {
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to}`);
         });
 
@@ -559,7 +616,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         debugLog.push(`\n📊 Itinerario ANTES de post-segmentación: ${dailyItinerary.length} días`);
         const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey, tripId);
         debugLog.push(`📊 Itinerario DESPUÉS de post-segmentación: ${segmentedItinerary.length} días`);
-        segmentedItinerary.forEach((day, idx) => {
+        segmentedItinerary.forEach((day) => {
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
         });
 
