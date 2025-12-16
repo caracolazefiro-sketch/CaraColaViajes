@@ -110,6 +110,17 @@ export default function DebugTools() {
   };
 
   const downloadAllData = () => {
+    // Snapshot CSS variables from :root
+    const root = document.documentElement;
+    const styles = getComputedStyle(root);
+    const cssVars: Record<string, string> = {};
+    for (let i = 0; i < styles.length; i++) {
+      const prop = styles[i];
+      if (prop.startsWith('--')) {
+        cssVars[prop] = styles.getPropertyValue(prop).trim();
+      }
+    }
+
     const debugData = {
       timestamp: new Date().toISOString(),
       logs: logs.map(log => ({
@@ -120,6 +131,7 @@ export default function DebugTools() {
       userAgent: navigator.userAgent,
       url: window.location.href,
       viewport: { width: window.innerWidth, height: window.innerHeight },
+      cssVariables: cssVars,
     };
 
     const blob = new Blob([JSON.stringify(debugData, null, 2)], { type: 'application/json; charset=utf-8' });
@@ -171,6 +183,25 @@ export default function DebugTools() {
           className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded text-xs font-bold transition-all shadow-lg cursor-pointer"
         >
           📦 Datos
+        </button>
+        <button
+          onClick={() => {
+            const root = document.documentElement;
+            const styles = getComputedStyle(root);
+            const cssVars: Record<string, string> = {};
+            for (let i = 0; i < styles.length; i++) {
+              const prop = styles[i];
+              if (prop.startsWith('--')) {
+                cssVars[prop] = styles.getPropertyValue(prop).trim();
+              }
+            }
+            console.info('CSS Vars Snapshot:', cssVars);
+            alert(`CSS vars capturados: ${Object.keys(cssVars).length}`);
+          }}
+          title="Inspeccionar variables CSS activas"
+          className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded text-xs font-bold transition-all shadow-lg cursor-pointer"
+        >
+          🎨 CSS Vars
         </button>
         <button
           onClick={() => setIsOpen(!isOpen)}
