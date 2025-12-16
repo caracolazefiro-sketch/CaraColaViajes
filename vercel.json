@@ -3,7 +3,7 @@
     "deploymentEnabled": {
       "main": false,
       "testing": true,
-      "pruebas": false
+      "pruebas": true
     }
   }
 }
