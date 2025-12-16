@@ -27,6 +27,7 @@ export default function LogsViewerSupabase() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  const [openTripId, setOpenTripId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/logs-supabase?limit=200')
@@ -70,69 +71,157 @@ export default function LogsViewerSupabase() {
   };
 
   const normalizedFilter = filter.trim().toLowerCase();
-  const filteredLogs = normalizedFilter
-    ? logs.filter(r => {
-      const tripName = getTripName(r).toLowerCase();
-      const tripId = (r.trip_id || '').toLowerCase();
-      const api = (r.api || '').toLowerCase();
-      return tripName.includes(normalizedFilter) || tripId.includes(normalizedFilter) || api.includes(normalizedFilter);
-    })
-    : logs;
+  const logsWithTrip = logs.filter((r) => !!r.trip_id);
 
-  const totals = filteredLogs.reduce((acc, r) => {
-    acc.calls++;
-    acc.cost += Number(r.cost || 0);
-    acc.directions += r.api === 'google-directions' ? 1 : 0;
-    acc.geocoding += r.api === 'google-geocoding' ? 1 : 0;
-    return acc;
-  }, { calls: 0, cost: 0, directions: 0, geocoding: 0 });
+  const trips = (() => {
+    const byTrip = logsWithTrip.reduce<Record<string, LogRow[]>>((acc, r) => {
+      const id = String(r.trip_id);
+      if (!acc[id]) acc[id] = [];
+      acc[id].push(r);
+      return acc;
+    }, {});
+
+    const tripList = Object.entries(byTrip).map(([tripId, tripLogs]) => {
+      const sorted = [...tripLogs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const representative = sorted.find((x) => x.api === 'google-directions') || sorted[0];
+      const name = getTripName(representative);
+      const totals = sorted.reduce(
+        (acc, r) => {
+          acc.calls++;
+          acc.cost += Number(r.cost || 0);
+          acc.directions += r.api === 'google-directions' ? 1 : 0;
+          acc.geocoding += r.api === 'google-geocoding' ? 1 : 0;
+          return acc;
+        },
+        { calls: 0, cost: 0, directions: 0, geocoding: 0 }
+      );
+      return {
+        tripId,
+        tripName: name,
+        latestAt: sorted[0]?.created_at,
+        totals,
+        logs: sorted,
+      };
+    });
+
+    const filtered = normalizedFilter
+      ? tripList.filter((t) => {
+        const name = (t.tripName || '').toLowerCase();
+        const id = (t.tripId || '').toLowerCase();
+        return name.includes(normalizedFilter) || id.includes(normalizedFilter);
+      })
+      : tripList;
+
+    return filtered.sort((a, b) => new Date(b.latestAt || 0).getTime() - new Date(a.latestAt || 0).getTime());
+  })();
+
+  const totalsAllTrips = trips.reduce(
+    (acc, t) => {
+      acc.trips++;
+      acc.calls += t.totals.calls;
+      acc.cost += t.totals.cost;
+      acc.directions += t.totals.directions;
+      acc.geocoding += t.totals.geocoding;
+      return acc;
+    },
+    { trips: 0, calls: 0, cost: 0, directions: 0, geocoding: 0 }
+  );
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
       <h1>📡 API Logs (Supabase)</h1>
-      <p style={{ color: '#666' }}>Total: {totals.calls} | Directions: {totals.directions} | Geocoding: {totals.geocoding} | Coste: €{totals.cost.toFixed(3)}</p>
+      <p style={{ color: '#666' }}>Viajes: {totalsAllTrips.trips} | Total calls: {totalsAllTrips.calls} | Directions: {totalsAllTrips.directions} | Geocoding: {totalsAllTrips.geocoding} | Coste: €{totalsAllTrips.cost.toFixed(3)}</p>
 
       <div style={{ marginTop: '0.75rem' }}>
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filtrar por viaje (nombre o trip_id) o API…"
+          placeholder="Buscar viaje por nombre o trip_id…"
           style={{ width: '100%', maxWidth: 520, padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }}
         />
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Hora</th>
-            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>API</th>
-            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Estado</th>
-            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Duración</th>
-            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Coste</th>
-            <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Trip</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredLogs.map((r) => (
-            <tr key={r.id}>
-              <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{new Date(r.created_at).toLocaleString('es-ES')}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.api}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.status}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.duration_ms} ms</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>€{Number(r.cost || 0).toFixed(3)}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>
-                <div>{getTripName(r)}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#6b7280' }}>{r.trip_id || '-'}</div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+        {trips.map((t) => {
+          const isOpen = openTripId === t.tripId;
+          return (
+            <div
+              key={t.tripId}
+              style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: 10,
+                background: 'white',
+                overflow: 'hidden',
+              }}
+            >
+              <button
+                onClick={() => setOpenTripId(isOpen ? null : t.tripId)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '12px 12px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {t.tripName}
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#6b7280' }}>{t.tripId}</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    {t.latestAt ? new Date(t.latestAt).toLocaleString('es-ES') : '-'} · Calls: {t.totals.calls} · Coste: €{t.totals.cost.toFixed(3)}
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', flexShrink: 0 }}>
+                  {isOpen ? 'Ocultar' : 'Ver'}
+                </div>
+              </button>
 
-      <details style={{ marginTop: '1rem' }}>
-        <summary style={{ cursor: 'pointer' }}>Ver JSON completo</summary>
-        <pre style={{ background: '#111827', color: '#e5e7eb', padding: '1rem', borderRadius: 6, overflow: 'auto' }}>{JSON.stringify(filteredLogs, null, 2)}</pre>
-      </details>
+              {isOpen && (
+                <div style={{ borderTop: '1px solid #eef2f7', padding: '12px' }}>
+                  <div style={{ color: '#666', marginBottom: 8 }}>
+                    Directions: {t.totals.directions} · Geocoding: {t.totals.geocoding}
+                  </div>
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Hora</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>API</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Estado</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Duración</th>
+                        <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Coste</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {t.logs.map((r) => (
+                        <tr key={r.id}>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{new Date(r.created_at).toLocaleString('es-ES')}</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.api}</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.status}</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{r.duration_ms} ms</td>
+                          <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>€{Number(r.cost || 0).toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <details style={{ marginTop: '1rem' }}>
+                    <summary style={{ cursor: 'pointer' }}>Ver JSON de este viaje</summary>
+                    <pre style={{ background: '#111827', color: '#e5e7eb', padding: '1rem', borderRadius: 6, overflow: 'auto' }}>{JSON.stringify(t.logs, null, 2)}</pre>
+                  </details>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
