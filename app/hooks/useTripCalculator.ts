@@ -128,6 +128,14 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                 const leg = route.legs[i];
                 let legPoints: google.maps.LatLng[] = [];
                 leg.steps.forEach(step => { if(step.path) legPoints = legPoints.concat(step.path); });
+
+                // Distancia total aproximada del leg según la geometría del path (metros)
+                // (Usada para decidir si podemos llegar al waypoint/destino dentro de la tolerancia)
+                let legTotalMeters = 0;
+                for (let j = 0; j < legPoints.length - 1; j++) {
+                    legTotalMeters += google.maps.geometry.spherical.computeDistanceBetween(legPoints[j], legPoints[j + 1]);
+                }
+                let progressedMeters = 0;
                 
                 let legAccumulator = 0;
                 let segmentStartName = currentLegStartName;
@@ -139,7 +147,17 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                     const point2 = legPoints[j+1];
                     const segmentDist = google.maps.geometry.spherical.computeDistanceBetween(point1, point2);
 
-                    if (legAccumulator + segmentDist > splitThresholdMeters) {
+                    const remainingAfterThisSegment = Math.max(0, legTotalMeters - (progressedMeters + segmentDist));
+
+                    // Regla: las paradas tácticas cortan en maxMeters. La tolerancia SOLO evita el corte
+                    // si el waypoint/destino (fin del leg) entra dentro de (max + tolerancia).
+                    if (legAccumulator + segmentDist > maxMeters) {
+                        if (legAccumulator + segmentDist + remainingAfterThisSegment <= splitThresholdMeters) {
+                            legAccumulator += segmentDist;
+                            progressedMeters += segmentDist;
+                            continue;
+                        }
+
                         const lat = point2.lat(); 
                         const lng = point2.lng();
                         
@@ -151,7 +169,7 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                         itinerary.push({ 
                             day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
                             from: segmentStartName, to: stopTitle, 
-                            distance: splitThresholdMeters / 1000, 
+                            distance: maxMeters / 1000, 
                             isDriving: true, coordinates: { lat, lng }, type: 'tactical', savedPlaces: [] 
                         });
 
@@ -160,8 +178,10 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                         dayCounter++; currentDate = addDay(currentDate); 
                         legAccumulator = 0; 
                         segmentStartName = locationString;
+                        progressedMeters += segmentDist;
                     } else {
                         legAccumulator += segmentDist;
+                        progressedMeters += segmentDist;
                     }
                 }
 
