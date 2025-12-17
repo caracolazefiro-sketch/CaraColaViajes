@@ -92,7 +92,13 @@ function uniqByPlaceId(arr: ServerPlace[]) {
 }
 
 const SUPERCAT_1_KEYWORD =
-  'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
+  'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR "area camper" OR "área camper"';
+
+const SUPERCAT_1_RESTAURANT_KEYWORD =
+  'restaurant OR restaurante OR bar OR "fast food" OR comida OR cafe OR cafetería OR cafeteria OR pizzeria OR hamburguesería OR hamburger OR tapas OR asador OR mesón OR meson';
+
+const SUPERCAT_1_SUPERMARKET_KEYWORD =
+  'supermarket OR supermercado OR "grocery store" OR groceries OR "tienda de alimentación" OR alimentacion OR alimentación';
 
 const SUPERCAT_2_KEYWORD =
   'gas OR gas_station OR laundry OR "self-service laundry" OR "self service laundry" OR "lavandería autoservicio" OR museum OR park OR tourist_attraction';
@@ -124,6 +130,63 @@ async function fetchNearbyPage(params: {
   const duration = performance.now() - start;
 
   return { json, durationMs: Math.round(duration), url: url.toString() };
+}
+
+async function fetchNearbyAll(params: {
+  center: LatLng;
+  radius: number;
+  keyword: string;
+  apiKey: string;
+  maxPages?: number;
+}) {
+  const { center, radius, keyword, apiKey } = params;
+  const maxPages = params.maxPages ?? 3; // 3*20 = 60
+
+  const allResults: ServerPlace[] = [];
+  const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null; url?: string }> = [];
+  let firstPageUrl: string | null = null;
+  let totalDurationMs = 0;
+
+  let nextToken: string | undefined = undefined;
+  let pages = 0;
+
+  while (pages < maxPages) {
+    if (nextToken) {
+      // Google requiere un pequeño delay para que el token sea válido
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+
+    const { json, durationMs, url } = await fetchNearbyPage({ center, radius, keyword, apiKey, pageToken: nextToken });
+    pages++;
+    totalDurationMs += durationMs;
+
+    const status = json.status || 'UNKNOWN';
+    const results = json.results || [];
+    allResults.push(...results);
+
+    const redactedUrl = redactGoogleKey(url);
+    if (!firstPageUrl) firstPageUrl = redactedUrl;
+    const next = json.next_page_token || null;
+    pageLogs.push({ status, resultsCount: results.length, durationMs, nextPageToken: next, url: redactedUrl });
+
+    if (status !== 'OK' || !json.next_page_token) {
+      break;
+    }
+    nextToken = json.next_page_token;
+
+    // Corte duro por tamaño
+    if (allResults.length >= 60) {
+      break;
+    }
+  }
+
+  return {
+    pages,
+    totalDurationMs,
+    firstPageUrl,
+    pageLogs,
+    resultsTrimmed: allResults.slice(0, 60),
+  };
 }
 
 export async function POST(req: Request) {
@@ -189,6 +252,97 @@ export async function POST(req: Request) {
       });
     }
 
+    if (supercat === 1) {
+      const keywords = {
+        camping: SUPERCAT_1_KEYWORD,
+        restaurant: SUPERCAT_1_RESTAURANT_KEYWORD,
+        supermarket: SUPERCAT_1_SUPERMARKET_KEYWORD,
+      };
+
+      const [campingQ, restaurantQ, supermarketQ] = await Promise.all([
+        fetchNearbyAll({ center, radius, keyword: keywords.camping, apiKey, maxPages: 2 }),
+        fetchNearbyAll({ center, radius, keyword: keywords.restaurant, apiKey, maxPages: 2 }),
+        fetchNearbyAll({ center, radius, keyword: keywords.supermarket, apiKey, maxPages: 2 }),
+      ]);
+
+      const camping = uniqByPlaceId(campingQ.resultsTrimmed.filter(classifyCamping));
+      const restaurant = uniqByPlaceId(restaurantQ.resultsTrimmed.filter(classifyRestaurant));
+      const supermarket = uniqByPlaceId(supermarketQ.resultsTrimmed.filter(classifySupermarket));
+
+      const pages = campingQ.pages + restaurantQ.pages + supermarketQ.pages;
+      const totalDurationMs = campingQ.totalDurationMs + restaurantQ.totalDurationMs + supermarketQ.totalDurationMs;
+      const firstPageUrl = campingQ.firstPageUrl || restaurantQ.firstPageUrl || supermarketQ.firstPageUrl;
+      const pageLogs = [
+        ...campingQ.pageLogs.map((p) => ({ ...p, category: 'camping' })),
+        ...restaurantQ.pageLogs.map((p) => ({ ...p, category: 'restaurant' })),
+        ...supermarketQ.pageLogs.map((p) => ({ ...p, category: 'supermarket' })),
+      ];
+
+      const basePayload = {
+        ok: true,
+        supercat,
+        center,
+        radius,
+        totals: {
+          pages,
+          totalResults: campingQ.resultsTrimmed.length + restaurantQ.resultsTrimmed.length + supermarketQ.resultsTrimmed.length,
+        },
+        pageLogs,
+      };
+
+      const payload = {
+        ...basePayload,
+        categories: { camping, restaurant, supermarket },
+      };
+
+      const up = await upsertPlacesSupercatCache({
+        key: cacheKey.key,
+        supercat,
+        centerLat: cacheKey.lat,
+        centerLng: cacheKey.lng,
+        radius: cacheKey.radius,
+        payload,
+        ttlDays: 7,
+      });
+
+      const cacheWrite = up.ok
+        ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
+        : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason };
+
+      await logApiToSupabase({
+        trip_id: tripId,
+        api: 'google-places',
+        method: 'GET',
+        url: firstPageUrl || 'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
+        status: 'OK',
+        duration_ms: totalDurationMs,
+        cost: pages * 0.003,
+        cached: false,
+        request: {
+          tripName,
+          supercat,
+          center,
+          radius,
+          keyword: keywords,
+          cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
+        },
+        response: {
+          status: 'OK',
+          resultsCount: camping.length + restaurant.length + supermarket.length,
+          totals: basePayload.totals,
+          pageLogs,
+          cache: { provider: 'supabase', key: cacheKey.key, hit: false },
+          cacheWrite,
+        },
+      });
+
+      return NextResponse.json({
+        ...payload,
+        cache: { provider: 'supabase', key: cacheKey.key, hit: false, write: up.ok ? 'upsert' : 'skipped' },
+      });
+    }
+
+    // supercat === 2 mantiene la estrategia original (keyword único)
     const allResults: ServerPlace[] = [];
     const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null; url?: string }> = [];
     let firstPageUrl: string | null = null;
@@ -204,7 +358,7 @@ export async function POST(req: Request) {
         await new Promise((r) => setTimeout(r, 1200));
       }
 
-      const { json, durationMs, url } = await fetchNearbyPage({ center, radius, keyword, apiKey, pageToken: nextToken });
+      const { json, durationMs, url } = await fetchNearbyPage({ center, radius, keyword: SUPERCAT_2_KEYWORD, apiKey, pageToken: nextToken });
       pages++;
       totalDurationMs += durationMs;
 
@@ -242,63 +396,6 @@ export async function POST(req: Request) {
       },
       pageLogs,
     };
-
-    if (supercat === 1) {
-      const camping = uniqByPlaceId(resultsTrimmed.filter(classifyCamping));
-      const restaurant = uniqByPlaceId(resultsTrimmed.filter(classifyRestaurant));
-      const supermarket = uniqByPlaceId(resultsTrimmed.filter(classifySupermarket));
-
-      const payload = {
-        ...basePayload,
-        categories: { camping, restaurant, supermarket },
-      };
-
-      const up = await upsertPlacesSupercatCache({
-        key: cacheKey.key,
-        supercat,
-        centerLat: cacheKey.lat,
-        centerLng: cacheKey.lng,
-        radius: cacheKey.radius,
-        payload,
-        ttlDays: 7,
-      });
-
-      const cacheWrite = up.ok
-        ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
-        : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason };
-
-      await logApiToSupabase({
-        trip_id: tripId,
-        api: 'google-places',
-        method: 'GET',
-        url: firstPageUrl || 'https://maps.googleapis.com/maps/api/place/nearbysearch/json',
-        status: 'OK',
-        duration_ms: totalDurationMs,
-        cost: pages * 0.003,
-        cached: false,
-        request: {
-          tripName,
-          supercat,
-          center,
-          radius,
-          keyword,
-          cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
-        },
-        response: {
-          status: 'OK',
-          resultsCount: resultsTrimmed.length,
-          totals: basePayload.totals,
-          pageLogs,
-          cache: { provider: 'supabase', key: cacheKey.key, hit: false },
-          cacheWrite,
-        },
-      });
-
-      return NextResponse.json({
-        ...payload,
-        cache: { provider: 'supabase', key: cacheKey.key, hit: false, write: up.ok ? 'upsert' : 'skipped' },
-      });
-    }
 
     const gas = uniqByPlaceId(resultsTrimmed.filter(classifyGas));
     const laundry = uniqByPlaceId(resultsTrimmed.filter(classifyLaundry));

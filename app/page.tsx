@@ -86,6 +86,9 @@ export default function Home() {
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary
   } = useTripCalculator(convert, settings.units);
 
+  // Hook para filtros de búsqueda (rating, radio, sort)
+  const { minRating, setMinRating, searchRadius, setSearchRadius, sortBy, setSortBy } = useSearchFilters();
+
   const {
       places, loadingPlaces, toggles,
         searchPlaces,
@@ -95,10 +98,7 @@ export default function Home() {
         clearSearch,
         handleToggle,
         resetPlaces
-  } = useTripPlaces(map, apiTripId, formData.tripName);
-
-  // Hook para filtros de búsqueda (rating, radio, sort)
-  const { minRating, setMinRating, searchRadius, setSearchRadius, sortBy, setSortBy } = useSearchFilters();
+  } = useTripPlaces(map, apiTripId, formData.tripName, searchRadius);
 
   const resetUiState = useCallback(() => {
     setSelectedDayIndex(null);

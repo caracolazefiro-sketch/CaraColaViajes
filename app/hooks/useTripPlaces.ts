@@ -15,7 +15,12 @@ type ServerPlace = {
     photos?: Array<{ photo_reference?: string }>;
 };
 
-export function useTripPlaces(map: google.maps.Map | null, tripId?: string | null, tripName?: string) {
+export function useTripPlaces(
+    map: google.maps.Map | null,
+    tripId?: string | null,
+    tripName?: string,
+    searchRadiusKm: number = 10
+) {
     // AÑADIDO 'search' y 'found' AL ESTADO INICIAL
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: []
@@ -150,7 +155,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         }
 
         // Restaurante: excluir explícitamente supers/tiendas
-        const looksFoodByTags = tags.includes('restaurant') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || tags.includes('cafe') || tags.includes('bar');
+        const looksFoodByTags = tags.includes('restaurant') || tags.includes('food') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || tags.includes('cafe') || tags.includes('bar') || tags.includes('bakery');
         const looksFoodByName = /restaurante|restaurant|bar|caf(e|é)|pizzeria|hamburg|tapas|asador|mesón|meson/i.test(n);
         const looksLikeShop = tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || tags.includes('department_store') || tags.includes('shopping_mall');
         if (!looksLikeShop && (looksFoodByTags || looksFoodByName)) {
@@ -166,11 +171,13 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             return;
         }
 
+        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+
         const seq = ++requestSeqRef.current.supercat1;
 
         setLoadingPlaces(prev => ({ ...prev, camping: true, restaurant: true, supermarket: true }));
 
-        const cacheKey = `supercat1_client_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
+        const cacheKey = `supercat1_client_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
         if (placesCache.current[cacheKey]) {
             const cached = placesCache.current[cacheKey];
             setPlaces(prev => ({
@@ -189,7 +196,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         const searchRequest: google.maps.places.PlaceSearchRequest = {
             location: centerPoint,
-            radius: 10000,
+            radius: radiusMeters,
             keyword,
         };
 
@@ -264,10 +271,10 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 setLoadingPlaces(prev => ({ ...prev, camping: false, restaurant: false, supermarket: false }));
             }
         });
-    }, [classifyCombo1, computeScore, distanceFromCenter, map]);
+    }, [classifyCombo1, computeScore, distanceFromCenter, map, searchRadiusKm]);
 
     const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, signal?: AbortSignal) => {
-        const radius = 20000;
+        const radius = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
         const res = await fetch('/api/places-supercat', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -290,7 +297,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             supercat: Supercat;
             categories: Record<string, ServerPlace[]>;
         };
-    }, [tripId, tripName]);
+    }, [tripId, tripName, searchRadiusKm]);
 
     // BÚSQUEDA ESTÁNDAR (Categorías)
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
@@ -302,7 +309,8 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         // 1. GENERAR CLAVE DE CACHÉ
         // Redondeamos coords para que pequeños movimientos no invaliden la caché innecesariamente
-        const cacheKey = `${type}_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
+        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const cacheKey = `${type}_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         // 2. VERIFICAR SI YA PAGAMOS POR ESTO
         if (placesCache.current[cacheKey]) {
@@ -313,7 +321,8 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         const service = new google.maps.places.PlacesService(map);
         const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        let placeType = ''; let radius = 10000; 
+        let placeType = '';
+        let radius = radiusMeters;
         let useKeyword = false; // Para búsquedas que requieren keyword en lugar de type
         let searchKeyword = '';
 
@@ -321,29 +330,29 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             case 'camping': 
                 // Camping (solo camping). El Combo 1 se resuelve por searchComboCampingRestaurantSuper.
                 placeType = 'campground'; 
-                radius = 10000; 
+                radius = radiusMeters;
                 useKeyword = true;
                 searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR "area camper" OR "área camper"';
                 break;
             case 'restaurant':
                 // COMBO 1: normalmente viene por supercat server-side.
                 // Fallback cliente: keyword suele ser más robusto que `type` en algunos entornos.
-                radius = 10000;
+                radius = radiusMeters;
                 useKeyword = true;
                 searchKeyword = 'restaurant OR restaurante OR bar OR "fast food" OR comida OR "cafe" OR "cafetería" OR "cafeteria"';
                 break;
             case 'supermarket':
                 // COMBO 1: normalmente viene por supercat server-side.
                 // Fallback cliente: keyword (type legacy puede devolver INVALID_REQUEST o 0 según proyecto).
-                radius = 10000;
+                radius = radiusMeters;
                 useKeyword = true;
                 searchKeyword = 'supermarket OR supermercado OR "grocery store" OR groceries OR "tienda de alimentación"';
                 break;
-            case 'gas': placeType = 'gas_station'; radius = 10000; break;
+            case 'gas': placeType = 'gas_station'; radius = radiusMeters; break;
             case 'laundry': 
                 // COMBO 2: gas + laundry + tourism (bilingüe)
                 placeType = 'laundry'; 
-                radius = 10000; 
+                radius = radiusMeters;
                 useKeyword = true;
                 searchKeyword = 'laundry OR "self-service laundry" OR "lavandería autoservicio"';
                 break;
@@ -351,7 +360,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 // COMBO 2: normalmente viene por supercat server-side.
                 // Fallback cliente: búsqueda individual por tipo + keyword amplia.
                 placeType = 'tourist_attraction';
-                radius = 15000;
+                radius = radiusMeters;
                 useKeyword = true;
                 searchKeyword = 'tourist attraction OR museum OR parque OR park OR mirador OR viewpoint OR monument OR landmark';
                 break;
@@ -515,7 +524,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 setPlaces(prev => ({ ...prev, [type]: [] }));
             }
         });
-    }, [map, distanceFromCenter]);
+    }, [map, distanceFromCenter, searchRadiusKm]);
 
     // BÚSQUEDA COMBINADA: camping + restaurant + supermarket
     const searchComboCampingRestaurantSuper = useCallback((location: Coordinates) => {

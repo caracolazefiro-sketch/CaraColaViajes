@@ -18,6 +18,8 @@ export const filterAndSort = (
 ): PlaceWithDistance[] => {
   if (!places || places.length === 0) return [];
 
+  const MAX_RESULTS_PER_CATEGORY = 20;
+
   // 1️⃣ FILTRAR por rating mínimo (descartar < minRating)
   let filtered = places.filter(place => {
     const rating = place.rating || 0;
@@ -42,7 +44,7 @@ export const filterAndSort = (
     }
   });
 
-  return sorted;
+  return sorted.slice(0, MAX_RESULTS_PER_CATEGORY);
 };
 
 export const useSearchFilters = () => {
