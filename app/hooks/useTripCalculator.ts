@@ -105,6 +105,21 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                 ? formData.kmMaximoDia * 1609.34 
                 : formData.kmMaximoDia * 1000;
 
+            // Tolerancia dinámica (~10% con cap 50km) para evitar cortes por exceso mínimo.
+            // En imperial, maxMeters está en metros igualmente, así que el cálculo sigue siendo coherente.
+            const toleranceMeters = (() => {
+                const kmEquivalent = maxMeters / 1000;
+                const tolKm = Math.min(50, Math.max(10, Math.round(kmEquivalent * 0.1)));
+                return tolKm * 1000;
+            })();
+            const splitThresholdMeters = maxMeters + toleranceMeters;
+
+            console.log('🧭 Segmentación (cliente):', {
+                maxMeters: Math.round(maxMeters),
+                toleranceMeters: Math.round(toleranceMeters),
+                splitThresholdMeters: Math.round(splitThresholdMeters),
+            });
+
             const startLoc = route.legs[0].start_location;
             let currentLegStartName = await getCleanCityName(startLoc.lat(), startLoc.lng());
             let totalDistMeters = 0;
@@ -113,9 +128,17 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                 const leg = route.legs[i];
                 let legPoints: google.maps.LatLng[] = [];
                 leg.steps.forEach(step => { if(step.path) legPoints = legPoints.concat(step.path); });
+
+                // Distancia total de este leg en metros (para poder decidir si aplicamos tolerancia al final)
+                let legTotalMeters = 0;
+                for (let j = 0; j < legPoints.length - 1; j++) {
+                    legTotalMeters += google.maps.geometry.spherical.computeDistanceBetween(legPoints[j], legPoints[j + 1]);
+                }
+                let progressedMeters = 0;
                 
                 let legAccumulator = 0;
                 let segmentStartName = currentLegStartName;
+                let createdTacticalInLeg = false;
 
                 // Algoritmo Slicing V2 (Interpolación)
                 for (let j = 0; j < legPoints.length - 1; j++) {
@@ -123,7 +146,17 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                     const point2 = legPoints[j+1];
                     const segmentDist = google.maps.geometry.spherical.computeDistanceBetween(point1, point2);
 
+                    const remainingAfterThisSegment = Math.max(0, legTotalMeters - (progressedMeters + segmentDist));
+
                     if (legAccumulator + segmentDist > maxMeters) {
+                        // Si estamos MUY cerca del final del leg y cerrar el leg hoy entra en max+tol,
+                        // no creamos una parada táctica (evita colas ridículas tipo 5km y mejora estabilidad).
+                        if (legAccumulator + segmentDist + remainingAfterThisSegment <= splitThresholdMeters) {
+                            legAccumulator += segmentDist;
+                            progressedMeters += segmentDist;
+                            continue;
+                        }
+
                         const lat = point2.lat(); 
                         const lng = point2.lng();
                         
@@ -135,21 +168,82 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
                         itinerary.push({ 
                             day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
                             from: segmentStartName, to: stopTitle, 
-                            distance: (legAccumulator + segmentDist) / 1000, 
+                            distance: maxMeters / 1000, 
                             isDriving: true, coordinates: { lat, lng }, type: 'tactical', savedPlaces: [] 
                         });
+
+                        createdTacticalInLeg = true;
                         
                         dayCounter++; currentDate = addDay(currentDate); 
                         legAccumulator = 0; 
                         segmentStartName = locationString;
-                    } else { 
-                        legAccumulator += segmentDist; 
+
+                        // Hemos consumido hasta point2 para el progreso.
+                        progressedMeters += segmentDist;
+                    } else {
+                        legAccumulator += segmentDist;
+                        progressedMeters += segmentDist;
                     }
                 }
 
                 // Cierre del Leg
                 await sleep(200); // Pausa también aquí
                 const endLegName = await getCleanCityName(leg.end_location.lat(), leg.end_location.lng());
+
+                // Si el leg ha creado tácticas y la cola final es pequeña, la fusionamos en el último tramo
+                // para evitar días absurdos como “Zürich → Zürich (5 km)”.
+                if (createdTacticalInLeg && legAccumulator > 0 && legAccumulator <= toleranceMeters && segmentStartName === endLegName) {
+                    const lastIdx = itinerary.length - 1;
+                    if (lastIdx >= 0 && itinerary[lastIdx].isDriving) {
+                        const isFinalDest = i === route.legs.length - 1;
+                        itinerary[lastIdx] = {
+                            ...itinerary[lastIdx],
+                            to: endLegName,
+                            distance: (itinerary[lastIdx].distance || 0) + (legAccumulator / 1000),
+                            coordinates: { lat: leg.end_location.lat(), lng: leg.end_location.lng() },
+                            type: isFinalDest ? 'end' : 'overnight',
+                        };
+                        console.log('🧩 Merge tail (cliente):', { endLegName, tailKm: Math.round((legAccumulator / 1000) * 10) / 10 });
+
+                        // Este leg ya quedó cerrado en el último tramo. Avanzamos a la siguiente leg sin crear un día extra.
+                        if (i < route.legs.length - 1) {
+                            currentLegStartName = endLegName;
+                        }
+                        totalDistMeters += leg.distance?.value || 0;
+
+                        // Lógica de Vuelta a Casa (sin cambios)
+                        if (formData.vueltaACasa && i === outboundLegsCount - 1) {
+                            let returnDistanceMeters = 0;
+                            for(let k = i + 1; k < route.legs.length; k++) { returnDistanceMeters += route.legs[k].distance?.value || 0; }
+                            const daysDrivingBack = Math.ceil(returnDistanceMeters / maxMeters);
+                            
+                            if (formData.fechaRegreso) {
+                                const dateBackHome = new Date(formData.fechaRegreso);
+                                const departureDate = new Date(dateBackHome);
+                                departureDate.setDate(departureDate.getDate() - daysDrivingBack + 1);
+                                
+                                const stayDays = Math.floor((departureDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+                                if (stayDays > 0) {
+                                    const stayCity = endLegName;
+                                    const stayCoords = { lat: leg.end_location.lat(), lng: leg.end_location.lng() };
+
+                                    for(let d=0; d < stayDays; d++) {
+                                        itinerary.push({ 
+                                            day: dayCounter, date: formatDate(currentDate), isoDate: formatDateISO(currentDate),
+                                            from: stayCity, to: stayCity, distance: 0, 
+                                            isDriving: false, type: 'overnight', 
+                                            coordinates: stayCoords, 
+                                            savedPlaces: [] 
+                                        });
+                                        dayCounter++; currentDate = addDay(currentDate);
+                                    }
+                                }
+                            }
+                        }
+
+                        continue;
+                    }
+                }
 
                 if (legAccumulator > 0 || segmentStartName !== endLegName) {
                     const isFinalDest = i === route.legs.length - 1;
