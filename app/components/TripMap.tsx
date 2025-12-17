@@ -30,6 +30,7 @@ const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
 
     // Usar img nativo para URLs de Google Maps PhotoService que no funcionan con Next.js Image
     return (
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img
             src={place.photoUrl}
             alt={place.name || 'Lugar'}

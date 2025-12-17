@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import UserArea from './UserArea';
 import type { TripData } from '../hooks/useTripPersistence';
 
@@ -21,10 +22,13 @@ export default function AppHeader({
                 
                 {/* 1. LOGO Y TÍTULO (Izquierda) */}
                 <div className="flex items-center gap-3">
-                    <img 
-                        src="/logo.jpg" 
-                        alt={t('APP_TITLE')} 
+                    <Image
+                        src="/logo.jpg"
+                        alt={t('APP_TITLE')}
+                        width={160}
+                        height={48}
                         className="h-12 w-auto object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 rounded-lg"
+                        priority
                     />
                     <div className="hidden md:block text-left">
                         <h1 className="text-xl font-black text-red-600 leading-none tracking-tight">{t('APP_TITLE')}</h1>

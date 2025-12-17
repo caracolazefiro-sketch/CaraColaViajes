@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { PlaceWithDistance, ServiceType, Coordinates } from './types';
 
@@ -178,7 +179,7 @@ export default function Home() {
 
         <div className="print-only hidden text-center mb-10">
              <h1 className="text-4xl font-bold text-red-600 mb-2 flex items-center justify-center gap-2">
-                <img src="/logo.jpg" alt="CaraCola" className="h-10 w-10 inline-block" />
+               <Image src="/logo.jpg" alt="CaraCola" width={40} height={40} className="h-10 w-10 inline-block" />
                 {t('APP_TITLE')}
              </h1>
              <h2 className="text-2xl font-bold text-gray-800">{formData?.origen || ''} ➝ {formData?.destino || ''}</h2>
