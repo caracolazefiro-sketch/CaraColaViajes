@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { PlaceWithDistance, ServiceType, Coordinates, DailyPlan } from './types';
-import { supabase } from './supabase';
+import { PlaceWithDistance, ServiceType, Coordinates } from './types';
 
 // COMPONENTES
 import AppHeader from './components/AppHeader';
@@ -23,6 +22,7 @@ import { useTripPlaces } from './hooks/useTripPlaces';
 import { useLanguage } from './hooks/useLanguage';
 import { useToast } from './hooks/useToast';
 import { useSearchFilters } from './hooks/useSearchFilters';
+import { useTripCompute } from './hooks/useTripCompute';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -97,71 +97,18 @@ export default function Home() {
       () => { setSelectedDayIndex(null); setMapBounds(null); }
   );
 
-  const handleCalculateWrapper = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Nuevo tripId para correlación de logs (directions/geocoding/places)
-    const tripIdForLogs = `trip-${Date.now()}`;
-    setApiTripId(tripIdForLogs);
-
-    const tripNameForLogs = (() => {
-      if (formData.tripName) return formData.tripName;
-      const origen = formData.origen.split(',')[0];
-      const destino = formData.destino.split(',')[0];
-      const fecha = new Date(formData.fechaInicio).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
-      return `${origen} → ${destino} (${fecha})`;
-    })();
-
-    // Auto-generar nombre del viaje si está vacío
-    if (!formData.tripName) {
-      setFormData({ ...formData, tripName: tripNameForLogs });
-    }
-
-    setSelectedDayIndex(null);
-    setCurrentTripId(null);
-    resetPlaces();
-
-    // 1) UI (cliente) para que el mapa/itinerario sea inmediato (DirectionsRenderer + A/B)
-    calculateRoute(formData);
-
-    // 2) Logs/caché (servidor)
-    try {
-      const { getDirectionsAndCost } = await import('./actions');
-
-      const normalizeForGoogle = (text: string) => {
-        const parts = text.split(',');
-        const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
-        return location.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      };
-
-      const normalizedWaypoints = formData.etapas
-        .split('|')
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map(normalizeForGoogle);
-
-      const res = await getDirectionsAndCost({
-        tripId: tripIdForLogs,
-        tripName: tripNameForLogs,
-        origin: normalizeForGoogle(formData.origen),
-        destination: normalizeForGoogle(formData.destino),
-        waypoints: normalizedWaypoints,
-        travel_mode: 'driving',
-        kmMaximoDia: formData.kmMaximoDia,
-        fechaInicio: formData.fechaInicio,
-        fechaRegreso: formData.fechaRegreso,
-      });
-
-      if (res.error) {
-        showToast('Servidor: ' + res.error, 'error');
-      } else {
-        showToast('Ruta calculada y logs enviados', 'success');
-      }
-    } catch (err) {
-      showToast('Error generando logs (servidor)', 'error');
-      console.error(err);
-    }
-  };
+  const { handleCalculateAll } = useTripCompute({
+    formData,
+    setFormData,
+    resetPlaces,
+    calculateRoute,
+    setApiTripId,
+    resetUi: () => {
+      setSelectedDayIndex(null);
+      setCurrentTripId(null);
+    },
+    showToast,
+  });
 
   const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
       if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null;
@@ -526,7 +473,7 @@ export default function Home() {
 
         <TripForm
             formData={formData} setFormData={setFormData} loading={loading} results={results}
-          onSubmit={handleCalculateWrapper} showWaypoints={showWaypoints} setShowWaypoints={setShowWaypoints}
+          onSubmit={handleCalculateAll} showWaypoints={showWaypoints} setShowWaypoints={setShowWaypoints}
             auditMode={auditMode} setAuditMode={setAuditMode} isSaving={isSaving} onSave={handleSaveToCloud}
             onShare={handleShareTrip} onReset={handleResetTrip} currentTripId={currentTripId}
             t={t} convert={convert}
