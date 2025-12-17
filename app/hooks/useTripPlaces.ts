@@ -139,17 +139,22 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             return 'camping';
         }
 
-        if (tags.includes('restaurant') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || /restaurante|restaurant|bar|caf(e|é)|pizzeria|hamburg/i.test(n)) {
-            return 'restaurant';
-        }
-
-        if (tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || /supermercado|supermarket|grocery/i.test(n)) {
+        // Supermercados primero: evita que "store" contamine restaurante
+        if (tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || /supermercado|supermarket|grocery/.test(n)) {
             return 'supermarket';
         }
 
-        // Fallback suave: muchas veces Google etiqueta supers como store.
+        // Muchos supers vienen como store + nombre
         if (tags.includes('store') && /super|market|grocery|alimentaci/i.test(n)) {
             return 'supermarket';
+        }
+
+        // Restaurante: excluir explícitamente supers/tiendas
+        const looksFoodByTags = tags.includes('restaurant') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || tags.includes('cafe') || tags.includes('bar');
+        const looksFoodByName = /restaurante|restaurant|bar|caf(e|é)|pizzeria|hamburg|tapas|asador|mesón|meson/i.test(n);
+        const looksLikeShop = tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || tags.includes('department_store') || tags.includes('shopping_mall');
+        if (!looksLikeShop && (looksFoodByTags || looksFoodByName)) {
+            return 'restaurant';
         }
 
         return null;
@@ -547,13 +552,26 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 console.log('🟦 [combo1] calling server /api/places-supercat', { location });
                 const data = await fetchSupercat(1, location, abortStore.supercat1?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
-                const campingRaw = (data.categories.camping || []) as ServerPlace[];
-                const restaurantRaw = (data.categories.restaurant || []) as ServerPlace[];
-                const supermarketRaw = (data.categories.supermarket || []) as ServerPlace[];
 
-                const campingList = campingRaw.map(p => toPlace(location, 'camping', p));
-                const restaurantList = restaurantRaw.map(p => toPlace(location, 'restaurant', p));
-                const supermarketList = supermarketRaw.map(p => toPlace(location, 'supermarket', p));
+                // No confiamos ciegamente en la categorización del server: re-clasificamos por types/nombre.
+                const allRaw: ServerPlace[] = [
+                    ...((data.categories.camping || []) as ServerPlace[]),
+                    ...((data.categories.restaurant || []) as ServerPlace[]),
+                    ...((data.categories.supermarket || []) as ServerPlace[]),
+                ];
+
+                const campingList: PlaceWithDistance[] = [];
+                const restaurantList: PlaceWithDistance[] = [];
+                const supermarketList: PlaceWithDistance[] = [];
+
+                for (const p of allRaw) {
+                    const bucket = classifyCombo1(p.types, p.name);
+                    if (!bucket) continue;
+                    const place = toPlace(location, bucket, p);
+                    if (bucket === 'camping') campingList.push(place);
+                    else if (bucket === 'restaurant') restaurantList.push(place);
+                    else if (bucket === 'supermarket') supermarketList.push(place);
+                }
 
                 const merged = [...campingList, ...restaurantList, ...supermarketList];
                 placesCache.current[cacheKey] = merged;
@@ -581,7 +599,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 }
             }
         })();
-    }, [abortStore, fetchSupercat, searchCombo1Client, toPlace]);
+    }, [abortStore, classifyCombo1, fetchSupercat, searchCombo1Client, toPlace]);
 
     // BÚSQUEDA COMBINADA: gas + laundry + tourism
     const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
