@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { PlaceWithDistance, ServiceType, Coordinates } from './types';
 
@@ -93,9 +93,16 @@ export default function Home() {
   // Hook para filtros de búsqueda (rating, radio, sort)
   const { minRating, setMinRating, searchRadius, setSearchRadius, sortBy, setSortBy } = useSearchFilters();
 
+  const resetUiState = useCallback(() => {
+    setSelectedDayIndex(null);
+    setMapBounds(null);
+  }, []);
+
   const { isSaving, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
       formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
-      () => { setSelectedDayIndex(null); setMapBounds(null); }
+      resetUiState,
+      apiTripId,
+      setApiTripId
   );
 
   const { adjustModalOpen, adjustingDayIndex, handleAdjustDay, handleConfirmAdjust, closeAdjustModal } = useStageAdjust({
