@@ -486,6 +486,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             const toleranceKm = Math.min(50, Math.max(10, Math.round(data.kmMaximoDia * 0.1)));
             const toleranceMeters = toleranceKm * 1000;
             const splitThresholdMeters = maxMeters + toleranceMeters;
+            const targetMeters = splitThresholdMeters;
 
             let currentLegStartName = allStops[0];
             let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
@@ -508,10 +509,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     for (const step of leg.steps) {
                         const stepDist = step.distance.value;
 
-                        if (dayAccumulatorMeters + stepDist < maxMeters) {
+                        if (dayAccumulatorMeters + stepDist < targetMeters) {
                             dayAccumulatorMeters += stepDist;
                         } else {
-                            let metersNeeded = maxMeters - dayAccumulatorMeters;
+                            let metersNeeded = targetMeters - dayAccumulatorMeters;
                             let metersLeftInStep = stepDist;
                             const path = decodePolyline(step.polyline.points);
                             let currentPathIndex = 0;
@@ -534,7 +535,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 await sleep(200);
                                 const stopName = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId, purpose: 'tactical-stop' });
 
-                                const realDistance = maxMeters / 1000;
+                                const realDistance = targetMeters / 1000;
 
                                 allDrivingStops.push({
                                     from: currentLegStartName,
@@ -549,7 +550,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 currentLegStartCoords = stopCoords;
                                 currentLegStartName = stopName;
                                 dayAccumulatorMeters = 0;
-                                metersNeeded = maxMeters;
+                                metersNeeded = targetMeters;
                             }
 
                             dayAccumulatorMeters += metersLeftInStep;
@@ -786,6 +787,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         const toleranceKm = Math.min(50, Math.max(10, Math.round(data.kmMaximoDia * 0.1)));
         const toleranceMeters = toleranceKm * 1000;
         const splitThresholdMeters = maxMeters + toleranceMeters;
+        const targetMeters = splitThresholdMeters;
 
                 let currentLegStartName = allStops[0];
                 // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
@@ -811,10 +813,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 for (const step of leg.steps) {
                     const stepDist = step.distance.value;
 
-                    if (dayAccumulatorMeters + stepDist < maxMeters) {
+                    if (dayAccumulatorMeters + stepDist < targetMeters) {
                         dayAccumulatorMeters += stepDist;
                     } else {
-                        let metersNeeded = maxMeters - dayAccumulatorMeters;
+                        let metersNeeded = targetMeters - dayAccumulatorMeters;
                         let metersLeftInStep = stepDist;
                         const path = decodePolyline(step.polyline.points);
                         let currentPathIndex = 0;
@@ -840,7 +842,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                         const stopName = stopNameRaw;
 
                         // Distancia del segmento: siempre es maxMeters porque cortamos exactamente al límite
-                        const realDistance = maxMeters / 1000;
+                        const realDistance = targetMeters / 1000;
 
                         allDrivingStops.push({
                             from: currentLegStartName,
@@ -855,7 +857,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             currentLegStartName = stopNameRaw;
                             currentLegStartCoords = stopCoords;
                             dayAccumulatorMeters = 0;
-                            metersNeeded = maxMeters;
+                            metersNeeded = targetMeters;
                         }
                         dayAccumulatorMeters += metersLeftInStep;
                     }
