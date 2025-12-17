@@ -175,12 +175,18 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 useKeyword = true;
                 searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
                 break;
-            case 'restaurant': 
-                // COMBO 1: gestionado por función combinada
-                return; // No hacemos búsqueda individual, se trae con función combinada
-            case 'supermarket': 
-                // COMBO 1: gestionado por función combinada
-                return; // No hacemos búsqueda individual, se trae con función combinada
+            case 'restaurant':
+                // COMBO 1: normalmente viene por supercat server-side.
+                // Fallback cliente: búsqueda individual por tipo.
+                placeType = 'restaurant';
+                radius = 10000;
+                break;
+            case 'supermarket':
+                // COMBO 1: normalmente viene por supercat server-side.
+                // Fallback cliente: Places "grocery_or_supermarket" es el tipo legacy más compatible.
+                placeType = 'grocery_or_supermarket';
+                radius = 10000;
+                break;
             case 'gas': placeType = 'gas_station'; radius = 10000; break;
             case 'laundry': 
                 // COMBO 2: gas + laundry + tourism (bilingüe)
@@ -189,9 +195,14 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 useKeyword = true;
                 searchKeyword = 'laundry OR "self-service laundry" OR "lavandería autoservicio"';
                 break;
-            case 'tourism': 
-                // COMBO 2: gestionado por función combinada
-                return; // No hacemos búsqueda individual
+            case 'tourism':
+                // COMBO 2: normalmente viene por supercat server-side.
+                // Fallback cliente: búsqueda individual por tipo + keyword amplia.
+                placeType = 'tourist_attraction';
+                radius = 15000;
+                useKeyword = true;
+                searchKeyword = 'tourist attraction OR museum OR parque OR park OR mirador OR viewpoint OR monument OR landmark';
+                break;
         }
 
         setLoadingPlaces(prev => ({...prev, [type]: true}));
@@ -271,6 +282,13 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                     } else if (type === 'tourism') { // Filtro secundario para combo 2
                         pasa = tags.includes('tourist_attraction') || tags.includes('museum') || tags.includes('park') || tags.includes('point_of_interest');
                         if (!pasa) razon = 'No es atracción turística reconocida';
+                    } else if (type === 'restaurant') {
+                        // Filtro básico: evitar cosas claramente no-comida
+                        pasa = tags.includes('restaurant') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || /restaurant|restaurante|bar|caf(e|é)|pizzeria/i.test(spot.name || '');
+                        if (!pasa) razon = 'No parece restaurante (tags/nombre)';
+                    } else if (type === 'supermarket') {
+                        pasa = tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || tags.includes('store');
+                        if (!pasa) razon = 'No parece supermercado (tags)';
                     }
                     
                     if (!pasa) {
@@ -349,8 +367,10 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         // Si el endpoint server-side falla en este entorno (Places Web Service no habilitado), hacemos fallback al cliente.
         if (supercatDisabledRef.current.supercat1) {
-            setLoadingPlaces(prev => ({ ...prev, restaurant: false, supermarket: false }));
+            // Mantener UX: cada toggle debe mostrar resultados de SU tipo.
             searchPlaces(location, 'camping');
+            searchPlaces(location, 'restaurant');
+            searchPlaces(location, 'supermarket');
             return;
         }
 
@@ -389,9 +409,9 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 supercatDisabledRef.current.supercat1 = true;
                 didFallbackToClient = true;
                 if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
-                    setPlaces(prev => ({ ...prev, restaurant: [], supermarket: [] }));
-                    setLoadingPlaces(prev => ({ ...prev, restaurant: false, supermarket: false }));
                     searchPlaces(location, 'camping');
+                    searchPlaces(location, 'restaurant');
+                    searchPlaces(location, 'supermarket');
                 }
             } finally {
                 if (didFallbackToClient) return;
@@ -412,8 +432,9 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
 
         if (supercatDisabledRef.current.supercat2) {
-            setLoadingPlaces(prev => ({ ...prev, laundry: false, tourism: false }));
             searchPlaces(location, 'gas');
+            searchPlaces(location, 'laundry');
+            searchPlaces(location, 'tourism');
             return;
         }
 
@@ -451,9 +472,9 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 supercatDisabledRef.current.supercat2 = true;
                 didFallbackToClient = true;
                 if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
-                    setPlaces(prev => ({ ...prev, laundry: [], tourism: [] }));
-                    setLoadingPlaces(prev => ({ ...prev, laundry: false, tourism: false }));
                     searchPlaces(location, 'gas');
+                    searchPlaces(location, 'laundry');
+                    searchPlaces(location, 'tourism');
                 }
             } finally {
                 if (didFallbackToClient) return;

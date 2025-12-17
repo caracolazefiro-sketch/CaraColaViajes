@@ -225,6 +225,26 @@ export default function TripMap({
 
     const searchPlaceholder = t ? t('MAP_SEARCH_PLACEHOLDER') : 'Buscar en esta zona...';
 
+    const mapOptions = useMemo((): google.maps.MapOptions => {
+        const g = typeof google !== 'undefined' ? google : undefined;
+        return {
+            zoomControl: true,
+            streetViewControl: false,
+            mapTypeControl: true,
+            fullscreenControl: true,
+            scaleControl: true,
+            mapTypeControlOptions: g
+                ? { position: g.maps.ControlPosition.TOP_LEFT }
+                : undefined,
+            fullscreenControlOptions: g
+                ? { position: g.maps.ControlPosition.BOTTOM_LEFT }
+                : undefined,
+            zoomControlOptions: g
+                ? { position: g.maps.ControlPosition.LEFT_TOP }
+                : undefined,
+        };
+    }, []);
+
     // Generamos una clave única para forzar el repintado de la ruta si cambia
     // Usamos el polyline codificado como ID único de la ruta
     const routeKey = (directionsResponse?.routes?.[0]?.overview_polyline as unknown as string) || overviewPolyline || 'no-route';
@@ -260,16 +280,7 @@ export default function TripMap({
                         setClickedGooglePlace(null);
                     }
                 }}
-                options={{
-                    zoomControl: true,
-                    streetViewControl: false,
-                    mapTypeControl: true,
-                    fullscreenControl: true,
-                    scaleControl: true,
-                    mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_LEFT },
-                    fullscreenControlOptions: { position: google.maps.ControlPosition.BOTTOM_LEFT },
-                    zoomControlOptions: { position: google.maps.ControlPosition.LEFT_TOP }
-                }}
+                options={mapOptions}
             >
                 {directionsResponse && (
                     <DirectionsRenderer
