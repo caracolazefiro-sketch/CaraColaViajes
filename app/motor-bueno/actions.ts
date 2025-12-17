@@ -119,8 +119,9 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
 // Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
 async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
-    // Tolerancia para evitar segmentar por diferencias mínimas (redondeos/variaciones de ruta).
-    const SEGMENTATION_DISTANCE_TOLERANCE_KM = 10;
+    // Tolerancia dinámica para evitar segmentar por diferencias mínimas (redondeos/variaciones de ruta).
+    // Regla: ~10% del kmMaximoDia con cap 50km. Ej: 100→10, 200→20, 300→30, 400→40, 500+→50.
+    const SEGMENTATION_DISTANCE_TOLERANCE_KM = Math.min(50, Math.max(10, Math.round(maxKmPerDay * 0.1)));
     const segmented: DailyPlan[] = [];
 
     for (const day of itinerary) {
@@ -274,8 +275,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 legDistanceMeters += step.distance.value;
             }
 
-            // CAMBIO: Si llegar al waypoint excede el límite, crear paradas tácticas
-            if (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0) {
+            // Si llegar al waypoint excede el límite, crear paradas tácticas incluso si es el primer leg.
+            if (dayAccumulatorMeters + legDistanceMeters > maxMeters) {
                 // Necesitamos dividir esta leg en múltiples días
                 for (const step of leg.steps) {
                     const stepDist = step.distance.value;

@@ -275,9 +275,9 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
 
 // Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
 async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string, tripId?: string): Promise<DailyPlan[]> {
-    // Tolerancia para evitar segmentar por diferencias mínimas (redondeos/variaciones de ruta).
-    // Ej: con límite 300 km, una etapa de 301 km no debería forzar una parada táctica.
-    const SEGMENTATION_DISTANCE_TOLERANCE_KM = 10;
+    // Tolerancia dinámica para evitar segmentar por diferencias mínimas (redondeos/variaciones de ruta).
+    // Regla: ~10% del kmMaximoDia con cap 50km. Ej: 100→10, 200→20, 300→30, 400→40, 500+→50.
+    const SEGMENTATION_DISTANCE_TOLERANCE_KM = Math.min(50, Math.max(10, Math.round(maxKmPerDay * 0.1)));
     const segmented: DailyPlan[] = [];
 
     for (const day of itinerary) {
@@ -484,7 +484,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     legDistanceMeters += step.distance.value;
                 }
 
-                if (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0) {
+                // Si este tramo excede el límite diario, crear paradas tácticas incluso si es el primer leg.
+                // (Caso típico: origen→destino en un único tramo de 320km con límite 300.)
+                if (dayAccumulatorMeters + legDistanceMeters > maxMeters) {
                     for (const step of leg.steps) {
                         const stepDist = step.distance.value;
 
