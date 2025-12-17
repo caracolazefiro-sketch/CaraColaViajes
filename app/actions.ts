@@ -275,10 +275,14 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
 
 // Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
 async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string, tripId?: string): Promise<DailyPlan[]> {
+    // Tolerancia para evitar segmentar por diferencias mínimas (redondeos/variaciones de ruta).
+    // Ej: con límite 300 km, una etapa de 301 km no debería forzar una parada táctica.
+    const SEGMENTATION_DISTANCE_TOLERANCE_KM = 10;
     const segmented: DailyPlan[] = [];
 
     for (const day of itinerary) {
-        if (day.distance > maxKmPerDay && day.isDriving) {
+        const segmentThresholdKm = maxKmPerDay + SEGMENTATION_DISTANCE_TOLERANCE_KM;
+        if (day.distance > segmentThresholdKm && day.isDriving) {
             // Esta etapa necesita dividirse
             const numSegments = Math.ceil(day.distance / maxKmPerDay);
             const kmPerSegment = day.distance / numSegments;
