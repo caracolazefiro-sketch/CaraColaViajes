@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
           const indexData = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
           results = searchIndex(indexData, query, limit);
         }
-      } catch (error) {
+      } catch {
         console.log('Index not found, falling back to dynamic search');
       }
     }

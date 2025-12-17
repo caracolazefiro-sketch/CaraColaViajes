@@ -107,7 +107,7 @@ export function useStageNavigation({
       setMapBounds(boundsAround(searchCoords));
 
       const activeTypes = Object.entries(toggles)
-        .filter(([_, isActive]) => isActive)
+        .filter(([, isActive]) => isActive)
         .map(([type]) => type as ServiceType);
 
       if (activeTypes.length === 0) return;

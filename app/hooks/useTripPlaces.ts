@@ -31,7 +31,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
     // Estructura: { "gas_40.41_3.70": [Array de sitios], ... }
     const placesCache = useRef<Record<string, PlaceWithDistance[]>>({});
 
-    const haversineDistanceM = (a: Coordinates, b: Coordinates) => {
+    const haversineDistanceM = useCallback((a: Coordinates, b: Coordinates) => {
         const R = 6371e3;
         const φ1 = (a.lat * Math.PI) / 180;
         const φ2 = (b.lat * Math.PI) / 180;
@@ -41,9 +41,9 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         const sinΔλ = Math.sin(Δλ / 2);
         const x = sinΔφ * sinΔφ + Math.cos(φ1) * Math.cos(φ2) * sinΔλ * sinΔλ;
         return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-    };
+    }, []);
 
-    const distanceFromCenter = (center: Coordinates, spot: Coordinates) => {
+    const distanceFromCenter = useCallback((center: Coordinates, spot: Coordinates) => {
         try {
             if (typeof google !== 'undefined' && google.maps?.geometry?.spherical?.computeDistanceBetween) {
                 const c = new google.maps.LatLng(center.lat, center.lng);
@@ -54,17 +54,17 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             // ignore
         }
         return haversineDistanceM(center, spot);
-    };
+    }, [haversineDistanceM]);
 
-    const toPhotoUrl = (p: ServerPlace): string | undefined => {
+    const toPhotoUrl = useCallback((p: ServerPlace): string | undefined => {
         const ref = p.photos?.[0]?.photo_reference;
         if (!ref) return undefined;
         const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
         if (!key) return undefined;
         return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${encodeURIComponent(ref)}&key=${encodeURIComponent(key)}`;
-    };
+    }, []);
 
-    const toPlace = (center: Coordinates, type: ServiceType, p: ServerPlace): PlaceWithDistance => {
+    const toPlace = useCallback((center: Coordinates, type: ServiceType, p: ServerPlace): PlaceWithDistance => {
         const loc = p.geometry?.location;
         const dist = loc ? distanceFromCenter(center, loc) : 999999;
         return {
@@ -80,7 +80,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             photoUrl: toPhotoUrl(p),
             types: p.types,
         };
-    };
+    }, [distanceFromCenter, toPhotoUrl]);
 
     const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates) => {
         const radius = 20000;
@@ -334,7 +334,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
             }
         })();
-    }, [fetchSupercat]);
+    }, [fetchSupercat, toPlace]);
 
     // BÚSQUEDA COMBINADA: gas + laundry + tourism
     const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
@@ -374,7 +374,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
             }
         })();
-    }, [fetchSupercat]);
+    }, [fetchSupercat, toPlace]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {
