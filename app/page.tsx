@@ -23,6 +23,7 @@ import { useLanguage } from './hooks/useLanguage';
 import { useToast } from './hooks/useToast';
 import { useSearchFilters } from './hooks/useSearchFilters';
 import { useTripCompute } from './hooks/useTripCompute';
+import { useStageNavigation } from './hooks/useStageNavigation';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -110,11 +111,17 @@ export default function Home() {
     showToast,
   });
 
-  const geocodeCity = async (cityName: string): Promise<google.maps.LatLngLiteral | null> => {
-      if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null;
-      const geocoder = new google.maps.Geocoder();
-      try { const response = await geocoder.geocode({ address: cityName }); if (response.results.length > 0) return response.results[0].geometry.location.toJSON(); } catch { } return null;
-  };
+  const { focusMapOnStage, handleSearchNearDay } = useStageNavigation({
+    directionsResponse,
+    dailyItinerary: results.dailyItinerary,
+    toggles,
+    setSelectedDayIndex,
+    setHoveredPlace: () => setHoveredPlace(null),
+    setMapBounds,
+    resetPlaces,
+    clearSearch,
+    searchPlaces,
+  });
 
   const handleToggleWrapper = (type: ServiceType) => {
       const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
@@ -126,53 +133,6 @@ export default function Home() {
     resetPlaces();
     clearSearch();
   }, [selectedDayIndex]);
-
-  // Nueva función: Buscar servicios cerca de una etapa específica
-  const handleSearchNearDay = async (dayIndex: number) => {
-    if (typeof google === 'undefined' || !results.dailyItinerary) return;
-    const dailyPlan = results.dailyItinerary[dayIndex];
-    if (!dailyPlan || !dailyPlan.isDriving) return;
-
-    // Seleccionar esa etapa y centrar el mapa
-    setSelectedDayIndex(dayIndex);
-    setHoveredPlace(null);
-
-    // Limpiar TODOS los filtros (incluyendo toggles de servicios)
-    clearSearch();
-    resetPlaces(); // Esto limpia todos los marcadores de búsqueda
-
-    // Determinar las coordenadas de búsqueda
-    let searchCoords: Coordinates | undefined = dailyPlan.coordinates;
-
-    // Si no hay coordenadas, intentar geocodificar
-    if (!searchCoords) {
-      const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
-      const geocoded = await geocodeCity(cleanTo);
-      searchCoords = geocoded ? { lat: geocoded.lat, lng: geocoded.lng } : undefined;
-    }
-
-    if (searchCoords) {
-      // Centrar el mapa en esa etapa
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend({ lat: searchCoords.lat + 0.4, lng: searchCoords.lng + 0.4 });
-      bounds.extend({ lat: searchCoords.lat - 0.4, lng: searchCoords.lng - 0.4 });
-      setMapBounds(bounds);
-
-      // Buscar servicios activos en esa ubicación
-      const activeTypes = Object.entries(toggles)
-        .filter(([_, isActive]) => isActive)
-        .map(([type]) => type as ServiceType);
-
-      // Buscar solo tipos activos; no activar por defecto ninguna categoría
-      if (activeTypes.length > 0) {
-        activeTypes.forEach(type => {
-          if (type !== 'custom' && type !== 'search' && type !== 'found') {
-            searchPlaces(searchCoords!, type);
-          }
-        });
-      }
-    }
-  };
 
   // Nueva función: Ajustar destino de una etapa
   const handleAdjustDay = (dayIndex: number) => {
@@ -367,49 +327,6 @@ export default function Home() {
 
     setAdjustModalOpen(false);
     setAdjustingDayIndex(null);
-  };
-
-  const focusMapOnStage = async (dayIndex: number | null) => {
-    // CASO: Volver a la Vista General
-    if (dayIndex === null) {
-        setSelectedDayIndex(null);
-
-        // Enviamos los límites de la ruta completa para resetear la vista
-        if (directionsResponse && directionsResponse.routes[0] && directionsResponse.routes[0].bounds) {
-             setMapBounds(directionsResponse.routes[0].bounds);
-        } else {
-             setMapBounds(null);
-        }
-
-        resetPlaces();
-        setHoveredPlace(null);
-        return;
-    }
-
-    // CASO: Ir a una Etapa Específica
-    if (typeof google === 'undefined' || !results.dailyItinerary) return;
-    const dailyPlan = results.dailyItinerary[dayIndex];
-    if (!dailyPlan) return;
-
-    setSelectedDayIndex(dayIndex); resetPlaces(); setHoveredPlace(null);
-
-    if (dailyPlan.coordinates) {
-        const bounds = new google.maps.LatLngBounds();
-        bounds.extend({ lat: dailyPlan.coordinates.lat + 0.4, lng: dailyPlan.coordinates.lng + 0.4 });
-        bounds.extend({ lat: dailyPlan.coordinates.lat - 0.4, lng: dailyPlan.coordinates.lng - 0.4 });
-        setMapBounds(bounds);
-        searchPlaces(dailyPlan.coordinates, 'camping');
-    } else {
-        const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
-        const coord = await geocodeCity(cleanTo);
-        if (coord) {
-             const bounds = new google.maps.LatLngBounds();
-             bounds.extend({ lat: coord.lat + 0.4, lng: coord.lng + 0.4 });
-             bounds.extend({ lat: coord.lat - 0.4, lng: coord.lng - 0.4 });
-             setMapBounds(bounds);
-             searchPlaces(coord, 'camping');
-        }
-    }
   };
 
   // 🔥 ELIMINADO: useEffect de fitBounds (Estaba duplicado y causando conflictos)
