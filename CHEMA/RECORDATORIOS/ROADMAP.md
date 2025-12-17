@@ -304,6 +304,11 @@ Las **4 ideas prioritarias** basadas en impacto/esfuerzo:
 | 2 | **Nominatim en Geocoding** | P2 | ⭐ | 15 min | $0.005→$0.00 |
 | 3 | **Expandir caché Places localStorage** | P3 | ⭐⭐ | 1-2 sem | -30% calls |
 | 4 | **Migrar PlaceAutocompleteElement** | P1 | ⭐⭐ | 2-3h | Security (soon) |
+| 5 | **Enriquecer ficha POI (sin +calls)** | P3 | ⭐ | 1-2h | UX + confianza |
+
+Notas (Feature #5):
+- Aprovechar campos ya disponibles en Nearby Search / nuestro payload: `user_ratings_total`, `types` (badges), `opening_hours.open_now`, `business_status`, `price_level` (si viene), mejor “distancia” y mejor texto de dirección.
+- Evitar por defecto `Places Details (getDetails)` porque implica llamadas extra (y coste); dejarlo como “Premium / bajo demanda”.
 
 ---
 
