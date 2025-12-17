@@ -116,6 +116,151 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         };
     }, [distanceFromCenter, toPhotoUrl]);
 
+    const computeScore = useCallback((spot: PlaceWithDistance) => {
+        const dist = spot.distanceFromCenter || 999999;
+        const rating = spot.rating || 0;
+        const reviews = spot.user_ratings_total || 0;
+
+        const distanceScore = Math.max(0, 100 * Math.exp(-dist / 5000));
+        const ratingScore = rating > 0 ? (rating / 5) * 100 : 50;
+        const reviewsScore = reviews > 0 ? Math.min(100, Math.log10(reviews + 1) * 50) : 25;
+        const openScore = 75;
+
+        return Math.round(distanceScore * 0.4 + ratingScore * 0.3 + reviewsScore * 0.2 + openScore * 0.1);
+    }, []);
+
+    const classifyCombo1 = useCallback((types: string[] | undefined, name: string | undefined): ServiceType | null => {
+        const tags = types || [];
+        const n = (name || '').toLowerCase();
+
+        const looksCampingName = /camping|camper|autocaravana|motorhome|rv\b|pernocta|area\s*camper|área\s*camper/i.test(name || '');
+
+        if (tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && looksCampingName)) {
+            return 'camping';
+        }
+
+        if (tags.includes('restaurant') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || /restaurante|restaurant|bar|caf(e|é)|pizzeria|hamburg/i.test(n)) {
+            return 'restaurant';
+        }
+
+        if (tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || /supermercado|supermarket|grocery/i.test(n)) {
+            return 'supermarket';
+        }
+
+        // Fallback suave: muchas veces Google etiqueta supers como store.
+        if (tags.includes('store') && /super|market|grocery|alimentaci/i.test(n)) {
+            return 'supermarket';
+        }
+
+        return null;
+    }, []);
+
+    const searchCombo1Client = useCallback((location: Coordinates) => {
+        if (!map || typeof google === 'undefined') {
+            setLoadingPlaces(prev => ({ ...prev, camping: false, restaurant: false, supermarket: false }));
+            return;
+        }
+
+        const seq = ++requestSeqRef.current.supercat1;
+
+        setLoadingPlaces(prev => ({ ...prev, camping: true, restaurant: true, supermarket: true }));
+
+        const cacheKey = `supercat1_client_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
+        if (placesCache.current[cacheKey]) {
+            const cached = placesCache.current[cacheKey];
+            setPlaces(prev => ({
+                ...prev,
+                camping: cached.filter(p => p.type === 'camping'),
+                restaurant: cached.filter(p => p.type === 'restaurant'),
+                supermarket: cached.filter(p => p.type === 'supermarket'),
+            }));
+            setLoadingPlaces(prev => ({ ...prev, camping: false, restaurant: false, supermarket: false }));
+            return;
+        }
+
+        const service = new google.maps.places.PlacesService(map);
+        const centerPoint = new google.maps.LatLng(location.lat, location.lng);
+        const keyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
+
+        const searchRequest: google.maps.places.PlaceSearchRequest = {
+            location: centerPoint,
+            radius: 10000,
+            keyword,
+        };
+
+        service.nearbySearch(searchRequest, (res, status) => {
+            if (!isMountedRef.current) return;
+            if (requestSeqRef.current.supercat1 !== seq) return;
+
+            try {
+                console.log('📊 [supercat1-client] Respuesta de Google:', {
+                    status,
+                    resultadosBrutos: res?.length || 0,
+                });
+
+                const camping: PlaceWithDistance[] = [];
+                const restaurant: PlaceWithDistance[] = [];
+                const supermarket: PlaceWithDistance[] = [];
+
+                if (status === google.maps.places.PlacesServiceStatus.OK && res) {
+                    for (const spot of res) {
+                        const loc = spot.geometry?.location
+                            ? { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() }
+                            : undefined;
+                        if (!loc) continue;
+
+                        const bucket = classifyCombo1(spot.types, spot.name);
+                        if (!bucket) continue;
+
+                        let photoUrl: string | undefined;
+                        if (spot.photos && spot.photos.length > 0) {
+                            try {
+                                photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
+                            } catch {
+                                // ignore
+                            }
+                        }
+
+                        const place: PlaceWithDistance = {
+                            name: spot.name,
+                            rating: spot.rating,
+                            vicinity: spot.vicinity,
+                            place_id: spot.place_id,
+                            geometry: { location: loc },
+                            distanceFromCenter: distanceFromCenter(location, loc),
+                            type: bucket,
+                            opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'],
+                            user_ratings_total: spot.user_ratings_total,
+                            photoUrl,
+                            types: spot.types,
+                        };
+
+                        place.score = computeScore(place);
+
+                        if (bucket === 'camping') camping.push(place);
+                        else if (bucket === 'restaurant') restaurant.push(place);
+                        else if (bucket === 'supermarket') supermarket.push(place);
+                    }
+                }
+
+                // Orden por score
+                camping.sort((a, b) => (b.score || 0) - (a.score || 0));
+                restaurant.sort((a, b) => (b.score || 0) - (a.score || 0));
+                supermarket.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+                const merged = [...camping, ...restaurant, ...supermarket];
+                placesCache.current[cacheKey] = merged;
+
+                setPlaces(prev => ({ ...prev, camping, restaurant, supermarket }));
+            } catch (err) {
+                console.error('❌ [supercat1-client] Error procesando respuesta:', err);
+                setPlaces(prev => ({ ...prev, camping: [], restaurant: [], supermarket: [] }));
+            } finally {
+                setLoadingPlaces(prev => ({ ...prev, camping: false, restaurant: false, supermarket: false }));
+            }
+        });
+    }, [classifyCombo1, computeScore, distanceFromCenter, map]);
+
     const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, signal?: AbortSignal) => {
         const radius = 20000;
         const res = await fetch('/api/places-supercat', {
@@ -378,10 +523,8 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         // Si el endpoint server-side falla en este entorno (Places Web Service no habilitado), hacemos fallback al cliente.
         if (supercatDisabledRef.current.supercat1) {
-            // Mantener UX: cada toggle debe mostrar resultados de SU tipo.
-            searchPlaces(location, 'camping');
-            searchPlaces(location, 'restaurant');
-            searchPlaces(location, 'supermarket');
+            // ✅ Fallback 1 llamada (cliente): devuelve mezcla y la clasificamos.
+            searchCombo1Client(location);
             return;
         }
 
@@ -420,9 +563,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 supercatDisabledRef.current.supercat1 = true;
                 didFallbackToClient = true;
                 if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
-                    searchPlaces(location, 'camping');
-                    searchPlaces(location, 'restaurant');
-                    searchPlaces(location, 'supermarket');
+                    searchCombo1Client(location);
                 }
             } finally {
                 if (didFallbackToClient) return;
@@ -431,7 +572,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 }
             }
         })();
-    }, [abortStore, fetchSupercat, searchPlaces, toPlace]);
+    }, [abortStore, fetchSupercat, searchCombo1Client, toPlace]);
 
     // BÚSQUEDA COMBINADA: gas + laundry + tourism
     const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
