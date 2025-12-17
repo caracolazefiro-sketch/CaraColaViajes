@@ -17,20 +17,24 @@ interface GeocodingCache {
 const CACHE_FILE = path.join(process.cwd(), 'data', 'geocoding-cache.json');
 const MAX_CACHE_AGE_DAYS = 90; // Caché válido por 90 días
 
-/**
- * Redondea coordenadas a 4 decimales (~11 metros de precisión)
- */
-function roundCoord(num: number): number {
-  return Math.round(num * 10000) / 10000;
+function roundCoord(num: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(num * factor) / factor;
 }
 
-/**
- * Genera clave de caché desde coordenadas
- */
-function getCacheKey(lat: number, lng: number): string {
-  const rLat = roundCoord(lat);
-  const rLng = roundCoord(lng);
-  return `${rLat},${rLng}`;
+function getCacheKey(
+  lat: number,
+  lng: number,
+  opts?: {
+    decimals?: number;
+    namespace?: string;
+  }
+): string {
+  const decimals = opts?.decimals ?? 4;
+  const namespace = opts?.namespace ?? 'geocode';
+  const rLat = roundCoord(lat, decimals);
+  const rLng = roundCoord(lng, decimals);
+  return `${namespace}:${rLat},${rLng}`;
 }
 
 /**
@@ -82,9 +86,16 @@ function isEntryValid(entry: GeocacheCacheEntry): boolean {
  * Obtiene nombre de ciudad desde la caché persistente
  * @returns Ciudad si está en caché y es válida, null si no
  */
-export async function getCachedCityName(lat: number, lng: number): Promise<string | null> {
+export async function getCachedCityName(
+  lat: number,
+  lng: number,
+  opts?: {
+    decimals?: number;
+    namespace?: string;
+  }
+): Promise<string | null> {
   const cache = loadCache();
-  const key = getCacheKey(lat, lng);
+  const key = getCacheKey(lat, lng, opts);
   const entry = cache[key];
 
   if (entry && isEntryValid(entry)) {
@@ -97,15 +108,24 @@ export async function getCachedCityName(lat: number, lng: number): Promise<strin
 /**
  * Guarda un resultado de geocoding en la caché persistente
  */
-export async function setCachedCityName(lat: number, lng: number, cityName: string): Promise<void> {
+export async function setCachedCityName(
+  lat: number,
+  lng: number,
+  cityName: string,
+  opts?: {
+    decimals?: number;
+    namespace?: string;
+  }
+): Promise<void> {
   const cache = loadCache();
-  const key = getCacheKey(lat, lng);
+  const decimals = opts?.decimals ?? 4;
+  const key = getCacheKey(lat, lng, opts);
 
   cache[key] = {
     cityName,
     timestamp: new Date().toISOString(),
-    lat: roundCoord(lat),
-    lng: roundCoord(lng),
+    lat: roundCoord(lat, decimals),
+    lng: roundCoord(lng, decimals),
   };
 
   saveCache(cache);

@@ -8,16 +8,25 @@ const roundCoord = (value: number, decimals: number) => {
   return Math.round(value * factor) / factor;
 };
 
-const toKeyNumber = (value: number) => {
+const toKeyNumber = (value: number, decimals: number) => {
   // Keep keys stable across locales
-  return Number.isFinite(value) ? value.toFixed(4) : '0.0000';
+  return Number.isFinite(value) ? value.toFixed(decimals) : (0).toFixed(decimals);
 };
 
-export function makeGeocodingCacheKey(lat: number, lng: number) {
-  const latR = roundCoord(lat, 4);
-  const lngR = roundCoord(lng, 4);
+export function makeGeocodingCacheKey(
+  lat: number,
+  lng: number,
+  opts?: {
+    decimals?: number;
+    namespace?: string;
+  }
+) {
+  const decimals = opts?.decimals ?? 4;
+  const namespace = opts?.namespace ?? 'geocode';
+  const latR = roundCoord(lat, decimals);
+  const lngR = roundCoord(lng, decimals);
   return {
-    key: `geocode:${toKeyNumber(latR)},${toKeyNumber(lngR)}`,
+    key: `${namespace}:${toKeyNumber(latR, decimals)},${toKeyNumber(lngR, decimals)}`,
     lat: latR,
     lng: lngR,
   };
@@ -28,7 +37,7 @@ export function makePlacesSupercatCacheKey(params: { supercat: 1 | 2 | 3 | 4; la
   const lngR = roundCoord(params.lng, 4);
   const radius = Math.round(params.radius);
   return {
-    key: `places-supercat:${params.supercat}:${toKeyNumber(latR)},${toKeyNumber(lngR)}:${radius}`,
+    key: `places-supercat:${params.supercat}:${toKeyNumber(latR, 4)},${toKeyNumber(lngR, 4)}:${radius}`,
     lat: latR,
     lng: lngR,
     radius,

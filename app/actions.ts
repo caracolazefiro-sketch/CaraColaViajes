@@ -116,14 +116,27 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 type CityNameContext = {
     tripId?: string;
     attempt?: number;
+    purpose?: 'tactical-stop' | 'general';
 };
 
 async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, ctx?: CityNameContext): Promise<string> {
     const attempt = ctx?.attempt ?? 1;
     const tripId = ctx?.tripId;
+
+    // Cache más agresiva SOLO para paradas tácticas (puntos que se mueven ligeramente entre rutas).
+    // Default: 3 decimales (~110m). Puede configurarse vía env si se quiere aún más hit-rate.
+    const tacticalDecimals = (() => {
+        const raw = process.env.GEOCODING_TACTICAL_CACHE_DECIMALS;
+        const parsed = raw ? Number(raw) : NaN;
+        return Number.isFinite(parsed) ? Math.max(1, Math.min(4, Math.trunc(parsed))) : 3;
+    })();
+
+    const isTactical = ctx?.purpose === 'tactical-stop';
+    const cacheNamespace = isTactical ? 'geocode-tactical' : 'geocode';
+    const cacheDecimals = isTactical ? tacticalDecimals : 4;
     try {
         // 0) Supabase cache (server-side, shared across deployments)
-        const geoKey = makeGeocodingCacheKey(lat, lng);
+        const geoKey = makeGeocodingCacheKey(lat, lng, { decimals: cacheDecimals, namespace: cacheNamespace });
         const sbCache = await getGeocodingCache({ key: geoKey.key });
         if (sbCache.ok && sbCache.hit && sbCache.cityName) {
             apiLogger.logGeocoding({ lat, lng }, { status: 'CACHE_HIT_SUPABASE' }, 0, true);
@@ -149,7 +162,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
         }
 
         // 💾 PRIMERO: Verificar caché persistente
-        const cachedName = await getCachedCityName(lat, lng);
+        const cachedName = await getCachedCityName(lat, lng, { decimals: cacheDecimals, namespace: cacheNamespace });
         if (cachedName) {
             // 🔍 Log de cache hit
             apiLogger.logGeocoding({ lat, lng }, { status: 'CACHE_HIT' }, 0, true);
@@ -198,7 +211,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
             apiLogger.logGeocoding({ lat, lng }, data, geocodeDuration, false);
 
             // 💾 Guardar en caché para futuras llamadas
-            await setCachedCityName(lat, lng, cityName);
+            await setCachedCityName(lat, lng, cityName, { decimals: cacheDecimals, namespace: cacheNamespace });
 
             // 💾 Guardar en Supabase cache (best-effort) y reflejar resultado en el MISMO log
             const up = await upsertGeocodingCache({
