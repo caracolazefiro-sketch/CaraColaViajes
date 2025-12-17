@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { ToastType } from './useToast';
 import type { TripFormData } from './useTripCalculator';
 import { getDirectionsAndCost } from '../actions';
@@ -33,9 +33,13 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
   resetUi,
   showToast,
 }: UseTripComputeParams<TForm>) {
+  const computeSeqRef = useRef(0);
+
   const handleCalculateAll = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+
+      const seq = ++computeSeqRef.current;
 
       const tripIdForLogs = `trip-${Date.now()}`;
       setApiTripId(tripIdForLogs);
@@ -71,12 +75,16 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
           fechaRegreso: formData.fechaRegreso,
         });
 
+        // Si el usuario ha lanzado otro cálculo después, ignoramos este resultado
+        if (computeSeqRef.current !== seq) return;
+
         if (res.error) {
           showToast('Servidor: ' + res.error, 'error');
         } else {
           showToast('Ruta calculada y logs enviados', 'success');
         }
       } catch (err) {
+        if (computeSeqRef.current !== seq) return;
         showToast('Error generando logs (servidor)', 'error');
         console.error(err);
       }

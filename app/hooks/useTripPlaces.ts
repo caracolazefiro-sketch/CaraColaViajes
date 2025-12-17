@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Coordinates, PlaceWithDistance, ServiceType } from '../types';
 
 type Supercat = 1 | 2;
@@ -30,6 +30,39 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
     // 💰 CACHÉ EN MEMORIA (Ahorro de API Calls)
     // Estructura: { "gas_40.41_3.70": [Array de sitios], ... }
     const placesCache = useRef<Record<string, PlaceWithDistance[]>>({});
+
+    // 🛡️ Robustez: evitar setState tras unmount y evitar que respuestas antiguas machaquen resultados nuevos
+    const isMountedRef = useRef(true);
+    const requestSeqByTypeRef = useRef<Record<ServiceType, number>>({
+        camping: 0,
+        restaurant: 0,
+        gas: 0,
+        supermarket: 0,
+        laundry: 0,
+        tourism: 0,
+        custom: 0,
+        search: 0,
+        found: 0,
+    });
+    const requestSeqRef = useRef({ supercat1: 0, supercat2: 0, search: 0 });
+    const abortStore = useMemo(
+        () => ({
+            supercat1: undefined as AbortController | undefined,
+            supercat2: undefined as AbortController | undefined,
+            search: undefined as AbortController | undefined,
+        }),
+        []
+    );
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            abortStore.supercat1?.abort();
+            abortStore.supercat2?.abort();
+            abortStore.search?.abort();
+        };
+    }, [abortStore]);
 
     const haversineDistanceM = useCallback((a: Coordinates, b: Coordinates) => {
         const R = 6371e3;
@@ -82,7 +115,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         };
     }, [distanceFromCenter, toPhotoUrl]);
 
-    const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates) => {
+    const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, signal?: AbortSignal) => {
         const radius = 20000;
         const res = await fetch('/api/places-supercat', {
             method: 'POST',
@@ -94,6 +127,8 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 radius,
                 supercat,
             })
+            ,
+            signal,
         });
         const json = await res.json();
         if (!res.ok || !json?.ok) {
@@ -110,6 +145,9 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
         if (!map || typeof google === 'undefined') return;
         if (type === 'custom' || type === 'search' || type === 'found') return; // 'search' y 'found' van por otro lado
+
+        const seq = (requestSeqByTypeRef.current[type] || 0) + 1;
+        requestSeqByTypeRef.current[type] = seq;
 
         // 1. GENERAR CLAVE DE CACHÉ
         // Redondeamos coords para que pequeños movimientos no invaliden la caché innecesariamente
@@ -171,6 +209,9 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         };
         
         service.nearbySearch(searchRequest, (res, status) => {
+            if (!isMountedRef.current) return;
+            if (requestSeqByTypeRef.current[type] !== seq) return;
+
             setLoadingPlaces(prev => ({...prev, [type]: false}));
             
             console.log(`📊 [${type}] Respuesta de Google:`, {
@@ -298,6 +339,10 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
     // BÚSQUEDA COMBINADA: camping + restaurant + supermarket
     const searchComboCampingRestaurantSuper = useCallback((location: Coordinates) => {
+        const seq = ++requestSeqRef.current.supercat1;
+        abortStore.supercat1?.abort();
+        abortStore.supercat1 = new AbortController();
+
         setLoadingPlaces(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
         const cacheKey = `supercat1_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
 
@@ -315,7 +360,8 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         (async () => {
             try {
-                const data = await fetchSupercat(1, location);
+                const data = await fetchSupercat(1, location, abortStore.supercat1?.signal);
+                if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
                 const campingRaw = (data.categories.camping || []) as ServerPlace[];
                 const restaurantRaw = (data.categories.restaurant || []) as ServerPlace[];
                 const supermarketRaw = (data.categories.supermarket || []) as ServerPlace[];
@@ -328,16 +374,25 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 placesCache.current[cacheKey] = merged;
                 setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
             } catch (e) {
+                if ((e as { name?: string })?.name === 'AbortError') return;
                 console.error('❌ [places-supercat-1] Error:', e);
-                setPlaces(prev => ({ ...prev, camping: [], restaurant: [], supermarket: [] }));
+                if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
+                    setPlaces(prev => ({ ...prev, camping: [], restaurant: [], supermarket: [] }));
+                }
             } finally {
-                setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
+                if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
+                    setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
+                }
             }
         })();
-    }, [fetchSupercat, toPlace]);
+    }, [abortStore, fetchSupercat, toPlace]);
 
     // BÚSQUEDA COMBINADA: gas + laundry + tourism
     const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
+        const seq = ++requestSeqRef.current.supercat2;
+        abortStore.supercat2?.abort();
+        abortStore.supercat2 = new AbortController();
+
         setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));
         const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
 
@@ -355,7 +410,8 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         (async () => {
             try {
-                const data = await fetchSupercat(2, location);
+                const data = await fetchSupercat(2, location, abortStore.supercat2?.signal);
+                if (!isMountedRef.current || requestSeqRef.current.supercat2 !== seq) return;
                 const gasRaw = (data.categories.gas || []) as ServerPlace[];
                 const laundryRaw = (data.categories.laundry || []) as ServerPlace[];
                 const tourismRaw = (data.categories.tourism || []) as ServerPlace[];
@@ -368,17 +424,26 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 placesCache.current[cacheKey] = merged;
                 setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList, tourism: tourismList }));
             } catch (e) {
+                if ((e as { name?: string })?.name === 'AbortError') return;
                 console.error('❌ [places-supercat-2] Error:', e);
-                setPlaces(prev => ({ ...prev, gas: [], laundry: [], tourism: [] }));
+                if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
+                    setPlaces(prev => ({ ...prev, gas: [], laundry: [], tourism: [] }));
+                }
             } finally {
-                setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
+                if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
+                    setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
+                }
             }
         })();
-    }, [fetchSupercat, toPlace]);
+    }, [abortStore, fetchSupercat, toPlace]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {
         if (!query.trim()) return;
+
+        const seq = ++requestSeqRef.current.search;
+        abortStore.search?.abort();
+        abortStore.search = new AbortController();
 
         // Cacheamos las búsquedas libres
         const cacheKey = `search_${query.trim()}_${centerLat.toFixed(4)}_${centerLng.toFixed(4)}`;
@@ -407,7 +472,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             nominatimUrl.searchParams.append('viewbox', `${centerLng - 0.18},${centerLat + 0.18},${centerLng + 0.18},${centerLat - 0.18}`); // ~20km box
             nominatimUrl.searchParams.append('bounded', '1'); // Limitar a viewbox
 
-            const response = await fetch(nominatimUrl.toString());
+            const response = await fetch(nominatimUrl.toString(), { signal: abortStore.search?.signal });
             
             if (!response.ok) {
                 throw new Error(`Nominatim error: ${response.status}`);
@@ -469,7 +534,9 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
             // Guardar en caché y actualizar estado
             placesCache.current[cacheKey] = finalSpots;
-            setPlaces(prev => ({...prev, search: finalSpots}));
+            if (isMountedRef.current && requestSeqRef.current.search === seq) {
+                setPlaces(prev => ({...prev, search: finalSpots}));
+            }
             
             console.log(`✅ [search] Búsqueda Nominatim completada:`, {
                 resultadosFinales: finalSpots.length,
@@ -477,12 +544,17 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 costo: '$0.00'
             });
         } catch (error) {
+            if ((error as { name?: string })?.name === 'AbortError') return;
             console.error(`❌ [search] Error en Nominatim:`, error);
-            setPlaces(prev => ({...prev, search: []}));
+            if (isMountedRef.current && requestSeqRef.current.search === seq) {
+                setPlaces(prev => ({...prev, search: []}));
+            }
         } finally {
-            setLoadingPlaces(prev => ({...prev, search: false}));
+            if (isMountedRef.current && requestSeqRef.current.search === seq) {
+                setLoadingPlaces(prev => ({...prev, search: false}));
+            }
         }
-    }, []);
+    }, [abortStore]);
 
     const clearSearch = () => {
         setPlaces(prev => ({...prev, search: []}));
