@@ -122,6 +122,7 @@ type CityNameContext = {
 async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, ctx?: CityNameContext): Promise<string> {
     const attempt = ctx?.attempt ?? 1;
     const tripId = ctx?.tripId;
+    const purpose = ctx?.purpose;
 
     // Cache más agresiva SOLO para paradas tácticas (puntos que se mueven ligeramente entre rutas).
     // Default: 3 decimales (~110m). Puede configurarse vía env si se quiere aún más hit-rate.
@@ -194,7 +195,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
 
         if (data.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             await sleep(1000 * attempt);
-            return getCityNameFromCoords(lat, lng, apiKey, { tripId, attempt: attempt + 1 });
+            return getCityNameFromCoords(lat, lng, apiKey, { tripId, attempt: attempt + 1, purpose });
         }
 
         if (data.status === 'OK' && data.results?.[0]) {
@@ -323,7 +324,7 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
 
                     // Obtener nombre real de la ciudad en ese punto
                     await sleep(100);
-                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey, { tripId });
+                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey, { tripId, purpose: 'tactical-stop' });
                     segmentEndName = cityName;
                     segmentEndCoords = intermediateCoords;
                 }
@@ -527,7 +528,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 }
 
                                 await sleep(200);
-                                const stopName = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId });
+                                const stopName = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId, purpose: 'tactical-stop' });
 
                                 const realDistance = maxMeters / 1000;
 
@@ -797,7 +798,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             }
 
                         await sleep(200);
-                        const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId });
+                        const stopNameRaw = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId, purpose: 'tactical-stop' });
                         // Usar directamente el nombre de la ciudad (sin prefijo)
                         const stopName = stopNameRaw;
 
