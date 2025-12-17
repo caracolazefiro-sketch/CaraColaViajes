@@ -44,6 +44,8 @@ export default function LogsViewerSupabase() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
+  const [compareTripA, setCompareTripA] = useState<string>('');
+  const [compareTripB, setCompareTripB] = useState<string>('');
 
   const isProdHost =
     typeof window !== 'undefined' &&
@@ -158,6 +160,20 @@ export default function LogsViewerSupabase() {
     { trips: 0, calls: 0, cost: 0, directions: 0, geocoding: 0, places: 0 }
   );
 
+  const tripA = compareTripA ? trips.find((t) => t.tripId === compareTripA) : undefined;
+  const tripB = compareTripB ? trips.find((t) => t.tripId === compareTripB) : undefined;
+
+  const compareDelta = (() => {
+    if (!tripA || !tripB) return null;
+    return {
+      calls: tripB.totals.calls - tripA.totals.calls,
+      cost: tripB.totals.cost - tripA.totals.cost,
+      directions: tripB.totals.directions - tripA.totals.directions,
+      geocoding: tripB.totals.geocoding - tripA.totals.geocoding,
+      places: tripB.totals.places - tripA.totals.places,
+    };
+  })();
+
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
       <h1>📡 API Logs (Supabase)</h1>
@@ -175,6 +191,60 @@ export default function LogsViewerSupabase() {
           placeholder="Buscar viaje por nombre o trip_id…"
           style={{ width: '100%', maxWidth: 520, padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }}
         />
+      </div>
+
+      <div style={{ marginTop: '0.75rem', border: '1px solid #e5e7eb', borderRadius: 10, background: 'white', padding: 12 }}>
+        <div style={{ fontWeight: 700, color: '#111827' }}>Comparar 2 viajes</div>
+        <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 900 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Viaje A</div>
+            <select
+              value={compareTripA}
+              onChange={(e) => setCompareTripA(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, background: 'white' }}
+            >
+              <option value="">— Selecciona —</option>
+              {trips.map((t) => (
+                <option key={`a-${t.tripId}`} value={t.tripId}>
+                  {t.tripName} ({t.tripId})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Viaje B</div>
+            <select
+              value={compareTripB}
+              onChange={(e) => setCompareTripB(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, background: 'white' }}
+            >
+              <option value="">— Selecciona —</option>
+              {trips.map((t) => (
+                <option key={`b-${t.tripId}`} value={t.tripId}>
+                  {t.tripName} ({t.tripId})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {tripA && tripB && compareDelta && (
+          <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.7, color: '#111827' }}>
+            <div style={{ color: '#6b7280', fontSize: 12 }}>
+              B − A (si es positivo, B cuesta / llama más)
+            </div>
+            <div>
+              Calls: {tripA.totals.calls} → {tripB.totals.calls} (Δ {compareDelta.calls >= 0 ? '+' : ''}{compareDelta.calls})
+              {' · '}Coste: {formatUsd(tripA.totals.cost)} → {formatUsd(tripB.totals.cost)} (Δ {formatUsd(compareDelta.cost)})
+            </div>
+            <div style={{ fontSize: 12, color: '#111827' }}>
+              Directions: {tripA.totals.directions} → {tripB.totals.directions} (Δ {compareDelta.directions >= 0 ? '+' : ''}{compareDelta.directions})
+              {' · '}Geocoding: {tripA.totals.geocoding} → {tripB.totals.geocoding} (Δ {compareDelta.geocoding >= 0 ? '+' : ''}{compareDelta.geocoding})
+              {' · '}Places: {tripA.totals.places} → {tripB.totals.places} (Δ {compareDelta.places >= 0 ? '+' : ''}{compareDelta.places})
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>

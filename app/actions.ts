@@ -768,8 +768,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 legDistanceMeters += step.distance.value;
             }
 
-            // CAMBIO: Si llegar al waypoint excede el límite, crear paradas tácticas
-            if (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0) {
+            // Si este tramo excede el límite diario, crear paradas tácticas incluso si es el primer leg.
+            // (Caso típico: origen→waypoint en un único tramo largo.)
+            if (dayAccumulatorMeters + legDistanceMeters > maxMeters) {
                 // Necesitamos dividir esta leg en múltiples días
                 for (const step of leg.steps) {
                     const stepDist = step.distance.value;
