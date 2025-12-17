@@ -483,6 +483,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
             const finalWaypointsForMap: string[] = [];
             const maxMeters = data.kmMaximoDia * 1000;
+            const toleranceKm = Math.min(50, Math.max(10, Math.round(data.kmMaximoDia * 0.1)));
+            const toleranceMeters = toleranceKm * 1000;
+            const splitThresholdMeters = maxMeters + toleranceMeters;
 
             let currentLegStartName = allStops[0];
             let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
@@ -498,9 +501,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     legDistanceMeters += step.distance.value;
                 }
 
-                // Si este tramo excede el límite diario, crear paradas tácticas incluso si es el primer leg.
-                // (Caso típico: origen→destino en un único tramo de 320km con límite 300.)
-                if (dayAccumulatorMeters + legDistanceMeters > maxMeters) {
+                // Si este tramo excede el límite diario MÁS la tolerancia, crear paradas tácticas.
+                // Si solo se pasa un poco (<= tolerancia), no segmentamos: reducimos geocoding y evitamos días raros.
+                if (dayAccumulatorMeters + legDistanceMeters > splitThresholdMeters) {
+                    let createdStopsInThisLeg = false;
                     for (const step of leg.steps) {
                         const stepDist = step.distance.value;
 
@@ -540,6 +544,8 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                     endCoords: stopCoords
                                 });
 
+                                createdStopsInThisLeg = true;
+
                                 currentLegStartCoords = stopCoords;
                                 currentLegStartName = stopName;
                                 dayAccumulatorMeters = 0;
@@ -547,6 +553,32 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             }
 
                             dayAccumulatorMeters += metersLeftInStep;
+                        }
+                    }
+
+                    // Evitar “cola” pequeña hasta el waypoint (p.ej. último corte a 5km de Zúrich ⇒ Zúrich→Zúrich).
+                    // Si el remanente es pequeño, lo fusionamos en el último tramo creado.
+                    const tailMeters = dayAccumulatorMeters;
+                    if (createdStopsInThisLeg && tailMeters > 0 && allDrivingStops.length > 0) {
+                        const tailKm = tailMeters / 1000;
+                        const lastIdx = allDrivingStops.length - 1;
+                        const last = allDrivingStops[lastIdx];
+                        const lastTo = String(last.to || '');
+                        const shouldMerge = tailMeters <= toleranceMeters || lastTo === nextStopName;
+                        if (shouldMerge) {
+                            allDrivingStops[lastIdx] = {
+                                ...last,
+                                to: nextStopName,
+                                endCoords: { lat: leg.end_location.lat, lng: leg.end_location.lng },
+                                distance: last.distance + tailKm,
+                            };
+
+                            // Consumimos el tail: ya hemos llegado al waypoint.
+                            currentLegStartName = nextStopName;
+                            currentLegStartCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
+                            dayAccumulatorMeters = 0;
+                            if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
+                            continue;
                         }
                     }
                 } else {
@@ -751,6 +783,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
         const finalWaypointsForMap: string[] = [];
         const maxMeters = data.kmMaximoDia * 1000;
+        const toleranceKm = Math.min(50, Math.max(10, Math.round(data.kmMaximoDia * 0.1)));
+        const toleranceMeters = toleranceKm * 1000;
+        const splitThresholdMeters = maxMeters + toleranceMeters;
 
                 let currentLegStartName = allStops[0];
                 // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
@@ -768,9 +803,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 legDistanceMeters += step.distance.value;
             }
 
-            // Si este tramo excede el límite diario, crear paradas tácticas incluso si es el primer leg.
-            // (Caso típico: origen→waypoint en un único tramo largo.)
-            if (dayAccumulatorMeters + legDistanceMeters > maxMeters) {
+            // Si este tramo excede el límite diario MÁS la tolerancia, crear paradas tácticas.
+            // Si solo se pasa un poco (<= tolerancia), no segmentamos.
+            if (dayAccumulatorMeters + legDistanceMeters > splitThresholdMeters) {
+                let createdStopsInThisLeg = false;
                 // Necesitamos dividir esta leg en múltiples días
                 for (const step of leg.steps) {
                     const stepDist = step.distance.value;
@@ -814,12 +850,39 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             endCoords: stopCoords
                         });                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
 
+                        createdStopsInThisLeg = true;
+
                             currentLegStartName = stopNameRaw;
                             currentLegStartCoords = stopCoords;
                             dayAccumulatorMeters = 0;
                             metersNeeded = maxMeters;
                         }
                         dayAccumulatorMeters += metersLeftInStep;
+                    }
+                }
+
+                // Evitar cola pequeña hasta el waypoint (ej. último corte devuelve la misma ciudad que el waypoint).
+                const tailMeters = dayAccumulatorMeters;
+                if (createdStopsInThisLeg && tailMeters > 0 && allDrivingStops.length > 0) {
+                    const tailKm = tailMeters / 1000;
+                    const lastIdx = allDrivingStops.length - 1;
+                    const last = allDrivingStops[lastIdx];
+                    const lastTo = String(last.to || '');
+                    const shouldMerge = tailMeters <= toleranceMeters || lastTo === nextStopName;
+                    if (shouldMerge) {
+                        const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
+                        allDrivingStops[lastIdx] = {
+                            ...last,
+                            to: nextStopName,
+                            endCoords: legEndCoords,
+                            distance: last.distance + tailKm,
+                        };
+
+                        currentLegStartName = nextStopName;
+                        currentLegStartCoords = legEndCoords;
+                        dayAccumulatorMeters = 0;
+                        if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
+                        continue;
                     }
                 }
             } else {
