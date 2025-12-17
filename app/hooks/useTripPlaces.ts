@@ -224,39 +224,43 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             if (!isMountedRef.current) return;
             if (requestSeqByTypeRef.current[type] !== seq) return;
 
-            setLoadingPlaces(prev => ({...prev, [type]: false}));
-            
-            console.log(`📊 [${type}] Respuesta de Google:`, {
-                status,
-                resultadosBrutos: res?.length || 0
-            });
-            
-            let finalSpots: PlaceWithDistance[] = [];
-
-            if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-                let spots = res.map(spot => {
-                    let dist = 999999;
-                    if (spot.geometry?.location) dist = google.maps.geometry.spherical.computeDistanceBetween(centerPoint, spot.geometry.location);
-                    
-                    // Obtener URL de foto
-                    let photoUrl: string | undefined;
-                    if (spot.photos && spot.photos.length > 0) {
-                        try {
-                            photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                        } catch (e) {
-                            console.warn(`[${type}] Error getting photo URL for`, spot.name, ':', e);
-                        }
-                    }
-                    
-                    // Convertir geometry de Google Maps a nuestro formato
-                    const geometry = spot.geometry?.location ? {
-                        location: {
-                            lat: spot.geometry.location.lat(),
-                            lng: spot.geometry.location.lng()
-                        }
-                    } : undefined;
-                    return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type, opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
+            try {
+                setLoadingPlaces(prev => ({...prev, [type]: false}));
+                
+                console.log(`📊 [${type}] Respuesta de Google:`, {
+                    status,
+                    resultadosBrutos: res?.length || 0
                 });
+                
+                let finalSpots: PlaceWithDistance[] = [];
+
+                if (status === google.maps.places.PlacesServiceStatus.OK && res) {
+                    let spots = res.map(spot => {
+                        let dist = 999999;
+                        if (spot.geometry?.location) {
+                            const loc = { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() };
+                            dist = distanceFromCenter(location, loc);
+                        }
+                        
+                        // Obtener URL de foto
+                        let photoUrl: string | undefined;
+                        if (spot.photos && spot.photos.length > 0) {
+                            try {
+                                photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
+                            } catch (e) {
+                                console.warn(`[${type}] Error getting photo URL for`, spot.name, ':', e);
+                            }
+                        }
+                        
+                        // Convertir geometry de Google Maps a nuestro formato
+                        const geometry = spot.geometry?.location ? {
+                            location: {
+                                lat: spot.geometry.location.lat(),
+                                lng: spot.geometry.location.lng()
+                            }
+                        } : undefined;
+                        return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type, opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
+                    });
                 // Filtros del Portero
                 const rechazados: {name: string, types: string[], razon: string}[] = [];
                 spots = spots.filter(spot => {
@@ -340,21 +344,26 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 });
                 
                 // Ordenar por score en lugar de solo distancia
-                finalSpots = spotsWithScore.sort((a, b) => (b.score || 0) - (a.score || 0));
-            } else {
-                console.warn(`❌ [${type}] Sin resultados:`, status);
-            } 
-            
-            // 3. GUARDAR RESULTADO EN CACHÉ (Incluso si está vacío, para no reintentar a lo tonto)
-            placesCache.current[cacheKey] = finalSpots;
-            setPlaces(prev => ({...prev, [type]: finalSpots}));
-            
-            console.log(`✅ [${type}] Búsqueda completada:`, {
-                resultadosFinales: finalSpots.length,
-                cacheKey
-            });
+                    finalSpots = spotsWithScore.sort((a, b) => (b.score || 0) - (a.score || 0));
+                } else {
+                    console.warn(`❌ [${type}] Sin resultados:`, status);
+                } 
+                
+                // 3. GUARDAR RESULTADO EN CACHÉ (Incluso si está vacío, para no reintentar a lo tonto)
+                placesCache.current[cacheKey] = finalSpots;
+                setPlaces(prev => ({...prev, [type]: finalSpots}));
+                
+                console.log(`✅ [${type}] Búsqueda completada:`, {
+                    resultadosFinales: finalSpots.length,
+                    cacheKey
+                });
+            } catch (err) {
+                console.error(`❌ [${type}] Error procesando respuesta nearbySearch:`, err);
+                setLoadingPlaces(prev => ({ ...prev, [type]: false }));
+                setPlaces(prev => ({ ...prev, [type]: [] }));
+            }
         });
-    }, [map]);
+    }, [map, distanceFromCenter]);
 
     // BÚSQUEDA COMBINADA: camping + restaurant + supermarket
     const searchComboCampingRestaurantSuper = useCallback((location: Coordinates) => {
