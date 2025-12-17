@@ -524,6 +524,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         // Si el endpoint server-side falla en este entorno (Places Web Service no habilitado), hacemos fallback al cliente.
         if (supercatDisabledRef.current.supercat1) {
             // ✅ Fallback 1 llamada (cliente): devuelve mezcla y la clasificamos.
+            console.log('🟦 [combo1] using client fallback (disabled)', { location });
             searchCombo1Client(location);
             return;
         }
@@ -543,6 +544,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         (async () => {
             let didFallbackToClient = false;
             try {
+                console.log('🟦 [combo1] calling server /api/places-supercat', { location });
                 const data = await fetchSupercat(1, location, abortStore.supercat1?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
                 const campingRaw = (data.categories.camping || []) as ServerPlace[];
@@ -556,6 +558,12 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 const merged = [...campingList, ...restaurantList, ...supermarketList];
                 placesCache.current[cacheKey] = merged;
                 setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
+
+                console.log('✅ [combo1-server] results set', {
+                    camping: campingList.length,
+                    restaurant: restaurantList.length,
+                    supermarket: supermarketList.length,
+                });
             } catch (e) {
                 if ((e as { name?: string })?.name === 'AbortError') return;
                 console.error('❌ [places-supercat-1] Error:', e);
@@ -563,6 +571,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 supercatDisabledRef.current.supercat1 = true;
                 didFallbackToClient = true;
                 if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
+                    console.log('🟦 [combo1] using client fallback (error)', { location });
                     searchCombo1Client(location);
                 }
             } finally {
@@ -766,18 +775,28 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         const newState = !toggles[type];
         // Solo cambiamos el toggle clicado; no tocamos los demás
         setToggles(prev => ({...prev, [type]: newState}));
+
+        console.log('🟦 [toggle]', {
+            type,
+            newState,
+            hasCoordinates: !!coordinates,
+            coordinates,
+        });
         
         // Solo buscamos si se enciende Y tenemos coordenadas
         if (newState && coordinates) {
             // COMBO 1: camping, restaurant, supermarket
             if (type === 'camping' || type === 'restaurant' || type === 'supermarket') {
+                console.log('🟦 [toggle] firing combo1', { coordinates });
                 searchComboCampingRestaurantSuper(coordinates);
             } 
             // COMBO 2: gas, laundry, tourism
             else if (type === 'gas' || type === 'laundry' || type === 'tourism') {
+                console.log('🟦 [toggle] firing combo2', { coordinates });
                 searchComboGasLaundryTourism(coordinates);
             }
             else {
+                console.log('🟦 [toggle] firing single', { type, coordinates });
                 searchPlaces(coordinates, type);
             }
         }

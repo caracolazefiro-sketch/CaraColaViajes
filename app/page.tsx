@@ -159,6 +159,10 @@ export default function Home() {
   const handleToggleWrapper = async (type: ServiceType) => {
     const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
     let coords: Coordinates | undefined = day?.coordinates || day?.startCoordinates;
+    let coordsSource: 'day.coordinates' | 'day.startCoordinates' | 'geocode(day.to)' | 'map.center' | 'none' = 'none';
+
+    if (day?.coordinates) coordsSource = 'day.coordinates';
+    else if (day?.startCoordinates) coordsSource = 'day.startCoordinates';
 
     // Robustez: si el día no trae coordenadas (p.ej. geocoding falló o no se guardó), intentamos geocodificar.
     if (!coords && day && typeof google !== 'undefined') {
@@ -169,6 +173,7 @@ export default function Home() {
           const response = await geocoder.geocode({ address: cleanTo });
           const first = response.results?.[0]?.geometry?.location?.toJSON();
           if (first) coords = { lat: first.lat, lng: first.lng };
+          if (coords) coordsSource = 'geocode(day.to)';
         } catch {
           // ignore
         }
@@ -179,7 +184,16 @@ export default function Home() {
     if (!coords && map) {
       const c = map.getCenter();
       if (c) coords = { lat: c.lat(), lng: c.lng() };
+      if (coords) coordsSource = 'map.center';
     }
+
+    console.log('🟦 [toggle-click]', {
+      type,
+      selectedDayIndex,
+      hasDay: !!day,
+      coordsSource,
+      coords,
+    });
 
     handleToggle(type, coords);
   };
