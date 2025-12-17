@@ -46,6 +46,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
       try {
         console.log('🔧 Ajustando día', adjustingDayIndex, 'a:', newDestination);
 
+        const previousDestination = String(results.dailyItinerary[adjustingDayIndex]?.to ?? '');
+
         // 1. Actualizar la etapa ajustada en el itinerario local
         const updatedItinerary = [...results.dailyItinerary];
         updatedItinerary[adjustingDayIndex] = {
@@ -81,17 +83,33 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
 
         console.log('📦 Waypoints obligatorios (formData.etapas):', waypointsFromForm);
 
-        // PASO 2: INSERTAR en el índice correcto
-        // Lógica: El usuario ajusta un día intermedio
-        // Ese día tiene un destino ESPERADO (parada táctica o waypoint)
-        // El siguiente día tiene el SIGUIENTE WAYPOINT REAL
-        // Insertar el nuevo destino ANTES del siguiente waypoint
+        // PASO 2: Actualizar lista de waypoints obligatorios
+        // Caso A (normal): el día ajustado corresponde a un waypoint existente -> REEMPLAZAR.
+        // Caso B (fallback): si no encontramos el waypoint (p.ej. era parada táctica), INSERTAR antes del siguiente waypoint.
+
+        const findWaypointIndex = (target: string) => {
+          const normTarget = normalizeForComparison(target);
+          const cityPart = normTarget.split(',')[0];
+          return waypointsFromForm.findIndex((wp) => {
+            const normWp = normalizeForComparison(wp);
+            const wpCityPart = normWp.split(',')[0];
+            return normWp.includes(cityPart) || normTarget.includes(wpCityPart);
+          });
+        };
 
         let updatedMandatoryWaypoints: string[];
 
-        if (adjustingDayIndex < updatedItinerary.length - 1) {
-          // No es la última etapa, buscar el siguiente waypoint real
-          const nextDayDestination = updatedItinerary[adjustingDayIndex + 1].to;
+        const previousWaypointIndex = findWaypointIndex(previousDestination);
+        if (previousWaypointIndex !== -1) {
+          updatedMandatoryWaypoints = [...waypointsFromForm];
+          updatedMandatoryWaypoints[previousWaypointIndex] = newDestination;
+          console.log('  ✅ Reemplazando waypoint existente en índice', previousWaypointIndex);
+        } else {
+          console.log('  ℹ️ No se encontró el waypoint previo en formData.etapas; aplicando inserción fallback');
+
+          if (adjustingDayIndex < updatedItinerary.length - 1) {
+            // No es la última etapa, buscar el siguiente waypoint real
+            const nextDayDestination = updatedItinerary[adjustingDayIndex + 1].to;
 
           console.log('🔍 DEBUG ÍNDICE:');
           console.log('  adjustingDayIndex:', adjustingDayIndex);
@@ -101,33 +119,28 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           console.log('  nextDayDestination:', nextDayDestination);
           console.log('  waypointsFromForm:', waypointsFromForm);
 
-          // Buscar dónde está ese waypoint en formData.etapas (normalizando acentos)
-          const normalizedNextDest = normalizeForComparison(nextDayDestination);
-          const nextWaypointIndex = waypointsFromForm.findIndex((wp) => {
-            const normalizedWp = normalizeForComparison(wp);
-            const cityPart = normalizedNextDest.split(',')[0];
-            return normalizedWp.includes(cityPart) || normalizedNextDest.includes(normalizedWp.split(',')[0]);
-          });
+            const nextWaypointIndex = findWaypointIndex(String(nextDayDestination ?? ''));
 
           console.log('  nextWaypointIndex encontrado:', nextWaypointIndex);
 
-          if (nextWaypointIndex !== -1) {
-            // Insertar ANTES del siguiente waypoint
-            updatedMandatoryWaypoints = [
-              ...waypointsFromForm.slice(0, nextWaypointIndex),
-              newDestination,
-              ...waypointsFromForm.slice(nextWaypointIndex),
-            ];
-            console.log('  ✅ Insertando en índice', nextWaypointIndex);
+            if (nextWaypointIndex !== -1) {
+              // Insertar ANTES del siguiente waypoint
+              updatedMandatoryWaypoints = [
+                ...waypointsFromForm.slice(0, nextWaypointIndex),
+                newDestination,
+                ...waypointsFromForm.slice(nextWaypointIndex),
+              ];
+              console.log('  ✅ Insertando en índice', nextWaypointIndex);
+            } else {
+              // Si no encontramos el siguiente waypoint, agregar al final
+              updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
+              console.log('  ⚠️ No encontrado, agregando al final');
+            }
           } else {
-            // Si no encontramos el siguiente waypoint, agregar al final
+            // Si es la última etapa, agregar al final
             updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
-            console.log('  ⚠️ No encontrado, agregando al final');
+            console.log('  📌 Última etapa, agregando al final');
           }
-        } else {
-          // Si es la última etapa, agregar al final
-          updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
-          console.log('  📌 Última etapa, agregando al final');
         }
 
         console.log('📦 Waypoints después del ajuste:', updatedMandatoryWaypoints);
