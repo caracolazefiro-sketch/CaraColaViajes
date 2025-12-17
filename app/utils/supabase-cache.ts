@@ -23,7 +23,7 @@ export function makeGeocodingCacheKey(lat: number, lng: number) {
   };
 }
 
-export function makePlacesSupercatCacheKey(params: { supercat: 1 | 2; lat: number; lng: number; radius: number }) {
+export function makePlacesSupercatCacheKey(params: { supercat: 1 | 2 | 3 | 4; lat: number; lng: number; radius: number }) {
   const latR = roundCoord(params.lat, 4);
   const lngR = roundCoord(params.lng, 4);
   const radius = Math.round(params.radius);
@@ -149,7 +149,7 @@ export async function getPlacesSupercatCache(params: { key: string }) {
 
 export async function upsertPlacesSupercatCache(params: {
   key: string;
-  supercat: 1 | 2;
+  supercat: 1 | 2 | 3 | 4;
   centerLat: number;
   centerLng: number;
   radius: number;

@@ -18,6 +18,14 @@ type LogRow = {
   response?: unknown;
 };
 
+const PLACES_NEARBY_PRO_USD_PER_REQUEST = 0.032;
+
+const formatUsd = (value: unknown) => {
+  const n = Number(value ?? 0);
+  if (!Number.isFinite(n)) return '$0.000';
+  return `$${n.toFixed(3)}`;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
@@ -153,7 +161,12 @@ export default function LogsViewerSupabase() {
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
       <h1>📡 API Logs (Supabase)</h1>
-      <p style={{ color: '#666' }}>Viajes: {totalsAllTrips.trips} | Total calls: {totalsAllTrips.calls} | Directions: {totalsAllTrips.directions} | Geocoding: {totalsAllTrips.geocoding} | Places: {totalsAllTrips.places} | Coste: €{totalsAllTrips.cost.toFixed(3)}</p>
+      <p style={{ color: '#666' }}>
+        Viajes: {totalsAllTrips.trips} | Total calls: {totalsAllTrips.calls} | Directions: {totalsAllTrips.directions} | Geocoding: {totalsAllTrips.geocoding} | Places: {totalsAllTrips.places} | Coste (USD): {formatUsd(totalsAllTrips.cost)}
+      </p>
+      <p style={{ color: '#666', marginTop: 6 }}>
+        Pricing usado: Google Places Nearby Search (Pro) ≈ {formatUsd(PLACES_NEARBY_PRO_USD_PER_REQUEST)} / request.
+      </p>
 
       <div style={{ marginTop: '0.75rem' }}>
         <input
@@ -199,7 +212,7 @@ export default function LogsViewerSupabase() {
                   </div>
                   <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#6b7280' }}>{t.tripId}</div>
                   <div style={{ fontSize: 12, color: '#111827', marginTop: 2 }}>
-                    {t.latestAt ? new Date(t.latestAt).toLocaleString('es-ES') : '-'} · Calls: {t.totals.calls} · Coste: €{t.totals.cost.toFixed(3)}
+                    {t.latestAt ? new Date(t.latestAt).toLocaleString('es-ES') : '-'} · Calls: {t.totals.calls} · Coste (USD): {formatUsd(t.totals.cost)}
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: '#6b7280', flexShrink: 0 }}>
@@ -213,7 +226,7 @@ export default function LogsViewerSupabase() {
                   <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
                     {t.logs.map((r) => {
                       const createdAt = new Date(r.created_at);
-                      const title = `${createdAt.toLocaleString('es-ES')} · ${r.api} · €${Number(r.cost || 0).toFixed(3)}`;
+                      const title = `${createdAt.toLocaleString('es-ES')} · ${r.api} · ${formatUsd(r.cost)}`;
 
                       const response = isRecord(r.response) ? r.response : {};
                       const request = isRecord(r.request) ? r.request : {};
@@ -233,21 +246,21 @@ export default function LogsViewerSupabase() {
                           return {
                             label: 'HIT',
                             detail: `supabase${cacheKey ? ` (${cacheKey})` : ''}`,
-                            cost: '€0.000',
+                            cost: '$0.000',
                           };
                         }
                         if (status === 'CACHE_HIT') {
-                          return { label: 'HIT', detail: 'cache local (no Supabase aún)', cost: '€0.000' };
+                          return { label: 'HIT', detail: 'cache local (no Supabase aún)', cost: '$0.000' };
                         }
                         if (r.cached === true) {
                           if (cacheProvider === 'supabase') {
                             return {
                               label: 'HIT',
                               detail: `supabase${cacheKey ? ` (${cacheKey})` : ''}`,
-                              cost: '€0.000',
+                              cost: '$0.000',
                             };
                           }
-                          return { label: 'HIT', detail: 'cache (flag cached=true)', cost: '€0.000' };
+                          return { label: 'HIT', detail: 'cache (flag cached=true)', cost: '$0.000' };
                         }
 
                         // If request indicates a cache attempt but miss / unavailable
@@ -259,16 +272,16 @@ export default function LogsViewerSupabase() {
                             return {
                               label: 'MISS',
                               detail: `supabase unavailable${reason ? ` (${reason})` : ''}${cacheKey ? ` (${cacheKey})` : ''}`,
-                              cost: `€${Number(r.cost || 0).toFixed(3)}`,
+                              cost: formatUsd(r.cost),
                             };
                           }
                           return {
                             label: 'MISS',
                             detail: `supabase miss${cacheKey ? ` (${cacheKey})` : ''}`,
-                            cost: `€${Number(r.cost || 0).toFixed(3)}`,
+                            cost: formatUsd(r.cost),
                           };
                         }
-                        return { label: 'MISS', detail: 'llamada real a API', cost: `€${Number(r.cost || 0).toFixed(3)}` };
+                        return { label: 'MISS', detail: 'llamada real a API', cost: formatUsd(r.cost) };
                       })();
 
                       const apiResponseSummary = (() => {
@@ -297,10 +310,14 @@ export default function LogsViewerSupabase() {
                           const parts: string[] = [];
                           if (supercat != null) {
                             const label = String(supercat) === '1'
-                              ? '1(Spots+Comer+Super)'
+                              ? '1(Spots)'
                               : String(supercat) === '2'
-                                ? '2(Gas+Lavar+Turismo)'
-                                : String(supercat);
+                                ? '2(Comer+Super)'
+                                : String(supercat) === '3'
+                                  ? '3(Gas+Lavar)'
+                                  : String(supercat) === '4'
+                                    ? '4(Turismo)'
+                                    : String(supercat);
                             parts.push(`Supercat=${label}`);
                           }
                           if (resultsCount != null) parts.push(`Resultados=${String(resultsCount)}`);
@@ -391,7 +408,7 @@ export default function LogsViewerSupabase() {
 
                         if (isGeocoding) return 'Guardamos en Supabase: api_logs + cityName/resolvedFrom/resultsCount';
                         if (isDirections) return 'Guardamos en Supabase: api_logs + distance/duration/legs/waypoints';
-                        if (isPlaces) return 'Guardamos en Supabase: api_logs + supercat/resultsCount (por página)';
+                        if (isPlaces) return 'Guardamos en Supabase: api_logs + supercat/resultsCount (1 request por supercat)';
                         return 'Guardamos en Supabase: api_logs';
                       })();
 

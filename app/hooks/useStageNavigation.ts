@@ -13,8 +13,10 @@ type UseStageNavigationParams = {
   resetPlaces: () => void;
   clearSearch: () => void;
   searchPlaces: (coords: Coordinates, type: ServiceType) => void;
-  searchComboCampingRestaurantSuper: (coords: Coordinates) => void;
-  searchComboGasLaundryTourism: (coords: Coordinates) => void;
+  searchBlockSpots: (coords: Coordinates) => void;
+  searchBlockFood: (coords: Coordinates) => void;
+  searchBlockServices: (coords: Coordinates) => void;
+  searchBlockTourism: (coords: Coordinates) => void;
 };
 
 async function geocodeCity(cityName: string): Promise<google.maps.LatLngLiteral | null> {
@@ -46,8 +48,10 @@ export function useStageNavigation({
   resetPlaces,
   clearSearch,
   searchPlaces,
-  searchComboCampingRestaurantSuper,
-  searchComboGasLaundryTourism,
+  searchBlockSpots,
+  searchBlockFood,
+  searchBlockServices,
+  searchBlockTourism,
 }: UseStageNavigationParams) {
   const focusMapOnStage = useCallback(
     async (dayIndex: number | null) => {
@@ -115,16 +119,26 @@ export function useStageNavigation({
 
       if (activeTypes.length === 0) return;
 
-      const hasCombo1 = activeTypes.some((t) => t === 'camping' || t === 'restaurant' || t === 'supermarket');
-      const hasCombo2 = activeTypes.some((t) => t === 'gas' || t === 'laundry' || t === 'tourism');
+      const hasSpots = activeTypes.includes('camping');
+      const hasFood = activeTypes.some((t) => t === 'restaurant' || t === 'supermarket');
+      const hasServices = activeTypes.some((t) => t === 'gas' || t === 'laundry');
+      const hasTourism = activeTypes.includes('tourism');
 
-      if (hasCombo1) searchComboCampingRestaurantSuper(searchCoords);
-      if (hasCombo2) searchComboGasLaundryTourism(searchCoords);
+      if (hasSpots) searchBlockSpots(searchCoords);
+      if (hasFood) searchBlockFood(searchCoords);
+      if (hasServices) searchBlockServices(searchCoords);
+      if (hasTourism) searchBlockTourism(searchCoords);
 
       activeTypes.forEach((type) => {
-        const isCombo1Type = type === 'camping' || type === 'restaurant' || type === 'supermarket';
-        const isCombo2Type = type === 'gas' || type === 'laundry' || type === 'tourism';
-        if (type !== 'custom' && type !== 'search' && type !== 'found' && !isCombo1Type && !isCombo2Type) {
+        const isBlockType =
+          type === 'camping' ||
+          type === 'restaurant' ||
+          type === 'supermarket' ||
+          type === 'gas' ||
+          type === 'laundry' ||
+          type === 'tourism';
+
+        if (type !== 'custom' && type !== 'search' && type !== 'found' && !isBlockType) {
           searchPlaces(searchCoords, type);
         }
       });
@@ -133,8 +147,10 @@ export function useStageNavigation({
       clearSearch,
       dailyItinerary,
       resetPlaces,
-      searchComboCampingRestaurantSuper,
-      searchComboGasLaundryTourism,
+      searchBlockFood,
+      searchBlockServices,
+      searchBlockSpots,
+      searchBlockTourism,
       searchPlaces,
       setHoveredPlace,
       setMapBounds,

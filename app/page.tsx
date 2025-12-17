@@ -92,8 +92,10 @@ export default function Home() {
   const {
       places, loadingPlaces, toggles,
         searchPlaces,
-        searchComboCampingRestaurantSuper,
-        searchComboGasLaundryTourism,
+      searchBlockSpots,
+      searchBlockFood,
+      searchBlockServices,
+      searchBlockTourism,
         searchByQuery,
         clearSearch,
         handleToggle,
@@ -144,8 +146,10 @@ export default function Home() {
     resetPlaces,
     clearSearch,
     searchPlaces,
-    searchComboCampingRestaurantSuper,
-    searchComboGasLaundryTourism,
+    searchBlockSpots,
+    searchBlockFood,
+    searchBlockServices,
+    searchBlockTourism,
   });
 
   const { handleAddPlace, handleRemovePlace } = useSavedPlacesUi({

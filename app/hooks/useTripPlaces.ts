@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Coordinates, PlaceWithDistance, ServiceType } from '../types';
 
-type Supercat = 1 | 2;
+type Supercat = 1 | 2 | 3 | 4;
 
 type ServerPlace = {
     name?: string;
@@ -49,12 +49,14 @@ export function useTripPlaces(
         search: 0,
         found: 0,
     });
-    const requestSeqRef = useRef({ supercat1: 0, supercat2: 0, search: 0 });
-    const supercatDisabledRef = useRef({ supercat1: false, supercat2: false });
+    const requestSeqRef = useRef({ supercat1: 0, supercat2: 0, supercat3: 0, supercat4: 0, search: 0 });
+    const supercatDisabledRef = useRef({ supercat1: false, supercat2: false, supercat3: false, supercat4: false });
     const abortStore = useMemo(
         () => ({
             supercat1: undefined as AbortController | undefined,
             supercat2: undefined as AbortController | undefined,
+            supercat3: undefined as AbortController | undefined,
+            supercat4: undefined as AbortController | undefined,
             search: undefined as AbortController | undefined,
         }),
         []
@@ -66,6 +68,8 @@ export function useTripPlaces(
             isMountedRef.current = false;
             abortStore.supercat1?.abort();
             abortStore.supercat2?.abort();
+            abortStore.supercat3?.abort();
+            abortStore.supercat4?.abort();
             abortStore.search?.abort();
         };
     }, [abortStore]);
@@ -121,19 +125,6 @@ export function useTripPlaces(
         };
     }, [distanceFromCenter, toPhotoUrl]);
 
-    const computeScore = useCallback((spot: PlaceWithDistance) => {
-        const dist = spot.distanceFromCenter || 999999;
-        const rating = spot.rating || 0;
-        const reviews = spot.user_ratings_total || 0;
-
-        const distanceScore = Math.max(0, 100 * Math.exp(-dist / 5000));
-        const ratingScore = rating > 0 ? (rating / 5) * 100 : 50;
-        const reviewsScore = reviews > 0 ? Math.min(100, Math.log10(reviews + 1) * 50) : 25;
-        const openScore = 75;
-
-        return Math.round(distanceScore * 0.4 + ratingScore * 0.3 + reviewsScore * 0.2 + openScore * 0.1);
-    }, []);
-
     const classifyCombo1 = useCallback((types: string[] | undefined, name: string | undefined): ServiceType | null => {
         const tags = types || [];
         const n = (name || '').toLowerCase();
@@ -164,114 +155,6 @@ export function useTripPlaces(
 
         return null;
     }, []);
-
-    const searchCombo1Client = useCallback((location: Coordinates) => {
-        if (!map || typeof google === 'undefined') {
-            setLoadingPlaces(prev => ({ ...prev, camping: false, restaurant: false, supermarket: false }));
-            return;
-        }
-
-        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
-
-        const seq = ++requestSeqRef.current.supercat1;
-
-        setLoadingPlaces(prev => ({ ...prev, camping: true, restaurant: true, supermarket: true }));
-
-        const cacheKey = `supercat1_client_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
-        if (placesCache.current[cacheKey]) {
-            const cached = placesCache.current[cacheKey];
-            setPlaces(prev => ({
-                ...prev,
-                camping: cached.filter(p => p.type === 'camping'),
-                restaurant: cached.filter(p => p.type === 'restaurant'),
-                supermarket: cached.filter(p => p.type === 'supermarket'),
-            }));
-            setLoadingPlaces(prev => ({ ...prev, camping: false, restaurant: false, supermarket: false }));
-            return;
-        }
-
-        const service = new google.maps.places.PlacesService(map);
-        const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        const keyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
-
-        const searchRequest: google.maps.places.PlaceSearchRequest = {
-            location: centerPoint,
-            radius: radiusMeters,
-            keyword,
-        };
-
-        service.nearbySearch(searchRequest, (res, status) => {
-            if (!isMountedRef.current) return;
-            if (requestSeqRef.current.supercat1 !== seq) return;
-
-            try {
-                console.log('📊 [supercat1-client] Respuesta de Google:', {
-                    status,
-                    resultadosBrutos: res?.length || 0,
-                });
-
-                const camping: PlaceWithDistance[] = [];
-                const restaurant: PlaceWithDistance[] = [];
-                const supermarket: PlaceWithDistance[] = [];
-
-                if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-                    for (const spot of res) {
-                        const loc = spot.geometry?.location
-                            ? { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() }
-                            : undefined;
-                        if (!loc) continue;
-
-                        const bucket = classifyCombo1(spot.types, spot.name);
-                        if (!bucket) continue;
-
-                        let photoUrl: string | undefined;
-                        if (spot.photos && spot.photos.length > 0) {
-                            try {
-                                photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                            } catch {
-                                // ignore
-                            }
-                        }
-
-                        const place: PlaceWithDistance = {
-                            name: spot.name,
-                            rating: spot.rating,
-                            vicinity: spot.vicinity,
-                            place_id: spot.place_id,
-                            geometry: { location: loc },
-                            distanceFromCenter: distanceFromCenter(location, loc),
-                            type: bucket,
-                            opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'],
-                            user_ratings_total: spot.user_ratings_total,
-                            photoUrl,
-                            types: spot.types,
-                        };
-
-                        place.score = computeScore(place);
-
-                        if (bucket === 'camping') camping.push(place);
-                        else if (bucket === 'restaurant') restaurant.push(place);
-                        else if (bucket === 'supermarket') supermarket.push(place);
-                    }
-                }
-
-                // Orden por score
-                camping.sort((a, b) => (b.score || 0) - (a.score || 0));
-                restaurant.sort((a, b) => (b.score || 0) - (a.score || 0));
-                supermarket.sort((a, b) => (b.score || 0) - (a.score || 0));
-
-                const merged = [...camping, ...restaurant, ...supermarket];
-                placesCache.current[cacheKey] = merged;
-
-                setPlaces(prev => ({ ...prev, camping, restaurant, supermarket }));
-            } catch (err) {
-                console.error('❌ [supercat1-client] Error procesando respuesta:', err);
-                setPlaces(prev => ({ ...prev, camping: [], restaurant: [], supermarket: [] }));
-            } finally {
-                setLoadingPlaces(prev => ({ ...prev, camping: false, restaurant: false, supermarket: false }));
-            }
-        });
-    }, [classifyCombo1, computeScore, distanceFromCenter, map, searchRadiusKm]);
 
     const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, signal?: AbortSignal) => {
         const radius = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
@@ -526,20 +409,73 @@ export function useTripPlaces(
         });
     }, [map, distanceFromCenter, searchRadiusKm]);
 
-    // BÚSQUEDA COMBINADA: camping + restaurant + supermarket
-    const searchComboCampingRestaurantSuper = useCallback((location: Coordinates) => {
+    // --- SOLUCIÓN AGRESIVA: 4 llamadas deterministas (1 request por bloque) ---
+
+    // 1) Spots (camping)
+    const searchBlockSpots = useCallback((location: Coordinates) => {
+        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
         const seq = ++requestSeqRef.current.supercat1;
         abortStore.supercat1?.abort();
         abortStore.supercat1 = new AbortController();
 
-        setLoadingPlaces(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
-        const cacheKey = `supercat1_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
+        setLoadingPlaces(prev => ({...prev, camping: true}));
+        const cacheKey = `supercat1_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
-        // Si el endpoint server-side falla en este entorno (Places Web Service no habilitado), hacemos fallback al cliente.
         if (supercatDisabledRef.current.supercat1) {
-            // ✅ Fallback 1 llamada (cliente): devuelve mezcla y la clasificamos.
-            console.log('🟦 [combo1] using client fallback (disabled)', { location });
-            searchCombo1Client(location);
+            searchPlaces(location, 'camping');
+            return;
+        }
+
+        if (placesCache.current[cacheKey]) {
+            const cached = placesCache.current[cacheKey];
+            setPlaces(prev => ({ ...prev, camping: cached.filter(p => p.type === 'camping') }));
+            setLoadingPlaces(prev => ({...prev, camping: false}));
+            return;
+        }
+
+        (async () => {
+            let didFallbackToClient = false;
+            try {
+                const data = await fetchSupercat(1, location, abortStore.supercat1?.signal);
+                if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
+
+                const campingRaw = (data.categories.camping || []) as ServerPlace[];
+                const campingList = campingRaw
+                    .filter(p => classifyCombo1(p.types, p.name) === 'camping')
+                    .map(p => toPlace(location, 'camping', p));
+
+                placesCache.current[cacheKey] = campingList;
+                setPlaces(prev => ({ ...prev, camping: campingList }));
+            } catch (e) {
+                if ((e as { name?: string })?.name === 'AbortError') return;
+                console.error('❌ [places-supercat-1] Error:', e);
+                supercatDisabledRef.current.supercat1 = true;
+                didFallbackToClient = true;
+                if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
+                    searchPlaces(location, 'camping');
+                }
+            } finally {
+                if (didFallbackToClient) return;
+                if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
+                    setLoadingPlaces(prev => ({...prev, camping: false}));
+                }
+            }
+        })();
+    }, [abortStore, classifyCombo1, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
+
+    // 2) Comer + Super
+    const searchBlockFood = useCallback((location: Coordinates) => {
+        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const seq = ++requestSeqRef.current.supercat2;
+        abortStore.supercat2?.abort();
+        abortStore.supercat2 = new AbortController();
+
+        setLoadingPlaces(prev => ({...prev, restaurant: true, supermarket: true}));
+        const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
+
+        if (supercatDisabledRef.current.supercat2) {
+            searchPlaces(location, 'restaurant');
+            searchPlaces(location, 'supermarket');
             return;
         }
 
@@ -547,82 +483,63 @@ export function useTripPlaces(
             const cached = placesCache.current[cacheKey];
             setPlaces(prev => ({
                 ...prev,
-                camping: cached.filter(p => p.type === 'camping'),
                 restaurant: cached.filter(p => p.type === 'restaurant'),
                 supermarket: cached.filter(p => p.type === 'supermarket'),
             }));
-            setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
+            setLoadingPlaces(prev => ({...prev, restaurant: false, supermarket: false}));
             return;
         }
 
         (async () => {
             let didFallbackToClient = false;
             try {
-                console.log('🟦 [combo1] calling server /api/places-supercat', { location });
-                const data = await fetchSupercat(1, location, abortStore.supercat1?.signal);
-                if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
+                const data = await fetchSupercat(2, location, abortStore.supercat2?.signal);
+                if (!isMountedRef.current || requestSeqRef.current.supercat2 !== seq) return;
 
-                // No confiamos ciegamente en la categorización del server: re-clasificamos por types/nombre.
-                const allRaw: ServerPlace[] = [
-                    ...((data.categories.camping || []) as ServerPlace[]),
-                    ...((data.categories.restaurant || []) as ServerPlace[]),
-                    ...((data.categories.supermarket || []) as ServerPlace[]),
-                ];
+                const restaurantRaw = (data.categories.restaurant || []) as ServerPlace[];
+                const supermarketRaw = (data.categories.supermarket || []) as ServerPlace[];
 
-                const campingList: PlaceWithDistance[] = [];
-                const restaurantList: PlaceWithDistance[] = [];
-                const supermarketList: PlaceWithDistance[] = [];
+                const restaurantList = restaurantRaw
+                    .filter(p => classifyCombo1(p.types, p.name) === 'restaurant')
+                    .map(p => toPlace(location, 'restaurant', p));
+                const supermarketList = supermarketRaw
+                    .filter(p => classifyCombo1(p.types, p.name) === 'supermarket')
+                    .map(p => toPlace(location, 'supermarket', p));
 
-                for (const p of allRaw) {
-                    const bucket = classifyCombo1(p.types, p.name);
-                    if (!bucket) continue;
-                    const place = toPlace(location, bucket, p);
-                    if (bucket === 'camping') campingList.push(place);
-                    else if (bucket === 'restaurant') restaurantList.push(place);
-                    else if (bucket === 'supermarket') supermarketList.push(place);
-                }
-
-                const merged = [...campingList, ...restaurantList, ...supermarketList];
+                const merged = [...restaurantList, ...supermarketList];
                 placesCache.current[cacheKey] = merged;
-                setPlaces(prev => ({ ...prev, camping: campingList, restaurant: restaurantList, supermarket: supermarketList }));
-
-                console.log('✅ [combo1-server] results set', {
-                    camping: campingList.length,
-                    restaurant: restaurantList.length,
-                    supermarket: supermarketList.length,
-                });
+                setPlaces(prev => ({ ...prev, restaurant: restaurantList, supermarket: supermarketList }));
             } catch (e) {
                 if ((e as { name?: string })?.name === 'AbortError') return;
-                console.error('❌ [places-supercat-1] Error:', e);
-                // Fallback: usa el PlacesService del navegador para que el usuario vea resultados.
-                supercatDisabledRef.current.supercat1 = true;
+                console.error('❌ [places-supercat-2] Error:', e);
+                supercatDisabledRef.current.supercat2 = true;
                 didFallbackToClient = true;
-                if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
-                    console.log('🟦 [combo1] using client fallback (error)', { location });
-                    searchCombo1Client(location);
+                if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
+                    searchPlaces(location, 'restaurant');
+                    searchPlaces(location, 'supermarket');
                 }
             } finally {
                 if (didFallbackToClient) return;
-                if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
-                    setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
+                if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
+                    setLoadingPlaces(prev => ({...prev, restaurant: false, supermarket: false}));
                 }
             }
         })();
-    }, [abortStore, classifyCombo1, fetchSupercat, searchCombo1Client, toPlace]);
+    }, [abortStore, classifyCombo1, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
 
-    // BÚSQUEDA COMBINADA: gas + laundry + tourism
-    const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
-        const seq = ++requestSeqRef.current.supercat2;
-        abortStore.supercat2?.abort();
-        abortStore.supercat2 = new AbortController();
+    // 3) Gas + Lavar
+    const searchBlockServices = useCallback((location: Coordinates) => {
+        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const seq = ++requestSeqRef.current.supercat3;
+        abortStore.supercat3?.abort();
+        abortStore.supercat3 = new AbortController();
 
-        setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));
-        const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
+        setLoadingPlaces(prev => ({...prev, gas: true, laundry: true}));
+        const cacheKey = `supercat3_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
-        if (supercatDisabledRef.current.supercat2) {
+        if (supercatDisabledRef.current.supercat3) {
             searchPlaces(location, 'gas');
             searchPlaces(location, 'laundry');
-            searchPlaces(location, 'tourism');
             return;
         }
 
@@ -632,46 +549,93 @@ export function useTripPlaces(
                 ...prev,
                 gas: cached.filter(p => p.type === 'gas'),
                 laundry: cached.filter(p => p.type === 'laundry'),
-                tourism: cached.filter(p => p.type === 'tourism'),
             }));
-            setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
+            setLoadingPlaces(prev => ({...prev, gas: false, laundry: false}));
             return;
         }
 
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(2, location, abortStore.supercat2?.signal);
-                if (!isMountedRef.current || requestSeqRef.current.supercat2 !== seq) return;
+                const data = await fetchSupercat(3, location, abortStore.supercat3?.signal);
+                if (!isMountedRef.current || requestSeqRef.current.supercat3 !== seq) return;
+
                 const gasRaw = (data.categories.gas || []) as ServerPlace[];
                 const laundryRaw = (data.categories.laundry || []) as ServerPlace[];
-                const tourismRaw = (data.categories.tourism || []) as ServerPlace[];
 
                 const gasList = gasRaw.map(p => toPlace(location, 'gas', p));
                 const laundryList = laundryRaw.map(p => toPlace(location, 'laundry', p));
-                const tourismList = tourismRaw.map(p => toPlace(location, 'tourism', p));
 
-                const merged = [...gasList, ...laundryList, ...tourismList];
+                const merged = [...gasList, ...laundryList];
                 placesCache.current[cacheKey] = merged;
-                setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList, tourism: tourismList }));
+                setPlaces(prev => ({ ...prev, gas: gasList, laundry: laundryList }));
             } catch (e) {
                 if ((e as { name?: string })?.name === 'AbortError') return;
-                console.error('❌ [places-supercat-2] Error:', e);
-                supercatDisabledRef.current.supercat2 = true;
+                console.error('❌ [places-supercat-3] Error:', e);
+                supercatDisabledRef.current.supercat3 = true;
                 didFallbackToClient = true;
-                if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
+                if (isMountedRef.current && requestSeqRef.current.supercat3 === seq) {
                     searchPlaces(location, 'gas');
                     searchPlaces(location, 'laundry');
+                }
+            } finally {
+                if (didFallbackToClient) return;
+                if (isMountedRef.current && requestSeqRef.current.supercat3 === seq) {
+                    setLoadingPlaces(prev => ({...prev, gas: false, laundry: false}));
+                }
+            }
+        })();
+    }, [abortStore, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
+
+    // 4) Turismo
+    const searchBlockTourism = useCallback((location: Coordinates) => {
+        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const seq = ++requestSeqRef.current.supercat4;
+        abortStore.supercat4?.abort();
+        abortStore.supercat4 = new AbortController();
+
+        setLoadingPlaces(prev => ({...prev, tourism: true}));
+        const cacheKey = `supercat4_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
+
+        if (supercatDisabledRef.current.supercat4) {
+            searchPlaces(location, 'tourism');
+            return;
+        }
+
+        if (placesCache.current[cacheKey]) {
+            const cached = placesCache.current[cacheKey];
+            setPlaces(prev => ({ ...prev, tourism: cached.filter(p => p.type === 'tourism') }));
+            setLoadingPlaces(prev => ({...prev, tourism: false}));
+            return;
+        }
+
+        (async () => {
+            let didFallbackToClient = false;
+            try {
+                const data = await fetchSupercat(4, location, abortStore.supercat4?.signal);
+                if (!isMountedRef.current || requestSeqRef.current.supercat4 !== seq) return;
+
+                const tourismRaw = (data.categories.tourism || []) as ServerPlace[];
+                const tourismList = tourismRaw.map(p => toPlace(location, 'tourism', p));
+
+                placesCache.current[cacheKey] = tourismList;
+                setPlaces(prev => ({ ...prev, tourism: tourismList }));
+            } catch (e) {
+                if ((e as { name?: string })?.name === 'AbortError') return;
+                console.error('❌ [places-supercat-4] Error:', e);
+                supercatDisabledRef.current.supercat4 = true;
+                didFallbackToClient = true;
+                if (isMountedRef.current && requestSeqRef.current.supercat4 === seq) {
                     searchPlaces(location, 'tourism');
                 }
             } finally {
                 if (didFallbackToClient) return;
-                if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
-                    setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
+                if (isMountedRef.current && requestSeqRef.current.supercat4 === seq) {
+                    setLoadingPlaces(prev => ({...prev, tourism: false}));
                 }
             }
         })();
-    }, [abortStore, fetchSupercat, searchPlaces, toPlace]);
+    }, [abortStore, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {
@@ -812,22 +776,20 @@ export function useTripPlaces(
         
         // Solo buscamos si se enciende Y tenemos coordenadas
         if (newState && coordinates) {
-            // COMBO 1: camping, restaurant, supermarket
-            if (type === 'camping' || type === 'restaurant' || type === 'supermarket') {
-                console.log('🟦 [toggle] firing combo1', { coordinates });
-                searchComboCampingRestaurantSuper(coordinates);
-            } 
-            // COMBO 2: gas, laundry, tourism
-            else if (type === 'gas' || type === 'laundry' || type === 'tourism') {
-                console.log('🟦 [toggle] firing combo2', { coordinates });
-                searchComboGasLaundryTourism(coordinates);
-            }
-            else {
-                console.log('🟦 [toggle] firing single', { type, coordinates });
+            // Solución agresiva: 4 llamadas deterministas
+            if (type === 'camping') {
+                searchBlockSpots(coordinates);
+            } else if (type === 'restaurant' || type === 'supermarket') {
+                searchBlockFood(coordinates);
+            } else if (type === 'gas' || type === 'laundry') {
+                searchBlockServices(coordinates);
+            } else if (type === 'tourism') {
+                searchBlockTourism(coordinates);
+            } else {
                 searchPlaces(coordinates, type);
             }
         }
-    }, [searchComboCampingRestaurantSuper, searchComboGasLaundryTourism, searchPlaces, toggles]);
+    }, [searchBlockFood, searchBlockServices, searchBlockSpots, searchBlockTourism, searchPlaces, toggles]);
 
     const resetPlaces = useCallback(() => {
         // Opcional: Podríamos limpiar la caché aquí si quisiéramos forzar recarga al cambiar de viaje
@@ -839,8 +801,10 @@ export function useTripPlaces(
     return { 
         places, loadingPlaces, toggles, 
         searchPlaces,
-        searchComboCampingRestaurantSuper,
-        searchComboGasLaundryTourism,
+        searchBlockSpots,
+        searchBlockFood,
+        searchBlockServices,
+        searchBlockTourism,
         searchByQuery,
         clearSearch,
         handleToggle,
