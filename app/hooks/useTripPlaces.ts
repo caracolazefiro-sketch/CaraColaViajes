@@ -177,15 +177,17 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 break;
             case 'restaurant':
                 // COMBO 1: normalmente viene por supercat server-side.
-                // Fallback cliente: búsqueda individual por tipo.
-                placeType = 'restaurant';
+                // Fallback cliente: keyword suele ser más robusto que `type` en algunos entornos.
                 radius = 10000;
+                useKeyword = true;
+                searchKeyword = 'restaurant OR restaurante OR bar OR "fast food" OR comida OR "cafe" OR "cafetería" OR "cafeteria"';
                 break;
             case 'supermarket':
                 // COMBO 1: normalmente viene por supercat server-side.
-                // Fallback cliente: Places "grocery_or_supermarket" es el tipo legacy más compatible.
-                placeType = 'grocery_or_supermarket';
+                // Fallback cliente: keyword (type legacy puede devolver INVALID_REQUEST o 0 según proyecto).
                 radius = 10000;
+                useKeyword = true;
+                searchKeyword = 'supermarket OR supermercado OR "grocery store" OR groceries OR "tienda de alimentación"';
                 break;
             case 'gas': placeType = 'gas_station'; radius = 10000; break;
             case 'laundry': 
