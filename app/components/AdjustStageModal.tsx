@@ -51,8 +51,9 @@ export default function AdjustStageModal({
         if (selectedPlace && selectedPlace.geometry?.location) {
             const lat = selectedPlace.geometry.location.lat();
             const lng = selectedPlace.geometry.location.lng();
-            const name = selectedPlace.name || selectedPlace.formatted_address || searchQuery;
-            onConfirm(name, { lat, lng });
+            // Prefer formatted_address to include region/country and reduce ambiguous routing (e.g., "Mérida" vs others)
+            const destinationText = selectedPlace.formatted_address || selectedPlace.name || searchQuery;
+            onConfirm(destinationText, { lat, lng });
             handleClose();
         }
     };

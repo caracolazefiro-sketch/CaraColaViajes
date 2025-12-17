@@ -164,8 +164,17 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
               console.log(line);
             });
           }
-          showToast('Error: ' + (recalcResult.error || 'No se pudo recalcular'), 'error');
-          closeAdjustModal();
+          const err = String(recalcResult.error || 'No se pudo recalcular');
+          const isZero = /ZERO_RESULTS/i.test(err);
+          const isNotFound = /NOT_FOUND/i.test(err);
+          if (isZero || isNotFound) {
+            showToast(
+              'No hay ruta válida con esa parada. Prueba otra sugerencia o usa la opción con país (ej: "Mérida, España").',
+              'warning'
+            );
+          } else {
+            showToast('Error: ' + err, 'error');
+          }
           return;
         }
 
@@ -219,6 +228,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         });
 
         showToast('Ruta recalculada correctamente', 'success');
+        closeAdjustModal();
       } catch (error) {
         console.error('💥 Error recalculando:', error);
         showToast(
@@ -226,8 +236,6 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           'error'
         );
       }
-
-      closeAdjustModal();
     },
     [adjustingDayIndex, closeAdjustModal, formData, results, setFormData, setResults, showToast, tripId]
   );
