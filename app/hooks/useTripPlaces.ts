@@ -765,13 +765,13 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         }
     }, [abortStore]);
 
-    const clearSearch = () => {
+    const clearSearch = useCallback(() => {
         setPlaces(prev => ({...prev, search: []}));
         setToggles(prev => ({...prev, search: false}));
-    };
+    }, []);
 
     // ... (Resto igual)
-    const handleToggle = (type: ServiceType, coordinates?: Coordinates) => {
+    const handleToggle = useCallback((type: ServiceType, coordinates?: Coordinates) => {
         const newState = !toggles[type];
         // Solo cambiamos el toggle clicado; no tocamos los demás
         setToggles(prev => ({...prev, [type]: newState}));
@@ -800,14 +800,14 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
                 searchPlaces(coordinates, type);
             }
         }
-    };
+    }, [searchComboCampingRestaurantSuper, searchComboGasLaundryTourism, searchPlaces, toggles]);
 
-    const resetPlaces = () => {
+    const resetPlaces = useCallback(() => {
         // Opcional: Podríamos limpiar la caché aquí si quisiéramos forzar recarga al cambiar de viaje
         // placesCache.current = {}; 
         setToggles({ camping: false, restaurant: false, gas: false, supermarket: false, laundry: false, tourism: false, custom: false, search: false, found: false });
         setPlaces({ camping: [], restaurant: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: [] });
-    };
+    }, []);
 
     return { 
         places, loadingPlaces, toggles, 
