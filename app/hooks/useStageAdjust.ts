@@ -210,18 +210,13 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         );
         console.log('📊 Itinerario después de segmentación:', finalItinerary.length, 'días');
 
-        // PASO 5: ACTUALIZAR formData.etapas con los waypoints obligatorios
-        // Extraer waypoints obligatorios del itinerario nuevo
-        const obligatoryWaypoints = finalItinerary
-          .slice(0, -1) // Excluir último día (destino)
-          .filter((day: { to?: string }) => !String(day.to ?? '').includes('📍 Parada Táctica'))
-          .map((day: { to?: string }) => String(day.to ?? ''));
-
-        console.log('📝 Actualizando formData.etapas:', obligatoryWaypoints);
-
+        // PASO 5: ACTUALIZAR formData.etapas con los waypoints obligatorios del usuario.
+        // Importante: NO inferir desde `finalItinerary` porque está segmentado y puede incluir ciudades intermedias
+        // (ej: Cáceres) que NO son waypoints obligatorios.
+        console.log('📝 Actualizando formData.etapas (waypoints obligatorios):', updatedMandatoryWaypoints);
         setFormData((prev) => ({
           ...prev,
-          etapas: obligatoryWaypoints.join('|'),
+          etapas: updatedMandatoryWaypoints.join('|'),
         }));
 
         setResults({
