@@ -24,6 +24,7 @@ import { useToast } from './hooks/useToast';
 import { useSearchFilters } from './hooks/useSearchFilters';
 import { useTripCompute } from './hooks/useTripCompute';
 import { useStageNavigation } from './hooks/useStageNavigation';
+import { useSavedPlacesUi } from './hooks/useSavedPlacesUi';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -121,6 +122,14 @@ export default function Home() {
     resetPlaces,
     clearSearch,
     searchPlaces,
+  });
+
+  const { handleAddPlace, handleRemovePlace } = useSavedPlacesUi({
+    selectedDayIndex,
+    results,
+    // useTripCalculator currently exposes setResults as a setter. We keep the same update pattern as before.
+    setResults: (next) => setResults(next),
+    showToast,
   });
 
   const handleToggleWrapper = (type: ServiceType) => {
@@ -334,38 +343,6 @@ export default function Home() {
   const handlePlaceClick = (spot: PlaceWithDistance) => {
       if (spot.link) window.open(spot.link, '_blank');
       else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
-  };
-
-  const handleAddPlace = (place: PlaceWithDistance) => {
-      if (selectedDayIndex === null || !results.dailyItinerary) return;
-      const updatedItinerary = [...results.dailyItinerary];
-      const currentDay = updatedItinerary[selectedDayIndex];
-      if (!currentDay.savedPlaces) currentDay.savedPlaces = [];
-
-      // Verificar duplicado
-      if (currentDay.savedPlaces.some(p => p.place_id === place.place_id)) {
-          showToast(`"${place.name}" ya está guardado en este día`, 'warning');
-          return;
-      }
-
-      // Si es del buscador (search) o encontrado en mapa (found), marcarlo como privado por defecto
-      // PERO respetar la elección explícita del usuario si ya estableció isPublic
-      const placeToAdd = (place.type === 'search' || place.type === 'found')
-          ? { ...place, isPublic: place.isPublic ?? false }
-          : place;
-      currentDay.savedPlaces.push(placeToAdd);
-      setResults({ ...results, dailyItinerary: updatedItinerary });
-      showToast(`"${place.name}" añadido correctamente`, 'success');
-  };
-
-  const handleRemovePlace = (placeId: string) => {
-      if (selectedDayIndex === null || !results.dailyItinerary) return;
-      const updatedItinerary = [...results.dailyItinerary];
-      const currentDay = updatedItinerary[selectedDayIndex];
-      if (currentDay.savedPlaces) {
-          currentDay.savedPlaces = currentDay.savedPlaces.filter(p => p.place_id !== placeId);
-          setResults({ ...results, dailyItinerary: updatedItinerary });
-      }
   };
 
   if (!isLoaded) return <div className="flex justify-center items-center h-screen bg-red-50 text-red-600 font-bold text-xl animate-pulse">Cargando CaraCola...</div>;
