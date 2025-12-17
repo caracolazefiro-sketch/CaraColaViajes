@@ -119,13 +119,23 @@ export default function LogsViewerSupabase() {
       const totals = sorted.reduce(
         (acc, r) => {
           acc.calls++;
-          acc.cost += Number(r.cost || 0);
-          acc.directions += r.api === 'google-directions' ? 1 : 0;
-          acc.geocoding += r.api === 'google-geocoding' ? 1 : 0;
-          acc.places += r.api === 'google-places' ? 1 : 0;
+          const cost = Number(r.cost || 0);
+          acc.cost += cost;
+          if (r.api === 'google-directions') {
+            acc.directions += 1;
+            acc.costDirections += cost;
+          }
+          if (r.api === 'google-geocoding') {
+            acc.geocoding += 1;
+            acc.costGeocoding += cost;
+          }
+          if (r.api === 'google-places') {
+            acc.places += 1;
+            acc.costPlaces += cost;
+          }
           return acc;
         },
-        { calls: 0, cost: 0, directions: 0, geocoding: 0, places: 0 }
+        { calls: 0, cost: 0, directions: 0, geocoding: 0, places: 0, costDirections: 0, costGeocoding: 0, costPlaces: 0 }
       );
       return {
         tripId,
@@ -171,8 +181,14 @@ export default function LogsViewerSupabase() {
       directions: tripB.totals.directions - tripA.totals.directions,
       geocoding: tripB.totals.geocoding - tripA.totals.geocoding,
       places: tripB.totals.places - tripA.totals.places,
+      costDirections: tripB.totals.costDirections - tripA.totals.costDirections,
+      costGeocoding: tripB.totals.costGeocoding - tripA.totals.costGeocoding,
+      costPlaces: tripB.totals.costPlaces - tripA.totals.costPlaces,
     };
   })();
+
+  const formatDeltaInt = (n: number) => `${n >= 0 ? '+' : ''}${String(n)}`;
+  const formatDeltaUsd = (n: number) => `${n >= 0 ? '+' : ''}${formatUsd(n)}`;
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
@@ -194,7 +210,18 @@ export default function LogsViewerSupabase() {
       </div>
 
       <div style={{ marginTop: '0.75rem', border: '1px solid #e5e7eb', borderRadius: 10, background: 'white', padding: 12 }}>
-        <div style={{ fontWeight: 700, color: '#111827' }}>Comparar 2 viajes</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ fontWeight: 700, color: '#111827' }}>Comparar 2 viajes</div>
+          <button
+            onClick={() => {
+              setCompareTripA('');
+              setCompareTripB('');
+            }}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#6b7280', fontSize: 12 }}
+          >
+            Limpiar
+          </button>
+        </div>
         <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 900 }}>
           <div>
             <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Viaje A</div>
@@ -230,18 +257,85 @@ export default function LogsViewerSupabase() {
         </div>
 
         {tripA && tripB && compareDelta && (
-          <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.7, color: '#111827' }}>
-            <div style={{ color: '#6b7280', fontSize: 12 }}>
-              B − A (si es positivo, B cuesta / llama más)
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ color: '#6b7280', fontSize: 12 }}>Delta: B − A (positivo = B cuesta / llama más)</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setOpenTripId(tripA.tripId)}
+                  style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: '#111827' }}
+                >
+                  Abrir A
+                </button>
+                <button
+                  onClick={() => setOpenTripId(tripB.tripId)}
+                  style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: '#111827' }}
+                >
+                  Abrir B
+                </button>
+              </div>
             </div>
-            <div>
-              Calls: {tripA.totals.calls} → {tripB.totals.calls} (Δ {compareDelta.calls >= 0 ? '+' : ''}{compareDelta.calls})
-              {' · '}Coste: {formatUsd(tripA.totals.cost)} → {formatUsd(tripB.totals.cost)} (Δ {formatUsd(compareDelta.cost)})
+
+            <div style={{ marginTop: 10, border: '1px solid #eef2f7', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.9fr', gap: 0, background: '#f9fafb', color: '#111827', fontSize: 12, fontWeight: 700 }}>
+                <div style={{ padding: '10px 10px', borderRight: '1px solid #eef2f7' }}>Métrica</div>
+                <div style={{ padding: '10px 10px', borderRight: '1px solid #eef2f7' }}>Viaje A</div>
+                <div style={{ padding: '10px 10px', borderRight: '1px solid #eef2f7' }}>Viaje B</div>
+                <div style={{ padding: '10px 10px' }}>Δ (B−A)</div>
+              </div>
+
+              {([
+                {
+                  label: 'Calls',
+                  a: String(tripA.totals.calls),
+                  b: String(tripB.totals.calls),
+                  d: formatDeltaInt(compareDelta.calls),
+                },
+                {
+                  label: 'Coste total (USD)',
+                  a: formatUsd(tripA.totals.cost),
+                  b: formatUsd(tripB.totals.cost),
+                  d: formatDeltaUsd(compareDelta.cost),
+                },
+                {
+                  label: 'Directions (calls / coste)',
+                  a: `${tripA.totals.directions} / ${formatUsd(tripA.totals.costDirections)}`,
+                  b: `${tripB.totals.directions} / ${formatUsd(tripB.totals.costDirections)}`,
+                  d: `${formatDeltaInt(compareDelta.directions)} / ${formatDeltaUsd(compareDelta.costDirections)}`,
+                },
+                {
+                  label: 'Geocoding (calls / coste)',
+                  a: `${tripA.totals.geocoding} / ${formatUsd(tripA.totals.costGeocoding)}`,
+                  b: `${tripB.totals.geocoding} / ${formatUsd(tripB.totals.costGeocoding)}`,
+                  d: `${formatDeltaInt(compareDelta.geocoding)} / ${formatDeltaUsd(compareDelta.costGeocoding)}`,
+                },
+                {
+                  label: 'Places (calls / coste)',
+                  a: `${tripA.totals.places} / ${formatUsd(tripA.totals.costPlaces)}`,
+                  b: `${tripB.totals.places} / ${formatUsd(tripB.totals.costPlaces)}`,
+                  d: `${formatDeltaInt(compareDelta.places)} / ${formatDeltaUsd(compareDelta.costPlaces)}`,
+                },
+              ] as const).map((row) => (
+                <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 0.9fr', gap: 0, borderTop: '1px solid #eef2f7', fontSize: 13, color: '#111827' }}>
+                  <div style={{ padding: '10px 10px', borderRight: '1px solid #eef2f7', fontWeight: 600 }}>{row.label}</div>
+                  <div style={{ padding: '10px 10px', borderRight: '1px solid #eef2f7' }}>{row.a}</div>
+                  <div style={{ padding: '10px 10px', borderRight: '1px solid #eef2f7' }}>{row.b}</div>
+                  <div style={{ padding: '10px 10px', fontFamily: 'monospace' }}>{row.d}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize: 12, color: '#111827' }}>
-              Directions: {tripA.totals.directions} → {tripB.totals.directions} (Δ {compareDelta.directions >= 0 ? '+' : ''}{compareDelta.directions})
-              {' · '}Geocoding: {tripA.totals.geocoding} → {tripB.totals.geocoding} (Δ {compareDelta.geocoding >= 0 ? '+' : ''}{compareDelta.geocoding})
-              {' · '}Places: {tripA.totals.places} → {tripB.totals.places} (Δ {compareDelta.places >= 0 ? '+' : ''}{compareDelta.places})
+
+            <div style={{ marginTop: 10, fontSize: 12, color: '#6b7280', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 700, color: '#111827' }}>A</div>
+                <div style={{ fontFamily: 'monospace' }}>{tripA.tripId}</div>
+                <div style={{ color: '#111827' }}>{tripA.tripName}</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, color: '#111827' }}>B</div>
+                <div style={{ fontFamily: 'monospace' }}>{tripB.tripId}</div>
+                <div style={{ color: '#111827' }}>{tripB.tripName}</div>
+              </div>
             </div>
           </div>
         )}
