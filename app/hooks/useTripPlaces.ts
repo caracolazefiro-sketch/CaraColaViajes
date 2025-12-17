@@ -314,11 +314,11 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         switch(type) {
             case 'camping': 
-                // COMBO 1: camping + restaurant + supermarket (bilingüe)
+                // Camping (solo camping). El Combo 1 se resuelve por searchComboCampingRestaurantSuper.
                 placeType = 'campground'; 
                 radius = 10000; 
                 useKeyword = true;
-                searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR restaurante OR restaurant OR "fast food" OR comida OR supermercado OR supermarket OR "grocery store"';
+                searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR "area camper" OR "área camper"';
                 break;
             case 'restaurant':
                 // COMBO 1: normalmente viene por supercat server-side.
@@ -792,6 +792,12 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
     return { 
         places, loadingPlaces, toggles, 
-        searchPlaces, searchByQuery, clearSearch, handleToggle, resetPlaces 
+        searchPlaces,
+        searchComboCampingRestaurantSuper,
+        searchComboGasLaundryTourism,
+        searchByQuery,
+        clearSearch,
+        handleToggle,
+        resetPlaces 
     };
 }

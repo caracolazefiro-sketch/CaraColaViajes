@@ -13,6 +13,8 @@ type UseStageNavigationParams = {
   resetPlaces: () => void;
   clearSearch: () => void;
   searchPlaces: (coords: Coordinates, type: ServiceType) => void;
+  searchComboCampingRestaurantSuper: (coords: Coordinates) => void;
+  searchComboGasLaundryTourism: (coords: Coordinates) => void;
 };
 
 async function geocodeCity(cityName: string): Promise<google.maps.LatLngLiteral | null> {
@@ -44,6 +46,8 @@ export function useStageNavigation({
   resetPlaces,
   clearSearch,
   searchPlaces,
+  searchComboCampingRestaurantSuper,
+  searchComboGasLaundryTourism,
 }: UseStageNavigationParams) {
   const focusMapOnStage = useCallback(
     async (dayIndex: number | null) => {
@@ -76,10 +80,9 @@ export function useStageNavigation({
 
       if (coords) {
         setMapBounds(boundsAround(coords));
-        searchPlaces(coords, 'camping');
       }
     },
-    [dailyItinerary, directionsResponse, resetPlaces, searchPlaces, setHoveredPlace, setMapBounds, setSelectedDayIndex]
+    [dailyItinerary, directionsResponse, resetPlaces, setHoveredPlace, setMapBounds, setSelectedDayIndex]
   );
 
   const handleSearchNearDay = useCallback(
@@ -112,13 +115,32 @@ export function useStageNavigation({
 
       if (activeTypes.length === 0) return;
 
+      const hasCombo1 = activeTypes.some((t) => t === 'camping' || t === 'restaurant' || t === 'supermarket');
+      const hasCombo2 = activeTypes.some((t) => t === 'gas' || t === 'laundry' || t === 'tourism');
+
+      if (hasCombo1) searchComboCampingRestaurantSuper(searchCoords);
+      if (hasCombo2) searchComboGasLaundryTourism(searchCoords);
+
       activeTypes.forEach((type) => {
-        if (type !== 'custom' && type !== 'search' && type !== 'found') {
-          searchPlaces(searchCoords!, type);
+        const isCombo1Type = type === 'camping' || type === 'restaurant' || type === 'supermarket';
+        const isCombo2Type = type === 'gas' || type === 'laundry' || type === 'tourism';
+        if (type !== 'custom' && type !== 'search' && type !== 'found' && !isCombo1Type && !isCombo2Type) {
+          searchPlaces(searchCoords, type);
         }
       });
     },
-    [clearSearch, dailyItinerary, resetPlaces, searchPlaces, setHoveredPlace, setMapBounds, setSelectedDayIndex, toggles]
+    [
+      clearSearch,
+      dailyItinerary,
+      resetPlaces,
+      searchComboCampingRestaurantSuper,
+      searchComboGasLaundryTourism,
+      searchPlaces,
+      setHoveredPlace,
+      setMapBounds,
+      setSelectedDayIndex,
+      toggles,
+    ]
   );
 
   return { focusMapOnStage, handleSearchNearDay };

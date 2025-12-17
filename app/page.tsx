@@ -88,7 +88,13 @@ export default function Home() {
 
   const {
       places, loadingPlaces, toggles,
-      searchPlaces, searchByQuery, clearSearch, handleToggle, resetPlaces
+        searchPlaces,
+        searchComboCampingRestaurantSuper,
+        searchComboGasLaundryTourism,
+        searchByQuery,
+        clearSearch,
+        handleToggle,
+        resetPlaces
   } = useTripPlaces(map, apiTripId, formData.tripName);
 
   // Hook para filtros de búsqueda (rating, radio, sort)
@@ -138,6 +144,8 @@ export default function Home() {
     resetPlaces,
     clearSearch,
     searchPlaces,
+    searchComboCampingRestaurantSuper,
+    searchComboGasLaundryTourism,
   });
 
   const { handleAddPlace, handleRemovePlace } = useSavedPlacesUi({
