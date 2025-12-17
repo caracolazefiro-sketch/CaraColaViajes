@@ -76,10 +76,31 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         console.log('🔄 Recalculando ruta COMPLETA desde origen original');
 
         // PASO 1: Extraer waypoints OBLIGATORIOS desde formData.etapas
-        const waypointsFromForm = formData.etapas
+        let waypointsFromForm = formData.etapas
           .split('|')
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
+
+        // 🔧 Auto-heal: si `etapas` quedó contaminado por paradas de segmentación (p.ej. "Cáceres"),
+        // eliminarlas antes de volver a llamar a Directions.
+        // Usamos `dailyItinerary.type === 'tactical'` como señal fuerte de "no es waypoint obligatorio".
+        const tacticalStops = new Set(
+          (results.dailyItinerary || [])
+            .filter((d) => d.type === 'tactical')
+            .map((d) => String(d.to ?? '').replace('📍 Parada Táctica: ', '').split('|')[0].trim())
+            .filter((s) => s.length > 0)
+            .map((s) => normalizeForComparison(s))
+        );
+        if (tacticalStops.size > 0) {
+          const before = waypointsFromForm;
+          waypointsFromForm = waypointsFromForm.filter((wp) => {
+            const key = normalizeForComparison(String(wp).replace('📍 Parada Táctica: ', '').split('|')[0].trim());
+            return !tacticalStops.has(key);
+          });
+          if (before.length !== waypointsFromForm.length) {
+            console.log('🧹 Limpiando etapas contaminadas (tácticas):', { before, after: waypointsFromForm });
+          }
+        }
 
         console.log('📦 Waypoints obligatorios (formData.etapas):', waypointsFromForm);
 
