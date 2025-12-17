@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { PlaceWithDistance } from '../types';
 
 export type SortOption = 'score' | 'distance' | 'rating';

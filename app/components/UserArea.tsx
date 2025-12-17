@@ -28,7 +28,7 @@ interface UserAreaProps {
     t: (key: string) => string;
 }
 
-export default function UserArea({ currentTripId, onOpenDashboard, t, onLoadTrip }: UserAreaProps) {
+export default function UserArea({ t, onLoadTrip }: UserAreaProps) {
     interface AppUser { id: string; email?: string }
     const [user, setUser] = useState<AppUser | null>(null);
     const [email, setEmail] = useState('');

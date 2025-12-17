@@ -39,7 +39,7 @@ interface ServiceButtonProps {
     showCount?: boolean;
 }
 
-const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, filteredCount, loading = false, showCount = false }) => {
+const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, loading = false, showCount = false }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
     // Mostrar count (resultados brutos de Google), no filteredCount
@@ -301,7 +301,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                     {(type === 'custom' || type === 'search' || type === 'found') && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); if (spot.place_id) onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                 </div>
                             ) : (
                                 <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : t('MAP_ADD')}</button>
@@ -481,7 +481,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     {(place.type === 'custom' || place.type === 'search' || place.type === 'found') && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditStart(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); if (place.place_id) onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                 </div>
                             </div>
                             );
