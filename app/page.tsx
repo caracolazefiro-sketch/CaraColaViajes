@@ -156,10 +156,32 @@ export default function Home() {
     showToast,
   });
 
-  const handleToggleWrapper = (type: ServiceType) => {
-      const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
-      const coords: Coordinates | undefined = day?.coordinates || day?.startCoordinates;
-      handleToggle(type, coords);
+  const handleToggleWrapper = async (type: ServiceType) => {
+    const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
+    let coords: Coordinates | undefined = day?.coordinates || day?.startCoordinates;
+
+    // Robustez: si el día no trae coordenadas (p.ej. geocoding falló o no se guardó), intentamos geocodificar.
+    if (!coords && day && typeof google !== 'undefined') {
+      const cleanTo = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
+      if (cleanTo) {
+        try {
+          const geocoder = new google.maps.Geocoder();
+          const response = await geocoder.geocode({ address: cleanTo });
+          const first = response.results?.[0]?.geometry?.location?.toJSON();
+          if (first) coords = { lat: first.lat, lng: first.lng };
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    // Último recurso: usar el centro del mapa si existe (para no dejar el botón "muerto").
+    if (!coords && map) {
+      const c = map.getCenter();
+      if (c) coords = { lat: c.lat(), lng: c.lng() };
+    }
+
+    handleToggle(type, coords);
   };
 
   useEffect(() => {
