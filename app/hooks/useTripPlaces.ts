@@ -45,6 +45,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         found: 0,
     });
     const requestSeqRef = useRef({ supercat1: 0, supercat2: 0, search: 0 });
+    const supercatDisabledRef = useRef({ supercat1: false, supercat2: false });
     const abortStore = useMemo(
         () => ({
             supercat1: undefined as AbortController | undefined,
@@ -346,6 +347,13 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         setLoadingPlaces(prev => ({...prev, camping: true, restaurant: true, supermarket: true}));
         const cacheKey = `supercat1_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
 
+        // Si el endpoint server-side falla en este entorno (Places Web Service no habilitado), hacemos fallback al cliente.
+        if (supercatDisabledRef.current.supercat1) {
+            setLoadingPlaces(prev => ({ ...prev, restaurant: false, supermarket: false }));
+            searchPlaces(location, 'camping');
+            return;
+        }
+
         if (placesCache.current[cacheKey]) {
             const cached = placesCache.current[cacheKey];
             setPlaces(prev => ({
@@ -359,6 +367,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         }
 
         (async () => {
+            let didFallbackToClient = false;
             try {
                 const data = await fetchSupercat(1, location, abortStore.supercat1?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
@@ -376,16 +385,22 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             } catch (e) {
                 if ((e as { name?: string })?.name === 'AbortError') return;
                 console.error('❌ [places-supercat-1] Error:', e);
+                // Fallback: usa el PlacesService del navegador para que el usuario vea resultados.
+                supercatDisabledRef.current.supercat1 = true;
+                didFallbackToClient = true;
                 if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
-                    setPlaces(prev => ({ ...prev, camping: [], restaurant: [], supermarket: [] }));
+                    setPlaces(prev => ({ ...prev, restaurant: [], supermarket: [] }));
+                    setLoadingPlaces(prev => ({ ...prev, restaurant: false, supermarket: false }));
+                    searchPlaces(location, 'camping');
                 }
             } finally {
+                if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
                     setLoadingPlaces(prev => ({...prev, camping: false, restaurant: false, supermarket: false}));
                 }
             }
         })();
-    }, [abortStore, fetchSupercat, toPlace]);
+    }, [abortStore, fetchSupercat, searchPlaces, toPlace]);
 
     // BÚSQUEDA COMBINADA: gas + laundry + tourism
     const searchComboGasLaundryTourism = useCallback((location: Coordinates) => {
@@ -395,6 +410,12 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
 
         setLoadingPlaces(prev => ({...prev, gas: true, laundry: true, tourism: true}));
         const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}`;
+
+        if (supercatDisabledRef.current.supercat2) {
+            setLoadingPlaces(prev => ({ ...prev, laundry: false, tourism: false }));
+            searchPlaces(location, 'gas');
+            return;
+        }
 
         if (placesCache.current[cacheKey]) {
             const cached = placesCache.current[cacheKey];
@@ -409,6 +430,7 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
         }
 
         (async () => {
+            let didFallbackToClient = false;
             try {
                 const data = await fetchSupercat(2, location, abortStore.supercat2?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat2 !== seq) return;
@@ -426,16 +448,21 @@ export function useTripPlaces(map: google.maps.Map | null, tripId?: string | nul
             } catch (e) {
                 if ((e as { name?: string })?.name === 'AbortError') return;
                 console.error('❌ [places-supercat-2] Error:', e);
+                supercatDisabledRef.current.supercat2 = true;
+                didFallbackToClient = true;
                 if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
-                    setPlaces(prev => ({ ...prev, gas: [], laundry: [], tourism: [] }));
+                    setPlaces(prev => ({ ...prev, laundry: [], tourism: [] }));
+                    setLoadingPlaces(prev => ({ ...prev, laundry: false, tourism: false }));
+                    searchPlaces(location, 'gas');
                 }
             } finally {
+                if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
                     setLoadingPlaces(prev => ({...prev, gas: false, laundry: false, tourism: false}));
                 }
             }
         })();
-    }, [abortStore, fetchSupercat, toPlace]);
+    }, [abortStore, fetchSupercat, searchPlaces, toPlace]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {
