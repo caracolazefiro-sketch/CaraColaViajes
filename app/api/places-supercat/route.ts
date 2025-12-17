@@ -38,6 +38,18 @@ type PlacesSupercatRequest = {
   supercat: Supercat;
 };
 
+const SUPERCAT_RADIUS_CAP_METERS: Record<Supercat, number> = {
+  1: 25_000,
+  2: 8_000,
+  3: 12_000,
+  4: 15_000,
+};
+
+function clampRadiusMeters(input: number) {
+  const safe = Number.isFinite(input) ? input : 20_000;
+  return Math.max(1000, Math.min(50_000, Math.round(safe)));
+}
+
 function redactGoogleKey(url: string) {
   return url.replace(/([?&]key=)([^&]+)/i, '$1REDACTED');
 }
@@ -151,7 +163,7 @@ export async function POST(req: Request) {
     const center = body.center;
     const tripId = body.tripId;
     const tripName = body.tripName;
-    const radius = typeof body.radius === 'number' && Number.isFinite(body.radius) ? body.radius : 20000;
+    const requestedRadius = typeof body.radius === 'number' && Number.isFinite(body.radius) ? body.radius : 20000;
 
     if (!supercat || (supercat !== 1 && supercat !== 2 && supercat !== 3 && supercat !== 4)) {
       return NextResponse.json({ ok: false, reason: 'invalid-supercat' }, { status: 400 });
@@ -168,6 +180,10 @@ export async function POST(req: Request) {
           : supercat === 3
             ? SUPERCAT_3_KEYWORD
             : SUPERCAT_4_KEYWORD;
+
+    // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
+    const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
+    const radius = clampRadiusMeters(Math.min(requestedRadius, capMeters));
 
     // 0) Supabase cache HIT
     const cacheKey = makePlacesSupercatCacheKey({
@@ -193,6 +209,8 @@ export async function POST(req: Request) {
           supercat,
           center,
           radius,
+          requestedRadius,
+          radiusCapMeters: capMeters,
           keyword,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
         },
@@ -226,6 +244,8 @@ export async function POST(req: Request) {
       supercat,
       center,
       radius,
+      requestedRadius,
+      radiusCapMeters: capMeters,
       totals: {
         pages,
         totalResults: results.length,

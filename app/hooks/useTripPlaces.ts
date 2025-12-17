@@ -21,6 +21,44 @@ export function useTripPlaces(
     tripName?: string,
     searchRadiusKm: number = 10
 ) {
+    // Opción A: el slider global llega a 25km, pero cada bloque/tipo tiene su tope interno.
+    const RADIUS_CAPS_KM = useMemo(
+        () => ({
+            camping: 25,
+            restaurant: 8,
+            supermarket: 8,
+            gas: 12,
+            laundry: 12,
+            tourism: 15,
+        } as const),
+        []
+    );
+
+    const clampRadiusMeters = useCallback((km: number) => {
+        const safeKm = Number.isFinite(km) ? km : 10;
+        return Math.max(1000, Math.min(50000, Math.round(safeKm * 1000)));
+    }, []);
+
+    const effectiveRadiusMetersForType = useCallback((type: ServiceType) => {
+        const sliderKm = Number.isFinite(searchRadiusKm) ? searchRadiusKm : 10;
+
+        const capKm =
+            type === 'camping'
+                ? RADIUS_CAPS_KM.camping
+                : type === 'restaurant'
+                    ? RADIUS_CAPS_KM.restaurant
+                    : type === 'supermarket'
+                        ? RADIUS_CAPS_KM.supermarket
+                        : type === 'gas'
+                            ? RADIUS_CAPS_KM.gas
+                            : type === 'laundry'
+                                ? RADIUS_CAPS_KM.laundry
+                                : type === 'tourism'
+                                    ? RADIUS_CAPS_KM.tourism
+                                    : sliderKm;
+
+        return clampRadiusMeters(Math.min(sliderKm, capKm));
+    }, [RADIUS_CAPS_KM, clampRadiusMeters, searchRadiusKm]);
     // AÑADIDO 'search' y 'found' AL ESTADO INICIAL
     const [places, setPlaces] = useState<Record<ServiceType, PlaceWithDistance[]>>({
         camping: [], restaurant: [], gas: [], supermarket: [], laundry: [], tourism: [], custom: [], search: [], found: []
@@ -156,8 +194,8 @@ export function useTripPlaces(
         return null;
     }, []);
 
-    const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, signal?: AbortSignal) => {
-        const radius = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+    const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, radiusMeters: number, signal?: AbortSignal) => {
+        const radius = Math.max(1000, Math.min(50000, Math.round(radiusMeters)));
         const res = await fetch('/api/places-supercat', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -180,7 +218,7 @@ export function useTripPlaces(
             supercat: Supercat;
             categories: Record<string, ServerPlace[]>;
         };
-    }, [tripId, tripName, searchRadiusKm]);
+    }, [tripId, tripName]);
 
     // BÚSQUEDA ESTÁNDAR (Categorías)
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
@@ -192,7 +230,7 @@ export function useTripPlaces(
 
         // 1. GENERAR CLAVE DE CACHÉ
         // Redondeamos coords para que pequeños movimientos no invaliden la caché innecesariamente
-        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const radiusMeters = effectiveRadiusMetersForType(type);
         const cacheKey = `${type}_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         // 2. VERIFICAR SI YA PAGAMOS POR ESTO
@@ -407,13 +445,13 @@ export function useTripPlaces(
                 setPlaces(prev => ({ ...prev, [type]: [] }));
             }
         });
-    }, [map, distanceFromCenter, searchRadiusKm]);
+    }, [map, distanceFromCenter, effectiveRadiusMetersForType]);
 
     // --- SOLUCIÓN AGRESIVA: 4 llamadas deterministas (1 request por bloque) ---
 
     // 1) Spots (camping)
     const searchBlockSpots = useCallback((location: Coordinates) => {
-        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const radiusMeters = effectiveRadiusMetersForType('camping');
         const seq = ++requestSeqRef.current.supercat1;
         abortStore.supercat1?.abort();
         abortStore.supercat1 = new AbortController();
@@ -436,7 +474,7 @@ export function useTripPlaces(
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(1, location, abortStore.supercat1?.signal);
+                const data = await fetchSupercat(1, location, radiusMeters, abortStore.supercat1?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
 
                 const campingRaw = (data.categories.camping || []) as ServerPlace[];
@@ -461,11 +499,16 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, classifyCombo1, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
+    }, [abortStore, classifyCombo1, effectiveRadiusMetersForType, fetchSupercat, searchPlaces, toPlace]);
 
     // 2) Comer + Super
     const searchBlockFood = useCallback((location: Coordinates) => {
-        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const radiusMeters = clampRadiusMeters(
+            Math.min(
+                Number.isFinite(searchRadiusKm) ? searchRadiusKm : 10,
+                Math.max(RADIUS_CAPS_KM.restaurant, RADIUS_CAPS_KM.supermarket)
+            )
+        );
         const seq = ++requestSeqRef.current.supercat2;
         abortStore.supercat2?.abort();
         abortStore.supercat2 = new AbortController();
@@ -493,7 +536,7 @@ export function useTripPlaces(
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(2, location, abortStore.supercat2?.signal);
+                const data = await fetchSupercat(2, location, radiusMeters, abortStore.supercat2?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat2 !== seq) return;
 
                 const restaurantRaw = (data.categories.restaurant || []) as ServerPlace[];
@@ -525,11 +568,16 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, classifyCombo1, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
+    }, [abortStore, classifyCombo1, clampRadiusMeters, fetchSupercat, searchPlaces, searchRadiusKm, toPlace, RADIUS_CAPS_KM]);
 
     // 3) Gas + Lavar
     const searchBlockServices = useCallback((location: Coordinates) => {
-        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const radiusMeters = clampRadiusMeters(
+            Math.min(
+                Number.isFinite(searchRadiusKm) ? searchRadiusKm : 10,
+                Math.max(RADIUS_CAPS_KM.gas, RADIUS_CAPS_KM.laundry)
+            )
+        );
         const seq = ++requestSeqRef.current.supercat3;
         abortStore.supercat3?.abort();
         abortStore.supercat3 = new AbortController();
@@ -557,7 +605,7 @@ export function useTripPlaces(
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(3, location, abortStore.supercat3?.signal);
+                const data = await fetchSupercat(3, location, radiusMeters, abortStore.supercat3?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat3 !== seq) return;
 
                 const gasRaw = (data.categories.gas || []) as ServerPlace[];
@@ -585,11 +633,11 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
+    }, [abortStore, clampRadiusMeters, fetchSupercat, searchPlaces, searchRadiusKm, toPlace, RADIUS_CAPS_KM]);
 
     // 4) Turismo
     const searchBlockTourism = useCallback((location: Coordinates) => {
-        const radiusMeters = Math.max(1000, Math.min(50000, Math.round((searchRadiusKm || 10) * 1000)));
+        const radiusMeters = effectiveRadiusMetersForType('tourism');
         const seq = ++requestSeqRef.current.supercat4;
         abortStore.supercat4?.abort();
         abortStore.supercat4 = new AbortController();
@@ -612,7 +660,7 @@ export function useTripPlaces(
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(4, location, abortStore.supercat4?.signal);
+                const data = await fetchSupercat(4, location, radiusMeters, abortStore.supercat4?.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat4 !== seq) return;
 
                 const tourismRaw = (data.categories.tourism || []) as ServerPlace[];
@@ -635,7 +683,7 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, fetchSupercat, searchPlaces, searchRadiusKm, toPlace]);
+    }, [abortStore, effectiveRadiusMetersForType, fetchSupercat, searchPlaces, toPlace]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {

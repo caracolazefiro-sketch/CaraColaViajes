@@ -643,13 +643,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     <input
                                         type="range"
                                         min="5"
-                                        max="50"
+                                        max="25"
                                         step="5"
                                         value={searchRadius}
                                         onChange={(e) => setSearchRadius(parseInt(e.target.value))}
                                         className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
                                         style={{
-                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                             WebkitAppearance: 'none',
                                         } as React.CSSProperties}
                                     />
