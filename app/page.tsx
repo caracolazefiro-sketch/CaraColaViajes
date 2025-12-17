@@ -104,6 +104,7 @@ export default function Home() {
     formData,
     setFormData,
     showToast,
+    tripId: apiTripId,
   });
 
   const { handleCalculateAll } = useTripCompute({
@@ -148,7 +149,7 @@ export default function Home() {
   useEffect(() => {
     resetPlaces();
     clearSearch();
-  }, [selectedDayIndex]);
+  }, [selectedDayIndex, resetPlaces, clearSearch]);
 
   // 🔥 ELIMINADO: useEffect de fitBounds (Estaba duplicado y causando conflictos)
 

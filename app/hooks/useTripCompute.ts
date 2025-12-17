@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { ToastType } from './useToast';
 import type { TripFormData } from './useTripCalculator';
 import { getDirectionsAndCost } from '../actions';
+import { normalizeForGoogle } from '../utils/googleNormalize';
 
 type ShowToast = (message: string, type?: ToastType) => void;
 
@@ -13,12 +14,6 @@ type UseTripComputeParams<TForm extends TripFormData & { tripName: string; etapa
   setApiTripId: (tripId: string) => void;
   resetUi: () => void;
   showToast: ShowToast;
-};
-
-const normalizeForGoogle = (text: string) => {
-  const parts = text.split(',');
-  const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
-  return location.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 };
 
 const computeTripName = (formData: { tripName?: string; origen: string; destino: string; fechaInicio: string }) => {
@@ -83,7 +78,6 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
         }
       } catch (err) {
         showToast('Error generando logs (servidor)', 'error');
-        // eslint-disable-next-line no-console
         console.error(err);
       }
     },

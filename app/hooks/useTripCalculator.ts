@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TripResult, DailyPlan } from '../types';
+import { normalizeForGoogle } from '../utils/googleNormalize';
 
 export interface TripFormData {
     fechaInicio: string;
@@ -67,18 +68,6 @@ export function useTripCalculator(convert: Converter, units: 'metric' | 'imperia
         setLoading(true);
         setDirectionsResponse(null);
         setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
-
-        // Normalizar nombres: mantener ciudad+país, remover acentos para Google API
-        const normalizeForGoogle = (text: string) => {
-            // Paso 1: Si hay coma, tomar ciudad y país (ej: "Salamanca, España")
-            // Si no hay coma, usar todo (ej: "Salamanca")
-            const parts = text.split(',');
-            const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
-            // Paso 2: Remover acentos/diacríticos
-            return location
-                .normalize('NFD')                   // Descomponer caracteres acentuados
-                .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
-        };
 
         const directionsService = new google.maps.DirectionsService();
         
