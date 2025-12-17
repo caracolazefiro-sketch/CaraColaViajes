@@ -46,8 +46,8 @@ export const filterAndSort = (
 };
 
 export const useSearchFilters = () => {
-  const [minRating, setMinRating] = useState(4);
-  const [searchRadius, setSearchRadius] = useState(20);
+  const [minRating, setMinRating] = useState(0);
+  const [searchRadius, setSearchRadius] = useState(50);
   const [sortBy, setSortBy] = useState<SortOption>('score');
 
   // Función envolvente que usa los estados del hook
