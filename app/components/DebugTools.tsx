@@ -9,11 +9,31 @@ interface LogEntry {
 }
 
 export default function DebugTools() {
+  const [enabled, setEnabled] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const logsRef = useRef<LogEntry[]>([]);
 
   useEffect(() => {
+    // Oculto por defecto en builds de producción/staging.
+    // Para habilitar puntualmente sin tocar código:
+    // localStorage.setItem('caracola_debug_tools', '1'); location.reload();
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) {
+      setEnabled(true);
+      return;
+    }
+    try {
+      const flag = window.localStorage.getItem('caracola_debug_tools');
+      setEnabled(flag === '1');
+    } catch {
+      setEnabled(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+
     // Guardar referencias originales
     const originalLog = console.log;
     const originalError = console.error;
@@ -69,7 +89,7 @@ export default function DebugTools() {
       consoleMethods.warn = originalWarn;
       consoleMethods.info = originalInfo;
     };
-  }, []);
+  }, [enabled]);
 
   const downloadLogs = () => {
     if (logs.length === 0) {
@@ -167,6 +187,8 @@ export default function DebugTools() {
     logsRef.current = [];
     setLogs([]);
   };
+
+  if (!enabled) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 no-print">
