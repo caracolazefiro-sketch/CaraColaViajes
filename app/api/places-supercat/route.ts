@@ -338,6 +338,31 @@ const SUPERCAT_3_KEYWORD = 'gas_station laundry';
 // 4) Turismo
 const SUPERCAT_4_KEYWORD = 'tourist_attraction museum park';
 
+function buildTypesHistogram(results: ServerPlace[]) {
+  const counts: Record<string, number> = {};
+  for (const r of results) {
+    for (const t of r.types || []) {
+      counts[t] = (counts[t] || 0) + 1;
+    }
+  }
+
+  const top = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 25)
+    .reduce<Record<string, number>>((acc, [k, v]) => {
+      acc[k] = v;
+      return acc;
+    }, {});
+
+  const sample = results.slice(0, 12).map((r) => ({
+    place_id: r.place_id,
+    name: namePreview(r.name),
+    types: typesPreview(r.types),
+  }));
+
+  return { top, sample };
+}
+
 async function fetchNearbyPage(params: {
   center: LatLng;
   radius: number;
@@ -403,11 +428,13 @@ export async function POST(req: Request) {
             ? SUPERCAT_3_KEYWORD
             : SUPERCAT_4_KEYWORD;
 
-    // Query strategy:
+    // Query strategy (1 llamada por supercat, sin OR):
     // - Supercat 1: `type=campground` (robusto multi-idioma)
-    // - Supercat 2/3/4: NearbySearch genérico (sin type/keyword) y filtrado por `types`
-    const queryType = supercat === 1 ? 'campground' : undefined;
-    const queryKeyword = supercat === 1 ? undefined : undefined;
+    // - Supercat 2: `keyword="restaurant supermarket"` (evita ruido totalmente genérico)
+    // - Supercat 3: `keyword="gas_station laundry"`
+    // - Supercat 4: `type=tourist_attraction`
+    const queryType = supercat === 1 ? 'campground' : supercat === 4 ? 'tourist_attraction' : undefined;
+    const queryKeyword = supercat === 2 ? SUPERCAT_2_KEYWORD : supercat === 3 ? SUPERCAT_3_KEYWORD : undefined;
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -494,9 +521,9 @@ export async function POST(req: Request) {
     const status = json.status || 'UNKNOWN';
     const results = (json.results || []).slice(0, 20);
 
-    const porteroAudit = porteroAuditResolved.mode === 'on'
-      ? buildPorteroAudit({ supercat, results, maxDiscardedSample: 20 })
-      : null;
+    const porteroAudit =
+      porteroAuditResolved.mode === 'on' ? buildPorteroAudit({ supercat, results, maxDiscardedSample: 20 }) : null;
+    const inputDebug = porteroAuditResolved.mode === 'on' ? buildTypesHistogram(results) : null;
 
     const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null; url?: string }> = [
       { status, resultsCount: results.length, durationMs, nextPageToken: json.next_page_token || null, url: redactGoogleKey(url) },
@@ -512,6 +539,7 @@ export async function POST(req: Request) {
       radius,
       requestedRadius,
       radiusCapMeters: capMeters,
+      query: { type: queryType ?? null, keyword: queryKeyword ?? null },
       totals: {
         pages,
         totalResults: results.length,
@@ -552,6 +580,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
@@ -563,6 +592,7 @@ export async function POST(req: Request) {
           resultsCount: camping.length,
           totals: basePayload.totals,
           pageLogs,
+          inputDebug: inputDebug ?? undefined,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
@@ -610,6 +640,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
@@ -621,6 +652,7 @@ export async function POST(req: Request) {
           resultsCount: restaurant.length + supermarket.length,
           totals: basePayload.totals,
           pageLogs,
+          inputDebug: inputDebug ?? undefined,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
@@ -668,6 +700,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
@@ -679,6 +712,7 @@ export async function POST(req: Request) {
           resultsCount: gas.length + laundry.length,
           totals: basePayload.totals,
           pageLogs,
+          inputDebug: inputDebug ?? undefined,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
@@ -725,6 +759,7 @@ export async function POST(req: Request) {
         center,
         radius,
         keyword,
+        query: { type: queryType ?? null, keyword: queryKeyword ?? null },
         porteroAuditMode: porteroAuditResolved.mode,
         porteroAuditSource: porteroAuditResolved.source,
         porteroAuditEnv: porteroAuditResolved.envValue,
@@ -736,6 +771,7 @@ export async function POST(req: Request) {
         resultsCount: tourism.length,
         totals: basePayload.totals,
         pageLogs,
+        inputDebug: inputDebug ?? undefined,
         porteroAuditMode: porteroAuditResolved.mode,
         porteroAuditSource: porteroAuditResolved.source,
         portero: porteroAudit ?? undefined,
