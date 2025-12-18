@@ -28,6 +28,23 @@ type PlacesNearbyResponse = {
   error_message?: string;
 };
 
+type NewPlacesNearbyPlace = {
+  id?: string;
+  name?: string; // resource name: places/PLACE_ID
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  shortFormattedAddress?: string;
+  location?: { latitude?: number; longitude?: number };
+  types?: string[];
+  primaryType?: string;
+  rating?: number;
+  userRatingCount?: number;
+};
+
+type NewPlacesNearbyResponse = {
+  places?: NewPlacesNearbyPlace[];
+};
+
 type Supercat = 1 | 2 | 3 | 4;
 
 type PlacesSupercatRequest = {
@@ -396,6 +413,83 @@ async function fetchNearbyPage(params: {
   return { json, durationMs: Math.round(duration), url: url.toString() };
 }
 
+function toServerPlaceFromNew(p: NewPlacesNearbyPlace): ServerPlace {
+  const placeId =
+    p.id ||
+    (typeof p.name === 'string' && p.name.includes('/') ? p.name.split('/').pop() : undefined);
+
+  const lat = p.location?.latitude;
+  const lng = p.location?.longitude;
+  const hasCoords = typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng);
+
+  return {
+    name: p.displayName?.text,
+    place_id: placeId,
+    types: Array.isArray(p.types) ? p.types : undefined,
+    rating: typeof p.rating === 'number' ? p.rating : undefined,
+    user_ratings_total: typeof p.userRatingCount === 'number' ? p.userRatingCount : undefined,
+    vicinity: p.shortFormattedAddress || p.formattedAddress,
+    geometry: hasCoords ? { location: { lat: lat as number, lng: lng as number } } : undefined,
+    // Note: Photos from Places API (New) are not compatible with legacy `photo_reference`.
+  };
+}
+
+async function fetchNearbyNew(params: {
+  center: LatLng;
+  radius: number;
+  includedTypes: string[];
+  apiKey: string;
+  maxResultCount?: number;
+}) {
+  const { center, radius, includedTypes, apiKey } = params;
+  const maxResultCount = Math.max(1, Math.min(20, Math.round(params.maxResultCount ?? 20)));
+
+  const url = 'https://places.googleapis.com/v1/places:searchNearby';
+  const body = {
+    includedTypes,
+    maxResultCount,
+    rankPreference: 'POPULARITY',
+    locationRestriction: {
+      circle: {
+        center: { latitude: center.lat, longitude: center.lng },
+        radius: radius,
+      },
+    },
+  };
+
+  const start = performance.now();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask':
+        'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.types,places.primaryType,places.rating,places.userRatingCount',
+    },
+    body: JSON.stringify(body),
+  });
+  const json = (await res.json()) as NewPlacesNearbyResponse;
+  const duration = performance.now() - start;
+
+  if (!res.ok) {
+    return {
+      ok: false as const,
+      status: `HTTP_${res.status}`,
+      durationMs: Math.round(duration),
+      url,
+      json,
+    };
+  }
+
+  return {
+    ok: true as const,
+    status: 'OK',
+    durationMs: Math.round(duration),
+    url,
+    json,
+  };
+}
+
 // Nota: se elimina paginación intencionalmente (1 llamada por supercat)
 
 export async function POST(req: Request) {
@@ -431,8 +525,8 @@ export async function POST(req: Request) {
             : SUPERCAT_4_KEYWORD;
 
     // Query strategy (cost-control):
-    // - Supercat 1: 2 llamadas precisas por type (campground + rv_park) para no depender
-    //   de `keyword` multi-palabra (se comporta como AND y puede dar 0/1 resultados).
+    // - Supercat 1: 1 llamada usando Places API (New) Nearby Search con `includedTypes`
+    //   (campground + rv_park) para no depender de `keyword` multi-palabra.
     // - Supercat 2: `keyword="restaurant supermarket"`
     // - Supercat 3: `keyword="gas station laundromat self service"`
     // - Supercat 4: `type=tourist_attraction`
@@ -446,8 +540,8 @@ export async function POST(req: Request) {
 
     const queryInfo =
       supercat === 1
-        ? { type: ['campground', 'rv_park'], keyword: null }
-        : { type: queryType ?? null, keyword: queryKeyword ?? null };
+        ? { provider: 'places-new', includedTypes: ['campground', 'rv_park'], keyword: null }
+        : { provider: 'places-legacy', type: queryType ?? null, keyword: queryKeyword ?? null };
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -456,7 +550,7 @@ export async function POST(req: Request) {
     const porteroAuditResolved = resolvePorteroAudit(req);
 
     // 0) Supabase cache HIT
-    const cacheNamespace = supercat === 1 ? 'places-supercat-v4' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
+    const cacheNamespace = supercat === 1 ? 'places-supercat-v5' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
@@ -536,24 +630,16 @@ export async function POST(req: Request) {
     let googleCalls = 0;
 
     if (supercat === 1) {
-      const p1 = await fetchNearbyPage({ center, radius, apiKey, type: 'campground' });
-      const p2 = await fetchNearbyPage({ center, radius, apiKey, type: 'rv_park' });
-      googleCalls = 2;
-      pages = 2;
+      const p = await fetchNearbyNew({ center, radius, apiKey, includedTypes: ['campground', 'rv_park'], maxResultCount: 20 });
+      googleCalls = 1;
+      pages = 1;
 
-      const status1 = p1.json.status || 'UNKNOWN';
-      const status2 = p2.json.status || 'UNKNOWN';
-      const r1 = (p1.json.results || []).slice(0, 20);
-      const r2 = (p2.json.results || []).slice(0, 20);
-
-      status = status1 === 'OK' || status2 === 'OK' ? 'OK' : status1;
-      results = [...r1, ...r2];
-      totalDurationMs = p1.durationMs + p2.durationMs;
-      firstPageUrl = redactGoogleKey(p1.url);
-      pageLogs = [
-        { status: status1, resultsCount: r1.length, durationMs: p1.durationMs, nextPageToken: p1.json.next_page_token || null, url: redactGoogleKey(p1.url) },
-        { status: status2, resultsCount: r2.length, durationMs: p2.durationMs, nextPageToken: p2.json.next_page_token || null, url: redactGoogleKey(p2.url) },
-      ];
+      status = p.status;
+      const raw = (p.ok ? (p.json.places || []) : []).slice(0, 20).map(toServerPlaceFromNew);
+      results = raw;
+      totalDurationMs = p.durationMs;
+      firstPageUrl = p.url;
+      pageLogs = [{ status, resultsCount: results.length, durationMs: p.durationMs, nextPageToken: null, url: p.url }];
     } else {
       const p = await fetchNearbyPage({ center, radius, apiKey, type: queryType, keyword: queryKeyword });
       googleCalls = 1;
