@@ -390,6 +390,11 @@ export default function TripMap({
                                     <div className="text-xs text-gray-400 mb-2">Sin valoración</div>
                                 )}
                                 <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{hoveredPlace.vicinity}</p>
+                                {hoveredPlace.note && (
+                                    <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700">
+                                        {hoveredPlace.note}
+                                    </div>
+                                )}
                                 <div className="flex gap-2">
                                     {selectedDayIndex !== null && !isSaved(hoveredPlace.place_id) && (<button onClick={() => { onAddPlace(hoveredPlace); setHoveredPlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}
                                     <button onClick={() => onPlaceClick(hoveredPlace)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold py-1.5 rounded border border-blue-200 transition-colors">Ver en Google</button>

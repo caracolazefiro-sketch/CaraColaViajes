@@ -13,6 +13,8 @@ type ServerPlace = {
     geometry?: { location?: Coordinates };
     opening_hours?: { open_now?: boolean };
     photos?: Array<{ photo_reference?: string }>;
+    note?: string;
+    link?: string;
 };
 
 export function useTripPlaces(
@@ -224,6 +226,8 @@ export function useTripPlaces(
             opening_hours: p.opening_hours as PlaceWithDistance['opening_hours'],
             photoUrl: toPhotoUrl(p),
             types: p.types,
+            note: p.note,
+            link: p.link,
         };
     }, [distanceFromCenter, toPhotoUrl]);
 

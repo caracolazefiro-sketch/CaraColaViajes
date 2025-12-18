@@ -30,6 +30,9 @@ CHEMA/ANALISIS/google-apis-capture-*.json
 
 # Local testing artifacts (PDF exports)
 CHEMA/TESTING/**/*.pdf
+
+# Local source PDFs / databases (do not commit)
+CHEMA/BASES DE DATOS/
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies

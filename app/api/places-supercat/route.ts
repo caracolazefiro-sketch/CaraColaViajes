@@ -19,6 +19,9 @@ type ServerPlace = {
   vicinity?: string;
   geometry?: { location: { lat: number; lng: number } };
   photos?: Array<{ photo_reference?: string }>;
+  // Optional extra info (non-Google sources)
+  note?: string;
+  link?: string;
 };
 
 type PlacesNearbyResponse = {
@@ -338,6 +341,61 @@ function uniqByPlaceId(arr: ServerPlace[]) {
   return out;
 }
 
+function haversineDistanceM(a: LatLng, b: LatLng) {
+  const R = 6371e3;
+  const φ1 = (a.lat * Math.PI) / 180;
+  const φ2 = (b.lat * Math.PI) / 180;
+  const Δφ = ((b.lat - a.lat) * Math.PI) / 180;
+  const Δλ = ((b.lng - a.lng) * Math.PI) / 180;
+  const sinΔφ = Math.sin(Δφ / 2);
+  const sinΔλ = Math.sin(Δλ / 2);
+  const x = sinΔφ * sinΔφ + Math.cos(φ1) * Math.cos(φ2) * sinΔλ * sinΔλ;
+  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+// MVP: single AreasAC sample entry so we can validate the UX before importing the full dataset.
+const AREASAC_SAMPLE_LEZUZA = {
+  id: 'areasac-es-albacete-lezuza-area-de-lezuza',
+  province: 'ALBACETE',
+  municipality: 'Lezuza',
+  name: 'Área de Lezuza',
+  // In the PDF this line ends with: "-2,35389 38,94778" (lng lat)
+  lat: 38.94778,
+  lng: -2.35389,
+  tags: {
+    type: 'PU',
+    flags: { openAllYear: true, free: true },
+    // Keep raw service codes for v1; we can map to human labels once we confirm the legend.
+    codes: ['PN', 'AL', 'AG', 'AN', 'PI', 'JU', 'RT', 'SM'],
+  },
+} as const;
+
+function maybeAddAreasAcSamples(params: { supercat: Supercat; center: LatLng; radius: number; results: ServerPlace[] }) {
+  if (params.supercat !== 1) return params.results;
+
+  const dist = haversineDistanceM(params.center, { lat: AREASAC_SAMPLE_LEZUZA.lat, lng: AREASAC_SAMPLE_LEZUZA.lng });
+  if (dist > params.radius) return params.results;
+
+  const noteParts: string[] = [];
+  noteParts.push(`ÁreasAC (${AREASAC_SAMPLE_LEZUZA.tags.type})`);
+  if (AREASAC_SAMPLE_LEZUZA.tags.flags.free) noteParts.push('Gratis');
+  if (AREASAC_SAMPLE_LEZUZA.tags.flags.openAllYear) noteParts.push('Todo el año');
+  if (AREASAC_SAMPLE_LEZUZA.tags.codes.length) noteParts.push(`Servicios: ${AREASAC_SAMPLE_LEZUZA.tags.codes.join(', ')}`);
+
+  const samplePlace: ServerPlace = {
+    place_id: `areasac:${AREASAC_SAMPLE_LEZUZA.id}`,
+    name: AREASAC_SAMPLE_LEZUZA.name,
+    vicinity: `${AREASAC_SAMPLE_LEZUZA.municipality}, ${AREASAC_SAMPLE_LEZUZA.province}`,
+    geometry: { location: { lat: AREASAC_SAMPLE_LEZUZA.lat, lng: AREASAC_SAMPLE_LEZUZA.lng } },
+    // Ensure it passes the camping classifier (server + client)
+    types: ['rv_park'],
+    note: noteParts.join(' · '),
+    link: `https://www.google.com/maps?q=${AREASAC_SAMPLE_LEZUZA.lat},${AREASAC_SAMPLE_LEZUZA.lng}`,
+  };
+
+  return uniqByPlaceId([...params.results, samplePlace]);
+}
+
 // Estrategia agresiva (control de coste): 1 llamada por bloque (máx 20 resultados)
 // 1) Spots (dormir)
 // Nota: NearbySearch `keyword` NO interpreta "OR" como booleano; suele comportarse como texto.
@@ -550,7 +608,9 @@ export async function POST(req: Request) {
     const porteroAuditResolved = resolvePorteroAudit(req);
 
     // 0) Supabase cache HIT
-    const cacheNamespace = supercat === 1 ? 'places-supercat-v5' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
+    // Bump supercat=1 cache namespace when query semantics change.
+    // v6: includes AreasAC (non-Google) sample injection.
+    const cacheNamespace = supercat === 1 ? 'places-supercat-v6' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
@@ -655,6 +715,8 @@ export async function POST(req: Request) {
 
     // Dedup defensivo (supercat=1 puede traer duplicados)
     results = uniqByPlaceId(results);
+    // MVP: inject one AreasAC sample if it falls within radius
+    results = maybeAddAreasAcSamples({ supercat, center, radius, results });
 
     const porteroAudit =
       porteroAuditResolved.mode === 'on' ? buildPorteroAudit({ supercat, results, maxDiscardedSample: 20 }) : null;
