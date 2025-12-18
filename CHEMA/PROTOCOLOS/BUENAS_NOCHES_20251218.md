@@ -27,6 +27,15 @@
 - Se mejoró UX/InfoWindow (logo, compactación, chips con leyenda) y se evitó que ÁreasAC desaparezca con rating mínimo.
 - Se añadió observabilidad de caché y un fallback v7→v6 para evitar coste por cambios de namespace.
 
+### Más cosas hechas hoy (también desde 07:00)
+- Se migró el flujo de “Spots (supercat=1)” a **Places API (New)** con una sola llamada controlada por `includedTypes`.
+- Se consolidó la estrategia de supercats 2–4 para usar **1 llamada** (Legacy) y luego clasificar/filtrar por types.
+- Se reforzó consistencia de payloads/cache:
+  - `resultsCount` en hits de cache.
+  - Dedupe de requests en cliente y reducción de llamadas duplicadas.
+  - TTL de cache de Places configurable (default 90 días).
+- Se añadió/ajustó tooling de auditoría (“portero”) + scripts/reporting para revisar descartes y tipos.
+
 ## 🔄 COMMITS (desde 07:00)
 - 76659cd — Fallback to previous places cache namespace
 - 41e35fc — Log places cache read debug
