@@ -298,7 +298,7 @@ function classifyGas(r: ServerPlace) {
 
 function classifyLaundry(r: ServerPlace) {
   const t = r.types || [];
-  return t.includes('laundry') && !t.includes('lodging');
+  return t.includes('laundry') && !t.includes('lodging') && !t.includes('dry_cleaner');
 }
 
 function classifyTourism(r: ServerPlace) {
@@ -324,8 +324,9 @@ function uniqByPlaceId(arr: ServerPlace[]) {
 // Estrategia agresiva (control de coste): 1 llamada por bloque (máx 20 resultados)
 // 1) Spots (dormir)
 // Nota: NearbySearch `keyword` NO interpreta "OR" como booleano; suele comportarse como texto.
-// Para evitar ZERO_RESULTS sistemáticos en algunos países (p.ej. Alemania), preferimos `type=campground`.
-const SUPERCAT_1_KEYWORD = 'camping';
+// Queremos incluir tanto campings (campground) como áreas de autocaravanas / RV parks.
+// Usamos un keyword multi-idioma (sin OR) y filtramos por `types` con Portero.
+const SUPERCAT_1_KEYWORD = 'camping camper motorhome autocaravana rv park stellplatz';
 
 // 2) Comer + Super (una sola llamada, luego se reparte)
 // Nota: `keyword` no interpreta OR. Para no sesgar/romper resultados por idioma,
@@ -333,7 +334,8 @@ const SUPERCAT_1_KEYWORD = 'camping';
 const SUPERCAT_2_KEYWORD = 'restaurant supermarket';
 
 // 3) Gas + Lavar (una sola llamada, luego se reparte)
-const SUPERCAT_3_KEYWORD = 'gas_station laundry';
+// Evitar "tintorerías" (dry_cleaner): sesgo a laundromat / autoservicio.
+const SUPERCAT_3_KEYWORD = 'gas station laundromat self service';
 
 // 4) Turismo
 const SUPERCAT_4_KEYWORD = 'tourist_attraction museum park';
@@ -429,12 +431,19 @@ export async function POST(req: Request) {
             : SUPERCAT_4_KEYWORD;
 
     // Query strategy (1 llamada por supercat, sin OR):
-    // - Supercat 1: `type=campground` (robusto multi-idioma)
-    // - Supercat 2: `keyword="restaurant supermarket"` (evita ruido totalmente genérico)
-    // - Supercat 3: `keyword="gas_station laundry"`
+    // - Supercat 1: keyword (camping + rv/camper) y filtrado por `types`
+    // - Supercat 2: `keyword="restaurant supermarket"`
+    // - Supercat 3: `keyword="gas station laundromat self service"`
     // - Supercat 4: `type=tourist_attraction`
-    const queryType = supercat === 1 ? 'campground' : supercat === 4 ? 'tourist_attraction' : undefined;
-    const queryKeyword = supercat === 2 ? SUPERCAT_2_KEYWORD : supercat === 3 ? SUPERCAT_3_KEYWORD : undefined;
+    const queryType = supercat === 4 ? 'tourist_attraction' : undefined;
+    const queryKeyword =
+      supercat === 1
+        ? SUPERCAT_1_KEYWORD
+        : supercat === 2
+          ? SUPERCAT_2_KEYWORD
+          : supercat === 3
+            ? SUPERCAT_3_KEYWORD
+            : undefined;
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -443,13 +452,14 @@ export async function POST(req: Request) {
     const porteroAuditResolved = resolvePorteroAudit(req);
 
     // 0) Supabase cache HIT
+    const cacheNamespace = supercat === 1 || supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
       lng: center.lng,
       radius,
-      // v2 for all supercats so old cache rows don't stick after changing query semantics
-      namespace: 'places-supercat-v2',
+      // bump version where query semantics changed
+      namespace: cacheNamespace,
     });
     const cached = await getPlacesSupercatCache({ key: cacheKey.key });
     if (cached.ok && cached.hit) {
@@ -487,6 +497,7 @@ export async function POST(req: Request) {
           requestedRadius,
           radiusCapMeters: capMeters,
           keyword,
+          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
