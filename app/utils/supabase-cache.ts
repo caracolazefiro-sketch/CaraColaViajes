@@ -167,7 +167,7 @@ export async function upsertPlacesSupercatCache(params: {
 }) {
   if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
 
-  const ttlDays = params.ttlDays ?? 7;
+  const ttlDays = params.ttlDays ?? 90;
   const expires_at = addDaysIso(ttlDays);
 
   const { error } = await supabaseServer

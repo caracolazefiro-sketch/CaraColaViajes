@@ -73,6 +73,43 @@ En la home, cuando pulsas un botón de búsqueda por categoría (restaurantes/ca
 
 ## 3) El “Portero de discoteca” (reglas de control de llamadas)
 
+## 3.0) Tabla rápida: qué se guarda en caché y cuánto dura
+
+Objetivo de esta tabla: que en 30 segundos sepamos **qué dato cacheamos**, **dónde**, y **cuántos días**.
+
+### Caché en Supabase (server)
+- **Google Directions (server)**
+  - Dato guardado: respuesta completa de Directions (payload) + resumen
+  - Tabla: `api_cache_directions`
+  - TTL: **30 días** (por defecto)
+
+- **Google Geocoding (server, reverse geocoding)**
+  - Dato guardado: nombre ciudad + payload + metadatos (`resolved_from`)
+  - Tabla: `api_cache_geocoding`
+  - TTL: **30 días** (por defecto)
+  - Nota: paradas tácticas usan namespace `geocode-tactical` y redondeo más agresivo para aumentar HIT.
+
+- **Google Places (server, Nearby Search “supercat”)**
+  - Dato guardado: listas de POIs filtradas por “supercat” (camping/restaurantes/super/gas/lavandería/turismo)
+  - Tabla: `api_cache_places_supercat`
+  - TTL: **90 días** (por defecto)
+  - Configurable en despliegue: `PLACES_SUPERCAT_CACHE_TTL_DAYS` (límite defensivo 1..365)
+
+### Caché en cliente (browser)
+- **Estado del viaje**
+  - Dato guardado: formulario + itinerary + saved places, etc.
+  - LocalStorage: `caracola_trip_v1`
+  - TTL: **no aplica** (persistente hasta limpiar navegador)
+
+- **Google Maps JS (cliente)**
+  - DirectionsService/Geocoder internos: pueden tener caching interno/opaco del SDK, pero **NO lo contamos como caché nuestra**.
+  - TTL: **no controlable**
+
+- **(Pendiente) Portero cliente para Geocoder**
+  - Propuesta: caché en `localStorage` para `google.maps.Geocoder().geocode()` (address→coords y/o latlng→city)
+  - TTL recomendado: **30–90 días** (depende de estabilidad deseada)
+
+
 ### 3.1 Directions (server)
 Regla:
 1) Construye una key estable por parámetros: `travelMode|origin|destination|waypoints`.

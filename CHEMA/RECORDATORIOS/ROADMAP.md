@@ -180,6 +180,10 @@ Esfuerzo:        ⭐⭐ Media (1-2 semanas)
 Timeline:        Después de Option B
 ```
 
+✅ **Actualización (18 Dic 2025):** el flujo actual de búsqueda por “supercats” ya cachea en **Supabase** (`api_cache_places_supercat`) con TTL por defecto **90 días** para maximizar ahorro.
+- Configurable: `PLACES_SUPERCAT_CACHE_TTL_DAYS` (Preview/Production)
+- Nota: esto es caché **server-side** (compartida entre usuarios), diferente del caché client-side propuesto.
+
 ---
 
 ### 🌍 OPENSTREETMAP/NOMINATIM - DATOS DISPONIBLES

@@ -38,6 +38,14 @@ type PlacesSupercatRequest = {
   supercat: Supercat;
 };
 
+function getPlacesSupercatCacheTtlDays() {
+  const raw = process.env.PLACES_SUPERCAT_CACHE_TTL_DAYS;
+  const parsed = raw != null ? Number.parseInt(raw, 10) : NaN;
+  // Default: 90 días. Límites defensivos para evitar valores absurdos.
+  if (!Number.isFinite(parsed)) return 90;
+  return Math.max(1, Math.min(365, parsed));
+}
+
 const SUPERCAT_RADIUS_CAP_METERS: Record<Supercat, number> = {
   1: 25_000,
   2: 8_000,
@@ -158,6 +166,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, reason: 'no-google-key' }, { status: 500 });
     }
 
+    const placesCacheTtlDays = getPlacesSupercatCacheTtlDays();
+
     const body = (await req.json()) as Partial<PlacesSupercatRequest>;
     const supercat = body.supercat;
     const center = body.center;
@@ -212,6 +222,7 @@ export async function POST(req: Request) {
           requestedRadius,
           radiusCapMeters: capMeters,
           keyword,
+          cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
         },
         response: {
@@ -264,7 +275,7 @@ export async function POST(req: Request) {
         centerLng: cacheKey.lng,
         radius: cacheKey.radius,
         payload,
-        ttlDays: 7,
+        ttlDays: placesCacheTtlDays,
       });
 
       const cacheWrite = up.ok
@@ -286,6 +297,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
         response: {
@@ -316,7 +328,7 @@ export async function POST(req: Request) {
         centerLng: cacheKey.lng,
         radius: cacheKey.radius,
         payload,
-        ttlDays: 7,
+        ttlDays: placesCacheTtlDays,
       });
       const cacheWrite = up.ok
         ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
@@ -337,6 +349,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
         response: {
@@ -367,7 +380,7 @@ export async function POST(req: Request) {
         centerLng: cacheKey.lng,
         radius: cacheKey.radius,
         payload,
-        ttlDays: 7,
+        ttlDays: placesCacheTtlDays,
       });
       const cacheWrite = up.ok
         ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
@@ -388,6 +401,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
         response: {
@@ -417,7 +431,7 @@ export async function POST(req: Request) {
       centerLng: cacheKey.lng,
       radius: cacheKey.radius,
       payload,
-      ttlDays: 7,
+      ttlDays: placesCacheTtlDays,
     });
     const cacheWrite = up.ok
       ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
@@ -438,6 +452,7 @@ export async function POST(req: Request) {
         center,
         radius,
         keyword,
+        cacheTtlDays: placesCacheTtlDays,
         cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
       },
       response: {
