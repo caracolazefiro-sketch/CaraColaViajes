@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 import { logApiToSupabase } from '../../utils/server-logs';
 import {
@@ -356,47 +360,98 @@ function haversineDistanceM(a: LatLng, b: LatLng) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-// MVP: single AreasAC sample entry so we can validate the UX before importing the full dataset.
-const AREASAC_SAMPLE_LEZUZA = {
-  id: 'areasac-es-albacete-lezuza-area-de-lezuza',
-  province: 'ALBACETE',
-  municipality: 'Lezuza',
-  name: 'Área de Lezuza',
-  // In the PDF this line ends with: "-2,35389 38,94778" (lng lat)
-  lat: 38.94778,
-  lng: -2.35389,
-  tags: {
-    type: 'PU',
-    flags: { openAllYear: true, free: true },
-    // Keep raw service codes for v1; we can map to human labels once we confirm the legend.
-    codes: ['PN', 'AL', 'AG', 'AN', 'PI', 'JU', 'RT', 'SM'],
-  },
-} as const;
+type AreasAcEntry = {
+  id: string;
+  province?: string;
+  municipality?: string;
+  name?: string;
+  rawTags?: string;
+  tags?: {
+    type?: string;
+    flags?: {
+      openAllYear?: boolean;
+      paid?: boolean;
+      free?: boolean;
+      warning?: boolean;
+    };
+    codes?: string[];
+  };
+  coordinates?: { lat: number; lng: number };
+};
 
-function maybeAddAreasAcSamples(params: { supercat: Supercat; center: LatLng; radius: number; results: ServerPlace[] }) {
-  if (params.supercat !== 1) return params.results;
+let AREASAC_DATASET: AreasAcEntry[] | null = null;
+let AREASAC_DATASET_LOAD_ERROR: string | null = null;
 
-  const dist = haversineDistanceM(params.center, { lat: AREASAC_SAMPLE_LEZUZA.lat, lng: AREASAC_SAMPLE_LEZUZA.lng });
-  if (dist > params.radius) return params.results;
+async function loadAreasAcDataset(): Promise<AreasAcEntry[]> {
+  if (AREASAC_DATASET) return AREASAC_DATASET;
+  if (AREASAC_DATASET_LOAD_ERROR) return [];
+
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'areasac-espana-20210630.json');
+    const raw = await fs.readFile(filePath, 'utf8');
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      AREASAC_DATASET_LOAD_ERROR = 'areasac-json-not-array';
+      return [];
+    }
+    AREASAC_DATASET = parsed as AreasAcEntry[];
+    return AREASAC_DATASET;
+  } catch (e) {
+    AREASAC_DATASET_LOAD_ERROR = e instanceof Error ? e.message : 'unknown';
+    return [];
+  }
+}
+
+function toAreasAcServerPlace(entry: AreasAcEntry): ServerPlace | null {
+  const loc = entry.coordinates;
+  if (!loc || !Number.isFinite(loc.lat) || !Number.isFinite(loc.lng)) return null;
+
+  const type = (entry.tags?.type || '').toUpperCase();
+  const flags = entry.tags?.flags;
+  const codes = (entry.tags?.codes || []).map((c) => (c || '').toUpperCase()).filter(Boolean);
 
   const noteParts: string[] = [];
-  noteParts.push(`ÁreasAC (${AREASAC_SAMPLE_LEZUZA.tags.type})`);
-  if (AREASAC_SAMPLE_LEZUZA.tags.flags.free) noteParts.push('Gratis');
-  if (AREASAC_SAMPLE_LEZUZA.tags.flags.openAllYear) noteParts.push('Todo el año');
-  if (AREASAC_SAMPLE_LEZUZA.tags.codes.length) noteParts.push(`Servicios: ${AREASAC_SAMPLE_LEZUZA.tags.codes.join(', ')}`);
+  noteParts.push(`ÁreasAC${type ? ` (${type})` : ''}`);
+  if (flags?.free) noteParts.push('Gratis');
+  else if (flags?.paid) noteParts.push('Pago');
+  if (flags?.openAllYear) noteParts.push('Todo el año');
+  if (flags?.warning) noteParts.push('Aviso');
+  if (codes.length) noteParts.push(`Servicios: ${codes.join(', ')}`);
 
-  const samplePlace: ServerPlace = {
-    place_id: `areasac:${AREASAC_SAMPLE_LEZUZA.id}`,
-    name: AREASAC_SAMPLE_LEZUZA.name,
-    vicinity: `${AREASAC_SAMPLE_LEZUZA.municipality}, ${AREASAC_SAMPLE_LEZUZA.province}`,
-    geometry: { location: { lat: AREASAC_SAMPLE_LEZUZA.lat, lng: AREASAC_SAMPLE_LEZUZA.lng } },
+  const province = (entry.province || '').trim();
+  const municipality = (entry.municipality || '').trim();
+  const vicinity = [municipality, province].filter(Boolean).join(', ') || undefined;
+
+  return {
+    place_id: `areasac:${entry.id}`,
+    name: (entry.name || '').trim() || 'Área (ÁreasAC)',
+    vicinity,
+    geometry: { location: { lat: loc.lat, lng: loc.lng } },
     // Ensure it passes the camping classifier (server + client)
     types: ['rv_park'],
     note: noteParts.join(' · '),
-    link: `https://www.google.com/maps?q=${AREASAC_SAMPLE_LEZUZA.lat},${AREASAC_SAMPLE_LEZUZA.lng}`,
+    link: `https://www.google.com/maps?q=${loc.lat},${loc.lng}`,
   };
+}
 
-  return uniqByPlaceId([...params.results, samplePlace]);
+async function getAreasAcNearby(params: { center: LatLng; radius: number; maxResults: number }): Promise<ServerPlace[]> {
+  const dataset = await loadAreasAcDataset();
+  if (!dataset.length) return [];
+
+  const out: Array<{ place: ServerPlace; distM: number }> = [];
+  for (const entry of dataset) {
+    const loc = entry.coordinates;
+    if (!loc) continue;
+    const distM = haversineDistanceM(params.center, { lat: loc.lat, lng: loc.lng });
+    if (distM > params.radius) continue;
+
+    const place = toAreasAcServerPlace(entry);
+    if (!place) continue;
+    out.push({ place, distM });
+  }
+
+  out.sort((a, b) => a.distM - b.distM);
+  return uniqByPlaceId(out.slice(0, Math.max(0, params.maxResults)).map((x) => x.place));
 }
 
 // Estrategia agresiva (control de coste): 1 llamada por bloque (máx 20 resultados)
@@ -615,8 +670,8 @@ export async function POST(req: Request) {
 
     // 0) Supabase cache HIT
     // Bump supercat=1 cache namespace when query semantics change.
-    // v6: includes AreasAC (non-Google) sample injection.
-    const cacheNamespace = supercat === 1 ? 'places-supercat-v6' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
+    // v7: includes full AreasAC dataset integration + ordering (AreasAC first, by distance).
+    const cacheNamespace = supercat === 1 ? 'places-supercat-v7' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
@@ -721,8 +776,28 @@ export async function POST(req: Request) {
 
     // Dedup defensivo (supercat=1 puede traer duplicados)
     results = uniqByPlaceId(results);
-    // MVP: inject one AreasAC sample if it falls within radius
-    results = maybeAddAreasAcSamples({ supercat, center, radius, results });
+    const AREASAC_CAMPING_MAX = 10;
+    const CAMPING_MAX = 20;
+
+    const googleCamping = supercat === 1 ? uniqByPlaceId(results.filter(classifyCamping)) : [];
+    const areasAcCamping =
+      supercat === 1 ? await getAreasAcNearby({ center, radius, maxResults: AREASAC_CAMPING_MAX }) : [];
+
+    if (supercat === 1) {
+      // Preserve some Google results (freshness/photos), while keeping AreasAC first.
+      const googleSorted = googleCamping
+        .map((p) => ({
+          p,
+          d: haversineDistanceM(center, {
+            lat: p.geometry?.location?.lat ?? center.lat,
+            lng: p.geometry?.location?.lng ?? center.lng,
+          }),
+        }))
+        .sort((a, b) => a.d - b.d)
+        .map((x) => x.p);
+
+      results = uniqByPlaceId([...areasAcCamping, ...googleSorted]).slice(0, CAMPING_MAX);
+    }
 
     const porteroAudit =
       porteroAuditResolved.mode === 'on' ? buildPorteroAudit({ supercat, results, maxDiscardedSample: 20 }) : null;
