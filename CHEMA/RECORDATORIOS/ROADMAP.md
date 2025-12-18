@@ -184,6 +184,13 @@ Timeline:        Después de Option B
 - Configurable: `PLACES_SUPERCAT_CACHE_TTL_DAYS` (Preview/Production)
 - Nota: esto es caché **server-side** (compartida entre usuarios), diferente del caché client-side propuesto.
 
+🟡 **Mejora propuesta (18 Dic 2025): Portero Places – Opción B (auditoría persistente)**
+- Objetivo: poder analizar y mejorar el “portero” guardando también (o al menos registrando) los **descartados** con motivo, no solo los “kept”.
+- Implementación futura: crear tabla dedicada (p.ej. `api_portero_audit_places`) con `trip_id`, `cache_key`, `supercat`, `place_id`, `keep`, `keep_as`, `reason_code`, `types`, `name`, `created_at` + índices.
+- Retención: 7–30 días + limpieza automática (evitar crecimiento infinito).
+- Herramientas: visor online + report script (agregados por `reason_code`, top tipos descartados, drift por zona).
+- Nota: ya existe Opción A (MVP) vía `api_logs.response.portero` activable con `PLACES_PORTERO_AUDIT=1`.
+
 ---
 
 ### 🌍 OPENSTREETMAP/NOMINATIM - DATOS DISPONIBLES

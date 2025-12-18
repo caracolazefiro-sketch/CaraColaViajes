@@ -71,6 +71,191 @@ function classifyCamping(r: ServerPlace) {
   return (campingTag || parkingCamping) && !esTienda;
 }
 
+type PorteroDecision = {
+  place_id?: string;
+  name?: string;
+  types?: string[];
+  rating?: number;
+  user_ratings_total?: number;
+  vicinity?: string;
+  keep: boolean;
+  keepAs?: string;
+  reasons: string[];
+};
+
+function getPorteroAuditMode(): 'off' | 'on' {
+  const raw = String(process.env.PLACES_PORTERO_AUDIT || '').trim().toLowerCase();
+  if (raw === '1' || raw === 'true' || raw === 'on' || raw === 'yes') return 'on';
+  return 'off';
+}
+
+function namePreview(s: string | undefined, maxLen = 80) {
+  const v = String(s || '').trim();
+  if (!v) return undefined;
+  return v.length > maxLen ? `${v.slice(0, maxLen)}…` : v;
+}
+
+function typesPreview(types: string[] | undefined, maxLen = 8) {
+  if (!Array.isArray(types)) return undefined;
+  const cleaned = types.filter(Boolean);
+  if (cleaned.length <= maxLen) return cleaned;
+  return cleaned.slice(0, maxLen);
+}
+
+function decideSupercat(supercat: Supercat, r: ServerPlace): PorteroDecision {
+  const t = r.types || [];
+  const name = r.name || '';
+  const reasons: string[] = [];
+
+  const id = r.place_id || '';
+  if (!id) reasons.push('NO_PLACE_ID');
+
+  if (supercat === 1) {
+    const campingTag = t.includes('campground') || t.includes('rv_park');
+    const parkingCamping = t.includes('parking') && /camping|area|camper|autocaravana/i.test(name);
+    const esTienda = t.includes('hardware_store') || t.includes('store') || t.includes('shopping_mall');
+    if (esTienda) reasons.push('EXCLUDED_STORE');
+    if (!campingTag && !parkingCamping) reasons.push('NOT_CAMPING_TAG');
+
+    const keep = id.length > 0 && (campingTag || parkingCamping) && !esTienda;
+    return {
+      place_id: r.place_id,
+      name: namePreview(r.name),
+      types: typesPreview(r.types),
+      rating: r.rating,
+      user_ratings_total: r.user_ratings_total,
+      vicinity: namePreview(r.vicinity, 110),
+      keep,
+      keepAs: keep ? 'camping' : undefined,
+      reasons: keep ? [] : reasons,
+    };
+  }
+
+  if (supercat === 2) {
+    const isRestaurant = classifyRestaurant(r);
+    const isSupermarket = classifySupermarket(r);
+    if (!isRestaurant && !isSupermarket) reasons.push('NOT_RESTAURANT_OR_SUPERMARKET');
+
+    const keep = id.length > 0 && (isRestaurant || isSupermarket);
+    return {
+      place_id: r.place_id,
+      name: namePreview(r.name),
+      types: typesPreview(r.types),
+      rating: r.rating,
+      user_ratings_total: r.user_ratings_total,
+      vicinity: namePreview(r.vicinity, 110),
+      keep,
+      keepAs: keep ? (isRestaurant ? 'restaurant' : 'supermarket') : undefined,
+      reasons: keep ? [] : reasons,
+    };
+  }
+
+  if (supercat === 3) {
+    const isGas = classifyGas(r);
+    const isLaundry = classifyLaundry(r);
+    if (!isGas && !isLaundry) reasons.push('NOT_GAS_OR_LAUNDRY');
+
+    const keep = id.length > 0 && (isGas || isLaundry);
+    return {
+      place_id: r.place_id,
+      name: namePreview(r.name),
+      types: typesPreview(r.types),
+      rating: r.rating,
+      user_ratings_total: r.user_ratings_total,
+      vicinity: namePreview(r.vicinity, 110),
+      keep,
+      keepAs: keep ? (isGas ? 'gas' : 'laundry') : undefined,
+      reasons: keep ? [] : reasons,
+    };
+  }
+
+  // supercat === 4
+  const isTourism = classifyTourism(r);
+  if (!isTourism) reasons.push('NOT_TOURISM');
+
+  const keep = id.length > 0 && isTourism;
+  return {
+    place_id: r.place_id,
+    name: namePreview(r.name),
+    types: typesPreview(r.types),
+    rating: r.rating,
+    user_ratings_total: r.user_ratings_total,
+    vicinity: namePreview(r.vicinity, 110),
+    keep,
+    keepAs: keep ? 'tourism' : undefined,
+    reasons: keep ? [] : reasons,
+  };
+}
+
+function buildPorteroAudit(params: {
+  supercat: Supercat;
+  results: ServerPlace[];
+  maxDiscardedSample?: number;
+}) {
+  const maxDiscardedSample = params.maxDiscardedSample ?? 20;
+  const seen = new Set<string>();
+  const decisions: PorteroDecision[] = [];
+  const discardedSample: Array<Pick<PorteroDecision, 'place_id' | 'name' | 'types' | 'rating' | 'user_ratings_total' | 'vicinity' | 'reasons'>> = [];
+  const reasonsCount: Record<string, number> = {};
+  const keptAsCount: Record<string, number> = {};
+
+  let input = 0;
+  let noPlaceId = 0;
+  let dupPlaceId = 0;
+  let kept = 0;
+  let discarded = 0;
+
+  for (const r of params.results) {
+    input++;
+    const d = decideSupercat(params.supercat, r);
+
+    const id = d.place_id || '';
+    if (!id) {
+      noPlaceId++;
+    } else if (seen.has(id)) {
+      dupPlaceId++;
+      d.keep = false;
+      d.keepAs = undefined;
+      d.reasons = [...(d.reasons || []), 'DUPLICATE_PLACE_ID'];
+    } else {
+      seen.add(id);
+    }
+
+    if (d.keep) {
+      kept++;
+      if (d.keepAs) keptAsCount[d.keepAs] = (keptAsCount[d.keepAs] || 0) + 1;
+    } else {
+      discarded++;
+      for (const reason of d.reasons) reasonsCount[reason] = (reasonsCount[reason] || 0) + 1;
+      if (discardedSample.length < maxDiscardedSample) {
+        discardedSample.push({
+          place_id: d.place_id,
+          name: d.name,
+          types: d.types,
+          rating: d.rating,
+          user_ratings_total: d.user_ratings_total,
+          vicinity: d.vicinity,
+          reasons: d.reasons,
+        });
+      }
+    }
+
+    decisions.push(d);
+  }
+
+  return {
+    input,
+    uniqueWithPlaceId: seen.size,
+    kept,
+    discarded,
+    noPlaceId,
+    duplicatePlaceId: dupPlaceId,
+    keptAsCount,
+    reasonsCount,
+    discardedSample,
+  };
+}
+
 function classifyRestaurant(r: ServerPlace) {
   const t = r.types || [];
   return t.includes('restaurant') || t.includes('cafe') || t.includes('food') || t.includes('meal_takeaway');
@@ -222,11 +407,13 @@ export async function POST(req: Request) {
           requestedRadius,
           radiusCapMeters: capMeters,
           keyword,
+          porteroAuditMode: getPorteroAuditMode(),
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
         },
         response: {
           status: 'CACHE_HIT_SUPABASE',
+          porteroAuditMode: getPorteroAuditMode(),
           cache: { provider: 'supabase', key: cacheKey.key, expiresAt: cached.expiresAt },
           cacheWrite: { provider: 'supabase', action: 'none' },
         },
@@ -242,6 +429,11 @@ export async function POST(req: Request) {
     const { json, durationMs, url } = await fetchNearbyPage({ center, radius, keyword, apiKey });
     const status = json.status || 'UNKNOWN';
     const results = (json.results || []).slice(0, 20);
+
+    const porteroAuditMode = getPorteroAuditMode();
+    const porteroAudit = porteroAuditMode === 'on'
+      ? buildPorteroAudit({ supercat, results, maxDiscardedSample: 20 })
+      : null;
 
     const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null; url?: string }> = [
       { status, resultsCount: results.length, durationMs, nextPageToken: json.next_page_token || null, url: redactGoogleKey(url) },
@@ -297,6 +489,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          porteroAuditMode,
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
@@ -305,6 +498,8 @@ export async function POST(req: Request) {
           resultsCount: camping.length,
           totals: basePayload.totals,
           pageLogs,
+          porteroAuditMode,
+          portero: porteroAudit ?? undefined,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
         },
@@ -349,6 +544,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          porteroAuditMode,
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
@@ -357,6 +553,8 @@ export async function POST(req: Request) {
           resultsCount: restaurant.length + supermarket.length,
           totals: basePayload.totals,
           pageLogs,
+          porteroAuditMode,
+          portero: porteroAudit ?? undefined,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
         },
@@ -401,6 +599,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
+          porteroAuditMode,
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
@@ -409,6 +608,8 @@ export async function POST(req: Request) {
           resultsCount: gas.length + laundry.length,
           totals: basePayload.totals,
           pageLogs,
+          porteroAuditMode,
+          portero: porteroAudit ?? undefined,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
         },
@@ -452,6 +653,7 @@ export async function POST(req: Request) {
         center,
         radius,
         keyword,
+        porteroAuditMode,
         cacheTtlDays: placesCacheTtlDays,
         cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
       },
@@ -460,6 +662,8 @@ export async function POST(req: Request) {
         resultsCount: tourism.length,
         totals: basePayload.totals,
         pageLogs,
+        porteroAuditMode,
+        portero: porteroAudit ?? undefined,
         cache: { provider: 'supabase', key: cacheKey.key, hit: false },
         cacheWrite,
       },

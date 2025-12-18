@@ -47,6 +47,18 @@ export default function LogsViewerSupabase() {
   const [compareTripA, setCompareTripA] = useState<string>('');
   const [compareTripB, setCompareTripB] = useState<string>('');
 
+  const [viewerToken, setViewerToken] = useState('');
+  const [tableName, setTableName] = useState<'api_logs' | 'api_cache_geocoding' | 'api_cache_places_supercat' | 'api_cache_directions'>('api_cache_places_supercat');
+  const [tableKey, setTableKey] = useState('');
+  const [tableTripId, setTableTripId] = useState('');
+  const [tableApi, setTableApi] = useState('');
+  const [tableIncludePayload, setTableIncludePayload] = useState(false);
+  const [tableLimit, setTableLimit] = useState(50);
+  const [tableOffset, setTableOffset] = useState(0);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [tableError, setTableError] = useState<string | null>(null);
+  const [tableData, setTableData] = useState<unknown>(null);
+
   const isProdHost =
     typeof window !== 'undefined' &&
     window.location.hostname ===
@@ -54,7 +66,7 @@ export default function LogsViewerSupabase() {
 
   useEffect(() => {
     if (isProdHost) return;
-    fetch('/api/logs-supabase?limit=200')
+    fetch('/api/logs-supabase?limit=500')
       .then(res => res.json())
       .then(data => {
         if (data.error) setError(data.error); else setLogs(data.logs || []);
@@ -62,6 +74,12 @@ export default function LogsViewerSupabase() {
       })
       .catch(err => { setError(err.message); setLoading(false); });
   }, [isProdHost]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('caracola_supabase_viewer_token');
+    if (saved) setViewerToken(saved);
+  }, []);
 
   if (isProdHost) {
     return <div style={{ padding: '2rem' }}>❌ Página no disponible en producción.</div>;
@@ -189,6 +207,46 @@ export default function LogsViewerSupabase() {
 
   const formatDeltaInt = (n: number) => `${n >= 0 ? '+' : ''}${String(n)}`;
   const formatDeltaUsd = (n: number) => `${n >= 0 ? '+' : ''}${formatUsd(n)}`;
+
+  const fetchTable = async () => {
+    setTableLoading(true);
+    setTableError(null);
+    setTableData(null);
+
+    try {
+      const params = new URLSearchParams();
+      params.set('table', tableName);
+      params.set('limit', String(Math.min(200, Math.max(1, tableLimit || 50))));
+      params.set('offset', String(Math.max(0, tableOffset || 0)));
+      if (tableIncludePayload) params.set('includePayload', '1');
+      if (tableName === 'api_logs') {
+        if (tableTripId.trim()) params.set('tripId', tableTripId.trim());
+        if (tableApi.trim()) params.set('api', tableApi.trim());
+      } else {
+        if (tableKey.trim()) params.set('key', tableKey.trim());
+      }
+
+      const headers: Record<string, string> = {};
+      if (viewerToken.trim()) headers['x-supabase-viewer-token'] = viewerToken.trim();
+
+      const res = await fetch(`/api/supabase-table?${params.toString()}`, {
+        headers,
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const msg = typeof json?.error === 'string' ? json.error : `HTTP ${res.status}`;
+        setTableError(msg);
+        setTableData(json);
+        return;
+      }
+      setTableData(json);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setTableError(msg);
+    } finally {
+      setTableLoading(false);
+    }
+  };
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
@@ -641,6 +699,146 @@ export default function LogsViewerSupabase() {
           );
         })}
       </div>
+
+      <details style={{ marginTop: 18, border: '1px solid #e5e7eb', borderRadius: 10, background: 'white', padding: 12 }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#111827' }}>🗄️ Ver tablas en Supabase (solo lectura)</summary>
+
+        <div style={{ marginTop: 10, color: '#6b7280', fontSize: 12, lineHeight: 1.5 }}>
+          Esta herramienta existe para inspección rápida en dev/staging. En producción está deshabilitada.
+          Si el entorno define <span style={{ fontFamily: 'monospace' }}>SUPABASE_VIEWER_TOKEN</span>, debes introducirlo aquí.
+        </div>
+
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 900 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Tabla</div>
+            <select
+              value={tableName}
+              onChange={(e) => {
+                const v = e.target.value as typeof tableName;
+                setTableName(v);
+                setTableError(null);
+                setTableData(null);
+              }}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, background: 'white' }}
+            >
+              <option value="api_logs">api_logs</option>
+              <option value="api_cache_geocoding">api_cache_geocoding</option>
+              <option value="api_cache_places_supercat">api_cache_places_supercat</option>
+              <option value="api_cache_directions">api_cache_directions</option>
+            </select>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Token (opcional)</div>
+            <input
+              value={viewerToken}
+              onChange={(e) => {
+                const v = e.target.value;
+                setViewerToken(v);
+                if (typeof window !== 'undefined') {
+                  if (v.trim()) window.localStorage.setItem('caracola_supabase_viewer_token', v.trim());
+                  else window.localStorage.removeItem('caracola_supabase_viewer_token');
+                }
+              }}
+              placeholder="SUPABASE_VIEWER_TOKEN"
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 900 }}>
+          {tableName === 'api_logs' ? (
+            <>
+              <div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Filtro tripId (opcional)</div>
+                <input
+                  value={tableTripId}
+                  onChange={(e) => setTableTripId(e.target.value)}
+                  placeholder="trip-..."
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Filtro api (opcional)</div>
+                <input
+                  value={tableApi}
+                  onChange={(e) => setTableApi(e.target.value)}
+                  placeholder="google-places | google-geocoding | google-directions"
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ gridColumn: '1 / span 2' }}>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Filtro key (exacto, opcional)</div>
+                <input
+                  value={tableKey}
+                  onChange={(e) => setTableKey(e.target.value)}
+                  placeholder="Ej: places-supercat:1:39.4740,-0.3745:25000"
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontFamily: 'monospace' }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div style={{ marginTop: 10, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#111827' }}>
+            <input type="checkbox" checked={tableIncludePayload} onChange={(e) => setTableIncludePayload(e.target.checked)} />
+            incluir payload (más pesado)
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#111827' }}>
+            limit
+            <input
+              type="number"
+              value={tableLimit}
+              onChange={(e) => setTableLimit(Number(e.target.value || 50))}
+              style={{ width: 90, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 6 }}
+              min={1}
+              max={200}
+            />
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#111827' }}>
+            offset
+            <input
+              type="number"
+              value={tableOffset}
+              onChange={(e) => setTableOffset(Number(e.target.value || 0))}
+              style={{ width: 110, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 6 }}
+              min={0}
+            />
+          </label>
+
+          <button
+            onClick={fetchTable}
+            disabled={tableLoading}
+            style={{ border: '1px solid #e5e7eb', background: '#ffffff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 13, color: '#111827' }}
+          >
+            {tableLoading ? 'Cargando…' : 'Consultar'}
+          </button>
+
+          <button
+            onClick={() => {
+              setTableData(null);
+              setTableError(null);
+            }}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#6b7280', fontSize: 12 }}
+          >
+            Limpiar
+          </button>
+        </div>
+
+        {tableError && (
+          <div style={{ marginTop: 10, color: 'red', fontSize: 13 }}>❌ {tableError}</div>
+        )}
+
+        {tableData != null && (
+          <pre style={{ marginTop: 10, background: '#111827', color: '#e5e7eb', padding: '1rem', borderRadius: 6, overflow: 'auto', fontSize: 12, fontFamily: 'monospace' }}>{formatJson(tableData)}</pre>
+        )}
+      </details>
     </div>
   );
 }
