@@ -83,10 +83,35 @@ type PorteroDecision = {
   reasons: string[];
 };
 
-function getPorteroAuditMode(): 'off' | 'on' {
-  const raw = String(process.env.PLACES_PORTERO_AUDIT || '').trim().toLowerCase();
-  if (raw === '1' || raw === 'true' || raw === 'on' || raw === 'yes') return 'on';
-  return 'off';
+function isProductionHost(req: Request): boolean {
+  const host = new URL(req.url).host;
+  const prodHost = process.env.NEXT_PUBLIC_PROD_HOST || 'cara-cola-viajes.vercel.app';
+  return host === prodHost;
+}
+
+function parseBoolEnv(raw: string | undefined | null): boolean {
+  const v = String(raw || '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'on' || v === 'yes';
+}
+
+function resolvePorteroAudit(req: Request): {
+  mode: 'off' | 'on';
+  source: 'env' | 'header' | 'off';
+  envValue: string | null;
+} {
+  const envValue = process.env.PLACES_PORTERO_AUDIT ?? null;
+  const envOn = parseBoolEnv(envValue);
+
+  // Safety: do not allow header overrides on the production host.
+  if (!isProductionHost(req)) {
+    const header = req.headers.get('x-caracola-portero-audit');
+    if (parseBoolEnv(header)) {
+      return { mode: 'on', source: 'header', envValue };
+    }
+  }
+
+  if (envOn) return { mode: 'on', source: 'env', envValue };
+  return { mode: 'off', source: 'off', envValue };
 }
 
 function namePreview(s: string | undefined, maxLen = 80) {
@@ -380,6 +405,8 @@ export async function POST(req: Request) {
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
     const radius = clampRadiusMeters(Math.min(requestedRadius, capMeters));
 
+    const porteroAuditResolved = resolvePorteroAudit(req);
+
     // 0) Supabase cache HIT
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
@@ -407,13 +434,16 @@ export async function POST(req: Request) {
           requestedRadius,
           radiusCapMeters: capMeters,
           keyword,
-          porteroAuditMode: getPorteroAuditMode(),
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
+          porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
         },
         response: {
           status: 'CACHE_HIT_SUPABASE',
-          porteroAuditMode: getPorteroAuditMode(),
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
           cache: { provider: 'supabase', key: cacheKey.key, expiresAt: cached.expiresAt },
           cacheWrite: { provider: 'supabase', action: 'none' },
         },
@@ -430,8 +460,7 @@ export async function POST(req: Request) {
     const status = json.status || 'UNKNOWN';
     const results = (json.results || []).slice(0, 20);
 
-    const porteroAuditMode = getPorteroAuditMode();
-    const porteroAudit = porteroAuditMode === 'on'
+    const porteroAudit = porteroAuditResolved.mode === 'on'
       ? buildPorteroAudit({ supercat, results, maxDiscardedSample: 20 })
       : null;
 
@@ -489,7 +518,9 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
-          porteroAuditMode,
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
+          porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
@@ -498,7 +529,8 @@ export async function POST(req: Request) {
           resultsCount: camping.length,
           totals: basePayload.totals,
           pageLogs,
-          porteroAuditMode,
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
@@ -544,7 +576,9 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
-          porteroAuditMode,
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
+          porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
@@ -553,7 +587,8 @@ export async function POST(req: Request) {
           resultsCount: restaurant.length + supermarket.length,
           totals: basePayload.totals,
           pageLogs,
-          porteroAuditMode,
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
@@ -599,7 +634,9 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
-          porteroAuditMode,
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
+          porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
@@ -608,7 +645,8 @@ export async function POST(req: Request) {
           resultsCount: gas.length + laundry.length,
           totals: basePayload.totals,
           pageLogs,
-          porteroAuditMode,
+          porteroAuditMode: porteroAuditResolved.mode,
+          porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
@@ -653,7 +691,9 @@ export async function POST(req: Request) {
         center,
         radius,
         keyword,
-        porteroAuditMode,
+        porteroAuditMode: porteroAuditResolved.mode,
+        porteroAuditSource: porteroAuditResolved.source,
+        porteroAuditEnv: porteroAuditResolved.envValue,
         cacheTtlDays: placesCacheTtlDays,
         cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
       },
@@ -662,7 +702,8 @@ export async function POST(req: Request) {
         resultsCount: tourism.length,
         totals: basePayload.totals,
         pageLogs,
-        porteroAuditMode,
+        porteroAuditMode: porteroAuditResolved.mode,
+        porteroAuditSource: porteroAuditResolved.source,
         portero: porteroAudit ?? undefined,
         cache: { provider: 'supabase', key: cacheKey.key, hit: false },
         cacheWrite,
