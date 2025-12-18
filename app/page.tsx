@@ -199,6 +199,31 @@ export default function Home() {
       coords,
     });
 
+    // UX: al activar una categoría en una etapa, centramos el mapa en el punto de búsqueda
+    // y aseguramos un encuadre mínimo equivalente a 30km (para ver todos los servicios).
+    if (selectedDayIndex !== null && coords && typeof google !== 'undefined') {
+      const radiusM = 30_000;
+      try {
+        const bounds = new google.maps.LatLngBounds();
+        const center = new google.maps.LatLng(coords.lat, coords.lng);
+
+        if (google.maps.geometry?.spherical?.computeOffset) {
+          bounds.extend(google.maps.geometry.spherical.computeOffset(center, radiusM, 45));
+          bounds.extend(google.maps.geometry.spherical.computeOffset(center, radiusM, 225));
+        } else {
+          // Fallback aproximado si geometry no está disponible
+          const latDelta = radiusM / 111_320;
+          const lngDelta = radiusM / (111_320 * Math.max(0.1, Math.cos((coords.lat * Math.PI) / 180)));
+          bounds.extend({ lat: coords.lat + latDelta, lng: coords.lng + lngDelta });
+          bounds.extend({ lat: coords.lat - latDelta, lng: coords.lng - lngDelta });
+        }
+
+        setMapBounds(bounds);
+      } catch {
+        // ignore
+      }
+    }
+
     handleToggle(type, coords);
   };
 

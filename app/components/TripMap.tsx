@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap, DirectionsRenderer, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
-import { createMarkerIcon, ServiceIcons } from './ServiceIcons';
+import { createMarkerIcon } from './ServiceIcons';
 import StarRating from './StarRating';
 import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconStar, IconMapPin, IconTrendingUp } from '../lib/svgIcons';
@@ -15,15 +15,36 @@ const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className=
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
 
+function parseAreasAcNote(note: string): { header: string; codes: string[] } {
+    const raw = String(note || '').trim();
+    if (!raw) return { header: '', codes: [] };
+    if (!raw.startsWith('ÁreasAC')) return { header: raw, codes: [] };
+
+    // Example: "ÁreasAC (PU) · Gratis · Todo el año · Servicios: PN, AL, ..."
+    const parts = raw.split(' · ').map((s) => s.trim()).filter(Boolean);
+    const servicePart = parts.find((p) => /^Servicios:/i.test(p));
+    const headerParts = parts.filter((p) => p !== servicePart);
+
+    const codes = servicePart
+        ? servicePart
+              .replace(/^Servicios:\s*/i, '')
+              .split(/,\s*/)
+              .map((c) => c.trim())
+              .filter(Boolean)
+        : [];
+
+    return { header: headerParts.join(' · '), codes };
+}
+
 // Helper component for InfoWindow image with error handling
 const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
     const [imageError, setImageError] = useState(false);
 
     if (!place.photoUrl || place.photoUrl.trim() === '' || imageError) {
-        const Icon = ServiceIcons[place.type as keyof typeof ServiceIcons] || ServiceIcons.custom;
         return (
-            <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 rounded-t-lg">
-                <Icon size={48} />
+            <div className="w-full h-28 bg-gray-100 flex items-center justify-center rounded-t-lg">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.jpg" alt="CaraCola Viajes" className="h-14 w-14 object-contain opacity-80" />
             </div>
         );
     }
@@ -468,9 +489,27 @@ export default function TripMap({
                                 )}
                                 <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{hoveredPlace.vicinity}</p>
                                 {hoveredPlace.note && (
-                                    <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700">
-                                        {hoveredPlace.note}
-                                    </div>
+                                    (() => {
+                                        const parsed = parseAreasAcNote(hoveredPlace.note);
+                                        return (
+                                            <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700">
+                                                <div className="font-semibold">{parsed.header}</div>
+                                                {parsed.codes.length > 0 && (
+                                                    <div className="mt-2 flex flex-wrap gap-1">
+                                                        {parsed.codes.map((c) => (
+                                                            <span
+                                                                key={c}
+                                                                className="px-1.5 py-0.5 rounded bg-white border border-yellow-200 text-[9px] font-mono"
+                                                                title={`Código ÁreasAC: ${c}`}
+                                                            >
+                                                                {c}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()
                                 )}
                                 <div className="flex gap-2">
                                     {selectedDayIndex !== null && !isSaved(hoveredPlace.place_id) && (<button onClick={() => { onAddPlace(hoveredPlace); setHoveredPlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}

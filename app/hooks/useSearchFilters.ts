@@ -30,7 +30,10 @@ export const filterAndSort = (
 
   // 1️⃣ FILTRAR por rating mínimo (descartar < minRating)
   let filtered = places.filter(place => {
-    const rating = place.rating || 0;
+    const isAreasAc = typeof place.place_id === 'string' && place.place_id.startsWith('areasac:');
+    const rating = typeof place.rating === 'number' ? place.rating : null;
+    // AreasAC (dataset propio) puede no tener rating: no lo descartamos por minRating.
+    if (rating == null) return isAreasAc ? true : minRating <= 0;
     return rating >= minRating;
   });
 

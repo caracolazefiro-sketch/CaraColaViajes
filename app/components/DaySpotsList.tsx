@@ -235,8 +235,43 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                 
                                 {/* Nota personal (si existe) */}
                                 {spot.note && (
-                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700 italic">
-                                        💡 {spot.note}
+                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700">
+                                        {(() => {
+                                            const raw = String(spot.note || '').trim();
+                                            if (!raw.startsWith('ÁreasAC')) {
+                                                return <div className="italic">💡 {raw}</div>;
+                                            }
+
+                                            const parts = raw.split(' · ').map((s) => s.trim()).filter(Boolean);
+                                            const servicePart = parts.find((p) => /^Servicios:/i.test(p));
+                                            const headerParts = parts.filter((p) => p !== servicePart);
+                                            const codes = servicePart
+                                                ? servicePart
+                                                    .replace(/^Servicios:\s*/i, '')
+                                                    .split(/,\s*/)
+                                                    .map((c) => c.trim())
+                                                    .filter(Boolean)
+                                                : [];
+
+                                            return (
+                                                <>
+                                                    <div className="font-semibold">{headerParts.join(' · ')}</div>
+                                                    {codes.length > 0 && (
+                                                        <div className="mt-2 flex flex-wrap gap-1">
+                                                            {codes.map((c) => (
+                                                                <span
+                                                                    key={c}
+                                                                    className="px-1.5 py-0.5 rounded bg-white border border-yellow-200 text-[9px] font-mono"
+                                                                    title={`Código ÁreasAC: ${c}`}
+                                                                >
+                                                                    {c}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                                 
