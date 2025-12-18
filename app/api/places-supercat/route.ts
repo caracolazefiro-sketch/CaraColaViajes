@@ -528,7 +528,7 @@ async function fetchNearbyNew(params: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
       'X-Goog-FieldMask':
-        'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.types,places.primaryType,places.rating,places.userRatingCount,places.photos',
+        'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.types,places.primaryType,places.rating,places.userRatingCount,places.photos.name',
     },
     body: JSON.stringify(body),
   });
