@@ -416,6 +416,22 @@ export async function POST(req: Request) {
     });
     const cached = await getPlacesSupercatCache({ key: cacheKey.key });
     if (cached.ok && cached.hit) {
+      const cachedPayload = cached.payload as unknown as {
+        categories?: Record<string, unknown>;
+      };
+      const categories = (cachedPayload && typeof cachedPayload === 'object' ? cachedPayload.categories : undefined) as
+        | Record<string, unknown>
+        | undefined;
+      const safeLen = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+      const resultsCount =
+        supercat === 1
+          ? safeLen(categories?.camping)
+          : supercat === 2
+            ? safeLen(categories?.restaurant) + safeLen(categories?.supermarket)
+            : supercat === 3
+              ? safeLen(categories?.gas) + safeLen(categories?.laundry)
+              : safeLen(categories?.tourism);
+
       // Log single HIT (cost 0)
       await logApiToSupabase({
         trip_id: tripId,
@@ -442,6 +458,7 @@ export async function POST(req: Request) {
         },
         response: {
           status: 'CACHE_HIT_SUPABASE',
+          resultsCount,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           cache: { provider: 'supabase', key: cacheKey.key, expiresAt: cached.expiresAt },
@@ -451,6 +468,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         ...(cached.payload as object),
+        resultsCount,
         cache: { provider: 'supabase', key: cacheKey.key, hit: true, expiresAt: cached.expiresAt },
       });
     }
