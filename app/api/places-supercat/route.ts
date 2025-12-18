@@ -430,20 +430,24 @@ export async function POST(req: Request) {
             ? SUPERCAT_3_KEYWORD
             : SUPERCAT_4_KEYWORD;
 
-    // Query strategy (1 llamada por supercat, sin OR):
-    // - Supercat 1: keyword (camping + rv/camper) y filtrado por `types`
+    // Query strategy (cost-control):
+    // - Supercat 1: 2 llamadas precisas por type (campground + rv_park) para no depender
+    //   de `keyword` multi-palabra (se comporta como AND y puede dar 0/1 resultados).
     // - Supercat 2: `keyword="restaurant supermarket"`
     // - Supercat 3: `keyword="gas station laundromat self service"`
     // - Supercat 4: `type=tourist_attraction`
     const queryType = supercat === 4 ? 'tourist_attraction' : undefined;
     const queryKeyword =
-      supercat === 1
-        ? SUPERCAT_1_KEYWORD
-        : supercat === 2
+      supercat === 2
           ? SUPERCAT_2_KEYWORD
           : supercat === 3
             ? SUPERCAT_3_KEYWORD
             : undefined;
+
+    const queryInfo =
+      supercat === 1
+        ? { type: ['campground', 'rv_park'], keyword: null }
+        : { type: queryType ?? null, keyword: queryKeyword ?? null };
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -452,7 +456,7 @@ export async function POST(req: Request) {
     const porteroAuditResolved = resolvePorteroAudit(req);
 
     // 0) Supabase cache HIT
-    const cacheNamespace = supercat === 1 || supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
+    const cacheNamespace = supercat === 1 ? 'places-supercat-v4' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
@@ -497,7 +501,7 @@ export async function POST(req: Request) {
           requestedRadius,
           radiusCapMeters: capMeters,
           keyword,
-          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
+          query: queryInfo,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
@@ -521,27 +525,54 @@ export async function POST(req: Request) {
       });
     }
 
-    // Estrategia agresiva: 1 llamada (1 página) por supercat
-    const { json, durationMs, url } = await fetchNearbyPage({
-      center,
-      radius,
-      apiKey,
-      type: queryType,
-      keyword: queryKeyword,
-    });
-    const status = json.status || 'UNKNOWN';
-    const results = (json.results || []).slice(0, 20);
+    const GOOGLE_PLACES_CALL_COST = 0.032;
+
+    let status = 'UNKNOWN';
+    let results: ServerPlace[] = [];
+    let pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null; url?: string }> = [];
+    let firstPageUrl = '';
+    let pages = 1;
+    let totalDurationMs = 0;
+    let googleCalls = 0;
+
+    if (supercat === 1) {
+      const p1 = await fetchNearbyPage({ center, radius, apiKey, type: 'campground' });
+      const p2 = await fetchNearbyPage({ center, radius, apiKey, type: 'rv_park' });
+      googleCalls = 2;
+      pages = 2;
+
+      const status1 = p1.json.status || 'UNKNOWN';
+      const status2 = p2.json.status || 'UNKNOWN';
+      const r1 = (p1.json.results || []).slice(0, 20);
+      const r2 = (p2.json.results || []).slice(0, 20);
+
+      status = status1 === 'OK' || status2 === 'OK' ? 'OK' : status1;
+      results = [...r1, ...r2];
+      totalDurationMs = p1.durationMs + p2.durationMs;
+      firstPageUrl = redactGoogleKey(p1.url);
+      pageLogs = [
+        { status: status1, resultsCount: r1.length, durationMs: p1.durationMs, nextPageToken: p1.json.next_page_token || null, url: redactGoogleKey(p1.url) },
+        { status: status2, resultsCount: r2.length, durationMs: p2.durationMs, nextPageToken: p2.json.next_page_token || null, url: redactGoogleKey(p2.url) },
+      ];
+    } else {
+      const p = await fetchNearbyPage({ center, radius, apiKey, type: queryType, keyword: queryKeyword });
+      googleCalls = 1;
+      pages = 1;
+      status = p.json.status || 'UNKNOWN';
+      results = (p.json.results || []).slice(0, 20);
+      totalDurationMs = p.durationMs;
+      firstPageUrl = redactGoogleKey(p.url);
+      pageLogs = [
+        { status, resultsCount: results.length, durationMs: p.durationMs, nextPageToken: p.json.next_page_token || null, url: redactGoogleKey(p.url) },
+      ];
+    }
+
+    // Dedup defensivo (supercat=1 puede traer duplicados)
+    results = uniqByPlaceId(results);
 
     const porteroAudit =
       porteroAuditResolved.mode === 'on' ? buildPorteroAudit({ supercat, results, maxDiscardedSample: 20 }) : null;
     const inputDebug = porteroAuditResolved.mode === 'on' ? buildTypesHistogram(results) : null;
-
-    const pageLogs: Array<{ status: string; resultsCount: number; durationMs: number; nextPageToken?: string | null; url?: string }> = [
-      { status, resultsCount: results.length, durationMs, nextPageToken: json.next_page_token || null, url: redactGoogleKey(url) },
-    ];
-    const firstPageUrl = redactGoogleKey(url);
-    const pages = 1;
-    const totalDurationMs = durationMs;
 
     const basePayload = {
       ok: true,
@@ -550,7 +581,7 @@ export async function POST(req: Request) {
       radius,
       requestedRadius,
       radiusCapMeters: capMeters,
-      query: { type: queryType ?? null, keyword: queryKeyword ?? null },
+      query: queryInfo,
       totals: {
         pages,
         totalResults: results.length,
@@ -559,7 +590,7 @@ export async function POST(req: Request) {
     };
 
     if (supercat === 1) {
-      const camping = uniqByPlaceId(results.filter(classifyCamping));
+      const camping = uniqByPlaceId(results.filter(classifyCamping)).slice(0, 20);
       const payload = { ...basePayload, categories: { camping } };
 
       const up = await upsertPlacesSupercatCache({
@@ -583,7 +614,7 @@ export async function POST(req: Request) {
         url: firstPageUrl,
         status: status,
         duration_ms: totalDurationMs,
-        cost: 0.032,
+        cost: GOOGLE_PLACES_CALL_COST * googleCalls,
         cached: false,
         request: {
           tripName,
@@ -591,7 +622,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
-          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
+          query: queryInfo,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
@@ -643,7 +674,7 @@ export async function POST(req: Request) {
         url: firstPageUrl,
         status,
         duration_ms: totalDurationMs,
-        cost: 0.032,
+        cost: GOOGLE_PLACES_CALL_COST * googleCalls,
         cached: false,
         request: {
           tripName,
@@ -703,7 +734,7 @@ export async function POST(req: Request) {
         url: firstPageUrl,
         status,
         duration_ms: totalDurationMs,
-        cost: 0.032,
+        cost: GOOGLE_PLACES_CALL_COST * googleCalls,
         cached: false,
         request: {
           tripName,
@@ -762,7 +793,7 @@ export async function POST(req: Request) {
       url: firstPageUrl,
       status,
       duration_ms: totalDurationMs,
-      cost: 0.032,
+      cost: GOOGLE_PLACES_CALL_COST * googleCalls,
       cached: false,
       request: {
         tripName,
@@ -770,7 +801,7 @@ export async function POST(req: Request) {
         center,
         radius,
         keyword,
-        query: { type: queryType ?? null, keyword: queryKeyword ?? null },
+        query: queryInfo,
         porteroAuditMode: porteroAuditResolved.mode,
         porteroAuditSource: porteroAuditResolved.source,
         porteroAuditEnv: porteroAuditResolved.envValue,
