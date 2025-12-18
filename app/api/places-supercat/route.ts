@@ -681,6 +681,9 @@ export async function POST(req: Request) {
       namespace: cacheNamespace,
     });
     const cached = await getPlacesSupercatCache({ key: cacheKey.key });
+    const cacheReadDebug = cached.ok
+      ? { ok: true as const, hit: cached.hit as boolean, expiresAt: cached.hit ? cached.expiresAt : undefined }
+      : { ok: false as const, reason: cached.reason as string };
     if (cached.ok && cached.hit) {
       const cachedPayload = cached.payload as unknown as {
         categories?: Record<string, unknown>;
@@ -721,6 +724,8 @@ export async function POST(req: Request) {
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
+          cacheNamespace,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
         },
         response: {
@@ -728,6 +733,7 @@ export async function POST(req: Request) {
           resultsCount,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', key: cacheKey.key, expiresAt: cached.expiresAt },
           cacheWrite: { provider: 'supabase', action: 'none' },
         },
@@ -856,6 +862,8 @@ export async function POST(req: Request) {
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
+          cacheNamespace,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
         response: {
@@ -867,6 +875,7 @@ export async function POST(req: Request) {
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
         },
@@ -916,6 +925,8 @@ export async function POST(req: Request) {
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
+          cacheNamespace,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
         response: {
@@ -927,6 +938,7 @@ export async function POST(req: Request) {
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
         },
@@ -976,6 +988,8 @@ export async function POST(req: Request) {
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
           cacheTtlDays: placesCacheTtlDays,
+          cacheNamespace,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
         },
         response: {
@@ -987,6 +1001,7 @@ export async function POST(req: Request) {
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           portero: porteroAudit ?? undefined,
+          cacheRead: cacheReadDebug,
           cache: { provider: 'supabase', key: cacheKey.key, hit: false },
           cacheWrite,
         },
@@ -1035,6 +1050,8 @@ export async function POST(req: Request) {
         porteroAuditSource: porteroAuditResolved.source,
         porteroAuditEnv: porteroAuditResolved.envValue,
         cacheTtlDays: placesCacheTtlDays,
+        cacheNamespace,
+        cacheRead: cacheReadDebug,
         cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key, hit: false },
       },
       response: {
@@ -1046,6 +1063,7 @@ export async function POST(req: Request) {
         porteroAuditMode: porteroAuditResolved.mode,
         porteroAuditSource: porteroAuditResolved.source,
         portero: porteroAudit ?? undefined,
+        cacheRead: cacheReadDebug,
         cache: { provider: 'supabase', key: cacheKey.key, hit: false },
         cacheWrite,
       },
