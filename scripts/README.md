@@ -66,4 +66,33 @@ En el futuro se podría automatizar con:
 
 ## Otros scripts
 
-(Documentar aquí futuros scripts según se vayan añadiendo)
+### inspect-places-cache.js
+
+Inspecciona caché de Places (tabla `api_cache_places_supercat`) y/o logs recientes de Places por `tripId`.
+
+```bash
+node scripts/inspect-places-cache.js --key "places-supercat:1:39.4740,-0.3745:25000"
+node scripts/inspect-places-cache.js --tripId "trip-..."
+```
+
+Requiere en `.env.local`:
+
+```env
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+### portero-report.js
+
+Mini reporte agregando auditorías del “portero” (campo `response.portero` en `api_logs`) por viaje.
+
+```bash
+node scripts/portero-report.js --tripId "trip-..." --limit 200
+```
+
+Requiere en `.env.local`:
+
+```env
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
