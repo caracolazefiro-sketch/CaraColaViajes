@@ -328,16 +328,15 @@ function uniqByPlaceId(arr: ServerPlace[]) {
 const SUPERCAT_1_KEYWORD = 'camping';
 
 // 2) Comer + Super (una sola llamada, luego se reparte)
-const SUPERCAT_2_KEYWORD =
-  'restaurant OR restaurante OR bar OR "fast food" OR comida OR cafe OR cafetería OR cafeteria OR pizzeria OR hamburguesería OR hamburger OR tapas OR asador OR mesón OR meson OR supermarket OR supermercado OR "grocery store" OR groceries OR "tienda de alimentación" OR alimentacion OR alimentación';
+// Nota: `keyword` no interpreta OR. Para no sesgar/romper resultados por idioma,
+// hacemos NearbySearch genérico y luego clasificamos por `types`.
+const SUPERCAT_2_KEYWORD = 'restaurant supermarket';
 
 // 3) Gas + Lavar (una sola llamada, luego se reparte)
-const SUPERCAT_3_KEYWORD =
-  'gas OR gas_station OR "petrol station" OR "service station" OR laundry OR "self-service laundry" OR "self service laundry" OR "lavandería autoservicio"';
+const SUPERCAT_3_KEYWORD = 'gas_station laundry';
 
 // 4) Turismo
-const SUPERCAT_4_KEYWORD =
-  'tourist_attraction OR museum OR park OR monument OR landmark OR viewpoint OR mirador';
+const SUPERCAT_4_KEYWORD = 'tourist_attraction museum park';
 
 async function fetchNearbyPage(params: {
   center: LatLng;
@@ -404,6 +403,12 @@ export async function POST(req: Request) {
             ? SUPERCAT_3_KEYWORD
             : SUPERCAT_4_KEYWORD;
 
+    // Query strategy:
+    // - Supercat 1: `type=campground` (robusto multi-idioma)
+    // - Supercat 2/3/4: NearbySearch genérico (sin type/keyword) y filtrado por `types`
+    const queryType = supercat === 1 ? 'campground' : undefined;
+    const queryKeyword = supercat === 1 ? undefined : undefined;
+
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
     const radius = clampRadiusMeters(Math.min(requestedRadius, capMeters));
@@ -416,8 +421,8 @@ export async function POST(req: Request) {
       lat: center.lat,
       lng: center.lng,
       radius,
-      // v2 for supercat=1 so old cached zeros don't stick after changing query semantics
-      namespace: supercat === 1 ? 'places-supercat-v2' : undefined,
+      // v2 for all supercats so old cache rows don't stick after changing query semantics
+      namespace: 'places-supercat-v2',
     });
     const cached = await getPlacesSupercatCache({ key: cacheKey.key });
     if (cached.ok && cached.hit) {
@@ -479,11 +484,13 @@ export async function POST(req: Request) {
     }
 
     // Estrategia agresiva: 1 llamada (1 página) por supercat
-    const { json, durationMs, url } = await fetchNearbyPage(
-      supercat === 1
-        ? { center, radius, type: 'campground', apiKey }
-        : { center, radius, keyword, apiKey }
-    );
+    const { json, durationMs, url } = await fetchNearbyPage({
+      center,
+      radius,
+      apiKey,
+      type: queryType,
+      keyword: queryKeyword,
+    });
     const status = json.status || 'UNKNOWN';
     const results = (json.results || []).slice(0, 20);
 
