@@ -32,12 +32,13 @@ export function makeGeocodingCacheKey(
   };
 }
 
-export function makePlacesSupercatCacheKey(params: { supercat: 1 | 2 | 3 | 4; lat: number; lng: number; radius: number }) {
+export function makePlacesSupercatCacheKey(params: { supercat: 1 | 2 | 3 | 4; lat: number; lng: number; radius: number; namespace?: string }) {
   const latR = roundCoord(params.lat, 4);
   const lngR = roundCoord(params.lng, 4);
   const radius = Math.round(params.radius);
+  const namespace = params.namespace ?? 'places-supercat';
   return {
-    key: `places-supercat:${params.supercat}:${toKeyNumber(latR, 4)},${toKeyNumber(lngR, 4)}:${radius}`,
+    key: `${namespace}:${params.supercat}:${toKeyNumber(latR, 4)},${toKeyNumber(lngR, 4)}:${radius}`,
     lat: latR,
     lng: lngR,
     radius,

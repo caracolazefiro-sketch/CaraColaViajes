@@ -323,8 +323,9 @@ function uniqByPlaceId(arr: ServerPlace[]) {
 
 // Estrategia agresiva (control de coste): 1 llamada por bloque (máx 20 resultados)
 // 1) Spots (dormir)
-const SUPERCAT_1_KEYWORD =
-  'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR "area camper" OR "área camper"';
+// Nota: NearbySearch `keyword` NO interpreta "OR" como booleano; suele comportarse como texto.
+// Para evitar ZERO_RESULTS sistemáticos en algunos países (p.ej. Alemania), preferimos `type=campground`.
+const SUPERCAT_1_KEYWORD = 'camping';
 
 // 2) Comer + Super (una sola llamada, luego se reparte)
 const SUPERCAT_2_KEYWORD =
@@ -341,11 +342,12 @@ const SUPERCAT_4_KEYWORD =
 async function fetchNearbyPage(params: {
   center: LatLng;
   radius: number;
-  keyword: string;
+  keyword?: string;
+  type?: string;
   apiKey: string;
   pageToken?: string;
 }) {
-  const { center, radius, keyword, apiKey, pageToken } = params;
+  const { center, radius, keyword, type, apiKey, pageToken } = params;
 
   const base = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
   const url = new URL(base);
@@ -355,7 +357,8 @@ async function fetchNearbyPage(params: {
   } else {
     url.searchParams.set('location', `${center.lat},${center.lng}`);
     url.searchParams.set('radius', String(radius));
-    url.searchParams.set('keyword', keyword);
+    if (type) url.searchParams.set('type', type);
+    if (keyword) url.searchParams.set('keyword', keyword);
   }
   url.searchParams.set('key', apiKey);
 
@@ -413,6 +416,8 @@ export async function POST(req: Request) {
       lat: center.lat,
       lng: center.lng,
       radius,
+      // v2 for supercat=1 so old cached zeros don't stick after changing query semantics
+      namespace: supercat === 1 ? 'places-supercat-v2' : undefined,
     });
     const cached = await getPlacesSupercatCache({ key: cacheKey.key });
     if (cached.ok && cached.hit) {
@@ -474,7 +479,11 @@ export async function POST(req: Request) {
     }
 
     // Estrategia agresiva: 1 llamada (1 página) por supercat
-    const { json, durationMs, url } = await fetchNearbyPage({ center, radius, keyword, apiKey });
+    const { json, durationMs, url } = await fetchNearbyPage(
+      supercat === 1
+        ? { center, radius, type: 'campground', apiKey }
+        : { center, radius, keyword, apiKey }
+    );
     const status = json.status || 'UNKNOWN';
     const results = (json.results || []).slice(0, 20);
 
