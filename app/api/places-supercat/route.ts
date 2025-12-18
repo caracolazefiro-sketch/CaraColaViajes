@@ -746,6 +746,138 @@ export async function POST(req: Request) {
       });
     }
 
+    // 0b) Cache fallback (to avoid accidental spend when bumping namespaces)
+    // If v7 is a miss, try v6 and rehydrate into v7 without calling Google.
+    if (supercat === 1 && cached.ok && !cached.hit) {
+      const fallbackNamespaces = ['places-supercat-v6'];
+      for (const ns of fallbackNamespaces) {
+        const fbKey = makePlacesSupercatCacheKey({
+          supercat,
+          lat: center.lat,
+          lng: center.lng,
+          radius,
+          namespace: ns,
+        });
+        const fb = await getPlacesSupercatCache({ key: fbKey.key });
+        if (!fb.ok || !fb.hit) continue;
+
+        const fbPayload = fb.payload as unknown as {
+          pageLogs?: unknown;
+          totals?: unknown;
+          categories?: Record<string, unknown>;
+        };
+
+        const campingRaw = (fbPayload && typeof fbPayload === 'object' ? fbPayload.categories?.camping : undefined) as unknown;
+        const campingList = (Array.isArray(campingRaw) ? (campingRaw as ServerPlace[]) : []).filter(Boolean);
+        const googleFromCache = uniqByPlaceId(
+          campingList.filter((p) => !(String(p.place_id || '').startsWith('areasac:')))
+        );
+
+        const AREASAC_CAMPING_MAX = 10;
+        const CAMPING_MAX = 20;
+        const areasAcCamping = await getAreasAcNearby({ center, radius, maxResults: AREASAC_CAMPING_MAX });
+        const googleSorted = googleFromCache
+          .map((p) => ({
+            p,
+            d: haversineDistanceM(center, {
+              lat: p.geometry?.location?.lat ?? center.lat,
+              lng: p.geometry?.location?.lng ?? center.lng,
+            }),
+          }))
+          .sort((a, b) => a.d - b.d)
+          .map((x) => x.p);
+
+        const merged = uniqByPlaceId([...areasAcCamping, ...googleSorted]).slice(0, CAMPING_MAX);
+        const camping = uniqByPlaceId(merged.filter(classifyCamping)).slice(0, 20);
+
+        const fbTotals = (fbPayload && typeof fbPayload === 'object' ? (fbPayload.totals as any) : null) as
+          | { pages?: number; totalResults?: number }
+          | null;
+        const fbPages = typeof fbTotals?.pages === 'number' ? fbTotals.pages : 1;
+        const fbPageLogs = (fbPayload && typeof fbPayload === 'object' ? fbPayload.pageLogs : undefined) as unknown;
+
+        const payload = {
+          ok: true,
+          supercat,
+          center,
+          radius,
+          requestedRadius,
+          radiusCapMeters: capMeters,
+          query: queryInfo,
+          totals: {
+            pages: fbPages,
+            totalResults: camping.length,
+          },
+          pageLogs: Array.isArray(fbPageLogs) ? fbPageLogs : [],
+          categories: { camping },
+        };
+
+        const up = await upsertPlacesSupercatCache({
+          key: cacheKey.key,
+          supercat,
+          centerLat: cacheKey.lat,
+          centerLng: cacheKey.lng,
+          radius: cacheKey.radius,
+          payload,
+          ttlDays: placesCacheTtlDays,
+        });
+
+        const cacheWrite = up.ok
+          ? {
+              provider: 'supabase',
+              action: 'upsert',
+              table: 'api_cache_places_supercat',
+              key: cacheKey.key,
+              ok: true,
+              expiresAt: up.expiresAt,
+              ttlDays: up.ttlDays,
+            }
+          : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason };
+
+        await logApiToSupabase({
+          trip_id: tripId,
+          api: 'google-places',
+          method: 'GET',
+          url: 'supabase:api_cache_places_supercat',
+          status: 'CACHE_HIT_SUPABASE_FALLBACK',
+          duration_ms: 0,
+          cost: 0,
+          cached: true,
+          request: {
+            tripName,
+            supercat,
+            center,
+            radius,
+            requestedRadius,
+            radiusCapMeters: capMeters,
+            keyword,
+            query: queryInfo,
+            porteroAuditMode: porteroAuditResolved.mode,
+            porteroAuditSource: porteroAuditResolved.source,
+            porteroAuditEnv: porteroAuditResolved.envValue,
+            cacheTtlDays: placesCacheTtlDays,
+            cacheNamespace,
+            cacheRead: cacheReadDebug,
+            cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
+            cacheFallback: { provider: 'supabase', table: 'api_cache_places_supercat', key: fbKey.key, namespace: ns, expiresAt: fb.expiresAt },
+          },
+          response: {
+            status: 'CACHE_HIT_SUPABASE_FALLBACK',
+            resultsCount: camping.length,
+            cacheRead: cacheReadDebug,
+            cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, sourceNamespace: ns },
+            cacheWrite,
+          },
+        });
+
+        return NextResponse.json({
+          ...payload,
+          resultsCount: camping.length,
+          cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, expiresAt: up.ok ? up.expiresAt : undefined },
+        });
+      }
+    }
+
     const GOOGLE_PLACES_CALL_COST = 0.032;
 
     let status = 'UNKNOWN';
