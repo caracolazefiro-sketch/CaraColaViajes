@@ -184,6 +184,35 @@ Timeline:        Después de Option B
 - Configurable: `PLACES_SUPERCAT_CACHE_TTL_DAYS` (Preview/Production)
 - Nota: esto es caché **server-side** (compartida entre usuarios), diferente del caché client-side propuesto.
 
+🟡 **Recordatorio (18 Dic 2025): Places API (New) y campos “Atmosphere”**
+- Hoy, **Nearby Search (New)** y **Nearby Search (Legacy)** tienen precio base similar (mismo orden / mismo tier en la tabla global), pero en **Places API (New)** el coste puede subir si el `X-Goog-FieldMask` incluye campos que disparen SKUs **Enterprise** o **Enterprise + Atmosphere**.
+- Pendiente: evaluar si merece la pena pedir “Atmosphere” para mejorar el ranking/portero/UX (p.ej. señales de calidad/ambiente) y anotar qué campos exactos necesitamos antes de tocar el field mask.
+
+---
+
+## 📌 Estudio pendiente (revisar desde 08 Ene 2026): Places API (New) vs Legacy
+
+**Estado actual (18 Dic 2025):** se mantiene tal cual.
+- Supercat=1 (Spots) usa **Places API (New) Nearby Search** por necesidad funcional (multi-type en 1 llamada con `includedTypes`).
+- Supercats 2–4 siguen en **Nearby Search Legacy** (1 llamada en MISS + caché Supabase).
+
+### Conclusiones rápidas
+- **Precio base:** a nivel de lista global, **Nearby Search Pro** en Places (New) y **Places – Nearby Search** (Legacy) están en el **mismo precio base** por 1000 eventos y comparten orden/tier.
+- **Riesgo de coste en New:** en Places (New) el coste depende del **field mask**; si se solicitan campos que caen en SKUs **Enterprise** o **Enterprise + Atmosphere**, el precio sube.
+- **Legacy no controla campos:** Legacy Nearby Search no permite elegir campos (puede aparecer con SKUs de datos en factura según el caso), así que el control fino de coste/fields es peor.
+
+### Qué significa “Atmosphere” (para decisiones de producto)
+- “Atmosphere” no es “otra API”: es un **grupo de campos** (en Places New) que, si se piden, pueden disparar el SKU **Enterprise + Atmosphere**.
+- Potencial beneficio: campos más ricos/experienciales para mejorar UX/filtrado/ranking (definir cuáles necesitamos antes de pedirlos).
+
+### Decisión (por ahora)
+- **No migrar** supercats 2–4 a Places (New) todavía.
+- Motivo: sin visibilidad clara de SKUs reales en vuestra cuenta + riesgo de subir SKU por field mask + trabajo de compatibilidad (mapping/fotos/shape) sin ahorro inmediato.
+
+### Acción desde 08 Ene 2026
+- Revisar en Google Cloud Billing (por SKU) qué se está facturando realmente: confirmar si estamos en **Pro** o si hay “deriva” a **Enterprise/Atmosphere**.
+- Si la facturación confirma estabilidad en Pro: evaluar migración incremental (2 → 3 → 4) a Places (New) con **field mask minimal** y test A/B de resultados.
+
 🟡 **Mejora propuesta (18 Dic 2025): Portero Places – Opción B (auditoría persistente)**
 - Objetivo: poder analizar y mejorar el “portero” guardando también (o al menos registrando) los **descartados** con motivo, no solo los “kept”.
 - Implementación futura: crear tabla dedicada (p.ej. `api_portero_audit_places`) con `trip_id`, `cache_key`, `supercat`, `place_id`, `keep`, `keep_as`, `reason_code`, `types`, `name`, `created_at` + índices.
