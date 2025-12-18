@@ -227,37 +227,6 @@ export function useTripPlaces(
         };
     }, [distanceFromCenter, toPhotoUrl]);
 
-    const classifyCombo1 = useCallback((types: string[] | undefined, name: string | undefined): ServiceType | null => {
-        const tags = types || [];
-        const n = (name || '').toLowerCase();
-
-        const looksCampingName = /camping|camper|autocaravana|motorhome|rv\b|pernocta|area\s*camper|área\s*camper/i.test(name || '');
-
-        if (tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && looksCampingName)) {
-            return 'camping';
-        }
-
-        // Supermercados primero: evita que "store" contamine restaurante
-        if (tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || /supermercado|supermarket|grocery/.test(n)) {
-            return 'supermarket';
-        }
-
-        // Muchos supers vienen como store + nombre
-        if (tags.includes('store') && /super|market|grocery|alimentaci/i.test(n)) {
-            return 'supermarket';
-        }
-
-        // Restaurante: excluir explícitamente supers/tiendas
-        const looksFoodByTags = tags.includes('restaurant') || tags.includes('food') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || tags.includes('cafe') || tags.includes('bar') || tags.includes('bakery');
-        const looksFoodByName = /restaurante|restaurant|bar|caf(e|é)|pizzeria|hamburg|tapas|asador|mesón|meson/i.test(n);
-        const looksLikeShop = tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || tags.includes('department_store') || tags.includes('shopping_mall');
-        if (!looksLikeShop && (looksFoodByTags || looksFoodByName)) {
-            return 'restaurant';
-        }
-
-        return null;
-    }, []);
-
     const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, radiusMeters: number, signal?: AbortSignal) => {
         const radius = Math.max(1000, Math.min(50000, Math.round(radiusMeters)));
         const res = await fetch('/api/places-supercat', {
@@ -566,9 +535,9 @@ export function useTripPlaces(
                 if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
 
                 const campingRaw = (data.categories.camping || []) as ServerPlace[];
-                const campingList = campingRaw
-                    .filter(p => classifyCombo1(p.types, p.name) === 'camping')
-                    .map(p => toPlace(location, 'camping', p));
+                // Importante: NO refiltrar aquí con heurísticas de cliente.
+                // El servidor ya separa categorías (portero), y a veces `types` viene vacío.
+                const campingList = campingRaw.map(p => toPlace(location, 'camping', p));
 
                 placesCache.current[cacheKey] = campingList;
                 setPlaces(prev => ({ ...prev, camping: campingList }));
@@ -592,7 +561,7 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, classifyCombo1, effectiveRadiusMetersForType, fetchSupercat, searchPlaces, toPlace]);
+    }, [abortStore, effectiveRadiusMetersForType, fetchSupercat, logSupercatDebug, searchPlaces, toPlace]);
 
     // 2) Comer + Super
     const searchBlockFood = useCallback((location: Coordinates) => {
@@ -656,12 +625,9 @@ export function useTripPlaces(
                 const restaurantRaw = (data.categories.restaurant || []) as ServerPlace[];
                 const supermarketRaw = (data.categories.supermarket || []) as ServerPlace[];
 
-                const restaurantList = restaurantRaw
-                    .filter(p => classifyCombo1(p.types, p.name) === 'restaurant')
-                    .map(p => toPlace(location, 'restaurant', p));
-                const supermarketList = supermarketRaw
-                    .filter(p => classifyCombo1(p.types, p.name) === 'supermarket')
-                    .map(p => toPlace(location, 'supermarket', p));
+                // Confiamos en la clasificación del servidor; evita falsos negativos si faltan `types`.
+                const restaurantList = restaurantRaw.map(p => toPlace(location, 'restaurant', p));
+                const supermarketList = supermarketRaw.map(p => toPlace(location, 'supermarket', p));
 
                 const merged = [...restaurantList, ...supermarketList];
                 placesCache.current[cacheKey] = merged;
@@ -687,7 +653,7 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, classifyCombo1, clampRadiusMeters, fetchSupercat, searchPlaces, searchRadiusKm, toPlace, RADIUS_CAPS_KM]);
+    }, [abortStore, clampRadiusMeters, fetchSupercat, logSupercatDebug, searchPlaces, searchRadiusKm, toPlace, RADIUS_CAPS_KM]);
 
     // 3) Gas + Lavar
     const searchBlockServices = useCallback((location: Coordinates) => {
@@ -778,7 +744,7 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, clampRadiusMeters, fetchSupercat, searchPlaces, searchRadiusKm, toPlace, RADIUS_CAPS_KM]);
+    }, [abortStore, clampRadiusMeters, fetchSupercat, logSupercatDebug, searchPlaces, searchRadiusKm, toPlace, RADIUS_CAPS_KM]);
 
     // 4) Turismo
     const searchBlockTourism = useCallback((location: Coordinates) => {
@@ -854,7 +820,7 @@ export function useTripPlaces(
                 }
             }
         })();
-    }, [abortStore, effectiveRadiusMetersForType, fetchSupercat, searchPlaces, toPlace]);
+    }, [abortStore, effectiveRadiusMetersForType, fetchSupercat, logSupercatDebug, searchPlaces, toPlace]);
 
     // --- BÚSQUEDA LIBRE (NOMINATIM/OSM) - GRATIS, SIN COSTO API ---
     const searchByQuery = useCallback(async (query: string, centerLat: number, centerLng: number) => {
