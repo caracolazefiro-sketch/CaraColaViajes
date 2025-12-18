@@ -102,6 +102,57 @@ export function useTripPlaces(
     }>({});
     const supercatLastDoneAtRef = useRef<Record<string, number>>({});
     const SUPERCAT_COOLDOWN_MS = 2500;
+
+    // 📊 Debug interno (para diagnosticar loops sin mirar Supabase)
+    const supercatDebugRef = useRef({
+        inFlightDedupe: 0,
+        cooldownSkip: 0,
+        abortedOnKeyChange: 0,
+        started: 0,
+        finished: 0,
+        lastLogAt: 0,
+    });
+
+    const logSupercatDebug = useCallback(
+        (
+            event:
+                | 'inFlight-dedupe'
+                | 'cooldown-skip'
+                | 'abort-key-change'
+                | 'start'
+                | 'finish',
+            supercat: Supercat,
+            key: string
+        ) => {
+            const d = supercatDebugRef.current;
+            if (event === 'inFlight-dedupe') d.inFlightDedupe += 1;
+            else if (event === 'cooldown-skip') d.cooldownSkip += 1;
+            else if (event === 'abort-key-change') d.abortedOnKeyChange += 1;
+            else if (event === 'start') d.started += 1;
+            else if (event === 'finish') d.finished += 1;
+
+            // Evitar spam: log como máximo cada 2s (y siempre que haya evento raro).
+            const now = Date.now();
+            const isRare = event !== 'start' && event !== 'finish';
+            if (!isRare && now - d.lastLogAt < 2000) return;
+            d.lastLogAt = now;
+
+            // Nota: console.debug para no ensuciar demasiado.
+            console.debug('🧯 [places-supercat-dedupe]', {
+                event,
+                supercat,
+                key,
+                counts: {
+                    inFlightDedupe: d.inFlightDedupe,
+                    cooldownSkip: d.cooldownSkip,
+                    abortedOnKeyChange: d.abortedOnKeyChange,
+                    started: d.started,
+                    finished: d.finished,
+                },
+            });
+        },
+        []
+    );
     const abortStore = useMemo(
         () => ({
             supercat1: undefined as AbortController | undefined,
@@ -484,6 +535,7 @@ export function useTripPlaces(
         const now = Date.now();
         const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
         if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            logSupercatDebug('cooldown-skip', 1, cacheKey);
             setLoadingPlaces(prev => ({...prev, camping: false}));
             return;
         }
@@ -491,11 +543,13 @@ export function useTripPlaces(
         const existing = supercatInFlightRef.current.supercat1;
         if (existing?.key === cacheKey) {
             // Ya hay una request idéntica en vuelo; no abortar ni relanzar.
+            logSupercatDebug('inFlight-dedupe', 1, cacheKey);
             return;
         }
 
         // Key distinta: abortamos la anterior para que "gane" la última.
         if (existing?.controller) {
+            logSupercatDebug('abort-key-change', 1, `${existing.key} -> ${cacheKey}`);
             existing.controller.abort();
         }
 
@@ -503,6 +557,7 @@ export function useTripPlaces(
         const controller = new AbortController();
         abortStore.supercat1 = controller;
         supercatInFlightRef.current.supercat1 = { key: cacheKey, controller };
+        logSupercatDebug('start', 1, cacheKey);
 
         (async () => {
             let didFallbackToClient = false;
@@ -530,6 +585,7 @@ export function useTripPlaces(
                     supercatInFlightRef.current.supercat1 = undefined;
                 }
                 supercatLastDoneAtRef.current[cacheKey] = Date.now();
+                logSupercatDebug('finish', 1, cacheKey);
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
                     setLoadingPlaces(prev => ({...prev, camping: false}));
@@ -570,15 +626,18 @@ export function useTripPlaces(
         const now = Date.now();
         const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
         if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            logSupercatDebug('cooldown-skip', 2, cacheKey);
             setLoadingPlaces(prev => ({...prev, restaurant: false, supermarket: false}));
             return;
         }
 
         const existing = supercatInFlightRef.current.supercat2;
         if (existing?.key === cacheKey) {
+            logSupercatDebug('inFlight-dedupe', 2, cacheKey);
             return;
         }
         if (existing?.controller) {
+            logSupercatDebug('abort-key-change', 2, `${existing.key} -> ${cacheKey}`);
             existing.controller.abort();
         }
 
@@ -586,6 +645,7 @@ export function useTripPlaces(
         const controller = new AbortController();
         abortStore.supercat2 = controller;
         supercatInFlightRef.current.supercat2 = { key: cacheKey, controller };
+        logSupercatDebug('start', 2, cacheKey);
 
         (async () => {
             let didFallbackToClient = false;
@@ -620,6 +680,7 @@ export function useTripPlaces(
                     supercatInFlightRef.current.supercat2 = undefined;
                 }
                 supercatLastDoneAtRef.current[cacheKey] = Date.now();
+                logSupercatDebug('finish', 2, cacheKey);
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
                     setLoadingPlaces(prev => ({...prev, restaurant: false, supermarket: false}));
@@ -660,15 +721,18 @@ export function useTripPlaces(
         const now = Date.now();
         const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
         if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            logSupercatDebug('cooldown-skip', 3, cacheKey);
             setLoadingPlaces(prev => ({...prev, gas: false, laundry: false}));
             return;
         }
 
         const existing = supercatInFlightRef.current.supercat3;
         if (existing?.key === cacheKey) {
+            logSupercatDebug('inFlight-dedupe', 3, cacheKey);
             return;
         }
         if (existing?.controller) {
+            logSupercatDebug('abort-key-change', 3, `${existing.key} -> ${cacheKey}`);
             existing.controller.abort();
         }
 
@@ -676,6 +740,7 @@ export function useTripPlaces(
         const controller = new AbortController();
         abortStore.supercat3 = controller;
         supercatInFlightRef.current.supercat3 = { key: cacheKey, controller };
+        logSupercatDebug('start', 3, cacheKey);
 
         (async () => {
             let didFallbackToClient = false;
@@ -706,6 +771,7 @@ export function useTripPlaces(
                     supercatInFlightRef.current.supercat3 = undefined;
                 }
                 supercatLastDoneAtRef.current[cacheKey] = Date.now();
+                logSupercatDebug('finish', 3, cacheKey);
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat3 === seq) {
                     setLoadingPlaces(prev => ({...prev, gas: false, laundry: false}));
@@ -736,15 +802,18 @@ export function useTripPlaces(
         const now = Date.now();
         const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
         if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            logSupercatDebug('cooldown-skip', 4, cacheKey);
             setLoadingPlaces(prev => ({...prev, tourism: false}));
             return;
         }
 
         const existing = supercatInFlightRef.current.supercat4;
         if (existing?.key === cacheKey) {
+            logSupercatDebug('inFlight-dedupe', 4, cacheKey);
             return;
         }
         if (existing?.controller) {
+            logSupercatDebug('abort-key-change', 4, `${existing.key} -> ${cacheKey}`);
             existing.controller.abort();
         }
 
@@ -752,6 +821,7 @@ export function useTripPlaces(
         const controller = new AbortController();
         abortStore.supercat4 = controller;
         supercatInFlightRef.current.supercat4 = { key: cacheKey, controller };
+        logSupercatDebug('start', 4, cacheKey);
 
         (async () => {
             let didFallbackToClient = false;
@@ -777,6 +847,7 @@ export function useTripPlaces(
                     supercatInFlightRef.current.supercat4 = undefined;
                 }
                 supercatLastDoneAtRef.current[cacheKey] = Date.now();
+                logSupercatDebug('finish', 4, cacheKey);
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat4 === seq) {
                     setLoadingPlaces(prev => ({...prev, tourism: false}));
