@@ -15,6 +15,7 @@ type ServerPlace = {
     photos?: Array<{ photo_reference?: string }>;
     note?: string;
     link?: string;
+    photoName?: string;
 };
 
 export function useTripPlaces(
@@ -204,11 +205,23 @@ export function useTripPlaces(
     }, [haversineDistanceM]);
 
     const toPhotoUrl = useCallback((p: ServerPlace): string | undefined => {
-        const ref = p.photos?.[0]?.photo_reference;
-        if (!ref) return undefined;
         const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
         if (!key) return undefined;
-        return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${encodeURIComponent(ref)}&key=${encodeURIComponent(key)}`;
+
+        // Legacy Places Photos: photo_reference (used by NearbySearch legacy JSON)
+        const ref = p.photos?.[0]?.photo_reference;
+        if (ref) {
+            return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${encodeURIComponent(ref)}&key=${encodeURIComponent(key)}`;
+        }
+
+        // Places API (New) photos: photo resource name (places/..../photos/..)
+        const photoName = p.photoName;
+        if (photoName) {
+            // Use the public key (NEXT_PUBLIC_*) so we don't leak server-only keys to the client.
+            return `https://places.googleapis.com/v1/${encodeURI(photoName)}/media?maxWidthPx=400&maxHeightPx=400&key=${encodeURIComponent(key)}`;
+        }
+
+        return undefined;
     }, []);
 
     const toPlace = useCallback((center: Coordinates, type: ServiceType, p: ServerPlace): PlaceWithDistance => {

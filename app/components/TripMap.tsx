@@ -74,6 +74,83 @@ export default function TripMap({
     const [searchQuery, setSearchQuery] = useState('');
     const [clickedGooglePlace, setClickedGooglePlace] = useState<PlaceWithDistance | null>(null);
 
+    // Cache local para evitar repetir Place Details (fotos, etc.) en clicks.
+    const placeDetailsCacheRef = useRef<Record<string, Partial<PlaceWithDistance>>>({});
+    const placeDetailsInFlightRef = useRef<Record<string, boolean>>({});
+
+    const tryEnrichPlaceOnClick = (spot: PlaceWithDistance) => {
+        const placeId = spot.place_id || '';
+        if (!mapInstance) {
+            setHoveredPlace(spot);
+            return;
+        }
+
+        // No intentar enrich para no-Google IDs
+        if (!placeId || placeId.startsWith('custom-') || placeId.startsWith('areasac:')) {
+            setHoveredPlace(spot);
+            return;
+        }
+
+        const cached = placeDetailsCacheRef.current[placeId];
+        if (cached) {
+            setHoveredPlace({ ...spot, ...cached });
+            return;
+        }
+
+        if (placeDetailsInFlightRef.current[placeId]) {
+            setHoveredPlace(spot);
+            return;
+        }
+
+        placeDetailsInFlightRef.current[placeId] = true;
+        setHoveredPlace(spot);
+
+        try {
+            const service = new google.maps.places.PlacesService(mapInstance);
+            service.getDetails(
+                {
+                    placeId,
+                    fields: ['photos', 'name', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'geometry', 'types'],
+                },
+                (place, status) => {
+                    placeDetailsInFlightRef.current[placeId] = false;
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !place) return;
+
+                    const lat = place.geometry?.location?.lat?.();
+                    const lng = place.geometry?.location?.lng?.();
+                    let photoUrl: string | undefined;
+                    if (place.photos && place.photos.length > 0) {
+                        try {
+                            photoUrl = place.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
+                        } catch {
+                            // ignore
+                        }
+                    }
+
+                    const enriched: Partial<PlaceWithDistance> = {
+                        name: place.name || spot.name,
+                        vicinity: (place.formatted_address as string) || (place.vicinity as string) || spot.vicinity,
+                        rating: place.rating ?? spot.rating,
+                        user_ratings_total: place.user_ratings_total ?? spot.user_ratings_total,
+                        types: (place.types as string[] | undefined) || spot.types,
+                        photoUrl: photoUrl || spot.photoUrl,
+                        geometry:
+                            lat != null && lng != null
+                                ? { location: { lat, lng } }
+                                : spot.geometry,
+                    };
+
+                    placeDetailsCacheRef.current[placeId] = enriched;
+                    if (hoveredPlace && hoveredPlace.place_id === placeId) {
+                        setHoveredPlace({ ...hoveredPlace, ...enriched });
+                    }
+                }
+            );
+        } catch {
+            placeDetailsInFlightRef.current[placeId] = false;
+        }
+    };
+
     // CONTROL DE INTERACCIÓN (SISTEMA VS HUMANO)
     const hasUserInteracted = useRef(false);
     const isProgrammaticMove = useRef(false);
@@ -136,7 +213,7 @@ export default function TripMap({
 
                 const service = new google.maps.places.PlacesService(map);
                 // @ts-expect-error - Type mismatch in Google Maps API
-                service.getDetails({ placeId: e.placeId }, (place, status) => {
+                service.getDetails({ placeId: e.placeId, fields: ['photos', 'name', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'geometry', 'types'] }, (place, status) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK && place) {
                         // Convertir a nuestro formato
                         const lat = place.geometry?.location?.lat();
@@ -371,7 +448,7 @@ export default function TripMap({
                                     className: "marker-label"
                                 } : undefined}
                                 title={spot.name}
-                                onClick={() => setHoveredPlace(spot)}
+                                onClick={() => tryEnrichPlaceOnClick(spot)}
                                 onMouseOver={() => setHoveredPlace(spot)}
                             />
                         );

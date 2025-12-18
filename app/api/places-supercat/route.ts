@@ -22,6 +22,8 @@ type ServerPlace = {
   // Optional extra info (non-Google sources)
   note?: string;
   link?: string;
+  // Places API (New) photo resource name (client builds URL)
+  photoName?: string;
 };
 
 type PlacesNearbyResponse = {
@@ -42,6 +44,7 @@ type NewPlacesNearbyPlace = {
   primaryType?: string;
   rating?: number;
   userRatingCount?: number;
+  photos?: Array<{ name?: string }>;
 };
 
 type NewPlacesNearbyResponse = {
@@ -480,6 +483,8 @@ function toServerPlaceFromNew(p: NewPlacesNearbyPlace): ServerPlace {
   const lng = p.location?.longitude;
   const hasCoords = typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng);
 
+  const photoName = p.photos?.[0]?.name;
+
   return {
     name: p.displayName?.text,
     place_id: placeId,
@@ -489,6 +494,7 @@ function toServerPlaceFromNew(p: NewPlacesNearbyPlace): ServerPlace {
     vicinity: p.shortFormattedAddress || p.formattedAddress,
     geometry: hasCoords ? { location: { lat: lat as number, lng: lng as number } } : undefined,
     // Note: Photos from Places API (New) are not compatible with legacy `photo_reference`.
+    photoName: typeof photoName === 'string' && photoName.length > 0 ? photoName : undefined,
   };
 }
 
@@ -522,7 +528,7 @@ async function fetchNearbyNew(params: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
       'X-Goog-FieldMask':
-        'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.types,places.primaryType,places.rating,places.userRatingCount',
+        'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.types,places.primaryType,places.rating,places.userRatingCount,places.photos',
     },
     body: JSON.stringify(body),
   });
