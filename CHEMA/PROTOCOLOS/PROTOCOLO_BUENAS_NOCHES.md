@@ -221,4 +221,6 @@ Cuando user escriba `BUENAS NOCHES`:
 2. ✅ Crear snapshot si hay cambios nuevos
 3. ✅ Hacer git add + commit + push testing
 4. ✅ Validar status
-5. ✅ Responder con confirmación
+5. ✅ Haz copia de seguridad de todo el proyecto en F:\Backups
+6. ✅ Dejar como P1 para mañana: "TEST exhaustivo implementacion areasac"
+7. ✅ Responder con confirmación

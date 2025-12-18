@@ -1,7 +1,7 @@
 # CaraColaViajes - Roadmap Operativo 2025
 
-> **Última actualización:** 10 Diciembre 2025 - COSTES NOMINATIM ADDED  
-> **Próxima revisión:** 17 Diciembre 2025  
+> **Última actualización:** 18 Diciembre 2025 - AREASAC + TEST P1 ADDED  
+> **Próxima revisión:** 19 Diciembre 2025  
 > **Estructura:** Priorizado por Urgencia + Impacto (ver matriz abajo)
 
 ---
@@ -448,6 +448,7 @@ Notas (Feature #5):
 |------|--------|--------|----------|-------|
 | Rotación Clave Google (Vercel update) | 🟡 PENDIENTE | ⭐ | 5 min | Security - Terminal |
 | Migrar PlaceAutocompleteElement | 🟢 PLANIFICADO | ⭐⭐ | 2-3h | Deprecated desde marzo 2025 |
+| TEST exhaustivo implementacion areasac | 🟢 PLANIFICADO | ⭐⭐ | Mañana | Validar Spots/Map/Cache/Orden por distancia |
 
 ### 🟠 P2 - ALTO (1-2 semanas)
 
