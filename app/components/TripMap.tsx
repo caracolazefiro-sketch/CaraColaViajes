@@ -7,6 +7,7 @@ import { createMarkerIcon } from './ServiceIcons';
 import StarRating from './StarRating';
 import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconStar, IconMapPin, IconTrendingUp } from '../lib/svgIcons';
+import { areasAcLabelForCode } from '../utils/areasacLegend';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -15,10 +16,10 @@ const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className=
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
 
-function parseAreasAcNote(note: string): { header: string; codes: string[] } {
+function parseAreasAcNote(note: string): { header: string; compactHeader: string; codes: string[] } {
     const raw = String(note || '').trim();
-    if (!raw) return { header: '', codes: [] };
-    if (!raw.startsWith('ÁreasAC')) return { header: raw, codes: [] };
+    if (!raw) return { header: '', compactHeader: '', codes: [] };
+    if (!raw.startsWith('ÁreasAC')) return { header: raw, compactHeader: raw, codes: [] };
 
     // Example: "ÁreasAC (PU) · Gratis · Todo el año · Servicios: PN, AL, ..."
     const parts = raw.split(' · ').map((s) => s.trim()).filter(Boolean);
@@ -33,7 +34,20 @@ function parseAreasAcNote(note: string): { header: string; codes: string[] } {
               .filter(Boolean)
         : [];
 
-    return { header: headerParts.join(' · '), codes };
+    const header = headerParts.join(' · ');
+
+    // Compact header to keep the InfoWindow short.
+    // Example full: "ÁreasAC (PU) · Gratis · Todo el año"
+    const typeMatch = header.match(/\(([^)]+)\)/);
+    const typeCode = typeMatch?.[1]?.trim().toUpperCase();
+    const compactFlags: string[] = [];
+    if (/Gratis/i.test(header)) compactFlags.push('Gratis');
+    if (/Pago/i.test(header)) compactFlags.push('Pago');
+    if (/Advertencia/i.test(header)) compactFlags.push('!');
+    if (/Todo el año/i.test(header)) compactFlags.push('Año');
+
+    const compactHeader = [typeCode || 'ÁreasAC', ...compactFlags].join(' · ');
+    return { header, compactHeader, codes };
 }
 
 // Helper component for InfoWindow image with error handling
@@ -42,9 +56,9 @@ const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
 
     if (!place.photoUrl || place.photoUrl.trim() === '' || imageError) {
         return (
-            <div className="w-full h-28 bg-gray-100 flex items-center justify-center rounded-t-lg">
+            <div className="w-full h-20 bg-gray-100 flex items-center justify-center rounded-t-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.jpg" alt="CaraCola Viajes" className="h-14 w-14 object-contain opacity-80" />
+                <img src="/logo.jpg" alt="CaraCola Viajes" className="h-12 w-12 object-contain opacity-80" />
             </div>
         );
     }
@@ -492,15 +506,18 @@ export default function TripMap({
                                     (() => {
                                         const parsed = parseAreasAcNote(hoveredPlace.note);
                                         return (
-                                            <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700">
-                                                <div className="font-semibold">{parsed.header}</div>
+                                            <div className="mb-2 p-1.5 bg-yellow-50 border border-yellow-200 rounded text-[9px] text-gray-700">
+                                                <div className="font-semibold truncate" title={parsed.header}>{parsed.compactHeader}</div>
                                                 {parsed.codes.length > 0 && (
-                                                    <div className="mt-2 flex flex-wrap gap-1">
+                                                    <div className="mt-1 flex flex-wrap gap-1">
                                                         {parsed.codes.map((c) => (
                                                             <span
                                                                 key={c}
-                                                                className="px-1.5 py-0.5 rounded bg-white border border-yellow-200 text-[9px] font-mono"
-                                                                title={`Código ÁreasAC: ${c}`}
+                                                                className="px-1 py-0.5 rounded bg-white border border-yellow-200 text-[8px] font-mono"
+                                                                title={(() => {
+                                                                    const label = areasAcLabelForCode(c);
+                                                                    return label ? `${c} — ${label}` : `Código ÁreasAC: ${c}`;
+                                                                })()}
                                                             >
                                                                 {c}
                                                             </span>
