@@ -89,6 +89,19 @@ export function useTripPlaces(
     });
     const requestSeqRef = useRef({ supercat1: 0, supercat2: 0, supercat3: 0, supercat4: 0, search: 0 });
     const supercatDisabledRef = useRef({ supercat1: false, supercat2: false, supercat3: false, supercat4: false });
+
+    // 🧯 Anti-loop: si el UI dispara repetido (map/efectos), evitamos abort+restart del MISMO request.
+    // - Si llega la misma key y hay in-flight: reusar.
+    // - Si llega key distinta: abortar la anterior y lanzar la nueva.
+    // - Cooldown corto post-completado para evitar ráfagas innecesarias.
+    const supercatInFlightRef = useRef<{
+        supercat1?: { key: string; controller: AbortController };
+        supercat2?: { key: string; controller: AbortController };
+        supercat3?: { key: string; controller: AbortController };
+        supercat4?: { key: string; controller: AbortController };
+    }>({});
+    const supercatLastDoneAtRef = useRef<Record<string, number>>({});
+    const SUPERCAT_COOLDOWN_MS = 2500;
     const abortStore = useMemo(
         () => ({
             supercat1: undefined as AbortController | undefined,
@@ -452,12 +465,9 @@ export function useTripPlaces(
     // 1) Spots (camping)
     const searchBlockSpots = useCallback((location: Coordinates) => {
         const radiusMeters = effectiveRadiusMetersForType('camping');
-        const seq = ++requestSeqRef.current.supercat1;
-        abortStore.supercat1?.abort();
-        abortStore.supercat1 = new AbortController();
+        const cacheKey = `supercat1_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         setLoadingPlaces(prev => ({...prev, camping: true}));
-        const cacheKey = `supercat1_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         if (supercatDisabledRef.current.supercat1) {
             searchPlaces(location, 'camping');
@@ -471,10 +481,33 @@ export function useTripPlaces(
             return;
         }
 
+        const now = Date.now();
+        const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
+        if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            setLoadingPlaces(prev => ({...prev, camping: false}));
+            return;
+        }
+
+        const existing = supercatInFlightRef.current.supercat1;
+        if (existing?.key === cacheKey) {
+            // Ya hay una request idéntica en vuelo; no abortar ni relanzar.
+            return;
+        }
+
+        // Key distinta: abortamos la anterior para que "gane" la última.
+        if (existing?.controller) {
+            existing.controller.abort();
+        }
+
+        const seq = ++requestSeqRef.current.supercat1;
+        const controller = new AbortController();
+        abortStore.supercat1 = controller;
+        supercatInFlightRef.current.supercat1 = { key: cacheKey, controller };
+
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(1, location, radiusMeters, abortStore.supercat1?.signal);
+                const data = await fetchSupercat(1, location, radiusMeters, controller.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat1 !== seq) return;
 
                 const campingRaw = (data.categories.camping || []) as ServerPlace[];
@@ -493,6 +526,10 @@ export function useTripPlaces(
                     searchPlaces(location, 'camping');
                 }
             } finally {
+                if (supercatInFlightRef.current.supercat1?.key === cacheKey) {
+                    supercatInFlightRef.current.supercat1 = undefined;
+                }
+                supercatLastDoneAtRef.current[cacheKey] = Date.now();
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat1 === seq) {
                     setLoadingPlaces(prev => ({...prev, camping: false}));
@@ -509,12 +546,9 @@ export function useTripPlaces(
                 Math.max(RADIUS_CAPS_KM.restaurant, RADIUS_CAPS_KM.supermarket)
             )
         );
-        const seq = ++requestSeqRef.current.supercat2;
-        abortStore.supercat2?.abort();
-        abortStore.supercat2 = new AbortController();
+        const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         setLoadingPlaces(prev => ({...prev, restaurant: true, supermarket: true}));
-        const cacheKey = `supercat2_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         if (supercatDisabledRef.current.supercat2) {
             searchPlaces(location, 'restaurant');
@@ -533,10 +567,30 @@ export function useTripPlaces(
             return;
         }
 
+        const now = Date.now();
+        const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
+        if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            setLoadingPlaces(prev => ({...prev, restaurant: false, supermarket: false}));
+            return;
+        }
+
+        const existing = supercatInFlightRef.current.supercat2;
+        if (existing?.key === cacheKey) {
+            return;
+        }
+        if (existing?.controller) {
+            existing.controller.abort();
+        }
+
+        const seq = ++requestSeqRef.current.supercat2;
+        const controller = new AbortController();
+        abortStore.supercat2 = controller;
+        supercatInFlightRef.current.supercat2 = { key: cacheKey, controller };
+
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(2, location, radiusMeters, abortStore.supercat2?.signal);
+                const data = await fetchSupercat(2, location, radiusMeters, controller.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat2 !== seq) return;
 
                 const restaurantRaw = (data.categories.restaurant || []) as ServerPlace[];
@@ -562,6 +616,10 @@ export function useTripPlaces(
                     searchPlaces(location, 'supermarket');
                 }
             } finally {
+                if (supercatInFlightRef.current.supercat2?.key === cacheKey) {
+                    supercatInFlightRef.current.supercat2 = undefined;
+                }
+                supercatLastDoneAtRef.current[cacheKey] = Date.now();
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat2 === seq) {
                     setLoadingPlaces(prev => ({...prev, restaurant: false, supermarket: false}));
@@ -578,12 +636,9 @@ export function useTripPlaces(
                 Math.max(RADIUS_CAPS_KM.gas, RADIUS_CAPS_KM.laundry)
             )
         );
-        const seq = ++requestSeqRef.current.supercat3;
-        abortStore.supercat3?.abort();
-        abortStore.supercat3 = new AbortController();
+        const cacheKey = `supercat3_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         setLoadingPlaces(prev => ({...prev, gas: true, laundry: true}));
-        const cacheKey = `supercat3_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         if (supercatDisabledRef.current.supercat3) {
             searchPlaces(location, 'gas');
@@ -602,10 +657,30 @@ export function useTripPlaces(
             return;
         }
 
+        const now = Date.now();
+        const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
+        if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            setLoadingPlaces(prev => ({...prev, gas: false, laundry: false}));
+            return;
+        }
+
+        const existing = supercatInFlightRef.current.supercat3;
+        if (existing?.key === cacheKey) {
+            return;
+        }
+        if (existing?.controller) {
+            existing.controller.abort();
+        }
+
+        const seq = ++requestSeqRef.current.supercat3;
+        const controller = new AbortController();
+        abortStore.supercat3 = controller;
+        supercatInFlightRef.current.supercat3 = { key: cacheKey, controller };
+
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(3, location, radiusMeters, abortStore.supercat3?.signal);
+                const data = await fetchSupercat(3, location, radiusMeters, controller.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat3 !== seq) return;
 
                 const gasRaw = (data.categories.gas || []) as ServerPlace[];
@@ -627,6 +702,10 @@ export function useTripPlaces(
                     searchPlaces(location, 'laundry');
                 }
             } finally {
+                if (supercatInFlightRef.current.supercat3?.key === cacheKey) {
+                    supercatInFlightRef.current.supercat3 = undefined;
+                }
+                supercatLastDoneAtRef.current[cacheKey] = Date.now();
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat3 === seq) {
                     setLoadingPlaces(prev => ({...prev, gas: false, laundry: false}));
@@ -638,12 +717,9 @@ export function useTripPlaces(
     // 4) Turismo
     const searchBlockTourism = useCallback((location: Coordinates) => {
         const radiusMeters = effectiveRadiusMetersForType('tourism');
-        const seq = ++requestSeqRef.current.supercat4;
-        abortStore.supercat4?.abort();
-        abortStore.supercat4 = new AbortController();
+        const cacheKey = `supercat4_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         setLoadingPlaces(prev => ({...prev, tourism: true}));
-        const cacheKey = `supercat4_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
         if (supercatDisabledRef.current.supercat4) {
             searchPlaces(location, 'tourism');
@@ -657,10 +733,30 @@ export function useTripPlaces(
             return;
         }
 
+        const now = Date.now();
+        const lastDoneAt = supercatLastDoneAtRef.current[cacheKey] || 0;
+        if (now - lastDoneAt < SUPERCAT_COOLDOWN_MS) {
+            setLoadingPlaces(prev => ({...prev, tourism: false}));
+            return;
+        }
+
+        const existing = supercatInFlightRef.current.supercat4;
+        if (existing?.key === cacheKey) {
+            return;
+        }
+        if (existing?.controller) {
+            existing.controller.abort();
+        }
+
+        const seq = ++requestSeqRef.current.supercat4;
+        const controller = new AbortController();
+        abortStore.supercat4 = controller;
+        supercatInFlightRef.current.supercat4 = { key: cacheKey, controller };
+
         (async () => {
             let didFallbackToClient = false;
             try {
-                const data = await fetchSupercat(4, location, radiusMeters, abortStore.supercat4?.signal);
+                const data = await fetchSupercat(4, location, radiusMeters, controller.signal);
                 if (!isMountedRef.current || requestSeqRef.current.supercat4 !== seq) return;
 
                 const tourismRaw = (data.categories.tourism || []) as ServerPlace[];
@@ -677,6 +773,10 @@ export function useTripPlaces(
                     searchPlaces(location, 'tourism');
                 }
             } finally {
+                if (supercatInFlightRef.current.supercat4?.key === cacheKey) {
+                    supercatInFlightRef.current.supercat4 = undefined;
+                }
+                supercatLastDoneAtRef.current[cacheKey] = Date.now();
                 if (didFallbackToClient) return;
                 if (isMountedRef.current && requestSeqRef.current.supercat4 === seq) {
                     setLoadingPlaces(prev => ({...prev, tourism: false}));
