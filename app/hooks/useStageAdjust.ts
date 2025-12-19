@@ -41,12 +41,22 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
     async (newDestination: string, newCoordinates: { lat: number; lng: number }) => {
       if (adjustingDayIndex === null || !results.dailyItinerary) return;
 
+      const stripDecorations = (raw: string) =>
+        String(raw ?? '')
+          .replace('📍 Parada Táctica: ', '')
+          .replace('📍 Parada de Pernocta: ', '')
+          .split('|')[0]
+          .trim();
+
+      const coordsToParam = (c?: { lat: number; lng: number }) => (c ? `${c.lat},${c.lng}` : undefined);
+
       showToast('Recalculando ruta...', 'info');
 
       try {
         console.log('🔧 Ajustando día', adjustingDayIndex, 'a:', newDestination);
 
-        const previousDestination = String(results.dailyItinerary[adjustingDayIndex]?.to ?? '');
+        const previousDestinationRaw = String(results.dailyItinerary[adjustingDayIndex]?.to ?? '');
+        const previousDestination = stripDecorations(previousDestinationRaw);
 
         // 1. Actualizar la etapa ajustada en el itinerario local
         const updatedItinerary = [...results.dailyItinerary];
@@ -55,6 +65,19 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           to: newDestination,
           coordinates: newCoordinates,
         };
+
+        const lastDrivingIndex = (() => {
+          let last = -1;
+          for (let i = 0; i < updatedItinerary.length; i++) {
+            if (updatedItinerary[i]?.isDriving) last = i;
+          }
+          return last;
+        })();
+
+        // Caso importante: si el día ajustado es la ÚLTIMA etapa de conducción, normalmente el usuario
+        // está cambiando el DESTINO del viaje (aunque luego haya días de estancia).
+        // Si lo tratamos como waypoint, el itinerario queda incoherente.
+        const isAdjustingLastDrivingStage = lastDrivingIndex !== -1 && adjustingDayIndex === lastDrivingIndex;
 
         // 2. Si es la última etapa, solo actualizar el destino final
         if (adjustingDayIndex === updatedItinerary.length - 1) {
@@ -78,7 +101,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         // PASO 1: Extraer waypoints OBLIGATORIOS desde formData.etapas
         let waypointsFromForm = formData.etapas
           .split('|')
-          .map((s) => s.trim())
+          .map((s) => stripDecorations(s))
           .filter((s) => s.length > 0);
 
         // 🔧 Auto-heal: si `etapas` quedó contaminado por paradas de segmentación (p.ej. "Cáceres"),
@@ -87,14 +110,14 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         const tacticalStops = new Set(
           (results.dailyItinerary || [])
             .filter((d) => d.type === 'tactical')
-            .map((d) => String(d.to ?? '').replace('📍 Parada Táctica: ', '').split('|')[0].trim())
+            .map((d) => stripDecorations(String(d.to ?? '')))
             .filter((s) => s.length > 0)
             .map((s) => normalizeForComparison(s))
         );
         if (tacticalStops.size > 0) {
           const before = waypointsFromForm;
           waypointsFromForm = waypointsFromForm.filter((wp) => {
-            const key = normalizeForComparison(String(wp).replace('📍 Parada Táctica: ', '').split('|')[0].trim());
+            const key = normalizeForComparison(stripDecorations(String(wp)));
             return !tacticalStops.has(key);
           });
           if (before.length !== waypointsFromForm.length) {
@@ -108,11 +131,31 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         // Caso A (normal): el día ajustado corresponde a un waypoint existente -> REEMPLAZAR.
         // Caso B (fallback): si no encontramos el waypoint (p.ej. era parada táctica), INSERTAR antes del siguiente waypoint.
 
+        const matchesLoosely = (a: string, b: string) => {
+          const na = normalizeForComparison(stripDecorations(a));
+          const nb = normalizeForComparison(stripDecorations(b));
+          if (!na || !nb) return false;
+          if (na === nb) return true;
+          // Match por “parte ciudad” (antes de coma) para tolerar formatos distintos
+          const ca = na.split(',')[0];
+          const cb = nb.split(',')[0];
+          return na.includes(cb) || nb.includes(ca) || ca === cb;
+        };
+
+        const findFirstDayIndexForWaypoint = (wp: string) => {
+          for (let i = 0; i < updatedItinerary.length; i++) {
+            const d = updatedItinerary[i];
+            if (!d) continue;
+            if (matchesLoosely(String(d.to ?? ''), wp)) return i;
+          }
+          return -1;
+        };
+
         const findWaypointIndex = (target: string) => {
-          const normTarget = normalizeForComparison(target);
+          const normTarget = normalizeForComparison(stripDecorations(target));
           const cityPart = normTarget.split(',')[0];
           return waypointsFromForm.findIndex((wp) => {
-            const normWp = normalizeForComparison(wp);
+            const normWp = normalizeForComparison(stripDecorations(wp));
             const wpCityPart = normWp.split(',')[0];
             return normWp.includes(cityPart) || normTarget.includes(wpCityPart);
           });
@@ -128,66 +171,95 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         } else {
           console.log('  ℹ️ No se encontró el waypoint previo en formData.etapas; aplicando inserción fallback');
 
-          if (adjustingDayIndex < updatedItinerary.length - 1) {
-            // No es la última etapa, buscar el siguiente waypoint real
-            const nextDayDestination = updatedItinerary[adjustingDayIndex + 1].to;
+          // Estrategia robusta:
+          // - Buscar hacia delante en el ITINERARIO el próximo waypoint obligatorio real (de formData.etapas)
+          // - Insertar el nuevo destino justo ANTES de ese waypoint (o al final si no existe)
+          const forwardNextAnchor = (() => {
+            const candidates = waypointsFromForm
+              .map((wp, idx) => ({ wp, idx, dayIdx: findFirstDayIndexForWaypoint(wp) }))
+              .filter((x) => x.dayIdx !== -1 && x.dayIdx > adjustingDayIndex)
+              .sort((a, b) => a.dayIdx - b.dayIdx);
+            return candidates[0] ?? null;
+          })();
 
-          console.log('🔍 DEBUG ÍNDICE:');
-          console.log('  adjustingDayIndex:', adjustingDayIndex);
-          console.log('  updatedItinerary.length:', updatedItinerary.length);
-          console.log('  updatedItinerary[adjustingDayIndex]:', updatedItinerary[adjustingDayIndex]);
-          console.log('  updatedItinerary[adjustingDayIndex + 1]:', updatedItinerary[adjustingDayIndex + 1]);
-          console.log('  nextDayDestination:', nextDayDestination);
-          console.log('  waypointsFromForm:', waypointsFromForm);
+          console.log('🔍 DEBUG ÍNDICE (fallback táctico):', {
+            adjustingDayIndex,
+            waypointsFromForm,
+            forwardNextAnchor,
+          });
 
-            const nextWaypointIndex = findWaypointIndex(String(nextDayDestination ?? ''));
-
-          console.log('  nextWaypointIndex encontrado:', nextWaypointIndex);
-
-            if (nextWaypointIndex !== -1) {
-              // Insertar ANTES del siguiente waypoint
-              updatedMandatoryWaypoints = [
-                ...waypointsFromForm.slice(0, nextWaypointIndex),
-                newDestination,
-                ...waypointsFromForm.slice(nextWaypointIndex),
-              ];
-              console.log('  ✅ Insertando en índice', nextWaypointIndex);
-            } else {
-              // Si no encontramos el siguiente waypoint, agregar al final
-              updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
-              console.log('  ⚠️ No encontrado, agregando al final');
-            }
+          if (forwardNextAnchor) {
+            updatedMandatoryWaypoints = [
+              ...waypointsFromForm.slice(0, forwardNextAnchor.idx),
+              newDestination,
+              ...waypointsFromForm.slice(forwardNextAnchor.idx),
+            ];
+            console.log('  ✅ Insertando antes del siguiente waypoint real:', {
+              before: forwardNextAnchor.wp,
+              idx: forwardNextAnchor.idx,
+              dayIdx: forwardNextAnchor.dayIdx,
+            });
           } else {
-            // Si es la última etapa, agregar al final
+            // Si no encontramos ningún waypoint ancla, agregamos al final.
+            // (Esto pasa cuando el usuario no tiene waypoints obligatorios en el formulario.)
             updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
-            console.log('  📌 Última etapa, agregando al final');
+            console.log('  ⚠️ No encontrado waypoint ancla; agregando al final');
           }
         }
 
         console.log('📦 Waypoints después del ajuste:', updatedMandatoryWaypoints);
 
-        const originCityName = normalizeForGoogle(formData.origen);
-        const destCityName = normalizeForGoogle(formData.destino);
-        const normalizedWaypoints = updatedMandatoryWaypoints.map((wp) => normalizeForGoogle(wp));
+        // Si estamos ajustando la última etapa de conducción, este ajuste se interpreta como cambio de DESTINO.
+        // Actualizamos formData.destino para mantener consistencia en UI/persistencia.
+        if (isAdjustingLastDrivingStage) {
+          setFormData((prev) => ({ ...prev, destino: newDestination }));
+        }
+
+        const firstDay = updatedItinerary[0];
+        const originParam = coordsToParam(firstDay?.startCoordinates) || normalizeForGoogle(stripDecorations(formData.origen));
+
+        const lastDay = updatedItinerary[updatedItinerary.length - 1];
+        const destinationParam = isAdjustingLastDrivingStage
+          ? coordsToParam(newCoordinates) || normalizeForGoogle(stripDecorations(newDestination))
+          : coordsToParam(lastDay?.coordinates) || normalizeForGoogle(stripDecorations(formData.destino));
+
+        const findCoordsForText = (text: string) => {
+          const key = normalizeForComparison(stripDecorations(text));
+          if (!key) return undefined;
+          for (const d of updatedItinerary) {
+            const cand = normalizeForComparison(stripDecorations(String(d.to ?? '')));
+            if (!cand) continue;
+            if (cand === key || cand.includes(key) || key.includes(cand)) {
+              if (d.coordinates) return d.coordinates;
+            }
+          }
+          return undefined;
+        };
+
+        const normalizedWaypoints = updatedMandatoryWaypoints.map((wp) => {
+          if (wp === newDestination) return coordsToParam(newCoordinates) || normalizeForGoogle(stripDecorations(wp));
+          const coords = findCoordsForText(wp);
+          return coordsToParam(coords) || normalizeForGoogle(stripDecorations(wp));
+        });
 
         console.log('📍 Ruta NUEVA a Google:');
-        console.log(`  Origen: ${originCityName}`);
+        console.log(`  Origen: ${originParam}`);
         normalizedWaypoints.forEach((wp, i) => {
           console.log(`  Waypoint ${i + 1}: ${wp}`);
         });
-        console.log(`  Destino: ${destCityName}`);
+        console.log(`  Destino: ${destinationParam}`);
 
         // PASO 3: Enviar a Google la ruta NUEVA
         const recalcResult = await getDirectionsAndCost({
           tripId: tripId ?? undefined,
           tripName: formData.tripName || '',
-          origin: originCityName,
-          destination: destCityName,
+          origin: originParam,
+          destination: destinationParam,
           waypoints: normalizedWaypoints,
           travel_mode: 'driving',
           kmMaximoDia: formData.kmMaximoDia,
           fechaInicio: results.dailyItinerary[0].isoDate || formData.fechaInicio,
-          fechaRegreso: '',
+          fechaRegreso: formData.fechaRegreso || '',
         });
 
         if (recalcResult.error || !recalcResult.dailyItinerary) {
@@ -237,7 +309,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         console.log('📝 Actualizando formData.etapas (waypoints obligatorios):', updatedMandatoryWaypoints);
         setFormData((prev) => ({
           ...prev,
-          etapas: updatedMandatoryWaypoints.join('|'),
+          // Si era cambio de destino, dejamos los waypoints obligatorios tal cual estaban.
+          etapas: isAdjustingLastDrivingStage ? prev.etapas : updatedMandatoryWaypoints.join('|'),
         }));
 
         setResults({
