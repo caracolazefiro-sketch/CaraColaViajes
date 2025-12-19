@@ -12,6 +12,7 @@ interface TestItem {
 }
 
 export default function TestManualChecklist() {
+    const todayEs = new Date().toLocaleDateString('es-ES');
     const [tests, setTests] = useState<TestItem[]>([
         {
             id: 'test-1',
@@ -73,6 +74,80 @@ export default function TestManualChecklist() {
             verification: '✅ VERIFICAR: Solo se muestran lugares con rating ≥4.0',
             status: 'pending',
             notes: ''
+        },
+
+        // --- ÁREASAC (P1) ---
+        {
+            id: 'areasac-1',
+            title: 'ÁreasAC 1: Aparece y va primero (por distancia)',
+            steps: [
+                'Crear un viaje con etapa cerca de una zona con ÁreasAC (ej: Albacete/Lezuza)',
+                'Activar categoría "Camping" (supercat=1) en esa etapa',
+                'Observar el orden de la lista de Spots'
+            ],
+            verification: '✅ VERIFICAR: Los primeros resultados son ÁreasAC (place_id empieza por areasac:) y están ordenados por cercanía (aprox).',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'areasac-2',
+            title: 'ÁreasAC 2: No desaparece con rating mínimo',
+            steps: [
+                'En la misma etapa, subir el slider de rating mínimo (p.ej. 4.0)',
+                'Revisar que ÁreasAC sigue visible',
+                'Comparar con resultados Google que sí se filtran por rating'
+            ],
+            verification: '✅ VERIFICAR: ÁreasAC sigue apareciendo aunque no tenga rating; Google sí se filtra.',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'areasac-3',
+            title: 'ÁreasAC 3: Tooltip/InfoWindow compacto + logo',
+            steps: [
+                'Abrir el mapa y hacer click en un marcador de ÁreasAC',
+                'Observar el tooltip/InfoWindow',
+                'Confirmar que no hay scrollbar y que los botones caben'
+            ],
+            verification: '✅ VERIFICAR: Si no hay foto, aparece el logo; el tooltip es compacto, sin scroll, y los botones se ven.',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'areasac-4',
+            title: 'ÁreasAC 4: Leyenda de códigos (chips con hover)',
+            steps: [
+                'En lista o tooltip, localizar los chips de códigos (PN, AL, AG, etc.)',
+                'Pasar el ratón por encima de varios chips',
+                'Repetir en móvil (sin hover: al menos se ve el código)'
+            ],
+            verification: '✅ VERIFICAR: En desktop, el hover muestra significado (title) tipo “PN — Pernocta posible”.',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'areasac-5',
+            title: 'ÁreasAC 5: Mapa centra y respeta ventana mínima (~30km)',
+            steps: [
+                'Con una etapa seleccionada, activar/desactivar la categoría "Camping"',
+                'Observar cómo el mapa recentra y ajusta zoom',
+                'Repetir en otra etapa'
+            ],
+            verification: '✅ VERIFICAR: Al activar la categoría, el mapa centra en el punto de búsqueda y mantiene una ventana mínima (no zoom excesivo).',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'areasac-6',
+            title: 'ÁreasAC 6: Caché (sin llamadas sorpresa)',
+            steps: [
+                'Con el mismo centro/radio, activar Camping, esperar resultados y desactivar/activar otra vez',
+                'Abrir /logs-viewer-supabase y filtrar por el viaje actual',
+                'Comparar primer request (MISS) vs segundo (HIT)'
+            ],
+            verification: '✅ VERIFICAR: En el segundo request hay cache hit (o fallback) y coste $0 para Places.',
+            status: 'pending',
+            notes: ''
         }
     ]);
 
@@ -113,13 +188,13 @@ export default function TestManualChecklist() {
                 <p className="text-red-100 text-lg">Validación exhaustiva de sliders, filtros y saved places</p>
                 <div className="mt-4 flex gap-4 text-sm">
                     <div className="bg-white/20 rounded-lg px-4 py-2">
-                        <span className="font-bold">Fecha:</span> 04/12/2025
+                        <span className="font-bold">Fecha:</span> {todayEs}
                     </div>
                     <div className="bg-white/20 rounded-lg px-4 py-2">
                         <span className="font-bold">Rama:</span> testing
                     </div>
                     <div className="bg-white/20 rounded-lg px-4 py-2">
-                        <span className="font-bold">Commit:</span> 5752c9b
+                        <span className="font-bold">Commit:</span> ver git log
                     </div>
                 </div>
             </div>
