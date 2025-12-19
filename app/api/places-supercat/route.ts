@@ -30,13 +30,6 @@ type ServerPlace = {
   photoName?: string;
 };
 
-type PlacesNearbyResponse = {
-  status: string;
-  results?: ServerPlace[];
-  next_page_token?: string;
-  error_message?: string;
-};
-
 type NewPlacesNearbyPlace = {
   id?: string;
   name?: string; // resource name: places/PLACE_ID
@@ -83,10 +76,6 @@ const SUPERCAT_RADIUS_CAP_METERS: Record<Supercat, number> = {
 function clampRadiusMeters(input: number) {
   const safe = Number.isFinite(input) ? input : 20_000;
   return Math.max(1000, Math.min(50_000, Math.round(safe)));
-}
-
-function redactGoogleKey(url: string) {
-  return url.replace(/([?&]key=)([^&]+)/i, '$1REDACTED');
 }
 
 function classifyCamping(r: ServerPlace) {
@@ -462,17 +451,18 @@ async function getAreasAcNearby(params: { center: LatLng; radius: number; maxRes
 const SUPERCAT_1_KEYWORD = 'camping camper motorhome autocaravana rv park stellplatz';
 
 // 2) Comer + Super (una sola llamada, luego se reparte)
-// Nota: NearbySearch `keyword` no interpreta OR y a menudo actúa como AND textual,
-// lo que puede producir ZERO_RESULTS (p.ej. "restaurant supermarket").
-// Estrategia: 2 llamadas por `type` y merge.
-const SUPERCAT_2_TYPES = ['restaurant', 'supermarket'] as const;
+// Estrategia: 1 llamada Places API (New) con `includedTypes` y luego se reparte.
+// Nota: set conservador para “super” (a veces viene como grocery_store).
+const SUPERCAT_2_INCLUDED_TYPES = ['restaurant', 'supermarket', 'grocery_store'] as const;
 
 // 3) Gas + Lavar (una sola llamada, luego se reparte)
-// Evitar "tintorerías" (dry_cleaner): sesgo a laundromat / autoservicio.
-const SUPERCAT_3_KEYWORD = 'gas station laundromat self service';
+// Estrategia: 1 llamada Places API (New) con `includedTypes` y luego se reparte.
+// Nota: evitamos `dry_cleaner` a propósito (sesgo a lavanderías autoservicio).
+const SUPERCAT_3_INCLUDED_TYPES = ['gas_station', 'laundry'] as const;
 
 // 4) Turismo
-const SUPERCAT_4_KEYWORD = 'tourist_attraction museum park';
+// Estrategia: 1 llamada Places API (New) con `includedTypes`.
+const SUPERCAT_4_INCLUDED_TYPES = ['tourist_attraction', 'museum', 'park'] as const;
 
 function buildTypesHistogram(results: ServerPlace[]) {
   const counts: Record<string, number> = {};
@@ -497,37 +487,6 @@ function buildTypesHistogram(results: ServerPlace[]) {
   }));
 
   return { top, sample };
-}
-
-async function fetchNearbyPage(params: {
-  center: LatLng;
-  radius: number;
-  keyword?: string;
-  type?: string;
-  apiKey: string;
-  pageToken?: string;
-}) {
-  const { center, radius, keyword, type, apiKey, pageToken } = params;
-
-  const base = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
-  const url = new URL(base);
-
-  if (pageToken) {
-    url.searchParams.set('pagetoken', pageToken);
-  } else {
-    url.searchParams.set('location', `${center.lat},${center.lng}`);
-    url.searchParams.set('radius', String(radius));
-    if (type) url.searchParams.set('type', type);
-    if (keyword) url.searchParams.set('keyword', keyword);
-  }
-  url.searchParams.set('key', apiKey);
-
-  const start = performance.now();
-  const res = await fetch(url.toString());
-  const json = (await res.json()) as PlacesNearbyResponse;
-  const duration = performance.now() - start;
-
-  return { json, durationMs: Math.round(duration), url: url.toString() };
 }
 
 function toServerPlaceFromNew(p: NewPlacesNearbyPlace): ServerPlace {
@@ -639,27 +598,22 @@ export async function POST(req: Request) {
       supercat === 1
         ? SUPERCAT_1_KEYWORD
         : supercat === 2
-          ? 'type=restaurant,supermarket'
+          ? `includedTypes=${SUPERCAT_2_INCLUDED_TYPES.join(',')}`
           : supercat === 3
-            ? SUPERCAT_3_KEYWORD
-            : SUPERCAT_4_KEYWORD;
+            ? `includedTypes=${SUPERCAT_3_INCLUDED_TYPES.join(',')}`
+            : `includedTypes=${SUPERCAT_4_INCLUDED_TYPES.join(',')}`;
 
-    // Query strategy (cost-control):
-    // - Supercat 1: 1 llamada usando Places API (New) Nearby Search con `includedTypes`
-    //   (campground + rv_park) para no depender de `keyword` multi-palabra.
-    // - Supercat 2: 2 llamadas Places (Legacy) por `type` (restaurant + supermarket)
-    // - Supercat 3: `keyword="gas station laundromat self service"`
-    // - Supercat 4: `type=tourist_attraction`
-    const queryType = supercat === 4 ? 'tourist_attraction' : undefined;
-    const queryKeyword =
-      supercat === 3 ? SUPERCAT_3_KEYWORD : undefined;
-
-    const queryInfo =
+    // Query strategy (cost-control): 1 llamada por supercat usando Places API (New).
+    const includedTypes =
       supercat === 1
-        ? { provider: 'places-new', includedTypes: ['campground', 'rv_park'], keyword: null }
+        ? (['campground', 'rv_park'] as const)
         : supercat === 2
-          ? { provider: 'places-legacy', types: [...SUPERCAT_2_TYPES], keyword: null }
-          : { provider: 'places-legacy', type: queryType ?? null, keyword: queryKeyword ?? null };
+          ? SUPERCAT_2_INCLUDED_TYPES
+          : supercat === 3
+            ? SUPERCAT_3_INCLUDED_TYPES
+            : SUPERCAT_4_INCLUDED_TYPES;
+
+    const queryInfo = { provider: 'places-new', includedTypes: [...includedTypes], keyword: null };
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -670,15 +624,15 @@ export async function POST(req: Request) {
     // 0) Supabase cache HIT
     // Bump supercat=1 cache namespace when query semantics change.
     // v7: includes full AreasAC dataset integration + ordering (AreasAC first, by distance).
-    // v4 (supercat=2): 2 llamadas por type (restaurant + supermarket) para evitar ZERO_RESULTS del keyword anterior.
+    // v5/v4/v3: migrate supercats 2/3/4 to Places API (New) includedTypes.
     const cacheNamespace =
       supercat === 1
         ? 'places-supercat-v7'
         : supercat === 2
-          ? 'places-supercat-v4'
+          ? 'places-supercat-v5'
           : supercat === 3
-            ? 'places-supercat-v3'
-            : 'places-supercat-v2';
+            ? 'places-supercat-v4'
+            : 'places-supercat-v3';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
@@ -895,8 +849,8 @@ export async function POST(req: Request) {
     let totalDurationMs = 0;
     let googleCalls = 0;
 
-    if (supercat === 1) {
-      const p = await fetchNearbyNew({ center, radius, apiKey, includedTypes: ['campground', 'rv_park'], maxResultCount: 20 });
+    {
+      const p = await fetchNearbyNew({ center, radius, apiKey, includedTypes: [...includedTypes], maxResultCount: 20 });
       googleCalls = 1;
       pages = 1;
 
@@ -906,46 +860,6 @@ export async function POST(req: Request) {
       totalDurationMs = p.durationMs;
       firstPageUrl = p.url;
       pageLogs = [{ status, resultsCount: results.length, durationMs: p.durationMs, nextPageToken: null, url: p.url }];
-    } else if (supercat === 2) {
-      const calls = await Promise.all(
-        SUPERCAT_2_TYPES.map(async (type) => {
-          const p = await fetchNearbyPage({ center, radius, apiKey, type });
-          return { type, p };
-        })
-      );
-
-      googleCalls = calls.length;
-      pages = 1;
-
-      const statuses = calls.map((x) => x.p.json.status || 'UNKNOWN');
-      const hasAnyResults = calls.some((x) => (x.p.json.results || []).length > 0);
-      const allZero = statuses.length > 0 && statuses.every((s) => s === 'ZERO_RESULTS');
-      status = hasAnyResults ? 'OK' : allZero ? 'ZERO_RESULTS' : statuses.find((s) => s !== 'ZERO_RESULTS') || statuses[0] || 'UNKNOWN';
-
-      const merged = calls.flatMap((x) => (x.p.json.results || []).slice(0, 20));
-      results = merged;
-
-      totalDurationMs = calls.reduce((acc, x) => acc + (x.p.durationMs || 0), 0);
-      const first = calls[0]?.p;
-      firstPageUrl = first ? redactGoogleKey(first.url) : '';
-      pageLogs = calls.map(({ type, p }) => ({
-        status: p.json.status || 'UNKNOWN',
-        resultsCount: (p.json.results || []).length,
-        durationMs: p.durationMs,
-        nextPageToken: p.json.next_page_token || null,
-        url: redactGoogleKey(p.url) + `&__type=${encodeURIComponent(type)}`,
-      }));
-    } else {
-      const p = await fetchNearbyPage({ center, radius, apiKey, type: queryType, keyword: queryKeyword });
-      googleCalls = 1;
-      pages = 1;
-      status = p.json.status || 'UNKNOWN';
-      results = (p.json.results || []).slice(0, 20);
-      totalDurationMs = p.durationMs;
-      firstPageUrl = redactGoogleKey(p.url);
-      pageLogs = [
-        { status, resultsCount: results.length, durationMs: p.durationMs, nextPageToken: p.json.next_page_token || null, url: redactGoogleKey(p.url) },
-      ];
     }
 
     // Dedup defensivo (supercat=1 puede traer duplicados)
@@ -1151,7 +1065,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
-          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
+          query: queryInfo,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
