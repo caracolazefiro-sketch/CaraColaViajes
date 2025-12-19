@@ -629,9 +629,9 @@ export async function POST(req: Request) {
             ? SUPERCAT_3_INCLUDED_TYPES
             : SUPERCAT_4_INCLUDED_TYPES;
 
-    // For mixed includedTypes (gas + laundry), POPULARITY often returns only gas stations.
-    // DISTANCE tends to surface nearby laundries as well.
-    const rankPreference = supercat === 3 ? 'DISTANCE' : 'POPULARITY';
+    // Nota: Places API (New) no ofrece “cuotas” por tipo en una sola llamada.
+    // Con 1 llamada, puede ocurrir que salgan 0 resultados de una sub-categoría.
+    const rankPreference: 'POPULARITY' | 'DISTANCE' = 'POPULARITY';
     const queryInfo = { provider: 'places-new', includedTypes: [...includedTypes], rankPreference, keyword: null };
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
@@ -878,7 +878,7 @@ export async function POST(req: Request) {
       results = raw;
       totalDurationMs = p.durationMs;
       firstPageUrl = p.url;
-      pageLogs = [{ status, resultsCount: results.length, durationMs: p.durationMs, nextPageToken: null, url: p.url }];
+      pageLogs = [{ status, resultsCount: raw.length, durationMs: p.durationMs, nextPageToken: null, url: p.url }];
     }
 
     // Dedup defensivo (supercat=1 puede traer duplicados)
