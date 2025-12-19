@@ -142,6 +142,18 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           return na.includes(cb) || nb.includes(ca) || ca === cb;
         };
 
+        // Si el usuario ya había intentado antes y el sistema dejó el nuevo destino mal colocado
+        // (p.ej. Dax después de París), lo eliminamos primero para reinsertarlo en el sitio correcto.
+        const beforeDedup = waypointsFromForm;
+        waypointsFromForm = waypointsFromForm.filter((wp) => !matchesLoosely(wp, newDestination));
+        if (beforeDedup.length !== waypointsFromForm.length) {
+          console.log('🧹 Eliminando ocurrencias previas del nuevo destino en etapas:', {
+            newDestination,
+            before: beforeDedup,
+            after: waypointsFromForm,
+          });
+        }
+
         const findFirstDayIndexForWaypoint = (wp: string) => {
           for (let i = 0; i < updatedItinerary.length; i++) {
             const d = updatedItinerary[i];
