@@ -790,8 +790,8 @@ export async function POST(req: Request) {
         const merged = uniqByPlaceId([...areasAcCamping, ...googleSorted]).slice(0, CAMPING_MAX);
         const camping = uniqByPlaceId(merged.filter(classifyCamping)).slice(0, 20);
 
-        const fbTotals = (fbPayload && typeof fbPayload === 'object' ? (fbPayload.totals as any) : null) as
-          | { pages?: number; totalResults?: number }
+        const fbTotals = (fbPayload && typeof fbPayload === 'object' ? (fbPayload.totals as unknown) : null) as
+          | { pages?: unknown; totalResults?: unknown }
           | null;
         const fbPages = typeof fbTotals?.pages === 'number' ? fbTotals.pages : 1;
         const fbPageLogs = (fbPayload && typeof fbPayload === 'object' ? fbPayload.pageLogs : undefined) as unknown;
