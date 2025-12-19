@@ -314,7 +314,16 @@ function classifyGas(r: ServerPlace) {
 
 function classifyLaundry(r: ServerPlace) {
   const t = r.types || [];
-  return t.includes('laundry') && !t.includes('lodging') && !t.includes('dry_cleaner');
+  if (!t.includes('laundry')) return false;
+  if (t.includes('lodging')) return false;
+  // Exclude dry cleaners / "tintorerías".
+  if (t.includes('dry_cleaner')) return false;
+
+  const name = String(r.name || '').toLowerCase();
+  if (/tintorer/.test(name)) return false;
+  if (/limpieza\s+en\s+seco|\bseco\b|dry\s*clean/.test(name)) return false;
+
+  return true;
 }
 
 function classifyTourism(r: ServerPlace) {
@@ -500,10 +509,15 @@ function toServerPlaceFromNew(p: NewPlacesNearbyPlace): ServerPlace {
 
   const photoName = p.photos?.[0]?.name;
 
+  const types = Array.isArray(p.types) ? p.types.filter(Boolean) : [];
+  if (typeof p.primaryType === 'string' && p.primaryType.length > 0 && !types.includes(p.primaryType)) {
+    types.push(p.primaryType);
+  }
+
   return {
     name: p.displayName?.text,
     place_id: placeId,
-    types: Array.isArray(p.types) ? p.types : undefined,
+    types: types.length ? types : undefined,
     rating: typeof p.rating === 'number' ? p.rating : undefined,
     user_ratings_total: typeof p.userRatingCount === 'number' ? p.userRatingCount : undefined,
     vicinity: p.shortFormattedAddress || p.formattedAddress,
@@ -631,7 +645,7 @@ export async function POST(req: Request) {
         : supercat === 2
           ? 'places-supercat-v5'
           : supercat === 3
-            ? 'places-supercat-v4'
+            ? 'places-supercat-v5'
             : 'places-supercat-v3';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
