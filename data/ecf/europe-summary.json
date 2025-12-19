@@ -1,0 +1,206 @@
+{
+  "source": {
+    "folder": "CHEMA\\ANALISIS\\DATOS USUARIOS EUR",
+    "stockFile": "europabestand_C-RM.pdf",
+    "registrationFiles": [
+      "E.1.0-Jan-Jun_25.pdf",
+      "E.1.0_CY2023.pdf",
+      "E.1.0_CY_2021.pdf",
+      "E.1.0_CY_2022.pdf",
+      "EU_CY2024.pdf"
+    ]
+  },
+  "stock2020": {
+    "total": {
+      "country": "Total",
+      "caravans": 3470250,
+      "motorCaravans": 2427942,
+      "total": 5898192
+    },
+    "countries": [
+      {
+        "country": "Austria",
+        "caravans": 39820,
+        "motorCaravans": 32777,
+        "total": 72597
+      },
+      {
+        "country": "Belgium",
+        "caravans": 40283,
+        "motorCaravans": 62348,
+        "total": 102631
+      },
+      {
+        "country": "Denmark",
+        "caravans": 121672,
+        "motorCaravans": 11092,
+        "total": 132764
+      },
+      {
+        "country": "Finland",
+        "caravans": 66248,
+        "motorCaravans": 60668,
+        "total": 126916
+      },
+      {
+        "country": "France",
+        "caravans": 539000,
+        "motorCaravans": 559800,
+        "total": 1098800
+      },
+      {
+        "country": "Germany",
+        "caravans": 722516,
+        "motorCaravans": 674697,
+        "total": 1397213
+      },
+      {
+        "country": "Italy",
+        "caravans": 64000,
+        "motorCaravans": 240915,
+        "total": 304915
+      },
+      {
+        "country": "Netherlands",
+        "caravans": 425489,
+        "motorCaravans": 144509,
+        "total": 569998
+      },
+      {
+        "country": "Norway",
+        "caravans": 118687,
+        "motorCaravans": 55222,
+        "total": 173909
+      },
+      {
+        "country": "Portugal",
+        "caravans": 18000,
+        "motorCaravans": 10000,
+        "total": 28000
+      },
+      {
+        "country": "Spain",
+        "caravans": 231800,
+        "motorCaravans": 80000,
+        "total": 311800
+      },
+      {
+        "country": "Sweden",
+        "caravans": 285965,
+        "motorCaravans": 108518,
+        "total": 394483
+      },
+      {
+        "country": "Switzerland",
+        "caravans": 29910,
+        "motorCaravans": 65100,
+        "total": 95010
+      },
+      {
+        "country": "Slovenia",
+        "caravans": 6109,
+        "motorCaravans": 6076,
+        "total": 12185
+      },
+      {
+        "country": "United Kingdom",
+        "caravans": 555494,
+        "motorCaravans": 250425,
+        "total": 805919
+      },
+      {
+        "country": "Others",
+        "caravans": 205257,
+        "motorCaravans": 65795,
+        "total": 271052
+      }
+    ]
+  },
+  "registrationsTotalsSeries": [
+    {
+      "file": "E.1.0-Jan-Jun_25.pdf",
+      "yearA": 2024,
+      "yearB": 2025,
+      "caravans": {
+        "2024": 34674,
+        "2025": 31262
+      },
+      "motorCaravans": {
+        "2024": 94810,
+        "2025": 94663
+      },
+      "total": {
+        "2024": 129484,
+        "2025": 125925
+      }
+    },
+    {
+      "file": "E.1.0_CY2023.pdf",
+      "yearA": 2022,
+      "yearB": 2023,
+      "caravans": {
+        "2022": 71545,
+        "2023": 63751
+      },
+      "motorCaravans": {
+        "2022": 147804,
+        "2023": 146339
+      },
+      "total": {
+        "2022": 219349,
+        "2023": 210090
+      }
+    },
+    {
+      "file": "E.1.0_CY_2021.pdf",
+      "yearA": 2020,
+      "yearB": 2021,
+      "caravans": {
+        "2020": 75935,
+        "2021": 78739
+      },
+      "motorCaravans": {
+        "2020": 160184,
+        "2021": 181304
+      },
+      "total": {
+        "2020": 236119,
+        "2021": 260043
+      }
+    },
+    {
+      "file": "E.1.0_CY_2022.pdf",
+      "yearA": 2021,
+      "yearB": 2022,
+      "caravans": {
+        "2021": 78825,
+        "2022": 70892
+      },
+      "motorCaravans": {
+        "2021": 181440,
+        "2022": 147498
+      },
+      "total": {
+        "2021": 260265,
+        "2022": 218390
+      }
+    },
+    {
+      "file": "EU_CY2024.pdf",
+      "yearA": 2023,
+      "yearB": 2024,
+      "caravans": {
+        "2023": 63853,
+        "2024": 60865
+      },
+      "motorCaravans": {
+        "2023": 146490,
+        "2024": 160342
+      },
+      "total": {
+        "2023": 210343,
+        "2024": 221207
+      }
+    }
+  ]
+}
