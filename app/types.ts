@@ -32,6 +32,15 @@ export interface DailyPlan {
     startCoordinates?: Coordinates; 
     coordinates?: Coordinates; // Coordenadas de destino
     type: 'overnight' | 'tactical' | 'start' | 'end';
+
+    // 🔗 Meta “itinerario maestro” (opcional)
+    // `masterLegIndex` indica entre qué paradas obligatorias (legs de Google) cae este día.
+    // Útil para insertar un nuevo waypoint cuando el usuario ajusta una parada táctica.
+    masterLegIndex?: number;
+    masterFromStopIndex?: number;
+    masterToStopIndex?: number;
+    masterKind?: 'tactical' | 'anchor' | 'stay';
+
     savedPlaces?: PlaceWithDistance[]; 
 }
 

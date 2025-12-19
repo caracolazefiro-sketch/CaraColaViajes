@@ -28,6 +28,14 @@ interface DailyPlan {
   startCoordinates?: { lat: number; lng: number }; // Inicio
   isoDate: string; // ISO format para consistencia con types.ts
   type: 'overnight' | 'tactical' | 'start' | 'end'; // Tipo de día
+
+    // 🔗 Meta “itinerario maestro”
+    // `masterLegIndex`: índice del leg de Google Directions (entre paradas obligatorias).
+    // Útil para saber dónde insertar un nuevo waypoint cuando el usuario ajusta una parada táctica.
+    masterLegIndex?: number;
+    masterFromStopIndex?: number; // índice en allStops (origin + waypoints + destination)
+    masterToStopIndex?: number;   // índice en allStops (origin + waypoints + destination)
+    masterKind?: 'tactical' | 'anchor' | 'stay';
 }
 
 interface DirectionsRequest {
@@ -478,7 +486,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             const allDrivingStops: {
                 from: string, to: string, distance: number,
                 startCoords: {lat: number, lng: number},
-                endCoords: {lat: number, lng: number}
+                endCoords: {lat: number, lng: number},
+                masterLegIndex: number,
+                masterFromStopIndex: number,
+                masterToStopIndex: number,
+                masterKind: 'tactical' | 'anchor'
             }[] = [];
 
             const finalWaypointsForMap: string[] = [];
@@ -541,7 +553,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                     to: stopName,
                                     distance: realDistance,
                                     startCoords: currentLegStartCoords,
-                                    endCoords: stopCoords
+                                    endCoords: stopCoords,
+                                    masterLegIndex: i,
+                                    masterFromStopIndex: i,
+                                    masterToStopIndex: i + 1,
+                                    masterKind: 'tactical'
                                 });
 
                                 createdStopsInThisLeg = true;
@@ -571,6 +587,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 to: nextStopName,
                                 endCoords: { lat: leg.end_location.lat, lng: leg.end_location.lng },
                                 distance: last.distance + tailKm,
+                                masterLegIndex: i,
+                                masterFromStopIndex: i,
+                                masterToStopIndex: i + 1,
+                                masterKind: 'anchor',
                             };
 
                             // Consumimos el tail: ya hemos llegado al waypoint.
@@ -592,7 +612,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     to: nextStopName,
                     distance: dayAccumulatorMeters / 1000,
                     startCoords: currentLegStartCoords,
-                    endCoords: legEndCoords
+                    endCoords: legEndCoords,
+                    masterLegIndex: i,
+                    masterFromStopIndex: i,
+                    masterToStopIndex: i + 1,
+                    masterKind: 'anchor'
                 });
 
                 if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
@@ -618,9 +642,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     to: stop.to,
                     distance: stop.distance,
                     isDriving: true,
-                    type: 'overnight',
+                    type: stop.masterKind === 'tactical' ? 'tactical' : 'overnight',
                     startCoordinates: stop.startCoords,
-                    coordinates: stop.endCoords
+                    coordinates: stop.endCoords,
+                    masterLegIndex: stop.masterLegIndex,
+                    masterFromStopIndex: stop.masterFromStopIndex,
+                    masterToStopIndex: stop.masterToStopIndex,
+                    masterKind: stop.masterKind
                 });
                 currentDate = addDays(currentDate, 1);
                 dayCounter++;
@@ -778,7 +806,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         const allDrivingStops: {
             from: string, to: string, distance: number,
             startCoords: {lat: number, lng: number}, // ✅ Start
-            endCoords: {lat: number, lng: number}    // ✅ End (antes coordinates)
+            endCoords: {lat: number, lng: number},   // ✅ End (antes coordinates)
+            masterLegIndex: number,
+            masterFromStopIndex: number,
+            masterToStopIndex: number,
+            masterKind: 'tactical' | 'anchor'
         }[] = [];
 
         const finalWaypointsForMap: string[] = [];
@@ -847,8 +879,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             to: stopName,
                             distance: realDistance,
                             startCoords: currentLegStartCoords,
-                            endCoords: stopCoords
-                        });                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
+                            endCoords: stopCoords,
+                            masterLegIndex: i,
+                            masterFromStopIndex: i,
+                            masterToStopIndex: i + 1,
+                            masterKind: 'tactical'
+                        });
+                        finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
 
                         createdStopsInThisLeg = true;
 
@@ -876,6 +913,10 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             to: nextStopName,
                             endCoords: legEndCoords,
                             distance: last.distance + tailKm,
+                            masterLegIndex: i,
+                            masterFromStopIndex: i,
+                            masterToStopIndex: i + 1,
+                            masterKind: 'anchor'
                         };
 
                         currentLegStartName = nextStopName;
@@ -898,7 +939,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 to: nextStopName,
                 distance: dayAccumulatorMeters / 1000,
                 startCoords: currentLegStartCoords,
-                endCoords: legEndCoords
+                endCoords: legEndCoords,
+                masterLegIndex: i,
+                masterFromStopIndex: i,
+                masterToStopIndex: i + 1,
+                masterKind: 'anchor'
             });
 
             if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
@@ -928,9 +973,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 to: stop.to,
                 distance: stop.distance,
                 isDriving: true,
-                type: 'overnight',
+                     type: stop.masterKind === 'tactical' ? 'tactical' : 'overnight',
                 startCoordinates: stop.startCoords,
-                coordinates: stop.endCoords
+                     coordinates: stop.endCoords,
+                     masterLegIndex: stop.masterLegIndex,
+                     masterFromStopIndex: stop.masterFromStopIndex,
+                     masterToStopIndex: stop.masterToStopIndex,
+                     masterKind: stop.masterKind
             });
             currentDate = addDays(currentDate, 1);
             dayCounter++;

@@ -183,39 +183,54 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         } else {
           console.log('  ℹ️ No se encontró el waypoint previo en formData.etapas; aplicando inserción fallback');
 
-          // Estrategia robusta:
-          // - Buscar hacia delante en el ITINERARIO el próximo waypoint obligatorio real (de formData.etapas)
-          // - Insertar el nuevo destino justo ANTES de ese waypoint (o al final si no existe)
-          const forwardNextAnchor = (() => {
-            const candidates = waypointsFromForm
-              .map((wp, idx) => ({ wp, idx, dayIdx: findFirstDayIndexForWaypoint(wp) }))
-              .filter((x) => x.dayIdx !== -1 && x.dayIdx > adjustingDayIndex)
-              .sort((a, b) => a.dayIdx - b.dayIdx);
-            return candidates[0] ?? null;
-          })();
-
-          console.log('🔍 DEBUG ÍNDICE (fallback táctico):', {
-            adjustingDayIndex,
-            waypointsFromForm,
-            forwardNextAnchor,
-          });
-
-          if (forwardNextAnchor) {
+          // ✅ Estrategia determinista (itinerario maestro):
+          // Si el servidor nos marca en qué leg cae este día (entre qué paradas obligatorias),
+          // insertamos el nuevo destino EXACTAMENTE en ese tramo.
+          const dayMetaLegIndex = results.dailyItinerary?.[adjustingDayIndex]?.masterLegIndex;
+          if (
+            typeof dayMetaLegIndex === 'number' &&
+            Number.isFinite(dayMetaLegIndex) &&
+            results.dailyItinerary?.[adjustingDayIndex]?.type === 'tactical'
+          ) {
+            const insertIndex = Math.max(0, Math.min(waypointsFromForm.length, Math.trunc(dayMetaLegIndex)));
             updatedMandatoryWaypoints = [
-              ...waypointsFromForm.slice(0, forwardNextAnchor.idx),
+              ...waypointsFromForm.slice(0, insertIndex),
               newDestination,
-              ...waypointsFromForm.slice(forwardNextAnchor.idx),
+              ...waypointsFromForm.slice(insertIndex),
             ];
-            console.log('  ✅ Insertando antes del siguiente waypoint real:', {
-              before: forwardNextAnchor.wp,
-              idx: forwardNextAnchor.idx,
-              dayIdx: forwardNextAnchor.dayIdx,
-            });
+            console.log('  ✅ Insertando por masterLegIndex:', { dayMetaLegIndex, insertIndex, updatedMandatoryWaypoints });
           } else {
-            // Si no encontramos ningún waypoint ancla, agregamos al final.
-            // (Esto pasa cuando el usuario no tiene waypoints obligatorios en el formulario.)
-            updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
-            console.log('  ⚠️ No encontrado waypoint ancla; agregando al final');
+
+            // Fallback heurístico (solo si no tenemos meta del servidor)
+            const forwardNextAnchor = (() => {
+              const candidates = waypointsFromForm
+                .map((wp, idx) => ({ wp, idx, dayIdx: findFirstDayIndexForWaypoint(wp) }))
+                .filter((x) => x.dayIdx !== -1 && x.dayIdx > adjustingDayIndex)
+                .sort((a, b) => a.dayIdx - b.dayIdx);
+              return candidates[0] ?? null;
+            })();
+
+            console.log('🔍 DEBUG ÍNDICE (fallback táctico):', {
+              adjustingDayIndex,
+              waypointsFromForm,
+              forwardNextAnchor,
+            });
+
+            if (forwardNextAnchor) {
+              updatedMandatoryWaypoints = [
+                ...waypointsFromForm.slice(0, forwardNextAnchor.idx),
+                newDestination,
+                ...waypointsFromForm.slice(forwardNextAnchor.idx),
+              ];
+              console.log('  ✅ Insertando antes del siguiente waypoint real:', {
+                before: forwardNextAnchor.wp,
+                idx: forwardNextAnchor.idx,
+                dayIdx: forwardNextAnchor.dayIdx,
+              });
+            } else {
+              updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
+              console.log('  ⚠️ No encontrado waypoint ancla; agregando al final');
+            }
           }
         }
 
