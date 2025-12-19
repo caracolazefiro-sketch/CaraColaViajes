@@ -176,6 +176,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         let updatedMandatoryWaypoints: string[];
 
         const previousWaypointIndex = findWaypointIndex(previousDestination);
+        const isAdjustingTacticalStop = previousWaypointIndex === -1;
         if (previousWaypointIndex !== -1) {
           updatedMandatoryWaypoints = [...waypointsFromForm];
           updatedMandatoryWaypoints[previousWaypointIndex] = newDestination;
@@ -263,10 +264,22 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           return undefined;
         };
 
+        const waypointLabelByCoords = new Map<string, string>();
+        const normalizeCoordsKey = (raw: string) => String(raw).replace(/\s+/g, '');
+
         const normalizedWaypoints = updatedMandatoryWaypoints.map((wp) => {
-          if (wp === newDestination) return coordsToParam(newCoordinates) || normalizeForGoogle(stripDecorations(wp));
+          const cleanWp = stripDecorations(wp);
+
+          if (wp === newDestination) {
+            const coordParam = coordsToParam(newCoordinates);
+            if (coordParam) waypointLabelByCoords.set(normalizeCoordsKey(coordParam), cleanWp);
+            return coordParam || normalizeForGoogle(cleanWp);
+          }
+
           const coords = findCoordsForText(wp);
-          return coordsToParam(coords) || normalizeForGoogle(stripDecorations(wp));
+          const coordParam = coordsToParam(coords);
+          if (coordParam) waypointLabelByCoords.set(normalizeCoordsKey(coordParam), cleanWp);
+          return coordParam || normalizeForGoogle(cleanWp);
         });
 
         console.log('📍 Ruta NUEVA a Google:');
@@ -321,7 +334,80 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         // PASO 4: El itinerario ya viene COMPLETO desde el servidor
         // (incluyendo segmentación de 300 km/día con localidades reales)
         // No necesitamos fusionar con días anteriores
-        const finalItinerary = recalcResult.dailyItinerary;
+        const applyWaypointLabels = (it: typeof recalcResult.dailyItinerary) => {
+          if (!it) return it;
+          return it.map((d) => {
+            const fromKey = normalizeCoordsKey(stripDecorations(String(d.from ?? '')));
+            const toKey = normalizeCoordsKey(stripDecorations(String(d.to ?? '')));
+            const mappedFrom = waypointLabelByCoords.get(fromKey);
+            const mappedTo = waypointLabelByCoords.get(toKey);
+            return {
+              ...d,
+              from: mappedFrom ?? d.from,
+              to: mappedTo ?? d.to,
+            };
+          });
+        };
+
+        let finalItinerary = applyWaypointLabels(recalcResult.dailyItinerary);
+
+        // ✅ Comportamiento “humano”: si el usuario ajusta una parada técnica del día N,
+        // ese día N debe terminar en el nuevo destino (aunque supere kmMaximoDia),
+        // y la segmentación continúa desde ahí.
+        if (finalItinerary && isAdjustingTacticalStop) {
+          const approxEq = (a: number, b: number, eps = 1e-5) => Math.abs(a - b) <= eps;
+          const looksLikeSameCoords = (c?: { lat: number; lng: number }) =>
+            !!c && approxEq(c.lat, newCoordinates.lat) && approxEq(c.lng, newCoordinates.lng);
+
+          const findReachIndex = () => {
+            for (let i = 0; i < finalItinerary.length; i++) {
+              const d = finalItinerary[i];
+              if (!d?.isDriving) continue;
+              if (looksLikeSameCoords(d.coordinates)) return i;
+              const raw = stripDecorations(String(d.to ?? '')).replace(/\s+/g, '');
+              const coordKey = normalizeCoordsKey(coordsToParam(newCoordinates) ?? '');
+              if (coordKey && raw === coordKey) return i;
+            }
+            return -1;
+          };
+
+          const reachIdx = findReachIndex();
+          if (reachIdx !== -1 && reachIdx > adjustingDayIndex) {
+            const mergedSlice = finalItinerary.slice(adjustingDayIndex, reachIdx + 1);
+            const first = mergedSlice[0];
+            const totalKm = mergedSlice.reduce((acc, d) => acc + (Number(d.distance) || 0), 0);
+
+            const mergedDay = {
+              ...first,
+              to: stripDecorations(newDestination),
+              coordinates: { lat: newCoordinates.lat, lng: newCoordinates.lng },
+              distance: totalKm,
+              type: 'overnight' as const,
+              masterKind: 'anchor' as const,
+            };
+
+            const nextDays = finalItinerary.slice(reachIdx + 1);
+            finalItinerary = [...finalItinerary.slice(0, adjustingDayIndex), mergedDay, ...nextDays];
+
+            // Reindexar días y fechas manteniendo la fecha de inicio del itinerario
+            const start = new Date(finalItinerary[0].isoDate || formData.fechaInicio);
+            const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            let cursor = new Date(start);
+            finalItinerary = finalItinerary.map((d, idx) => {
+              const out = {
+                ...d,
+                day: idx + 1,
+                date: fmt(cursor),
+                isoDate: cursor.toISOString(),
+              };
+              cursor.setDate(cursor.getDate() + 1);
+              return out;
+            });
+
+            console.log('🧩 Merge táctico→destino (ajuste de día):', { adjustingDayIndex, reachIdx, totalKm });
+          }
+        }
 
         console.log(
           '📊 Itinerario final (regenerado desde cero, segmentado en servidor):',
