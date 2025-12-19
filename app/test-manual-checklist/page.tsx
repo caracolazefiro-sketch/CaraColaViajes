@@ -281,7 +281,7 @@ export default function TestManualChecklist() {
                                         📝 Notas / Observaciones:
                                     </label>
                                     <textarea
-                                        className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        className="w-full border border-gray-300 rounded-lg p-3 text-sm bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         rows={3}
                                         placeholder="Escribe aquí cualquier observación, bug encontrado o detalle importante..."
                                         value={test.notes}
