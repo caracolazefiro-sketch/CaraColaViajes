@@ -264,7 +264,8 @@ export default function CostCalculatorPage() {
         <div className={card}>
           <h1 className="text-3xl font-bold text-gray-900">📈 Calculadora de costes (APIs) — Modelo 4 vs 6</h1>
           <p className="text-gray-700 mt-2">
-            Esta página estima coste anual en USD combinando: Places (Nearby), Directions, Geocoding y Autocomplete.
+            Esta página estima coste anual en USD combinando: Places Nearby (Places API New <code className="font-mono">searchNearby</code> / legacy Nearby), Directions,
+            Geocoding y Places Autocomplete.
             Weather (Open-Meteo) se muestra pero es $0.
           </p>
           <p className="text-gray-700 mt-2">
@@ -422,7 +423,7 @@ export default function CostCalculatorPage() {
             <p className="text-sm text-gray-600 mt-1">Defaults basados en documentación del repo y logger; ajustables.</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
-                <div className={label}>Places (Nearby) $/request</div>
+                <div className={label}>Places Nearby (API New / legacy) $/request</div>
                 <input
                   className={input}
                   value={String(costs.placesUsdPerRequest)}
@@ -454,7 +455,7 @@ export default function CostCalculatorPage() {
                 />
               </div>
               <div className="col-span-2">
-                <div className={label}>Places Autocomplete $/sesión</div>
+                <div className={label}>Places Autocomplete $/sesión (sugerencias al escribir)</div>
                 <input
                   className={input}
                   value={String(costs.placesAutocompleteUsdPerSession)}
@@ -462,6 +463,9 @@ export default function CostCalculatorPage() {
                     setCosts((c) => ({ ...c, placesAutocompleteUsdPerSession: clamp(toNum(e.target.value, c.placesAutocompleteUsdPerSession), 0, 10) }))
                   }
                 />
+                <div className="mt-1 text-xs text-gray-500">
+                  Una “sesión” suele corresponder a una interacción de autocompletado (teclear → elegir sugerencia). Ajusta el coste y cuántas sesiones hay por viaje.
+                </div>
               </div>
             </div>
           </div>
@@ -533,6 +537,7 @@ export default function CostCalculatorPage() {
                     <div className="text-gray-700">calls: {m.breakdown.places.calls}</div>
                     <div className="text-gray-700">paid (esperado): {m.breakdown.places.paidCalls.toFixed(2)}</div>
                     <div className="text-gray-900 font-semibold">cost: {formatUsd(m.breakdown.places.costUsd)}</div>
+                    <div className="text-xs text-gray-500 mt-1">(Nearby Search / API New searchNearby)</div>
                   </div>
 
                   <div className="rounded border border-gray-200 bg-gray-50 p-3">
