@@ -533,15 +533,17 @@ async function fetchNearbyNew(params: {
   includedTypes: string[];
   apiKey: string;
   maxResultCount?: number;
+  rankPreference?: 'POPULARITY' | 'DISTANCE';
 }) {
   const { center, radius, includedTypes, apiKey } = params;
   const maxResultCount = Math.max(1, Math.min(20, Math.round(params.maxResultCount ?? 20)));
+  const rankPreference = params.rankPreference ?? 'POPULARITY';
 
   const url = 'https://places.googleapis.com/v1/places:searchNearby';
   const body = {
     includedTypes,
     maxResultCount,
-    rankPreference: 'POPULARITY',
+    rankPreference,
     locationRestriction: {
       circle: {
         center: { latitude: center.lat, longitude: center.lng },
@@ -627,7 +629,10 @@ export async function POST(req: Request) {
             ? SUPERCAT_3_INCLUDED_TYPES
             : SUPERCAT_4_INCLUDED_TYPES;
 
-    const queryInfo = { provider: 'places-new', includedTypes: [...includedTypes], keyword: null };
+    // For mixed includedTypes (gas + laundry), POPULARITY often returns only gas stations.
+    // DISTANCE tends to surface nearby laundries as well.
+    const rankPreference = supercat === 3 ? 'DISTANCE' : 'POPULARITY';
+    const queryInfo = { provider: 'places-new', includedTypes: [...includedTypes], rankPreference, keyword: null };
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -645,7 +650,7 @@ export async function POST(req: Request) {
         : supercat === 2
           ? 'places-supercat-v5'
           : supercat === 3
-            ? 'places-supercat-v5'
+            ? 'places-supercat-v6'
             : 'places-supercat-v3';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
@@ -864,7 +869,7 @@ export async function POST(req: Request) {
     let googleCalls = 0;
 
     {
-      const p = await fetchNearbyNew({ center, radius, apiKey, includedTypes: [...includedTypes], maxResultCount: 20 });
+      const p = await fetchNearbyNew({ center, radius, apiKey, includedTypes: [...includedTypes], maxResultCount: 20, rankPreference });
       googleCalls = 1;
       pages = 1;
 
