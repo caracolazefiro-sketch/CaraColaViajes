@@ -462,9 +462,10 @@ async function getAreasAcNearby(params: { center: LatLng; radius: number; maxRes
 const SUPERCAT_1_KEYWORD = 'camping camper motorhome autocaravana rv park stellplatz';
 
 // 2) Comer + Super (una sola llamada, luego se reparte)
-// Nota: `keyword` no interpreta OR. Para no sesgar/romper resultados por idioma,
-// hacemos NearbySearch genérico y luego clasificamos por `types`.
-const SUPERCAT_2_KEYWORD = 'restaurant supermarket';
+// Nota: NearbySearch `keyword` no interpreta OR y a menudo actúa como AND textual,
+// lo que puede producir ZERO_RESULTS (p.ej. "restaurant supermarket").
+// Estrategia: 2 llamadas por `type` y merge.
+const SUPERCAT_2_TYPES = ['restaurant', 'supermarket'] as const;
 
 // 3) Gas + Lavar (una sola llamada, luego se reparte)
 // Evitar "tintorerías" (dry_cleaner): sesgo a laundromat / autoservicio.
@@ -638,7 +639,7 @@ export async function POST(req: Request) {
       supercat === 1
         ? SUPERCAT_1_KEYWORD
         : supercat === 2
-          ? SUPERCAT_2_KEYWORD
+          ? 'type=restaurant,supermarket'
           : supercat === 3
             ? SUPERCAT_3_KEYWORD
             : SUPERCAT_4_KEYWORD;
@@ -646,21 +647,19 @@ export async function POST(req: Request) {
     // Query strategy (cost-control):
     // - Supercat 1: 1 llamada usando Places API (New) Nearby Search con `includedTypes`
     //   (campground + rv_park) para no depender de `keyword` multi-palabra.
-    // - Supercat 2: `keyword="restaurant supermarket"`
+    // - Supercat 2: 2 llamadas Places (Legacy) por `type` (restaurant + supermarket)
     // - Supercat 3: `keyword="gas station laundromat self service"`
     // - Supercat 4: `type=tourist_attraction`
     const queryType = supercat === 4 ? 'tourist_attraction' : undefined;
     const queryKeyword =
-      supercat === 2
-          ? SUPERCAT_2_KEYWORD
-          : supercat === 3
-            ? SUPERCAT_3_KEYWORD
-            : undefined;
+      supercat === 3 ? SUPERCAT_3_KEYWORD : undefined;
 
     const queryInfo =
       supercat === 1
         ? { provider: 'places-new', includedTypes: ['campground', 'rv_park'], keyword: null }
-        : { provider: 'places-legacy', type: queryType ?? null, keyword: queryKeyword ?? null };
+        : supercat === 2
+          ? { provider: 'places-legacy', types: [...SUPERCAT_2_TYPES], keyword: null }
+          : { provider: 'places-legacy', type: queryType ?? null, keyword: queryKeyword ?? null };
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -671,7 +670,15 @@ export async function POST(req: Request) {
     // 0) Supabase cache HIT
     // Bump supercat=1 cache namespace when query semantics change.
     // v7: includes full AreasAC dataset integration + ordering (AreasAC first, by distance).
-    const cacheNamespace = supercat === 1 ? 'places-supercat-v7' : supercat === 3 ? 'places-supercat-v3' : 'places-supercat-v2';
+    // v4 (supercat=2): 2 llamadas por type (restaurant + supermarket) para evitar ZERO_RESULTS del keyword anterior.
+    const cacheNamespace =
+      supercat === 1
+        ? 'places-supercat-v7'
+        : supercat === 2
+          ? 'places-supercat-v4'
+          : supercat === 3
+            ? 'places-supercat-v3'
+            : 'places-supercat-v2';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
@@ -899,6 +906,35 @@ export async function POST(req: Request) {
       totalDurationMs = p.durationMs;
       firstPageUrl = p.url;
       pageLogs = [{ status, resultsCount: results.length, durationMs: p.durationMs, nextPageToken: null, url: p.url }];
+    } else if (supercat === 2) {
+      const calls = await Promise.all(
+        SUPERCAT_2_TYPES.map(async (type) => {
+          const p = await fetchNearbyPage({ center, radius, apiKey, type });
+          return { type, p };
+        })
+      );
+
+      googleCalls = calls.length;
+      pages = 1;
+
+      const statuses = calls.map((x) => x.p.json.status || 'UNKNOWN');
+      const hasAnyResults = calls.some((x) => (x.p.json.results || []).length > 0);
+      const allZero = statuses.length > 0 && statuses.every((s) => s === 'ZERO_RESULTS');
+      status = hasAnyResults ? 'OK' : allZero ? 'ZERO_RESULTS' : statuses.find((s) => s !== 'ZERO_RESULTS') || statuses[0] || 'UNKNOWN';
+
+      const merged = calls.flatMap((x) => (x.p.json.results || []).slice(0, 20));
+      results = merged;
+
+      totalDurationMs = calls.reduce((acc, x) => acc + (x.p.durationMs || 0), 0);
+      const first = calls[0]?.p;
+      firstPageUrl = first ? redactGoogleKey(first.url) : '';
+      pageLogs = calls.map(({ type, p }) => ({
+        status: p.json.status || 'UNKNOWN',
+        resultsCount: (p.json.results || []).length,
+        durationMs: p.durationMs,
+        nextPageToken: p.json.next_page_token || null,
+        url: redactGoogleKey(p.url) + `&__type=${encodeURIComponent(type)}`,
+      }));
     } else {
       const p = await fetchNearbyPage({ center, radius, apiKey, type: queryType, keyword: queryKeyword });
       googleCalls = 1;
@@ -1052,7 +1088,7 @@ export async function POST(req: Request) {
           center,
           radius,
           keyword,
-          query: { type: queryType ?? null, keyword: queryKeyword ?? null },
+          query: queryInfo,
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,
