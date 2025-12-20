@@ -59,6 +59,36 @@ Agent sugiere (basado en ROADMAP.md):
 - Último commit: [hash - mensaje]
 ```
 
+### PASO 2.5️⃣: REVISIÓN DIARIA “PORTERO DE APIS” (OBLIGATORIO)
+
+**Objetivo:** evitar “llamadas sorpresa” (cliente) y mantener coherencia de cachés/logs (server).
+
+1) Abrir y leer el documento base:
+- CHEMA/ANALISIS/OPTIMIZACION APIS Y PORTERO.md
+
+2) Comprobar si en la sesión se han tocado archivos críticos (si hay cambios, hay que actualizar el documento):
+```bash
+git diff --name-only HEAD~20..HEAD
+
+# Si aparece alguno de estos, revisar y actualizar el documento:
+# - app/actions.ts
+# - app/hooks/useTripCalculator.ts
+# - app/hooks/useTripPlaces.ts
+# - app/components/TripForm.tsx
+# - app/utils/supabase-cache.ts
+# - app/utils/server-logs.ts
+# - app/api/**
+
+# Ver el diff concreto (ejemplos):
+git diff HEAD~20..HEAD -- app/actions.ts
+git diff HEAD~20..HEAD -- app/hooks/useTripCalculator.ts
+```
+
+3) Consejos automáticos (si detectas cambios):
+- Si hay cambios en cliente (`useTripCalculator` / `page.tsx`): revisar riesgo de Geocoder sin caché y proponer mitigación.
+- Si hay cambios en server (`actions.ts` / `supabase-cache.ts`): confirmar que keys/TTL/logs siguen consistentes y que el visor muestra HIT/MISS.
+- Si hay cambios en Places: confirmar límite duro (4 supercats, sin paginación) y caché vigente.
+
 ### PASO 3️⃣: DIÁLOGO INTELIGENTE CON ROADMAP
 ```
 Agent pregunta al user:
@@ -191,4 +221,6 @@ Cuando user escriba `BUENAS NOCHES`:
 2. ✅ Crear snapshot si hay cambios nuevos
 3. ✅ Hacer git add + commit + push testing
 4. ✅ Validar status
-5. ✅ Responder con confirmación
+5. ✅ Haz copia de seguridad de todo el proyecto en F:\Backups
+6. ✅ Dejar como P1 para mañana: "TEST exhaustivo implementacion areasac"
+7. ✅ Responder con confirmación

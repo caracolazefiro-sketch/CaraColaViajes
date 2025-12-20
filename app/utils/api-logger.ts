@@ -15,15 +15,18 @@ interface APICall {
   method: 'GET' | 'POST';
   url?: string;
   requestSize?: number;
-  requestData?: Record<string, any>;
+  requestData?: Record<string, unknown>;
   responseSize?: number;
-  responseData?: Record<string, any>;
+  responseData?: Record<string, unknown>;
   duration?: number; // ms
   status?: string;
   cost?: number; // En €
   cached?: boolean;
   notes?: string;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 interface APISession {
   sessionId: string;
@@ -91,9 +94,9 @@ class APILogger {
   /**
    * Iniciar tracking de un nuevo viaje
    */
-  startTrip(origin: string, destination: string, waypoints: string[]) {
+  startTrip(origin: string, destination: string, waypoints: string[], tripIdOverride?: string) {
     this.currentTrip = {
-      tripId: `trip-${Date.now()}`,
+      tripId: tripIdOverride || `trip-${Date.now()}`,
       startTime: new Date().toISOString(),
       origin,
       destination,
@@ -127,7 +130,12 @@ class APILogger {
     origin: string;
     destination: string;
     waypoints: string[];
-  }, response: any, duration: number) {
+  }, response: unknown, duration: number) {
+    const responseObj = isRecord(response) ? response : {};
+    const routes = Array.isArray(responseObj.routes) ? responseObj.routes : [];
+    const route0 = isRecord(routes[0]) ? routes[0] : {};
+    const legs = Array.isArray(route0.legs) ? route0.legs : [];
+
     const call: APICall = {
       id: `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
@@ -138,13 +146,18 @@ class APILogger {
       requestSize: JSON.stringify(request).length,
       responseSize: JSON.stringify(response).length,
       responseData: {
-        status: response.status,
-        routesCount: response.routes?.length || 0,
-        legsCount: response.routes?.[0]?.legs?.length || 0,
-        totalDistance: response.routes?.[0]?.legs?.reduce((sum: number, leg: any) => sum + leg.distance.value, 0)
+        status: String(responseObj.status ?? ''),
+        routesCount: routes.length,
+        legsCount: legs.length,
+        totalDistance: legs.reduce((sum, legUnknown) => {
+          const leg = isRecord(legUnknown) ? legUnknown : {};
+          const distance = isRecord(leg.distance) ? leg.distance : {};
+          const meters = Number(distance.value ?? 0);
+          return sum + meters;
+        }, 0),
       },
       duration,
-      status: response.status,
+      status: String(responseObj.status ?? ''),
       cost: 0.005 + (0.005 * request.waypoints.length),
       cached: false,
       notes: `1 llamada por viaje. Waypoints: ${request.waypoints.length}`
@@ -160,7 +173,18 @@ class APILogger {
   /**
    * Log de Google Reverse Geocoding API
    */
-  logGeocoding(request: { lat: number; lng: number }, response: any, duration: number, cached: boolean = false) {
+  logGeocoding(request: { lat: number; lng: number }, response: unknown, duration: number, cached: boolean = false) {
+    const responseObj = isRecord(response) ? response : {};
+    const results = Array.isArray(responseObj.results) ? responseObj.results : [];
+    const result0 = isRecord(results[0]) ? results[0] : {};
+    const addressComponents = Array.isArray(result0.address_components) ? result0.address_components : [];
+    const locality = addressComponents.find((c) => {
+      const comp = isRecord(c) ? c : {};
+      const types = Array.isArray(comp.types) ? comp.types : [];
+      return types.includes('locality');
+    });
+    const localityObj = isRecord(locality) ? locality : {};
+
     const call: APICall = {
       id: `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
@@ -171,12 +195,12 @@ class APILogger {
       requestSize: JSON.stringify(request).length,
       responseSize: JSON.stringify(response).length,
       responseData: {
-        status: response.status,
-        resultsCount: response.results?.length || 0,
-        cityName: response.results?.[0]?.address_components?.find((c: any) => c.types.includes('locality'))?.long_name || 'N/A'
+        status: String(responseObj.status ?? ''),
+        resultsCount: results.length,
+        cityName: String(localityObj.long_name ?? 'N/A'),
       },
       duration,
-      status: response.status,
+      status: String(responseObj.status ?? ''),
       cost: cached ? 0 : 0.005,
       cached,
       notes: cached ? '✅ CACHE HIT - Sin coste' : '❌ CACHE MISS - Llamada a API'
@@ -193,7 +217,9 @@ class APILogger {
   /**
    * Log de Open-Meteo Weather API
    */
-  logWeather(request: { lat: number; lng: number; date: string }, response: any, duration: number) {
+  logWeather(request: { lat: number; lng: number; date: string }, response: unknown, duration: number) {
+    const responseObj = isRecord(response) ? response : {};
+    const daily = isRecord(responseObj.daily) ? responseObj.daily : {};
     const call: APICall = {
       id: `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
@@ -204,18 +230,18 @@ class APILogger {
       requestSize: JSON.stringify(request).length,
       responseSize: JSON.stringify(response).length,
       responseData: {
-        latitude: response.latitude,
-        longitude: response.longitude,
-        daily: response.daily ? {
-          weatherCode: response.daily.weather_code?.[0],
-          tempMax: response.daily.temperature_2m_max?.[0],
-          tempMin: response.daily.temperature_2m_min?.[0],
-          rainProb: response.daily.precipitation_probability_max?.[0],
-          windSpeed: response.daily.wind_speed_10m_max?.[0]
-        } : null
+        latitude: responseObj.latitude,
+        longitude: responseObj.longitude,
+        daily: {
+          weatherCode: Array.isArray(daily.weather_code) ? daily.weather_code[0] : undefined,
+          tempMax: Array.isArray(daily.temperature_2m_max) ? daily.temperature_2m_max[0] : undefined,
+          tempMin: Array.isArray(daily.temperature_2m_min) ? daily.temperature_2m_min[0] : undefined,
+          rainProb: Array.isArray(daily.precipitation_probability_max) ? daily.precipitation_probability_max[0] : undefined,
+          windSpeed: Array.isArray(daily.wind_speed_10m_max) ? daily.wind_speed_10m_max[0] : undefined,
+        },
       },
       duration,
-      status: response.latitude ? 'OK' : 'FAIL',
+      status: responseObj.latitude ? 'OK' : 'FAIL',
       cost: 0, // ✅ Completamente gratis
       cached: false,
       notes: '✅ GRATIS - Sin límite de requests'
@@ -231,7 +257,9 @@ class APILogger {
   /**
    * Log de Google Places Autocomplete
    */
-  logPlaces(request: { query: string }, response: any, duration: number) {
+  logPlaces(request: { query: string }, response: unknown, duration: number) {
+    const responseObj = isRecord(response) ? response : {};
+    const predictions = Array.isArray(responseObj.predictions) ? responseObj.predictions : [];
     const call: APICall = {
       id: `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
@@ -242,11 +270,14 @@ class APILogger {
       requestSize: JSON.stringify(request).length,
       responseSize: JSON.stringify(response).length,
       responseData: {
-        predictionsCount: response.predictions?.length || 0,
-        predictions: response.predictions?.slice(0, 3).map((p: any) => p.description)
+        predictionsCount: predictions.length,
+        predictions: predictions.slice(0, 3).map((p) => {
+          const pred = isRecord(p) ? p : {};
+          return String(pred.description ?? '');
+        }),
       },
       duration,
-      status: response.status || 'OK',
+      status: String(responseObj.status ?? 'OK'),
       cost: 0.011, // €0.011 por sesión (aproximado)
       cached: false,
       notes: 'Google Places Autocomplete'

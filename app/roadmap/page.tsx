@@ -29,6 +29,9 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 4. **Info window mejorado**
    - Foto del lugar prominente
    - Rating con estrellas visuales (ya implementado ✅)
+    - Nº de reseñas (user_ratings_total)
+    - Abierto ahora / estado (opening_hours.open_now / business_status)
+    - Tags útiles (types) y price_level (si viene)
    - Botón "Guardar" / "Añadir a favoritos"
    - Distancia desde punto de ruta
 
@@ -96,6 +99,7 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
 ## 🐛 BUGS CONOCIDOS
 - [ ] Actualizar \`baseline-browser-mapping\` (warning en build)
+- [ ] Sanitizar logs: redacción de API keys (Google \`key=...\`) antes de guardar/mostrar en Supabase
 
 ---
 

@@ -12,6 +12,21 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+
+    // Repo-specific: folders not meant to be linted (noise in Problems).
+    "BACKUPS/**",
+    "CHEMA/**",
+    "logs/**",
+    "data/**",
+    "scripts/**",
+
+    // Sandbox / experiments (not part of the core app quality gate).
+    "app/motor-bueno/**",
+    "app/icons-preview/**",
+    "app/icons-search-found/**",
+    "app/page-motor-malo-BACKUP.tsx",
+    "app/test-*/**",
+    "app/testing-*/**",
   ]),
 ]);
 

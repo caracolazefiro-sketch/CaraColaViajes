@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 // Iconos SVG profesionales (reemplazan emojis)
 
@@ -252,7 +253,7 @@ export default function TestingSVGPage() {
                   <h3 className="font-semibold text-green-800 mb-4">✅ DESPUÉS</h3>
                   <div className="bg-white p-4 rounded border border-gray-200">
                     <div className="flex items-center gap-2">
-                      <img src="/logo.jpg" alt="CaraCola Logo" className="h-8 w-8 rounded" />
+                      <Image src="/logo.jpg" alt="CaraCola Logo" width={32} height={32} className="h-8 w-8 rounded" />
                       <p className="font-semibold">CaraCola Viajes</p>
                     </div>
                     <p className="text-xs text-gray-600 mt-2">Logo profesional (logo.jpg)</p>

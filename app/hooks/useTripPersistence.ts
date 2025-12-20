@@ -1,5 +1,5 @@
 // app/hooks/useTripPersistence.ts
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabase';
 import { TripResult } from '../types';
 
@@ -7,6 +7,7 @@ export interface TripData {
     formData: Record<string, string | number | boolean>;
     results: TripResult;
     tripId?: number;
+    apiTripId?: string | null;
 }
 
 export function useTripPersistence<T extends Record<string, string | number | boolean>>(
@@ -17,12 +18,21 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     currentTripId: number | null,
     setCurrentTripId: (id: number | null) => void,
     // Funciones extra para resetear la UI al cargar un viaje
-    resetUiState?: () => void
+    resetUiState?: () => void,
+    apiTripId?: string | null,
+    setApiTripId?: (tripId: string | null) => void
 ) {
     const [isSaving, setIsSaving] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [hasLoadedUserData, setHasLoadedUserData] = useState(false);
-    const [previousUserId, setPreviousUserId] = useState<string | null>(null);
+    const previousUserIdRef = useRef<string | null>(null);
+
+    const setApiTripIdSafe = useCallback(
+        (tripId: string | null) => {
+            if (setApiTripId) setApiTripId(tripId);
+        },
+        [setApiTripId]
+    );
 
     // Obtener el user_id y cargar datos en un solo efecto
     useEffect(() => {
@@ -32,7 +42,8 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                 setCurrentTripId(null);
                 setUserId(null);
-                setPreviousUserId(null);
+                previousUserIdRef.current = null;
+                setApiTripIdSafe(null);
                 setHasLoadedUserData(true);
                 return;
             }
@@ -44,15 +55,16 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 const currentUserId = session.user.id;
                 
                 // Si cambió el usuario, limpiar el estado primero
-                if (previousUserId && previousUserId !== currentUserId) {
+                if (previousUserIdRef.current && previousUserIdRef.current !== currentUserId) {
                     setFormData({} as T);
                     setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                     setCurrentTripId(null);
+                    setApiTripIdSafe(null);
                     if (resetUiState) resetUiState();
                 }
                 
                 setUserId(currentUserId);
-                setPreviousUserId(currentUserId);
+                previousUserIdRef.current = currentUserId;
                 
                 if (typeof window !== 'undefined') {
                     const storageKey = `caracola_trip_v1_${currentUserId}`;
@@ -63,6 +75,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                             if (parsed.formData) setFormData(parsed.formData);
                             if (parsed.results) setResults(parsed.results);
                             if (parsed.tripId) setCurrentTripId(parsed.tripId);
+                            if (typeof parsed.apiTripId === 'string' || parsed.apiTripId === null) setApiTripIdSafe(parsed.apiTripId);
                         } catch (e: unknown) { 
                             console.error("Error leyendo caché:", e); 
                         }
@@ -74,7 +87,8 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                 setCurrentTripId(null);
                 setUserId(null);
-                setPreviousUserId(null);
+                previousUserIdRef.current = null;
+                setApiTripIdSafe(null);
                 setHasLoadedUserData(true);
             }
         };
@@ -88,15 +102,16 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                     const newUserId = session.user.id;
                     
                     // Si es un usuario diferente, limpiar primero
-                    if (previousUserId && previousUserId !== newUserId) {
+                    if (previousUserIdRef.current && previousUserIdRef.current !== newUserId) {
                         setFormData({} as T);
                         setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                         setCurrentTripId(null);
+                        setApiTripIdSafe(null);
                         if (resetUiState) resetUiState();
                     }
                     
                     setUserId(newUserId);
-                    setPreviousUserId(newUserId);
+                    previousUserIdRef.current = newUserId;
                     
                     // Cargar datos del nuevo usuario
                     if (typeof window !== 'undefined') {
@@ -108,6 +123,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                                 if (parsed.formData) setFormData(parsed.formData);
                                 if (parsed.results) setResults(parsed.results);
                                 if (parsed.tripId) setCurrentTripId(parsed.tripId);
+                                if (typeof parsed.apiTripId === 'string' || parsed.apiTripId === null) setApiTripIdSafe(parsed.apiTripId);
                             } catch (e: unknown) { 
                                 console.error("Error leyendo caché:", e); 
                             }
@@ -120,6 +136,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                     setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                     setCurrentTripId(null);
                     setUserId(null);
+                    setApiTripIdSafe(null);
                     if (resetUiState) resetUiState();
                 }
             });
@@ -128,16 +145,16 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 subscription.unsubscribe();
             };
         }
-    }, []);
+    }, [resetUiState, setApiTripIdSafe, setCurrentTripId, setFormData, setResults]);
 
     // 2. AUTOGUARDADO (LocalStorage con user_id)
     useEffect(() => {
         if (hasLoadedUserData && typeof window !== 'undefined' && userId) {
             const storageKey = `caracola_trip_v1_${userId}`;
-            const dataToSave = { formData, results, tripId: currentTripId };
+            const dataToSave = { formData, results, tripId: currentTripId, apiTripId: apiTripId ?? null };
             localStorage.setItem(storageKey, JSON.stringify(dataToSave));
         }
-    }, [formData, results, currentTripId, hasLoadedUserData, userId]);
+    }, [formData, results, currentTripId, hasLoadedUserData, userId, apiTripId]);
 
     // 3. ACCIONES (Handlers)
 
@@ -181,6 +198,8 @@ export function useTripPersistence<T extends Record<string, string | number | bo
             setFormData(tripData.formData as T);
             setResults(tripData.results);
             setCurrentTripId(tripId);
+            // Correlación estable para logs cuando el viaje viene de cloud
+            setApiTripIdSafe(tripData.apiTripId ?? `cloud-${tripId}`);
             // Limpiamos la UI (mapa, selección...)
             if (resetUiState) resetUiState();
             alert(`✅ Viaje cargado. (ID: ${tripId})`);
@@ -221,17 +240,24 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 if (overwrite) {
                     const { error } = await client.from('trips').update({ name: tripName, trip_data: tripPayload, updated_at: new Date().toISOString() }).eq('id', currentTripId);
                     if (error) throw error;
+                    setApiTripIdSafe(`cloud-${currentTripId}`);
                     alert("✅ Actualizado correctamente.");
                 } else {
                     const { data, error } = await client.from('trips').insert([{ name: tripName + " (Copia)", trip_data: tripPayload, user_id: session.user.id }]).select();
                     if (error) throw error;
-                    if (data && data[0]) setCurrentTripId(data[0].id);
+                    if (data && data[0]) {
+                        setCurrentTripId(data[0].id);
+                        setApiTripIdSafe(`cloud-${data[0].id}`);
+                    }
                     alert("✅ Copia guardada.");
                 }
             } else {
                 const { data, error } = await client.from('trips').insert([{ name: tripName, trip_data: tripPayload, user_id: session.user.id }]).select();
                 if (error) throw error;
-                if (data && data[0]) setCurrentTripId(data[0].id);
+                if (data && data[0]) {
+                    setCurrentTripId(data[0].id);
+                    setApiTripIdSafe(`cloud-${data[0].id}`);
+                }
                 alert("✅ Viaje nuevo guardado.");
             }
         } catch (error: unknown) {

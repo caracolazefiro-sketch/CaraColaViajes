@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import Link from 'next/link';
 
 export default function ScriptsDocsPage() {
   // Leer el README de scripts en build time
@@ -22,12 +23,12 @@ export default function ScriptsDocsPage() {
                 Guías y comandos para automatización del proyecto
               </p>
             </div>
-            <a
+            <Link
               href="/"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               ← Volver
-            </a>
+            </Link>
           </div>
         </div>
 

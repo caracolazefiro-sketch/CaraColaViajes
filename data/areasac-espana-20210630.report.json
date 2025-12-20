@@ -1,0 +1,13 @@
+{
+  "inputPath": "CHEMA/BASES DE DATOS/_AreasAc-Espana_2021063063.pdf",
+  "totalLines": 2102,
+  "parsedEntries": 1920,
+  "unparsedCount": 0,
+  "unparsedSample": [],
+  "notes": {
+    "coordinateFixes": [
+      "Detects decimal comma and converts to dot.",
+      "Auto-detects and normalizes to {lat,lng}. PDF usually provides lng lat."
+    ]
+  }
+}

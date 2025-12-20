@@ -11,6 +11,7 @@ import { useElevation } from '../hooks/useElevation';
 import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp } from '../lib/svgIcons';
 import { ServiceIcons } from './ServiceIcons';
+import { areasAcLabelForCode } from '../utils/areasacLegend';
 
 // Iconos
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
@@ -42,7 +43,7 @@ interface ServiceButtonProps {
 const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, filteredCount, loading = false, showCount = false }) => {
     const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
     const isActive = toggles[type];
-    // Mostrar count (resultados brutos de Google), no filteredCount
+    const badgeCount = filteredCount ?? count;
     
     return (
         <button 
@@ -69,13 +70,13 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onT
             )}
 
             {/* Contador de resultados (solo cuando debe mostrarse) */}
-            {showCount && count > 0 && (
+            {showCount && badgeCount > 0 && (
                 <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
                     isActive 
                         ? 'bg-red-500 text-white' 
                         : 'bg-gray-600 text-white'
                 }`}>
-                    {count}
+                    {badgeCount}
                 </span>
             )}
         </button>
@@ -235,8 +236,46 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                 
                                 {/* Nota personal (si existe) */}
                                 {spot.note && (
-                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700 italic">
-                                        💡 {spot.note}
+                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-gray-700">
+                                        {(() => {
+                                            const raw = String(spot.note || '').trim();
+                                            if (!raw.startsWith('ÁreasAC')) {
+                                                return <div className="italic">💡 {raw}</div>;
+                                            }
+
+                                            const parts = raw.split(' · ').map((s) => s.trim()).filter(Boolean);
+                                            const servicePart = parts.find((p) => /^Servicios:/i.test(p));
+                                            const headerParts = parts.filter((p) => p !== servicePart);
+                                            const codes = servicePart
+                                                ? servicePart
+                                                    .replace(/^Servicios:\s*/i, '')
+                                                    .split(/,\s*/)
+                                                    .map((c) => c.trim())
+                                                    .filter(Boolean)
+                                                : [];
+
+                                            return (
+                                                <>
+                                                    <div className="font-semibold">{headerParts.join(' · ')}</div>
+                                                    {codes.length > 0 && (
+                                                        <div className="mt-2 flex flex-wrap gap-1">
+                                                            {codes.map((c) => (
+                                                                <span
+                                                                    key={c}
+                                                                    className="px-1.5 py-0.5 rounded bg-white border border-yellow-200 text-[9px] font-mono"
+                                                                    title={(() => {
+                                                                        const label = areasAcLabelForCode(c);
+                                                                        return label ? `${c} — ${label}` : `Código ÁreasAC: ${c}`;
+                                                                    })()}
+                                                                >
+                                                                    {c}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                                 
@@ -301,7 +340,7 @@ const ServiceList: React.FC<ServiceListProps> = ({
                                     {(type === 'custom' || type === 'search' || type === 'found') && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditStart(spot); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); spot.place_id && onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); if (spot.place_id) onRemovePlace(spot.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                 </div>
                             ) : (
                                 <button onClick={() => isSaved(spot.place_id) ? (spot.place_id && onRemovePlace(spot.place_id)) : onAddPlace(spot)} className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isSaved(spot.place_id) ? 'bg-red-100 text-red-600 border-red-200 hover:bg-red-200' : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'}`}>{isSaved(spot.place_id) ? 'Borrar' : t('MAP_ADD')}</button>
@@ -402,7 +441,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         {day.isDriving ? t('ITINERARY_DRIVING') : t('ITINERARY_STAY')}
                     </h4>
                     <p className="text-md font-semibold text-gray-800">
-                        {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
+                        {day.isDriving ? (
+                            <>
+                                {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
+                            </>
+                        ) : (
+                            <>{rawCityName}</>
+                        )}
                     </p>
                     <div className="flex justify-between items-center mt-1">
                         <p className="text-xs text-gray-500 font-mono">{day.date}</p>
@@ -481,7 +526,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     {(place.type === 'custom' || place.type === 'search' || place.type === 'found') && (
                                         <button onClick={(e) => { e.stopPropagation(); handleEditStart(place); }} className="text-blue-400 hover:text-blue-600 p-1"><IconEdit /></button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); place.place_id && onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); if (place.place_id) onRemovePlace(place.place_id); }} className="text-red-400 hover:text-red-600 p-1"><IconTrash /></button>
                                 </div>
                             </div>
                             );
@@ -643,13 +688,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     <input
                                         type="range"
                                         min="5"
-                                        max="50"
+                                        max="25"
                                         step="5"
                                         value={searchRadius}
                                         onChange={(e) => setSearchRadius(parseInt(e.target.value))}
                                         className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
                                         style={{
-                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                             WebkitAppearance: 'none',
                                         } as React.CSSProperties}
                                     />

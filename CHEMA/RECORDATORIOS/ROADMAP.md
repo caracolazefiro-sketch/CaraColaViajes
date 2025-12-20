@@ -1,7 +1,7 @@
 # CaraColaViajes - Roadmap Operativo 2025
 
-> **Última actualización:** 10 Diciembre 2025 - COSTES NOMINATIM ADDED  
-> **Próxima revisión:** 17 Diciembre 2025  
+> **Última actualización:** 18 Diciembre 2025 - AREASAC + TEST P1 ADDED  
+> **Próxima revisión:** 19 Diciembre 2025  
 > **Estructura:** Priorizado por Urgencia + Impacto (ver matriz abajo)
 
 ---
@@ -180,6 +180,46 @@ Esfuerzo:        ⭐⭐ Media (1-2 semanas)
 Timeline:        Después de Option B
 ```
 
+✅ **Actualización (18 Dic 2025):** el flujo actual de búsqueda por “supercats” ya cachea en **Supabase** (`api_cache_places_supercat`) con TTL por defecto **90 días** para maximizar ahorro.
+- Configurable: `PLACES_SUPERCAT_CACHE_TTL_DAYS` (Preview/Production)
+- Nota: esto es caché **server-side** (compartida entre usuarios), diferente del caché client-side propuesto.
+
+🟡 **Recordatorio (18 Dic 2025): Places API (New) y campos “Atmosphere”**
+- Hoy, **Nearby Search (New)** y **Nearby Search (Legacy)** tienen precio base similar (mismo orden / mismo tier en la tabla global), pero en **Places API (New)** el coste puede subir si el `X-Goog-FieldMask` incluye campos que disparen SKUs **Enterprise** o **Enterprise + Atmosphere**.
+- Pendiente: evaluar si merece la pena pedir “Atmosphere” para mejorar el ranking/portero/UX (p.ej. señales de calidad/ambiente) y anotar qué campos exactos necesitamos antes de tocar el field mask.
+
+---
+
+## 📌 Estudio pendiente (revisar desde 08 Ene 2026): Places API (New) vs Legacy
+
+**Estado actual (18 Dic 2025):** se mantiene tal cual.
+- Supercat=1 (Spots) usa **Places API (New) Nearby Search** por necesidad funcional (multi-type en 1 llamada con `includedTypes`).
+- Supercats 2–4 siguen en **Nearby Search Legacy** (1 llamada en MISS + caché Supabase).
+
+### Conclusiones rápidas
+- **Precio base:** a nivel de lista global, **Nearby Search Pro** en Places (New) y **Places – Nearby Search** (Legacy) están en el **mismo precio base** por 1000 eventos y comparten orden/tier.
+- **Riesgo de coste en New:** en Places (New) el coste depende del **field mask**; si se solicitan campos que caen en SKUs **Enterprise** o **Enterprise + Atmosphere**, el precio sube.
+- **Legacy no controla campos:** Legacy Nearby Search no permite elegir campos (puede aparecer con SKUs de datos en factura según el caso), así que el control fino de coste/fields es peor.
+
+### Qué significa “Atmosphere” (para decisiones de producto)
+- “Atmosphere” no es “otra API”: es un **grupo de campos** (en Places New) que, si se piden, pueden disparar el SKU **Enterprise + Atmosphere**.
+- Potencial beneficio: campos más ricos/experienciales para mejorar UX/filtrado/ranking (definir cuáles necesitamos antes de pedirlos).
+
+### Decisión (por ahora)
+- **No migrar** supercats 2–4 a Places (New) todavía.
+- Motivo: sin visibilidad clara de SKUs reales en vuestra cuenta + riesgo de subir SKU por field mask + trabajo de compatibilidad (mapping/fotos/shape) sin ahorro inmediato.
+
+### Acción desde 08 Ene 2026
+- Revisar en Google Cloud Billing (por SKU) qué se está facturando realmente: confirmar si estamos en **Pro** o si hay “deriva” a **Enterprise/Atmosphere**.
+- Si la facturación confirma estabilidad en Pro: evaluar migración incremental (2 → 3 → 4) a Places (New) con **field mask minimal** y test A/B de resultados.
+
+🟡 **Mejora propuesta (18 Dic 2025): Portero Places – Opción B (auditoría persistente)**
+- Objetivo: poder analizar y mejorar el “portero” guardando también (o al menos registrando) los **descartados** con motivo, no solo los “kept”.
+- Implementación futura: crear tabla dedicada (p.ej. `api_portero_audit_places`) con `trip_id`, `cache_key`, `supercat`, `place_id`, `keep`, `keep_as`, `reason_code`, `types`, `name`, `created_at` + índices.
+- Retención: 7–30 días + limpieza automática (evitar crecimiento infinito).
+- Herramientas: visor online + report script (agregados por `reason_code`, top tipos descartados, drift por zona).
+- Nota: ya existe Opción A (MVP) vía `api_logs.response.portero` activable con `PLACES_PORTERO_AUDIT=1`.
+
 ---
 
 ### 🌍 OPENSTREETMAP/NOMINATIM - DATOS DISPONIBLES
@@ -304,6 +344,11 @@ Las **4 ideas prioritarias** basadas en impacto/esfuerzo:
 | 2 | **Nominatim en Geocoding** | P2 | ⭐ | 15 min | $0.005→$0.00 |
 | 3 | **Expandir caché Places localStorage** | P3 | ⭐⭐ | 1-2 sem | -30% calls |
 | 4 | **Migrar PlaceAutocompleteElement** | P1 | ⭐⭐ | 2-3h | Security (soon) |
+| 5 | **Enriquecer ficha POI (sin +calls)** | P3 | ⭐ | 1-2h | UX + confianza |
+
+Notas (Feature #5):
+- Aprovechar campos ya disponibles en Nearby Search / nuestro payload: `user_ratings_total`, `types` (badges), `opening_hours.open_now`, `business_status`, `price_level` (si viene), mejor “distancia” y mejor texto de dirección.
+- Evitar por defecto `Places Details (getDetails)` porque implica llamadas extra (y coste); dejarlo como “Premium / bajo demanda”.
 
 ---
 
@@ -403,6 +448,7 @@ Las **4 ideas prioritarias** basadas en impacto/esfuerzo:
 |------|--------|--------|----------|-------|
 | Rotación Clave Google (Vercel update) | 🟡 PENDIENTE | ⭐ | 5 min | Security - Terminal |
 | Migrar PlaceAutocompleteElement | 🟢 PLANIFICADO | ⭐⭐ | 2-3h | Deprecated desde marzo 2025 |
+| TEST exhaustivo implementacion areasac | 🟢 PLANIFICADO | ⭐⭐ | Mañana | Validar Spots/Map/Cache/Orden por distancia |
 
 ### 🟠 P2 - ALTO (1-2 semanas)
 

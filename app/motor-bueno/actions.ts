@@ -119,10 +119,14 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, a
 
 // Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
 async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string): Promise<DailyPlan[]> {
+    // Tolerancia dinámica para evitar segmentar por diferencias mínimas (redondeos/variaciones de ruta).
+    // Regla: ~10% del kmMaximoDia con cap 50km. Ej: 100→10, 200→20, 300→30, 400→40, 500+→50.
+    const SEGMENTATION_DISTANCE_TOLERANCE_KM = Math.min(50, Math.max(10, Math.round(maxKmPerDay * 0.1)));
     const segmented: DailyPlan[] = [];
 
     for (const day of itinerary) {
-        if (day.distance > maxKmPerDay && day.isDriving) {
+        const segmentThresholdKm = maxKmPerDay + SEGMENTATION_DISTANCE_TOLERANCE_KM;
+        if (day.distance > segmentThresholdKm && day.isDriving) {
             // Esta etapa necesita dividirse
             const numSegments = Math.ceil(day.distance / maxKmPerDay);
             const kmPerSegment = day.distance / numSegments;
@@ -254,6 +258,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
         const finalWaypointsForMap: string[] = [];
         const maxMeters = data.kmMaximoDia * 1000;
+        const toleranceKm = Math.min(50, Math.max(10, Math.round(data.kmMaximoDia * 0.1)));
+        const toleranceMeters = toleranceKm * 1000;
+        const splitThresholdMeters = maxMeters + toleranceMeters;
 
         let currentLegStartName = allStops[0];
         // 📍 Inicializamos coordenadas de inicio con el principio de la ruta
@@ -271,8 +278,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 legDistanceMeters += step.distance.value;
             }
 
-            // CAMBIO: Si llegar al waypoint excede el límite, crear paradas tácticas
-            if (dayAccumulatorMeters + legDistanceMeters > maxMeters && dayAccumulatorMeters > 0) {
+            // Solo segmentar si se supera el límite + tolerancia (evita cortes por exceso mínimo).
+            if (dayAccumulatorMeters + legDistanceMeters > splitThresholdMeters) {
+                let createdStopsInThisLeg = false;
                 // Necesitamos dividir esta leg en múltiples días
                 for (const step of leg.steps) {
                     const stepDist = step.distance.value;
@@ -316,12 +324,39 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             endCoords: stopCoords
                         });                            finalWaypointsForMap.push(`${stopCoords.lat},${stopCoords.lng}`);
 
+                        createdStopsInThisLeg = true;
+
                             currentLegStartName = stopNameRaw;
                             currentLegStartCoords = stopCoords;
                             dayAccumulatorMeters = 0;
                             metersNeeded = maxMeters;
                         }
                         dayAccumulatorMeters += metersLeftInStep;
+                    }
+                }
+
+                // Evitar cola pequeña hasta el waypoint (ej. último corte a ~5km del waypoint ⇒ Zürich→Zürich).
+                const tailMeters = dayAccumulatorMeters;
+                if (createdStopsInThisLeg && tailMeters > 0 && allDrivingStops.length > 0) {
+                    const tailKm = tailMeters / 1000;
+                    const lastIdx = allDrivingStops.length - 1;
+                    const last = allDrivingStops[lastIdx];
+                    const lastTo = String(last.to || '');
+                    const shouldMerge = tailMeters <= toleranceMeters || lastTo === nextStopName;
+                    if (shouldMerge) {
+                        const legEndCoords = { lat: leg.end_location.lat, lng: leg.end_location.lng };
+                        allDrivingStops[lastIdx] = {
+                            ...last,
+                            to: nextStopName,
+                            endCoords: legEndCoords,
+                            distance: last.distance + tailKm,
+                        };
+
+                        currentLegStartName = nextStopName;
+                        currentLegStartCoords = legEndCoords;
+                        dayAccumulatorMeters = 0;
+                        if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
+                        continue;
                     }
                 }
             } else {

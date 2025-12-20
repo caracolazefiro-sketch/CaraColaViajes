@@ -32,6 +32,15 @@ export interface DailyPlan {
     startCoordinates?: Coordinates; 
     coordinates?: Coordinates; // Coordenadas de destino
     type: 'overnight' | 'tactical' | 'start' | 'end';
+
+    // 🔗 Meta “itinerario maestro” (opcional)
+    // `masterLegIndex` indica entre qué paradas obligatorias (legs de Google) cae este día.
+    // Útil para insertar un nuevo waypoint cuando el usuario ajusta una parada táctica.
+    masterLegIndex?: number;
+    masterFromStopIndex?: number;
+    masterToStopIndex?: number;
+    masterKind?: 'tactical' | 'anchor' | 'stay';
+
     savedPlaces?: PlaceWithDistance[]; 
 }
 
@@ -40,6 +49,9 @@ export interface TripResult {
     distanceKm: number | null; 
     totalCost: number | null; 
     liters?: number | null; 
+    // When the route is computed server-side we may not have a client-side DirectionsResult.
+    // We keep an encoded polyline so the map can still render the route.
+    overviewPolyline?: string | null;
     dailyItinerary: DailyPlan[] | null; 
     error: string | null; 
 }

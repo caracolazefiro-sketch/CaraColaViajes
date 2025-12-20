@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { GoogleMap, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { GoogleMap, DirectionsRenderer, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
-import { ICONS_ITINERARY } from '../constants';
-import { createMarkerIcon, ServiceIcons } from './ServiceIcons';
+import { createMarkerIcon } from './ServiceIcons';
 import StarRating from './StarRating';
 import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconStar, IconMapPin, IconTrendingUp } from '../lib/svgIcons';
+import { areasAcLabelForCode } from '../utils/areasacLegend';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -16,21 +16,56 @@ const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className=
 const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
 const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
 
+function parseAreasAcNote(note: string): { header: string; compactHeader: string; codes: string[] } {
+    const raw = String(note || '').trim();
+    if (!raw) return { header: '', compactHeader: '', codes: [] };
+    if (!raw.startsWith('ÁreasAC')) return { header: raw, compactHeader: raw, codes: [] };
+
+    // Example: "ÁreasAC (PU) · Gratis · Todo el año · Servicios: PN, AL, ..."
+    const parts = raw.split(' · ').map((s) => s.trim()).filter(Boolean);
+    const servicePart = parts.find((p) => /^Servicios:/i.test(p));
+    const headerParts = parts.filter((p) => p !== servicePart);
+
+    const codes = servicePart
+        ? servicePart
+              .replace(/^Servicios:\s*/i, '')
+              .split(/,\s*/)
+              .map((c) => c.trim())
+              .filter(Boolean)
+        : [];
+
+    const header = headerParts.join(' · ');
+
+    // Compact header to keep the InfoWindow short.
+    // Example full: "ÁreasAC (PU) · Gratis · Todo el año"
+    const typeMatch = header.match(/\(([^)]+)\)/);
+    const typeCode = typeMatch?.[1]?.trim().toUpperCase();
+    const compactFlags: string[] = [];
+    if (/Gratis/i.test(header)) compactFlags.push('Gratis');
+    if (/Pago/i.test(header)) compactFlags.push('Pago');
+    if (/Advertencia/i.test(header)) compactFlags.push('!');
+    if (/Todo el año/i.test(header)) compactFlags.push('Año');
+
+    const compactHeader = [typeCode || 'ÁreasAC', ...compactFlags].join(' · ');
+    return { header, compactHeader, codes };
+}
+
 // Helper component for InfoWindow image with error handling
 const InfoWindowImage = ({ place }: { place: PlaceWithDistance }) => {
     const [imageError, setImageError] = useState(false);
 
     if (!place.photoUrl || place.photoUrl.trim() === '' || imageError) {
-        const Icon = ServiceIcons[place.type as keyof typeof ServiceIcons] || ServiceIcons.custom;
         return (
-            <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 rounded-t-lg">
-                <Icon size={48} />
+            <div className="w-full h-20 bg-gray-100 flex items-center justify-center rounded-t-lg">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.jpg" alt="CaraCola Viajes" className="h-12 w-12 object-contain opacity-80" />
             </div>
         );
     }
 
     // Usar img nativo para URLs de Google Maps PhotoService que no funcionan con Next.js Image
     return (
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img
             src={place.photoUrl}
             alt={place.name || 'Lugar'}
@@ -44,6 +79,7 @@ interface TripMapProps {
     setMap: (map: google.maps.Map | null) => void;
     mapBounds: google.maps.LatLngBounds | null;
     directionsResponse: google.maps.DirectionsResult | null;
+    overviewPolyline?: string | null;
     dailyItinerary: DailyPlan[] | null;
     places: Record<ServiceType, PlaceWithDistance[]>;
     toggles: Record<ServiceType, boolean>;
@@ -65,7 +101,7 @@ interface TripMapProps {
 }
 
 export default function TripMap({
-    setMap, mapBounds, directionsResponse, dailyItinerary, places, toggles,
+    setMap, mapBounds, directionsResponse, overviewPolyline, dailyItinerary, places, toggles,
     selectedDayIndex, hoveredPlace, setHoveredPlace, onPlaceClick, onAddPlace,
     onSearch, onClearSearch, mapInstance, t, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
 }: TripMapProps) {
@@ -73,9 +109,122 @@ export default function TripMap({
     const [searchQuery, setSearchQuery] = useState('');
     const [clickedGooglePlace, setClickedGooglePlace] = useState<PlaceWithDistance | null>(null);
 
+    // Cache local para evitar repetir Place Details (fotos, etc.) en clicks.
+    const placeDetailsCacheRef = useRef<Record<string, Partial<PlaceWithDistance>>>({});
+    const placeDetailsInFlightRef = useRef<Record<string, boolean>>({});
+
+    const tryEnrichPlaceOnClick = (spot: PlaceWithDistance) => {
+        const placeId = spot.place_id || '';
+        if (!mapInstance) {
+            setHoveredPlace(spot);
+            return;
+        }
+
+        // No intentar enrich para no-Google IDs
+        if (!placeId || placeId.startsWith('custom-') || placeId.startsWith('areasac:')) {
+            setHoveredPlace(spot);
+            return;
+        }
+
+        const cached = placeDetailsCacheRef.current[placeId];
+        if (cached) {
+            setHoveredPlace({ ...spot, ...cached });
+            return;
+        }
+
+        if (placeDetailsInFlightRef.current[placeId]) {
+            setHoveredPlace(spot);
+            return;
+        }
+
+        placeDetailsInFlightRef.current[placeId] = true;
+        setHoveredPlace(spot);
+
+        try {
+            const service = new google.maps.places.PlacesService(mapInstance);
+            service.getDetails(
+                {
+                    placeId,
+                    fields: ['photos', 'name', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'geometry', 'types'],
+                },
+                (place, status) => {
+                    placeDetailsInFlightRef.current[placeId] = false;
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !place) return;
+
+                    const lat = place.geometry?.location?.lat?.();
+                    const lng = place.geometry?.location?.lng?.();
+                    let photoUrl: string | undefined;
+                    if (place.photos && place.photos.length > 0) {
+                        try {
+                            photoUrl = place.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
+                        } catch {
+                            // ignore
+                        }
+                    }
+
+                    const enriched: Partial<PlaceWithDistance> = {
+                        name: place.name || spot.name,
+                        vicinity: (place.formatted_address as string) || (place.vicinity as string) || spot.vicinity,
+                        rating: place.rating ?? spot.rating,
+                        user_ratings_total: place.user_ratings_total ?? spot.user_ratings_total,
+                        types: (place.types as string[] | undefined) || spot.types,
+                        photoUrl: photoUrl || spot.photoUrl,
+                        geometry:
+                            lat != null && lng != null
+                                ? { location: { lat, lng } }
+                                : spot.geometry,
+                    };
+
+                    placeDetailsCacheRef.current[placeId] = enriched;
+                    if (hoveredPlace && hoveredPlace.place_id === placeId) {
+                        setHoveredPlace({ ...hoveredPlace, ...enriched });
+                    }
+                }
+            );
+        } catch {
+            placeDetailsInFlightRef.current[placeId] = false;
+        }
+    };
+
     // CONTROL DE INTERACCIÓN (SISTEMA VS HUMANO)
     const hasUserInteracted = useRef(false);
     const isProgrammaticMove = useRef(false);
+
+    // Decode an encoded Google polyline (same algorithm as server side)
+    const decodedOverviewPath = useMemo(() => {
+        if (!overviewPolyline) return null;
+        const poly: google.maps.LatLngLiteral[] = [];
+        let index = 0;
+        let lat = 0;
+        let lng = 0;
+
+        while (index < overviewPolyline.length) {
+            let b = 0;
+            let shift = 0;
+            let result = 0;
+            do {
+                b = overviewPolyline.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
+            lat += dlat;
+
+            shift = 0;
+            result = 0;
+            do {
+                b = overviewPolyline.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            const dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
+            lng += dlng;
+
+            poly.push({ lat: lat / 1e5, lng: lng / 1e5 });
+        }
+
+        return poly;
+    }, [overviewPolyline]);
 
     // Listener para el mapa
     const handleMapLoad = (map: google.maps.Map) => {
@@ -99,7 +248,7 @@ export default function TripMap({
 
                 const service = new google.maps.places.PlacesService(map);
                 // @ts-expect-error - Type mismatch in Google Maps API
-                service.getDetails({ placeId: e.placeId }, (place, status) => {
+                service.getDetails({ placeId: e.placeId, fields: ['photos', 'name', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'geometry', 'types'] }, (place, status) => {
                     if (status === google.maps.places.PlacesServiceStatus.OK && place) {
                         // Convertir a nuestro formato
                         const lat = place.geometry?.location?.lat();
@@ -166,7 +315,13 @@ export default function TripMap({
             const routeBounds = directionsResponse.routes[0].bounds;
             if (routeBounds) applyBounds(routeBounds);
         }
-    }, [mapInstance, mapBounds, directionsResponse, selectedDayIndex]);
+        // CASO 3: Server-beta fallback (polyline) sin DirectionsResult
+        else if (!directionsResponse && decodedOverviewPath && !hasUserInteracted.current && selectedDayIndex === null) {
+            const bounds = new google.maps.LatLngBounds();
+            decodedOverviewPath.forEach((p) => bounds.extend(p));
+            applyBounds(bounds);
+        }
+    }, [mapInstance, mapBounds, directionsResponse, decodedOverviewPath, selectedDayIndex]);
 
     const handleSearchSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -182,9 +337,29 @@ export default function TripMap({
 
     const searchPlaceholder = t ? t('MAP_SEARCH_PLACEHOLDER') : 'Buscar en esta zona...';
 
+    const mapOptions = useMemo((): google.maps.MapOptions => {
+        const g = typeof google !== 'undefined' ? google : undefined;
+        return {
+            zoomControl: true,
+            streetViewControl: false,
+            mapTypeControl: true,
+            fullscreenControl: true,
+            scaleControl: true,
+            mapTypeControlOptions: g
+                ? { position: g.maps.ControlPosition.TOP_LEFT }
+                : undefined,
+            fullscreenControlOptions: g
+                ? { position: g.maps.ControlPosition.BOTTOM_LEFT }
+                : undefined,
+            zoomControlOptions: g
+                ? { position: g.maps.ControlPosition.LEFT_TOP }
+                : undefined,
+        };
+    }, []);
+
     // Generamos una clave única para forzar el repintado de la ruta si cambia
     // Usamos el polyline codificado como ID único de la ruta
-    const routeKey = directionsResponse?.routes?.[0]?.overview_polyline || 'no-route';
+    const routeKey = (directionsResponse?.routes?.[0]?.overview_polyline as unknown as string) || overviewPolyline || 'no-route';
 
     return (
         <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
@@ -217,16 +392,7 @@ export default function TripMap({
                         setClickedGooglePlace(null);
                     }
                 }}
-                options={{
-                    zoomControl: true,
-                    streetViewControl: false,
-                    mapTypeControl: true,
-                    fullscreenControl: true,
-                    scaleControl: true,
-                    mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_LEFT },
-                    fullscreenControlOptions: { position: google.maps.ControlPosition.BOTTOM_LEFT },
-                    zoomControlOptions: { position: google.maps.ControlPosition.LEFT_TOP }
-                }}
+                options={mapOptions}
             >
                 {directionsResponse && (
                     <DirectionsRenderer
@@ -237,6 +403,14 @@ export default function TripMap({
                             suppressMarkers: false,
                             preserveViewport: true // 🛑 PROHIBIDO TOCAR EL ZOOM: Nosotros mandamos
                         }}
+                    />
+                )}
+
+                {!directionsResponse && decodedOverviewPath && (
+                    <Polyline
+                        key={routeKey}
+                        path={decodedOverviewPath}
+                        options={{ strokeColor: '#DC2626', strokeOpacity: 1, strokeWeight: 4 }}
                     />
                 )}
 
@@ -309,7 +483,7 @@ export default function TripMap({
                                     className: "marker-label"
                                 } : undefined}
                                 title={spot.name}
-                                onClick={() => setHoveredPlace(spot)}
+                                onClick={() => tryEnrichPlaceOnClick(spot)}
                                 onMouseOver={() => setHoveredPlace(spot)}
                             />
                         );
@@ -328,6 +502,32 @@ export default function TripMap({
                                     <div className="text-xs text-gray-400 mb-2">Sin valoración</div>
                                 )}
                                 <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{hoveredPlace.vicinity}</p>
+                                {hoveredPlace.note && (
+                                    (() => {
+                                        const parsed = parseAreasAcNote(hoveredPlace.note);
+                                        return (
+                                            <div className="mb-2 p-1.5 bg-yellow-50 border border-yellow-200 rounded text-[9px] text-gray-700">
+                                                <div className="font-semibold truncate" title={parsed.header}>{parsed.compactHeader}</div>
+                                                {parsed.codes.length > 0 && (
+                                                    <div className="mt-1 flex flex-wrap gap-1">
+                                                        {parsed.codes.map((c) => (
+                                                            <span
+                                                                key={c}
+                                                                className="px-1 py-0.5 rounded bg-white border border-yellow-200 text-[8px] font-mono"
+                                                                title={(() => {
+                                                                    const label = areasAcLabelForCode(c);
+                                                                    return label ? `${c} — ${label}` : `Código ÁreasAC: ${c}`;
+                                                                })()}
+                                                            >
+                                                                {c}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()
+                                )}
                                 <div className="flex gap-2">
                                     {selectedDayIndex !== null && !isSaved(hoveredPlace.place_id) && (<button onClick={() => { onAddPlace(hoveredPlace); setHoveredPlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}
                                     <button onClick={() => onPlaceClick(hoveredPlace)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold py-1.5 rounded border border-blue-200 transition-colors">Ver en Google</button>
@@ -394,13 +594,13 @@ export default function TripMap({
                             <input
                                 type="range"
                                 min="5"
-                                max="50"
+                                max="25"
                                 step="5"
                                 value={searchRadius}
                                 onChange={(e) => setSearchRadius(parseInt(e.target.value))}
                                 className="w-24 md:w-32 h-0.5 rounded appearance-none cursor-pointer slider-thumb-red-small"
                                 style={{
-                                    background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 45) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                    background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) 100%)`,
                                     WebkitAppearance: 'none',
                                 } as React.CSSProperties}
                             />

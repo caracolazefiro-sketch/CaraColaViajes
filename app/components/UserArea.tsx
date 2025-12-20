@@ -28,7 +28,7 @@ interface UserAreaProps {
     t: (key: string) => string;
 }
 
-export default function UserArea({ currentTripId, onOpenDashboard, t, onLoadTrip }: UserAreaProps) {
+export default function UserArea({ t, onLoadTrip }: UserAreaProps) {
     interface AppUser { id: string; email?: string }
     const [user, setUser] = useState<AppUser | null>(null);
     const [email, setEmail] = useState('');
@@ -38,13 +38,10 @@ export default function UserArea({ currentTripId, onOpenDashboard, t, onLoadTrip
     const [myTrips, setMyTrips] = useState<Array<{ id: number; name: string; created_at: string; trip_data: TripData }>>([]);
     const [authMode, setAuthMode] = useState<'magic' | 'password' | 'register'>('magic');
 
-    // If Supabase is not configured, don't render the auth UI
-    if (!supabase) {
-        return null;
-    }
+    const isSupabaseEnabled = Boolean(supabase);
 
     useEffect(() => {
-        if (!supabase) return;
+        if (!isSupabaseEnabled || !supabase) return;
         const supabaseClient = supabase; // TypeScript now knows this is not null
         const checkUser = async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -55,7 +52,12 @@ export default function UserArea({ currentTripId, onOpenDashboard, t, onLoadTrip
             setUser(session?.user || null);
         });
         return () => subscription?.unsubscribe();
-    }, []);
+    }, [isSupabaseEnabled]);
+
+    // If Supabase is not configured, don't render the auth UI
+    if (!isSupabaseEnabled) {
+        return null;
+    }
 
     const handleMagicLogin = async (e: React.FormEvent) => {
         e.preventDefault();

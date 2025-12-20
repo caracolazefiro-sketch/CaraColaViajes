@@ -109,7 +109,6 @@ interface TripFormProps {
     loading: boolean;
     results: TripResult;
     onSubmit: (e: React.FormEvent) => void;
-    onSubmitServer?: () => void;
     showWaypoints: boolean;
     setShowWaypoints: (show: boolean) => void;
     // Props de Acciones
@@ -125,7 +124,7 @@ interface TripFormProps {
 }
 
 export default function TripForm({
-    formData, setFormData, loading, results, onSubmit, onSubmitServer, showWaypoints, setShowWaypoints,
+    formData, setFormData, loading, results, onSubmit, showWaypoints, setShowWaypoints,
     auditMode, setAuditMode, isSaving, onSave, onShare, onReset, currentTripId,
     t, convert
 }: TripFormProps) {
@@ -140,27 +139,18 @@ export default function TripForm({
     // Auto-colapsar cuando se completen los resultados
     useEffect(() => {
         if (!loading && results.totalDays !== null) {
-            setIsExpanded(false);
+            const t = window.setTimeout(() => setIsExpanded(false), 0);
+            return () => window.clearTimeout(t);
         }
     }, [loading, results.totalDays]);
 
     const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim().length > 0) : [];
 
-    // Normalizar nombres: mantener ciudad+país, remover acentos para Google API
-    const normalizeForGoogle = (text: string) => {
-        // Paso 1: Si hay coma, tomar ciudad y país (ej: "Salamanca, España")
-        // Si no hay coma, usar todo (ej: "Salamanca")
-        const parts = text.split(',');
-        const location = parts.length > 1 ? `${parts[0].trim()}, ${parts[1].trim()}` : text.trim();
-        // Paso 2: Remover acentos/diacríticos
-        return location
-            .normalize('NFD')                   // Descomponer caracteres acentuados
-            .replace(/[\u0300-\u036f]/g, '');  // Remover diacríticos
-    };
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
-        let finalValue: string | number | boolean = type === 'checkbox' ? checked : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
+        const finalValue: string | number | boolean = type === 'checkbox'
+            ? checked
+            : (['precioGasoil', 'consumo', 'kmMaximoDia'].includes(id) ? parseFloat(value) : value);
 
         // NO normalizar al guardar - solo guardar valores tal como vienen
         // La normalización se hace solo cuando se envía a Google Directions
@@ -432,11 +422,6 @@ export default function TripForm({
                         <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded font-bold text-sm hover:from-red-700 hover:shadow-lg transition transform hover:-translate-y-0.5 disabled:opacity-50">
                             {loading ? t('FORM_LOADING') : t('FORM_CALCULATE')}
                         </button>
-                                                {onSubmitServer && (
-                                                    <button type="button" onClick={onSubmitServer} disabled={loading} className="w-full bg-gray-800 text-white py-3 rounded font-bold text-sm hover:bg-black transition disabled:opacity-50">
-                                                        {t('FORM_CALCULATE')} (Servidor beta)
-                                                    </button>
-                                                )}
                     </div>
                 </div>
             </form>

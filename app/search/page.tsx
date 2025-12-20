@@ -32,7 +32,6 @@ export default function SearchPage() {
   const [showContext, setShowContext] = useState(true);
   const [indexLoaded, setIndexLoaded] = useState(false);
   const [indexData, setIndexData] = useState<IndexEntry[]>([]);
-  const [selectedResult, setSelectedResult] = useState<number | null>(null);
 
   // Cargar índice y query inicial de URL
   useEffect(() => {
@@ -57,21 +56,6 @@ export default function SearchPage() {
     };
     loadIndex();
   }, []);
-
-  useEffect(() => {
-    if (!query || query.length < 2) {
-      setResults([]);
-      setTotalResults(0);
-      setError('');
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      performSearch(query);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [query, indexLoaded, indexData]);
 
   const performSearch = useCallback((searchQuery: string) => {
     const startTime = performance.now();
@@ -133,6 +117,21 @@ export default function SearchPage() {
       setLoading(false);
     }
   }, [indexData]);
+
+  useEffect(() => {
+    if (!query || query.length < 2) {
+      setResults([]);
+      setTotalResults(0);
+      setError('');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      performSearch(query);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, indexLoaded, indexData, performSearch]);
 
   const highlightMatch = (text: string, indices: number[]) => {
     if (indices.length === 0) return text;
@@ -225,7 +224,7 @@ export default function SearchPage() {
 
         {!loading && query.length >= 2 && totalResults === 0 && !error && (
           <div className="text-center py-12">
-            <p className="text-slate-400 text-lg">No se encontraron resultados para "{query}"</p>
+            <p className="text-slate-400 text-lg">No se encontraron resultados para &quot;{query}&quot;</p>
             <p className="text-slate-500 text-sm mt-2">Intenta con otro término</p>
           </div>
         )}
@@ -249,7 +248,6 @@ export default function SearchPage() {
                 // Actualizar URL con el término buscado
                 const newUrl = `/search?q=${encodeURIComponent(query)}`;
                 window.history.pushState({ query }, '', newUrl);
-                setSelectedResult(idx);
               }}
               className="bg-slate-700/50 border-2 border-slate-600 rounded-lg overflow-hidden hover:border-blue-500 hover:bg-slate-600/50 transition cursor-pointer"
             >
