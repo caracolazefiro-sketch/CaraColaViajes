@@ -11,32 +11,32 @@ interface AppHeaderProps {
     t: (key: string) => string;
     setLang: (lang: 'es' | 'en') => void;
     language: 'es' | 'en';
+    centerContent?: React.ReactNode;
 }
 
 export default function AppHeader({ 
-    onLoadTrip, currentTripId, t, setLang, language 
+    onLoadTrip, currentTripId, t, setLang, language, centerContent
 }: AppHeaderProps) {
     return (
-        <div className="relative mb-6 no-print w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 py-3 shadow-sm">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 max-w-6xl mx-auto">
+        <div className="relative no-print w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 py-2 shadow-sm">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-2 px-4 max-w-6xl mx-auto">
                 
-                {/* 1. LOGO Y TÍTULO (Izquierda) */}
-                <div className="flex items-center gap-3">
+                {/* 1. LOGO (Izquierda) */}
+                <div className="flex items-center">
                     <Image
                         src="/logo.jpg"
                         alt={t('APP_TITLE')}
-                        width={160}
+                        width={48}
                         height={48}
-                        className="h-12 w-auto object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 rounded-lg"
+                        className="h-12 w-12 object-cover drop-shadow-sm hover:scale-105 transition-transform duration-300 rounded-lg"
                         priority
                     />
-                    <div className="hidden md:block text-left">
-                        <h1 className="text-xl font-black text-red-600 leading-none tracking-tight">{t('APP_TITLE')}</h1>
-                        <p className="text-gray-400 text-[10px] font-bold tracking-widest uppercase mt-0.5">{t('APP_SUBTITLE')}</p>
-                    </div>
                 </div>
 
-                {/* 2. ZONA DERECHA: IDIOMA + USUARIO */}
+                {/* 2. DATOS DEL VIAJE + ACCIONES (Centro) */}
+                {centerContent ? <div className="w-full md:flex-1 md:px-4">{centerContent}</div> : <div className="hidden md:block md:flex-1" />}
+
+                {/* 3. ZONA DERECHA: IDIOMA + USUARIO */}
                 <div className="flex items-center gap-4">
                     
                     {/* SELECTOR DE IDIOMA (Banderas) */}

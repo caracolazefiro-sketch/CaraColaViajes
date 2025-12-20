@@ -14,6 +14,7 @@ import ItineraryPanel from './components/ItineraryPanel';
 import ToastContainer from './components/ToastContainer';
 import AdjustStageModal from './components/AdjustStageModal';
 import DebugTools from './components/DebugTools';
+import TripActionButtons from './components/TripActionButtons';
 
 
 // HOOKS
@@ -80,6 +81,7 @@ export default function Home() {
   });
   const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const [showWaypoints, setShowWaypoints] = useState(false);
+  const [userWantsEditTrip, setUserWantsEditTrip] = useState(false);
 
   const {
       results, setResults, directionsResponse,
@@ -139,6 +141,14 @@ export default function Home() {
     },
     showToast,
   });
+
+  const handleCalculateAllWithUi = useCallback(
+    async (e: React.FormEvent) => {
+      setUserWantsEditTrip(false);
+      await handleCalculateAll(e);
+    },
+    [handleCalculateAll]
+  );
 
   const { focusMapOnStage, handleSearchNearDay } = useStageNavigation({
     directionsResponse,
@@ -245,6 +255,17 @@ export default function Home() {
 
   if (!isLoaded) return <div className="flex justify-center items-center h-screen bg-red-50 text-red-600 font-bold text-xl animate-pulse">Cargando CaraCola...</div>;
 
+  const unitKm = convert(1, 'km') === 1 ? 'km' : 'mi';
+  const unitCurrency = convert(1, 'currency') === 1 ? '€' : '$';
+  const totalDistance = results.dailyItinerary?.reduce((sum, day) => sum + day.distance, 0) || results.distanceKm || 0;
+  const displayKm = totalDistance ? convert(totalDistance, 'km').toFixed(0) : '0';
+  const displayCost = results.totalCost ? convert(results.totalCost, 'currency').toFixed(0) : '0';
+  const displayDays = results.totalDays || '0';
+  const displayTripName =
+    formData.tripName || `${formData.origen?.split(',')[0] || 'Origen'} → ${formData.destino?.split(',')[0] || 'Destino'}`;
+
+  const isTripFormExpanded = !results.totalDays || userWantsEditTrip;
+
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
       <style jsx global>{printStyles}</style>
@@ -258,7 +279,57 @@ export default function Home() {
         )}
 
         <div className="w-full no-print">
-            <AppHeader onLoadTrip={handleLoadCloudTrip} currentTripId={currentTripId} t={t} setLang={setLang} language={language} />
+            <AppHeader
+              onLoadTrip={handleLoadCloudTrip}
+              currentTripId={currentTripId}
+              t={t}
+              setLang={setLang}
+              language={language}
+              centerContent={
+                results.totalDays ? (
+                  <div className="w-full bg-white rounded-xl shadow-md border border-gray-200 flex flex-col md:flex-row items-center justify-between p-2 gap-2">
+                    <div className="flex items-center gap-2 overflow-hidden w-full md:w-auto px-2">
+                      <span className="text-red-600 font-bold text-sm truncate">{displayTripName}</span>
+                      {formData.vueltaACasa && (
+                        <span className="text-[9px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">
+                          {t('FORM_ROUND_TRIP_SHORT')}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 md:gap-6 bg-gray-50 rounded-lg px-3 py-1.5 w-full md:w-auto justify-center">
+                      <div className="text-xs font-bold text-gray-700">{displayDays} <span className="font-normal text-gray-500">{t('STATS_DAYS')}</span></div>
+                      <div className="w-px h-3 bg-gray-300"></div>
+                      <div className="text-xs font-bold text-gray-700">{displayKm} <span className="font-normal text-gray-500">{unitKm}</span></div>
+                      <div className="w-px h-3 bg-gray-300 hidden sm:block"></div>
+                      <div className="text-xs font-bold text-green-600 hidden sm:flex">{displayCost} {unitCurrency}</div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <TripActionButtons
+                        auditMode={auditMode}
+                        setAuditMode={setAuditMode}
+                        results={results}
+                        currentTripId={currentTripId}
+                        isSaving={isSaving}
+                        onSave={handleSaveToCloud}
+                        onShare={handleShareTrip}
+                        onReset={handleResetTrip}
+                        t={t}
+                      />
+                      <div className="w-px h-6 bg-gray-200 hidden md:block"></div>
+                      <button
+                        onClick={() => setUserWantsEditTrip(true)}
+                        className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
+                        title={t('DASHBOARD_EDIT')}
+                      >
+                        <span>{t('DASHBOARD_EDIT')}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : null
+              }
+            />
         </div>
 
         <div className="print-only hidden text-center mb-10">
@@ -272,21 +343,26 @@ export default function Home() {
 
         <TripForm
             formData={formData} setFormData={setFormData} loading={loading} results={results}
-          onSubmit={handleCalculateAll} showWaypoints={showWaypoints} setShowWaypoints={setShowWaypoints}
+          onSubmit={handleCalculateAllWithUi} showWaypoints={showWaypoints} setShowWaypoints={setShowWaypoints}
             auditMode={auditMode} setAuditMode={setAuditMode} isSaving={isSaving} onSave={handleSaveToCloud}
             onShare={handleShareTrip} onReset={handleResetTrip} currentTripId={currentTripId}
             t={t} convert={convert}
+            isExpanded={isTripFormExpanded}
+            setIsExpanded={setUserWantsEditTrip}
+            renderCollapsedSummary={false}
         />
 
         {!!results?.dailyItinerary?.length && (
             <div className="space-y-6 animate-fadeIn">
 
-                <StageSelector
-                    dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} onSelectDay={focusMapOnStage}
-                    t={t} settings={settings}
-                />
+            <div className="-mt-4">
+              <StageSelector
+                dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} onSelectDay={focusMapOnStage}
+                t={t} settings={settings}
+              />
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:min-h-[650px]">
+            <div className="grid grid-cols-1 lg:[grid-template-columns:1fr_4fr] gap-6 lg:min-h-[650px]">
 
                     <ItineraryPanel
                         dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}

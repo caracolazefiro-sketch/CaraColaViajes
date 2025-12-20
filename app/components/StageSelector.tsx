@@ -23,7 +23,7 @@ export default function StageSelector({ dailyItinerary, selectedDayIndex, onSele
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 no-print flex items-center px-4 py-2 gap-3 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 no-print flex items-center px-3 py-1 gap-3 overflow-hidden">
             {/* TÍTULO FIJO A LA IZQUIERDA */}
             <h3 className="font-bold text-gray-400 text-[10px] uppercase tracking-wider whitespace-nowrap shrink-0">
                 {t('ITINERARY_DAYS_TITLE')}
