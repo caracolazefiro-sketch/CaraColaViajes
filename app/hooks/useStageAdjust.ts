@@ -355,15 +355,24 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         // ese día N debe terminar en el nuevo destino (aunque supere kmMaximoDia),
         // y la segmentación continúa desde ahí.
         if (finalItinerary && isAdjustingTacticalStop) {
-          const approxEq = (a: number, b: number, eps = 1e-5) => Math.abs(a - b) <= eps;
+          // Coordenadas de Google pueden venir con redondeos distintos entre respuestas; toleramos un pequeño delta.
+          const approxEq = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) <= eps;
           const looksLikeSameCoords = (c?: { lat: number; lng: number }) =>
             !!c && approxEq(c.lat, newCoordinates.lat) && approxEq(c.lng, newCoordinates.lng);
+
+          const destKey = normalizeForComparison(stripDecorations(newDestination));
 
           const findReachIndex = () => {
             for (let i = 0; i < finalItinerary.length; i++) {
               const d = finalItinerary[i];
               if (!d?.isDriving) continue;
               if (looksLikeSameCoords(d.coordinates)) return i;
+
+              const candKey = normalizeForComparison(stripDecorations(String(d.to ?? '')));
+              if (destKey && candKey && (candKey === destKey || candKey.includes(destKey) || destKey.includes(candKey))) {
+                return i;
+              }
+
               const raw = stripDecorations(String(d.to ?? '')).replace(/\s+/g, '');
               const coordKey = normalizeCoordsKey(coordsToParam(newCoordinates) ?? '');
               if (coordKey && raw === coordKey) return i;
@@ -393,7 +402,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
             const start = new Date(finalItinerary[0].isoDate || formData.fechaInicio);
             const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-            let cursor = new Date(start);
+            const cursor = new Date(start);
             finalItinerary = finalItinerary.map((d, idx) => {
               const out = {
                 ...d,
