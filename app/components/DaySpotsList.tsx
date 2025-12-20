@@ -382,11 +382,12 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     const endCoordsForWeather = day.coordinates ?? day.startCoordinates;
     const { routeWeather, weatherStatus } = useWeather(endCoordsForWeather, day.isoDate, day.startCoordinates);
-    const { elevationData, loadingElevation, calculateElevation, clearElevation } = useElevation();
+    const { elevationData, loadingElevation, calculateElevation } = useElevation();
     // 🔥 Ya NO creamos nuestro propio hook; usamos props recibidos de page.tsx
 
     const [showForm, setShowForm] = useState(false);
     const [placeToEdit, setPlaceToEdit] = useState<PlaceWithDistance | null>(null);
+    const [showElevationPopover, setShowElevationPopover] = useState(false);
 
     const saved = (day.savedPlaces || []).sort((a, b) => (CATEGORY_ORDER[a.type || 'custom'] || 99) - (CATEGORY_ORDER[b.type || 'custom'] || 99));
     const isSaved = (id?: string) => id ? saved.some(p => p.place_id === id) : false;
@@ -444,7 +445,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
     return (
         <div className={`p-3 rounded-xl space-y-3 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start relative">
                 <div>
                     <h4 className={`text-lg font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
                         {day.isDriving ? t('ITINERARY_DRIVING') : t('ITINERARY_STAY')}
@@ -471,15 +472,25 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                         <span className="text-gray-300">|</span>
                                         <span className="text-blue-600">{formatDuration(day.durationMin)}</span>
                                         <span className="text-gray-300">|</span>
-                                        <button
+                                        <span
                                             type="button"
-                                            onClick={() => calculateElevation(day.from, day.coordinates ?? day.startCoordinates)}
-                                            disabled={loadingElevation || !(day.coordinates ?? day.startCoordinates)}
-                                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            onMouseEnter={() => {
+                                                setShowElevationPopover(true);
+                                                const coords = day.coordinates ?? day.startCoordinates;
+                                                if (coords && !elevationData && !loadingElevation) {
+                                                    calculateElevation(day.from, coords);
+                                                }
+                                            }}
+                                            onMouseLeave={() => setShowElevationPopover(false)}
+                                            className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
+                                                (day.coordinates ?? day.startCoordinates)
+                                                    ? 'text-gray-500 hover:text-gray-700'
+                                                    : 'text-gray-300'
+                                            }`}
                                             title={isImperial ? 'Elevation profile' : 'Perfil de desnivel'}
                                         >
                                             <IconTrendingUp className="h-3 w-3" /> {isImperial ? 'Elevation' : 'Desnivel'}
-                                        </button>
+                                        </span>
                                     </>
                                 ) : null}
                             </>
@@ -520,6 +531,27 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         </div>
                     )}
                 </div>
+
+                {/* ⛰️ POPOVER DESNIVEL (hover) */}
+                {showElevationPopover && (day.coordinates ?? day.startCoordinates) && (
+                    <div
+                        className="absolute right-0 top-full mt-2 z-30 w-[360px] bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+                        onMouseEnter={() => setShowElevationPopover(true)}
+                        onMouseLeave={() => setShowElevationPopover(false)}
+                    >
+                        {loadingElevation && (
+                            <div className="p-3 text-xs text-center text-gray-500 animate-pulse">{t('FORM_LOADING')}</div>
+                        )}
+                        {!loadingElevation && elevationData && (
+                            <div className="p-2">
+                                <ElevationChart data={elevationData} />
+                            </div>
+                        )}
+                        {!loadingElevation && !elevationData && (
+                            <div className="p-3 text-xs text-center text-gray-500">{isImperial ? 'Hover to load…' : 'Cargando…'}</div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Aviso de Peligro si el semáforo es Rojo */}
@@ -591,9 +623,12 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                     {/* Sliders de filtrado - Copia sincronizada con el mapa */}
                     {setMinRating && setSearchRadius && setSortBy && (
                         <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-2 mb-3 border border-gray-200 shadow-sm">
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="text-[10px] font-semibold text-gray-600 mb-1">
+                                {isImperial ? 'Filter searches: rating, radius, order' : 'Filtra búsquedas: rating, radio, orden'}
+                            </div>
+                            <div className="flex items-center gap-3 flex-nowrap">
                                 {/* Rating Slider */}
-                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                <div className="flex flex-col gap-1 flex-1 min-w-[80px]">
                                     <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
                                         <IconStar size={11} /> {minRating.toFixed(1)}
                                     </label>
@@ -613,7 +648,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 </div>
 
                                 {/* Radio Slider */}
-                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                <div className="flex flex-col gap-1 flex-1 min-w-[80px]">
                                     <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
                                         <IconMapPin size={11} /> {searchRadius}km
                                     </label>
@@ -633,7 +668,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                 </div>
 
                                 {/* Sort Slider */}
-                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                <div className="flex flex-col gap-1 flex-1 min-w-[80px]">
                                     <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
                                         <IconTrendingUp size={11} /> {sortBy === 'score' ? 'Rel' : sortBy === 'distance' ? 'Dist' : 'Rate'}
                                     </label>
@@ -655,9 +690,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     />
                                 </div>
                             </div>
-                            <p className="text-[9px] text-gray-500 mt-1.5 italic leading-tight">
-                                💡 Solo filtran búsquedas, no lugares guardados
-                            </p>
                         </div>
                     )}
 
@@ -778,21 +810,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             <ServiceList type="found" title="Encontrados" colorClass="text-teal-600" markerColor="bg-teal-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         )}
                     </div>
-                     <div className="mt-4 pt-2 border-t border-gray-100">
-                        {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">{t('FORM_LOADING')}</p>}
-                        {elevationData && (
-                            <div className="relative">
-                                <button 
-                                    onClick={clearElevation} 
-                                    className="absolute top-2 left-2 z-10 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all hover:scale-110"
-                                    title={isImperial ? 'Close' : 'Cerrar'}
-                                >
-                                    ✕
-                                </button>
-                                <ElevationChart data={elevationData} />
-                            </div>
-                        )}
-                    </div>
+                     <div className="mt-4 pt-2 border-t border-gray-100"></div>
                 </div>
             )}
             {!day.isDriving && <p className="text-sm text-gray-700 mt-2">{isImperial ? `Relax day in ${rawCityName}.` : `Día de relax en ${rawCityName}.`}</p>}
