@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { TripResult } from '../types';
+import Portal from './Portal';
 
 // Iconos
 const IconBug = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>);
@@ -202,28 +203,30 @@ export default function UserArea({ t, onLoadTrip, variant = 'header' }: UserArea
             <button onClick={handleLogout} className="text-gray-400 hover:text-red-500 text-xs underline">{t('HEADER_LOGOUT')}</button>
 
             {showTrips && (
-                <div className="fixed top-16 right-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-[2147483647] overflow-hidden animate-fadeIn text-left">
-                    <div className="bg-red-600 px-4 py-2 flex justify-between items-center"><h3 className="text-white font-bold text-sm">{t('HEADER_ARCHIVE_TITLE')}</h3><button onClick={() => setShowTrips(false)} className="text-white hover:text-gray-200">✕</button></div>
-                    <div className="max-h-60 overflow-y-auto p-2 bg-gray-50">
-                        {loading ? <p className="text-center text-xs text-gray-400 py-4">{t('LOADING_LIBRARY')}</p> : myTrips.length === 0 ? <p className="text-center text-xs text-gray-400 py-4">{t('NO_TRIPS_SAVED')}</p> : (
-                            <div className="space-y-2">
-                                {myTrips.map((trip) => (
-                                    <div key={trip.id} className="bg-white p-3 rounded border border-gray-200 shadow-sm hover:border-red-300 transition group">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="text-xs font-bold text-gray-800 line-clamp-2 flex-1">{trip.name || t('TRIP_UNNAMED')}</h4>
-                                            <div className="flex gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={(e) => handleCopyDebugData(e, trip)} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title={t('ACTION_COPY_DEBUG')}><IconBug /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }} className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title={t('ACTION_DELETE_TRIP')}><IconTrash /></button>
+                <Portal>
+                    <div className="fixed top-16 right-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-[2147483647] overflow-hidden animate-fadeIn text-left">
+                        <div className="bg-red-600 px-4 py-2 flex justify-between items-center"><h3 className="text-white font-bold text-sm">{t('HEADER_ARCHIVE_TITLE')}</h3><button onClick={() => setShowTrips(false)} className="text-white hover:text-gray-200">✕</button></div>
+                        <div className="max-h-60 overflow-y-auto p-2 bg-gray-50">
+                            {loading ? <p className="text-center text-xs text-gray-400 py-4">{t('LOADING_LIBRARY')}</p> : myTrips.length === 0 ? <p className="text-center text-xs text-gray-400 py-4">{t('NO_TRIPS_SAVED')}</p> : (
+                                <div className="space-y-2">
+                                    {myTrips.map((trip) => (
+                                        <div key={trip.id} className="bg-white p-3 rounded border border-gray-200 shadow-sm hover:border-red-300 transition group">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <h4 className="text-xs font-bold text-gray-800 line-clamp-2 flex-1">{trip.name || t('TRIP_UNNAMED')}</h4>
+                                                <div className="flex gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={(e) => handleCopyDebugData(e, trip)} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title={t('ACTION_COPY_DEBUG')}><IconBug /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTrip(trip.id); }} className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50" title={t('ACTION_DELETE_TRIP')}><IconTrash /></button>
+                                                </div>
                                             </div>
+                                            <p className="text-[9px] text-gray-400 mb-2">{new Date(trip.created_at).toLocaleDateString()}</p>
+                                            <button onClick={() => { onLoadTrip(trip.trip_data, trip.id); setShowTrips(false); }} className="w-full bg-red-600 text-white py-1 rounded text-[10px] font-bold hover:bg-red-700">📥 {t('ACTION_LOAD_TRIP')}</button>
                                         </div>
-                                        <p className="text-[9px] text-gray-400 mb-2">{new Date(trip.created_at).toLocaleDateString()}</p>
-                                        <button onClick={() => { onLoadTrip(trip.trip_data, trip.id); setShowTrips(false); }} className="w-full bg-red-600 text-white py-1 rounded text-[10px] font-bold hover:bg-red-700">📥 {t('ACTION_LOAD_TRIP')}</button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                </Portal>
             )}
         </div>
     );
