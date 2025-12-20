@@ -58,6 +58,18 @@ type PlacesSupercatRequest = {
   supercat: Supercat;
 };
 
+function readResultsCountFromPayload(payload: unknown): number | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+
+  const p = payload as { resultsCount?: unknown; totals?: unknown };
+  if (typeof p.resultsCount === 'number') return p.resultsCount;
+
+  const totals = p.totals;
+  if (!totals || typeof totals !== 'object') return undefined;
+  const t = totals as { totalResults?: unknown };
+  return typeof t.totalResults === 'number' ? t.totalResults : undefined;
+}
+
 function getPlacesSupercatCacheTtlDays() {
   const raw = process.env.PLACES_SUPERCAT_CACHE_TTL_DAYS;
   const parsed = raw != null ? Number.parseInt(raw, 10) : NaN;
@@ -644,14 +656,16 @@ export async function POST(req: Request) {
     // Bump supercat=1 cache namespace when query semantics change.
     // v7: includes full AreasAC dataset integration + ordering (AreasAC first, by distance).
     // v5/v4/v3: migrate supercats 2/3/4 to Places API (New) includedTypes.
+    // v8q2k/v6q1k/v7q1k/v4q1k: quantized cache keys (stabilize center jitter).
+    const quantizeMeters = supercat === 1 ? 2000 : 1000;
     const cacheNamespace =
       supercat === 1
-        ? 'places-supercat-v7'
+        ? 'places-supercat-v8q2k'
         : supercat === 2
-          ? 'places-supercat-v5'
+          ? 'places-supercat-v6q1k'
           : supercat === 3
-            ? 'places-supercat-v6'
-            : 'places-supercat-v3';
+            ? 'places-supercat-v7q1k'
+            : 'places-supercat-v4q1k';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
       lat: center.lat,
@@ -659,6 +673,7 @@ export async function POST(req: Request) {
       radius,
       // bump version where query semantics changed
       namespace: cacheNamespace,
+      quantizeMeters,
     });
     const cached = await getPlacesSupercatCache({ key: cacheKey.key });
     const cacheReadDebug = cached.ok
@@ -727,19 +742,138 @@ export async function POST(req: Request) {
     }
 
     // 0b) Cache fallback (to avoid accidental spend when bumping namespaces)
-    // If v7 is a miss, try v6 and rehydrate into v7 without calling Google.
-    if (supercat === 1 && cached.ok && !cached.hit) {
-      const fallbackNamespaces = ['places-supercat-v6'];
-      for (const ns of fallbackNamespaces) {
-        const fbKey = makePlacesSupercatCacheKey({
-          supercat,
-          lat: center.lat,
-          lng: center.lng,
-          radius,
-          namespace: ns,
-        });
+    // If quantized key is a miss, try legacy namespaces/keys and rehydrate without calling Google.
+    if (cached.ok && !cached.hit) {
+      const legacyNamespaces =
+        supercat === 1
+          ? ['places-supercat-v7', 'places-supercat-v6']
+          : supercat === 2
+            ? ['places-supercat-v5']
+            : supercat === 3
+              ? ['places-supercat-v6']
+              : ['places-supercat-v3'];
+
+      for (const ns of legacyNamespaces) {
+        // Legacy key uses exact center rounding (no quantization)
+        const fbKey = makePlacesSupercatCacheKey({ supercat, lat: center.lat, lng: center.lng, radius, namespace: ns });
         const fb = await getPlacesSupercatCache({ key: fbKey.key });
         if (!fb.ok || !fb.hit) continue;
+
+        // For non-camping, rehydrate payload as-is (no semantic changes).
+        if (supercat !== 1) {
+          const payload = fb.payload as object;
+          const up = await upsertPlacesSupercatCache({
+            key: cacheKey.key,
+            supercat,
+            centerLat: cacheKey.lat,
+            centerLng: cacheKey.lng,
+            radius: cacheKey.radius,
+            payload,
+            ttlDays: placesCacheTtlDays,
+          });
+
+          await logApiToSupabase({
+            trip_id: tripId,
+            api: 'google-places',
+            method: 'GET',
+            url: 'supabase:api_cache_places_supercat',
+            status: 'CACHE_HIT_SUPABASE_FALLBACK',
+            duration_ms: 0,
+            cost: 0,
+            cached: true,
+            request: {
+              tripName,
+              supercat,
+              center,
+              radius,
+              requestedRadius,
+              radiusCapMeters: capMeters,
+              keyword,
+              query: queryInfo,
+              porteroAuditMode: porteroAuditResolved.mode,
+              porteroAuditSource: porteroAuditResolved.source,
+              porteroAuditEnv: porteroAuditResolved.envValue,
+              cacheTtlDays: placesCacheTtlDays,
+              cacheNamespace,
+              cacheRead: cacheReadDebug,
+              cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
+              cacheFallback: { provider: 'supabase', table: 'api_cache_places_supercat', key: fbKey.key, namespace: ns, expiresAt: fb.expiresAt },
+            },
+            response: {
+              status: 'CACHE_HIT_SUPABASE_FALLBACK',
+              resultsCount: readResultsCountFromPayload(payload),
+              cacheRead: cacheReadDebug,
+              cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, sourceNamespace: ns },
+              cacheWrite: up.ok
+                ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
+                : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason },
+            },
+          });
+
+          return NextResponse.json({
+            ...(payload as object),
+            resultsCount: readResultsCountFromPayload(payload),
+            cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, expiresAt: up.ok ? up.expiresAt : undefined },
+          });
+        }
+
+        // Camping: if v7 hit, rehydrate as-is into v8q2k. If v6 hit, keep existing v6->v7 merge logic and still rehydrate.
+        if (ns === 'places-supercat-v7') {
+          const payload = fb.payload as object;
+          const up = await upsertPlacesSupercatCache({
+            key: cacheKey.key,
+            supercat,
+            centerLat: cacheKey.lat,
+            centerLng: cacheKey.lng,
+            radius: cacheKey.radius,
+            payload,
+            ttlDays: placesCacheTtlDays,
+          });
+
+          await logApiToSupabase({
+            trip_id: tripId,
+            api: 'google-places',
+            method: 'GET',
+            url: 'supabase:api_cache_places_supercat',
+            status: 'CACHE_HIT_SUPABASE_FALLBACK',
+            duration_ms: 0,
+            cost: 0,
+            cached: true,
+            request: {
+              tripName,
+              supercat,
+              center,
+              radius,
+              requestedRadius,
+              radiusCapMeters: capMeters,
+              keyword,
+              query: queryInfo,
+              porteroAuditMode: porteroAuditResolved.mode,
+              porteroAuditSource: porteroAuditResolved.source,
+              porteroAuditEnv: porteroAuditResolved.envValue,
+              cacheTtlDays: placesCacheTtlDays,
+              cacheNamespace,
+              cacheRead: cacheReadDebug,
+              cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
+              cacheFallback: { provider: 'supabase', table: 'api_cache_places_supercat', key: fbKey.key, namespace: ns, expiresAt: fb.expiresAt },
+            },
+            response: {
+              status: 'CACHE_HIT_SUPABASE_FALLBACK',
+              resultsCount: readResultsCountFromPayload(payload),
+              cacheRead: cacheReadDebug,
+              cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, sourceNamespace: ns },
+              cacheWrite: up.ok
+                ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
+                : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason },
+            },
+          });
+
+          return NextResponse.json({
+            ...(payload as object),
+            resultsCount: readResultsCountFromPayload(payload),
+            cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, expiresAt: up.ok ? up.expiresAt : undefined },
+          });
+        }
 
         const fbPayload = fb.payload as unknown as {
           pageLogs?: unknown;

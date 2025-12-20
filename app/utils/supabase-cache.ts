@@ -32,9 +32,35 @@ export function makeGeocodingCacheKey(
   };
 }
 
-export function makePlacesSupercatCacheKey(params: { supercat: 1 | 2 | 3 | 4; lat: number; lng: number; radius: number; namespace?: string }) {
-  const latR = roundCoord(params.lat, 4);
-  const lngR = roundCoord(params.lng, 4);
+export function makePlacesSupercatCacheKey(params: {
+  supercat: 1 | 2 | 3 | 4;
+  lat: number;
+  lng: number;
+  radius: number;
+  namespace?: string;
+  quantizeMeters?: number;
+}) {
+  const quantizeMeters = params.quantizeMeters;
+
+  const quantizeLatLng = (lat: number, lng: number, meters: number) => {
+    const m = Math.max(250, Math.min(5000, Math.round(meters)));
+    const metersPerDegLat = 111_320;
+    const latStep = m / metersPerDegLat;
+    const cos = Math.cos((lat * Math.PI) / 180);
+    const metersPerDegLng = metersPerDegLat * Math.max(0.2, Math.abs(cos));
+    const lngStep = m / metersPerDegLng;
+    const qLat = Number.isFinite(latStep) && latStep > 0 ? Math.round(lat / latStep) * latStep : lat;
+    const qLng = Number.isFinite(lngStep) && lngStep > 0 ? Math.round(lng / lngStep) * lngStep : lng;
+    return { lat: qLat, lng: qLng, meters: m };
+  };
+
+  const latLng =
+    typeof quantizeMeters === 'number' && Number.isFinite(quantizeMeters) && quantizeMeters > 0
+      ? quantizeLatLng(params.lat, params.lng, quantizeMeters)
+      : { lat: params.lat, lng: params.lng, meters: null as number | null };
+
+  const latR = roundCoord(latLng.lat, 4);
+  const lngR = roundCoord(latLng.lng, 4);
   const radius = Math.round(params.radius);
   const namespace = params.namespace ?? 'places-supercat';
   return {

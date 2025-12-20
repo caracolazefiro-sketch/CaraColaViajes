@@ -17,6 +17,14 @@ type UseStageAdjustParams<TForm extends TripFormData & { tripName?: string; etap
   tripId?: string | null;
 };
 
+type ItineraryDay = NonNullable<TripResult['dailyItinerary']>[number];
+
+function getSavedPlacesUnsafe(day: unknown): unknown {
+  if (!day || typeof day !== 'object') return undefined;
+  if (!('savedPlaces' in day)) return undefined;
+  return (day as { savedPlaces?: unknown }).savedPlaces;
+}
+
 export function useStageAdjust<TForm extends TripFormData & { tripName?: string; etapas: string }>({
   results,
   setResults,
@@ -65,6 +73,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
       const coordsKeyFromCoords = (c?: { lat: number; lng: number }, precision = 5) =>
         c ? `${c.lat.toFixed(precision)},${c.lng.toFixed(precision)}` : '';
 
+      const approxEq = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) <= eps;
+
       showToast('Recalculando ruta...', 'info');
 
       try {
@@ -105,42 +115,20 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           return;
         }
 
-        // 3. Si es etapa intermedia, RECALCULAR LA RUTA COMPLETA
-        // Arquitectura correcta:
-        // 1. Extraer waypoints OBLIGATORIOS desde formData.etapas
-        // 2. Reemplazar el ajustado con newDestination
-        // 3. Enviar a Google: Origin → Obligatorios → Destino
-        // 4. Regenerar itinerario DESDE CERO
-        // 5. Actualizar formData.etapas con nuevos waypoints
+        // 3. Si es etapa intermedia, RECALCULAR SOLO DESDE EL DÍA AJUSTADO (prefijo inmutable)
+        // Arquitectura:
+        // 1) `formData.etapas` = fuente de verdad de paradas mandatory (visible y persistente)
+        // 2) Insert/replace determinista en esa lista
+        // 3) Recalcular Directions desde el inicio del día ajustado hasta destino final
+        // 4) Mantener días anteriores intactos (incluyendo savedPlaces)
 
-        console.log('🔄 Recalculando ruta COMPLETA desde origen original');
+        console.log('🔄 Recalculando ruta PARCIAL desde el día ajustado (prefijo inmutable)');
 
         // PASO 1: Extraer waypoints OBLIGATORIOS desde formData.etapas
         let waypointsFromForm = formData.etapas
           .split('|')
           .map((s) => stripDecorations(s))
           .filter((s) => s.length > 0);
-
-        // 🔧 Auto-heal: si `etapas` quedó contaminado por paradas de segmentación (p.ej. "Cáceres"),
-        // eliminarlas antes de volver a llamar a Directions.
-        // Usamos `dailyItinerary.type === 'tactical'` como señal fuerte de "no es waypoint obligatorio".
-        const tacticalStops = new Set(
-          (results.dailyItinerary || [])
-            .filter((d) => d.type === 'tactical')
-            .map((d) => stripDecorations(String(d.to ?? '')))
-            .filter((s) => s.length > 0)
-            .map((s) => normalizeForComparison(s))
-        );
-        if (tacticalStops.size > 0) {
-          const before = waypointsFromForm;
-          waypointsFromForm = waypointsFromForm.filter((wp) => {
-            const key = normalizeForComparison(stripDecorations(String(wp)));
-            return !tacticalStops.has(key);
-          });
-          if (before.length !== waypointsFromForm.length) {
-            console.log('🧹 Limpiando etapas contaminadas (tácticas):', { before, after: waypointsFromForm });
-          }
-        }
 
         console.log('📦 Waypoints obligatorios (formData.etapas):', waypointsFromForm);
 
@@ -161,7 +149,6 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
 
         // Caso especial: si el usuario ajusta una parada táctica para "llegar ya" al DESTINO final,
         // NO debemos insertar el destino como waypoint, porque Google generará un último leg 0km (Destino→Destino).
-        const approxEq = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) <= eps;
         const finalCoords = updatedItinerary[updatedItinerary.length - 1]?.coordinates;
         const isFinalDestinationByText = matchesLoosely(newDestination, formData.destino);
         const isFinalDestinationByCoords =
@@ -280,7 +267,16 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         }
 
         const firstDay = updatedItinerary[0];
-        const originParam = coordsToParam(firstDay?.startCoordinates) || normalizeForGoogle(stripDecorations(formData.origen));
+        const itineraryStartIso = updatedItinerary[0]?.isoDate || formData.fechaInicio;
+
+        // Prefijo inmutable: días anteriores no se tocan
+        const prefix = updatedItinerary.slice(0, adjustingDayIndex);
+        const suffixStartDay = updatedItinerary[adjustingDayIndex];
+
+        const suffixOriginParam =
+          coordsToParam(suffixStartDay?.startCoordinates) ||
+          coordsToParam(parseCoordsParam(String(suffixStartDay?.from ?? '')) ?? undefined) ||
+          normalizeForGoogle(stripDecorations(String(suffixStartDay?.from ?? formData.origen)));
 
         const lastDay = updatedItinerary[updatedItinerary.length - 1];
         const destinationParam = isAdjustingLastDrivingStage
@@ -314,7 +310,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         const destinationLabel = stripDecorations(isAdjustingLastDrivingStage ? newDestination : formData.destino);
         setCoordLabel(firstDay?.startCoordinates, originLabel);
         setCoordLabel(isAdjustingLastDrivingStage ? newCoordinates : lastDay?.coordinates, destinationLabel);
-        if (originParam) waypointLabelByCoords.set(normalizeCoordsKey(originParam), originLabel);
+        if (suffixOriginParam) waypointLabelByCoords.set(normalizeCoordsKey(suffixOriginParam), originLabel);
         if (destinationParam) waypointLabelByCoords.set(normalizeCoordsKey(destinationParam), destinationLabel);
 
         const normalizedWaypoints = updatedMandatoryWaypoints.map((wp) => {
@@ -335,22 +331,34 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         });
 
         console.log('📍 Ruta NUEVA a Google:');
-        console.log(`  Origen: ${originParam}`);
+        console.log(`  Origen: ${suffixOriginParam}`);
         normalizedWaypoints.forEach((wp, i) => {
           console.log(`  Waypoint ${i + 1}: ${wp}`);
         });
         console.log(`  Destino: ${destinationParam}`);
 
+        const legIndexForDay = (() => {
+          const meta = results.dailyItinerary?.[adjustingDayIndex]?.masterLegIndex;
+          if (typeof meta === 'number' && Number.isFinite(meta)) return Math.max(0, Math.trunc(meta));
+          // Fallback: si el destino previo era un waypoint mandatory, el leg es el índice de ese waypoint.
+          if (previousWaypointIndex !== -1) return Math.max(0, previousWaypointIndex);
+          return 0;
+        })();
+
+        // Waypoints restantes desde el leg del día ajustado hacia adelante.
+        // Ej: legIndex=0 => incluye wp0; legIndex=1 => incluye wp1...
+        const normalizedSuffixWaypoints = normalizedWaypoints.slice(Math.max(0, Math.min(normalizedWaypoints.length, legIndexForDay)));
+
         // PASO 3: Enviar a Google la ruta NUEVA
         const recalcResult = await getDirectionsAndCost({
           tripId: tripId ?? undefined,
           tripName: formData.tripName || '',
-          origin: originParam,
+          origin: suffixOriginParam,
           destination: destinationParam,
-          waypoints: normalizedWaypoints,
+          waypoints: normalizedSuffixWaypoints,
           travel_mode: 'driving',
           kmMaximoDia: formData.kmMaximoDia,
-          fechaInicio: results.dailyItinerary[0].isoDate || formData.fechaInicio,
+          fechaInicio: suffixStartDay?.isoDate || formData.fechaInicio,
           fechaRegreso: formData.fechaRegreso || '',
         });
 
@@ -411,49 +419,47 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           });
         };
 
-        let finalItinerary = applyWaypointLabels(recalcResult.dailyItinerary);
+        let finalSuffixItinerary = applyWaypointLabels(recalcResult.dailyItinerary);
 
         // ✅ Comportamiento “humano”: si el usuario ajusta una parada técnica del día N,
         // ese día N debe terminar en el nuevo destino (aunque supere kmMaximoDia),
         // y la segmentación continúa desde ahí.
-        if (finalItinerary && isAdjustingTacticalStop) {
+        if (finalSuffixItinerary && isAdjustingTacticalStop) {
           // Coordenadas de Google pueden venir con redondeos distintos entre respuestas; toleramos un pequeño delta.
-          const approxEq = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) <= eps;
           const looksLikeSameCoords = (c?: { lat: number; lng: number }) =>
             !!c && approxEq(c.lat, newCoordinates.lat) && approxEq(c.lng, newCoordinates.lng);
 
           const destKey = normalizeForComparison(stripDecorations(newDestination));
 
-          // Tras recalcular en servidor, el número de días puede cambiar (post-segmentación).
-          // No podemos asumir que `adjustingDayIndex` apunta al mismo día en `finalItinerary`.
+          // La respuesta del servidor empieza en el día ajustado (día 0 del sufijo).
           const oldDay = results.dailyItinerary?.[adjustingDayIndex];
           const oldToKey = normalizeForComparison(stripDecorations(String(oldDay?.to ?? '')));
           const oldEndCoords = oldDay?.coordinates;
 
           const findMergeStartIndex = () => {
             if (oldEndCoords) {
-              for (let i = 0; i < finalItinerary.length; i++) {
-                const d = finalItinerary[i];
+              for (let i = 0; i < finalSuffixItinerary.length; i++) {
+                const d = finalSuffixItinerary[i];
                 if (!d?.isDriving || !d.coordinates) continue;
                 if (approxEq(d.coordinates.lat, oldEndCoords.lat) && approxEq(d.coordinates.lng, oldEndCoords.lng)) return i;
               }
             }
             if (oldToKey) {
-              for (let i = 0; i < finalItinerary.length; i++) {
-                const d = finalItinerary[i];
+              for (let i = 0; i < finalSuffixItinerary.length; i++) {
+                const d = finalSuffixItinerary[i];
                 if (!d?.isDriving) continue;
                 const candKey = normalizeForComparison(stripDecorations(String(d.to ?? '')));
                 if (candKey && (candKey === oldToKey || candKey.includes(oldToKey) || oldToKey.includes(candKey))) return i;
               }
             }
-            return adjustingDayIndex;
+            return 0;
           };
 
           const mergeStartIdx = findMergeStartIndex();
 
           const findReachIndex = () => {
-            for (let i = 0; i < finalItinerary.length; i++) {
-              const d = finalItinerary[i];
+            for (let i = 0; i < finalSuffixItinerary.length; i++) {
+              const d = finalSuffixItinerary[i];
               if (!d?.isDriving) continue;
               if (looksLikeSameCoords(d.coordinates)) return i;
 
@@ -471,7 +477,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
 
           const reachIdx = findReachIndex();
           if (reachIdx !== -1 && reachIdx > mergeStartIdx) {
-            const mergedSlice = finalItinerary.slice(mergeStartIdx, reachIdx + 1);
+            const mergedSlice = finalSuffixItinerary.slice(mergeStartIdx, reachIdx + 1);
             const first = mergedSlice[0];
             const totalKm = mergedSlice.reduce((acc, d) => acc + (Number(d.distance) || 0), 0);
 
@@ -484,24 +490,19 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
               masterKind: 'anchor' as const,
             };
 
-            const nextDays = finalItinerary.slice(reachIdx + 1);
-            finalItinerary = [...finalItinerary.slice(0, mergeStartIdx), mergedDay, ...nextDays];
+            const nextDays = finalSuffixItinerary.slice(reachIdx + 1);
 
-            // Reindexar días y fechas manteniendo la fecha de inicio del itinerario
-            const start = new Date(finalItinerary[0].isoDate || formData.fechaInicio);
-            const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-            const cursor = new Date(start);
-            finalItinerary = finalItinerary.map((d, idx) => {
-              const out = {
-                ...d,
-                day: idx + 1,
-                date: fmt(cursor),
-                isoDate: cursor.toISOString(),
+            // Fix crítico: tras el merge, el día siguiente debe arrancar desde el nuevo destino.
+            if (nextDays.length > 0) {
+              const next0 = nextDays[0];
+              nextDays[0] = {
+                ...next0,
+                from: stripDecorations(newDestination),
+                startCoordinates: { lat: newCoordinates.lat, lng: newCoordinates.lng },
               };
-              cursor.setDate(cursor.getDate() + 1);
-              return out;
-            });
+            }
+
+            finalSuffixItinerary = [...finalSuffixItinerary.slice(0, mergeStartIdx), mergedDay, ...nextDays];
 
             console.log('🧩 Merge táctico→destino (ajuste de día):', {
               adjustingDayIndex,
@@ -514,12 +515,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           }
         }
 
-        console.log(
-          '📊 Itinerario final (regenerado desde cero, segmentado en servidor):',
-          finalItinerary.length,
-          'días'
-        );
-        console.log('📊 Itinerario después de segmentación:', finalItinerary.length, 'días');
+        console.log('📊 Sufijo final (segmentado en servidor):', finalSuffixItinerary?.length || 0, 'días');
 
         // PASO 5: ACTUALIZAR formData.etapas con los waypoints obligatorios del usuario.
         // Importante: NO inferir desde `finalItinerary` porque está segmentado y puede incluir ciudades intermedias
@@ -531,20 +527,62 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           etapas: isAdjustingLastDrivingStage ? prev.etapas : updatedMandatoryWaypoints.join('|'),
         }));
 
+        // Unir prefijo (inmutable) + sufijo recalculado, reindexando días/fechas.
+        const combinedRaw = [...prefix, ...(finalSuffixItinerary || [])];
+
+        // Preservar savedPlaces del prefijo (y best-effort del sufijo si isoDate coincide)
+        const savedByIso = new Map<string, unknown>();
+        for (const d of results.dailyItinerary || []) {
+          const saved = getSavedPlacesUnsafe(d);
+          if (d?.isoDate && saved != null) savedByIso.set(String(d.isoDate), saved);
+        }
+
+        const startIso = itineraryStartIso;
+        const start = new Date(startIso);
+        const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const cursor = new Date(start);
+        const combined = combinedRaw.map((d, idx) => {
+          const isoDate = cursor.toISOString();
+          const currentSaved = getSavedPlacesUnsafe(d);
+          const preservedSaved = idx < prefix.length ? currentSaved : (savedByIso.get(isoDate) ?? currentSaved);
+          const out: ItineraryDay = {
+            ...d,
+            day: idx + 1,
+            date: fmt(cursor),
+            isoDate,
+            savedPlaces: preservedSaved,
+          } as unknown as ItineraryDay;
+          cursor.setDate(cursor.getDate() + 1);
+          return out;
+        });
+
+        const combinedDistanceKm = combined.reduce((acc, d) => acc + (Number(d?.distance) || 0), 0);
+
+        const nextDistanceKm =
+          combinedDistanceKm > 0
+            ? combinedDistanceKm
+            : recalcResult.distanceKm != null
+              ? recalcResult.distanceKm
+              : results.distanceKm;
+        const nextLiters =
+          nextDistanceKm != null
+            ? (nextDistanceKm * formData.consumo) / 100
+            : results.liters != null
+              ? results.liters
+              : null;
+        const nextTotalCost =
+          nextDistanceKm != null && typeof nextLiters === 'number'
+            ? nextLiters * formData.precioGasoil
+            : results.totalCost;
+
         setResults({
           ...results,
-          totalDays: finalItinerary?.length || null,
-          distanceKm: recalcResult.distanceKm ?? results.distanceKm,
-          liters:
-            recalcResult.distanceKm != null
-              ? (recalcResult.distanceKm * formData.consumo) / 100
-              : results.liters,
-          totalCost:
-            recalcResult.distanceKm != null
-              ? ((recalcResult.distanceKm * formData.consumo) / 100) * formData.precioGasoil
-              : results.totalCost,
+          totalDays: combined?.length || null,
+          distanceKm: nextDistanceKm,
+          liters: nextLiters,
+          totalCost: nextTotalCost,
           overviewPolyline: recalcResult.overviewPolyline ?? results.overviewPolyline ?? null,
-          dailyItinerary: finalItinerary,
+          dailyItinerary: combined,
         });
 
         // 🔁 Importante: si hay un DirectionsResult client-side (DirectionsRenderer), el mapa prioriza eso.
