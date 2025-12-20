@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 interface TestItem {
     id: string;
@@ -13,7 +13,12 @@ interface TestItem {
 
 export default function TestManualChecklist() {
     const todayEs = new Date().toLocaleDateString('es-ES');
-    const [tests, setTests] = useState<TestItem[]>([
+    const [stressNarrow, setStressNarrow] = useState(false);
+    const [stressLongText, setStressLongText] = useState(false);
+    const [stressManyTests, setStressManyTests] = useState(false);
+    const [stressCompact, setStressCompact] = useState(false);
+
+    const baseTests = useMemo<TestItem[]>(() => [
         {
             id: 'test-1',
             title: 'Prueba 1: Datos reales en DaySpotsList',
@@ -148,8 +153,118 @@ export default function TestManualChecklist() {
             verification: '✅ VERIFICAR: En el segundo request hay cache hit (o fallback) y coste $0 para Places.',
             status: 'pending',
             notes: ''
+        },
+
+        // --- AJUSTE DE ETAPAS (MANDATORY) + PREFIJO INMUTABLE ---
+        {
+            id: 'stage-1',
+            title: 'Ajuste 1: Inserta parada mandatory y se ve en etapas',
+            steps: [
+                'Crear un viaje largo (>= 8 días) con kmMaximoDia bajo (ej: 250)',
+                'Ir al día 2 y usar “Ajustar parada/etapa” para fijar una parada técnica (ej: Dax)',
+                'Comprobar que el input “etapas” se actualiza y contiene esa parada (mandatory visible)',
+                'Refrescar la página (F5)'
+            ],
+            verification: '✅ VERIFICAR: La parada añadida sigue en “etapas” tras F5 y el itinerario sigue pasando por ella.',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'stage-2',
+            title: 'Ajuste 2: Ajuste posterior NO borra el anterior (no se olvida Dax)',
+            steps: [
+                'Con el viaje anterior (con Dax ya insertado), ajustar otro día posterior (ej: día 6/7) a otra ciudad',
+                'Volver a revisar el día 2 y el input “etapas”',
+                'Abrir el mapa y comprobar que la ruta pasa por la parada del ajuste anterior'
+            ],
+            verification: '✅ VERIFICAR: El ajuste anterior sigue activo (itinerario y etapas), y no reaparece la parada al final ni desaparece.',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'stage-3',
+            title: 'Ajuste 3: Prefijo inmutable + savedPlaces preservados',
+            steps: [
+                'Guardar 3-5 lugares en un día ANTERIOR al ajuste (día 1 o 2)',
+                'Hacer un ajuste en un día posterior (ej: día 6/7)',
+                'Volver a los días anteriores y comprobar la lista de guardados',
+                'Cambiar filtros/rating y toggles de categorías'
+            ],
+            verification: '✅ VERIFICAR: Los savedPlaces del prefijo siguen intactos y visibles; no se pierden tras ajustes posteriores.',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'stage-4',
+            title: 'Ajuste 4: Nunca aparece lat,lng como “from” en el día siguiente',
+            steps: [
+                'Hacer un ajuste de parada técnica que fuerce el “pin/merge” del día (puede superar kmMaximoDia)',
+                'Mirar el día siguiente: el “from” debe ser el nombre de la ciudad ajustada',
+                'Repetir 2 veces con ajustes distintos'
+            ],
+            verification: '✅ VERIFICAR: El día siguiente empieza por nombre (ej: “Dax”), no por “43.708608,-1.051945”.',
+            status: 'pending',
+            notes: ''
+        },
+
+        // --- PLACES CACHE (CUANTIZADO) ---
+        {
+            id: 'places-q-1',
+            title: 'Places 1: Caché cuantizado (camping ~2km)',
+            steps: [
+                'En una etapa, activar Camping y esperar resultados',
+                'Mover ligeramente el centro (cambiar de día y volver, o re-seleccionar la etapa) para provocar pequeñas variaciones de center',
+                'Repetir el toggle Camping 2-3 veces',
+                'Abrir /logs-viewer-supabase y comparar keys: deberían estabilizarse (menos MISS)'
+            ],
+            verification: '✅ VERIFICAR: La segunda vez hay HIT/FALLBACK con coste $0 y la key no cambia por micro-variaciones.',
+            status: 'pending',
+            notes: ''
+        },
+        {
+            id: 'places-q-2',
+            title: 'Places 2: Rest/Súper/Gas/Turismo ~1km (calidad razonable)',
+            steps: [
+                'Activar Restaurant/Supermarket/Gas/Tourism en una etapa urbana',
+                'Repetir activación/desactivación y comparar resultados (no deben ser “de otra ciudad”)',
+                'Validar en /logs-viewer-supabase que hay HIT/FALLBACK frecuente'
+            ],
+            verification: '✅ VERIFICAR: Más hit-rate sin degradación obvia de relevancia (siguen siendo del área).',
+            status: 'pending',
+            notes: ''
         }
-    ]);
+    ], []);
+
+    const longTextSeed =
+        ' SUPER-LARGO_SIN_ESPACIOS_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_SUPER-LARGO_SIN_ESPACIOS_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    const tests = useMemo<TestItem[]>(() => {
+        const withStress = stressLongText
+            ? baseTests.map((t) => ({
+                  ...t,
+                  title: `${t.title}${longTextSeed}`,
+                  steps: t.steps.map((s) => `${s} — ${longTextSeed}`),
+                  verification: `${t.verification} ${longTextSeed}`,
+              }))
+            : baseTests;
+
+        if (!stressManyTests) return withStress;
+
+        const extra = Array.from({ length: 40 }).map((_, i) => ({
+            id: `stress-${i + 1}`,
+            title: `Stress ${i + 1}: Scroll/overflow/perf`,
+            steps: [
+                'Alternar categorías rápidamente (camping/gas/restaurant/tourism) 10 veces',
+                'Cambiar de día 1→fin→1 rápidamente',
+                'Guardar 15+ lugares en un día y comprobar que UI no se rompe',
+            ],
+            verification: '✅ VERIFICAR: No hay scroll horizontal inesperado, ni UI congelada, ni pérdidas de estado.',
+            status: 'pending' as const,
+            notes: '',
+        }));
+
+        return [...withStress, ...extra];
+    }, [baseTests, stressLongText, stressManyTests]);
 
     const updateTestStatus = (id: string, status: 'pending' | 'pass' | 'fail') => {
         setTests(tests.map(test => test.id === id ? { ...test, status } : test));
@@ -180,6 +295,10 @@ export default function TestManualChecklist() {
     const failedTests = tests.filter(t => t.status === 'fail').length;
     const pendingTests = tests.filter(t => t.status === 'pending').length;
 
+    const pagePadding = stressCompact ? 'px-3 py-4' : 'px-8 py-6';
+    const wrapWidth = stressNarrow ? 'max-w-sm' : 'max-w-7xl';
+    const cardSpacing = stressCompact ? 'space-y-3' : 'space-y-6';
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
             {/* Header */}
@@ -200,7 +319,45 @@ export default function TestManualChecklist() {
             </div>
 
             {/* Progress Dashboard */}
-            <div className="max-w-7xl mx-auto px-8 py-6">
+            <div className={`${wrapWidth} mx-auto ${pagePadding}`}>
+                {/* Stress Controls */}
+                <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border-l-4 border-red-500">
+                    <h3 className="font-bold text-gray-800 mb-3">⚠️ Stress de UX/UI (modo tortura)</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                        Activa estos modos para forzar condiciones duras: ancho tipo móvil, texto extremo y lista enorme.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={stressNarrow} onChange={(e) => setStressNarrow(e.target.checked)} />
+                            Contenedor estrecho (≈ móvil)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={stressCompact} onChange={(e) => setStressCompact(e.target.checked)} />
+                            Compacto (menos padding)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={stressLongText} onChange={(e) => setStressLongText(e.target.checked)} />
+                            Texto ultra largo (overflow)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" checked={stressManyTests} onChange={(e) => setStressManyTests(e.target.checked)} />
+                            40 tests extra (scroll/perf)
+                        </label>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        <a className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg text-center" href="/" target="_blank" rel="noreferrer">
+                            Abrir app principal
+                        </a>
+                        <a className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg text-center" href="/logs-viewer-supabase" target="_blank" rel="noreferrer">
+                            Abrir logs Supabase
+                        </a>
+                        <a className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg text-center" href="/test-spots-search" target="_blank" rel="noreferrer">
+                            Abrir test spots
+                        </a>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
                         <div className="text-3xl font-bold text-blue-600">{totalTests}</div>
@@ -237,7 +394,7 @@ export default function TestManualChecklist() {
                 </div>
 
                 {/* Test Cases */}
-                <div className="space-y-6">
+                <div className={cardSpacing}>
                     {tests.map((test, index) => (
                         <div key={test.id} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                             {/* Test Header */}
