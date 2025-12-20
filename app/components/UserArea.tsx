@@ -26,9 +26,10 @@ interface UserAreaProps {
     currentTripId: number | null;
     onOpenDashboard?: () => void;
     t: (key: string) => string;
+    variant?: 'landing' | 'header';
 }
 
-export default function UserArea({ t, onLoadTrip }: UserAreaProps) {
+export default function UserArea({ t, onLoadTrip, variant = 'header' }: UserAreaProps) {
     interface AppUser { id: string; email?: string }
     const [user, setUser] = useState<AppUser | null>(null);
     const [email, setEmail] = useState('');
@@ -116,21 +117,72 @@ export default function UserArea({ t, onLoadTrip }: UserAreaProps) {
     };
 
     if (!user) {
+        const isLanding = variant === 'landing';
         return (
-            <div className="grid grid-cols-[auto_1fr] items-center gap-2 min-w-0">
-                <div className="flex flex-col items-start gap-1 text-[10px] text-gray-500 whitespace-nowrap leading-none">
-                    <button onClick={() => setAuthMode('magic')} className={`hover:text-red-600 text-left ${authMode === 'magic' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_MAGIC_LINK')}</button>
-                    <button onClick={() => setAuthMode('password')} className={`hover:text-red-600 text-left ${authMode === 'password' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_PASSWORD')}</button>
-                    <button onClick={() => setAuthMode('register')} className={`hover:text-red-600 text-left ${authMode === 'register' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_REGISTER')}</button>
-                </div>
+            <div className={isLanding ? 'flex flex-col items-end gap-1' : 'grid grid-cols-[auto_1fr] items-center gap-2 min-w-0'}>
 
+                {/* selector modo */}
+                {isLanding ? (
+                    <div className="flex gap-2 text-[10px] text-gray-500 mb-1 whitespace-nowrap">
+                        <button onClick={() => setAuthMode('magic')} className={`hover:text-red-600 ${authMode === 'magic' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_MAGIC_LINK')}</button>
+                        <span>|</span>
+                        <button onClick={() => setAuthMode('password')} className={`hover:text-red-600 ${authMode === 'password' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_PASSWORD')}</button>
+                        <span>|</span>
+                        <button onClick={() => setAuthMode('register')} className={`hover:text-red-600 ${authMode === 'register' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_REGISTER')}</button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-start gap-1 text-[10px] text-gray-500 whitespace-nowrap leading-none">
+                        <button onClick={() => setAuthMode('magic')} className={`hover:text-red-600 text-left ${authMode === 'magic' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_MAGIC_LINK')}</button>
+                        <button onClick={() => setAuthMode('password')} className={`hover:text-red-600 text-left ${authMode === 'password' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_PASSWORD')}</button>
+                        <button onClick={() => setAuthMode('register')} className={`hover:text-red-600 text-left ${authMode === 'register' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_REGISTER')}</button>
+                    </div>
+                )}
+
+                {/* formulario */}
                 <form
                     onSubmit={authMode === 'magic' ? handleMagicLogin : (authMode === 'password' ? handlePasswordLogin : handleSignUp)}
-                    className="flex items-center gap-2 flex-nowrap bg-white p-2 rounded border border-gray-200 shadow-sm min-w-0"
+                    className={
+                        isLanding
+                            ? 'flex items-center gap-2 flex-nowrap bg-white p-2 rounded border border-gray-200 shadow-sm'
+                            : 'flex items-center gap-2 flex-nowrap bg-white p-2 rounded border border-gray-200 shadow-sm min-w-0'
+                    }
                 >
-                    <input type="email" placeholder={t('AUTH_EMAIL_PLACEHOLDER')} value={email} onChange={(e) => setEmail(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-[11px] w-32 focus:outline-none focus:border-red-500 min-w-0" required />
-                    {authMode !== 'magic' && <input type="password" placeholder={t('AUTH_PASSWORD_PLACEHOLDER')} value={password} onChange={(e) => setPassword(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-[11px] w-24 focus:outline-none focus:border-red-500 min-w-0" required minLength={6} />}
-                    <button type="submit" disabled={loading} className="bg-gray-800 text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap">
+                    <input
+                        type="email"
+                        placeholder={t('AUTH_EMAIL_PLACEHOLDER')}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={
+                            isLanding
+                                ? 'px-2 py-1 rounded border border-gray-300 text-xs w-44 focus:outline-none focus:border-red-500'
+                                : 'px-2 py-1 rounded border border-gray-300 text-[11px] w-40 focus:outline-none focus:border-red-500 min-w-0'
+                        }
+                        required
+                    />
+                    {authMode !== 'magic' && (
+                        <input
+                            type="password"
+                            placeholder={t('AUTH_PASSWORD_PLACEHOLDER')}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={
+                                isLanding
+                                    ? 'px-2 py-1 rounded border border-gray-300 text-xs w-32 focus:outline-none focus:border-red-500'
+                                    : 'px-2 py-1 rounded border border-gray-300 text-[11px] w-28 focus:outline-none focus:border-red-500 min-w-0'
+                            }
+                            required
+                            minLength={6}
+                        />
+                    )}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={
+                            isLanding
+                                ? 'bg-gray-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap'
+                                : 'bg-gray-800 text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap'
+                        }
+                    >
                         {loading ? '...' : (authMode === 'magic' ? t('AUTH_SEND_LINK') : (authMode === 'register' ? t('AUTH_CREATE_ACCOUNT') : t('AUTH_LOGIN')))}
                     </button>
                 </form>
