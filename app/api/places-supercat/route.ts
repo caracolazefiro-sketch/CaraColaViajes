@@ -471,15 +471,17 @@ async function getAreasAcNearby(params: { center: LatLng; radius: number; maxRes
 // Usamos un keyword multi-idioma (sin OR) y filtramos por `types` con Portero.
 const SUPERCAT_1_KEYWORD = 'camping camper motorhome autocaravana rv park stellplatz';
 
-// 2) Comer + Super (una sola llamada, luego se reparte)
-// Estrategia: 1 llamada Places API (New) con `includedTypes` y luego se reparte.
+// 2) Comer + Super (DOS llamadas: una por categoría)
+// Motivo: mejora calidad (ranking/popularidad) al separar restaurantes y supermercados.
+const SUPERCAT_2_RESTAURANT_INCLUDED_TYPES = ['restaurant'] as const;
 // Nota: set conservador para “super” (a veces viene como grocery_store).
-const SUPERCAT_2_INCLUDED_TYPES = ['restaurant', 'supermarket', 'grocery_store'] as const;
+const SUPERCAT_2_SUPERMARKET_INCLUDED_TYPES = ['supermarket', 'grocery_store'] as const;
 
-// 3) Gas + Lavar (una sola llamada, luego se reparte)
-// Estrategia: 1 llamada Places API (New) con `includedTypes` y luego se reparte.
+// 3) Gas + Lavar (DOS llamadas: una por categoría)
+// Motivo: mejora calidad (ranking) al separar gasolineras y lavanderías.
 // Nota: evitamos `dry_cleaner` a propósito (sesgo a lavanderías autoservicio).
-const SUPERCAT_3_INCLUDED_TYPES = ['gas_station', 'laundry'] as const;
+const SUPERCAT_3_GAS_INCLUDED_TYPES = ['gas_station'] as const;
+const SUPERCAT_3_LAUNDRY_INCLUDED_TYPES = ['laundry'] as const;
 
 // 4) Turismo
 // Estrategia: 1 llamada Places API (New) con `includedTypes`.
@@ -626,25 +628,44 @@ export async function POST(req: Request) {
       supercat === 1
         ? SUPERCAT_1_KEYWORD
         : supercat === 2
-          ? `includedTypes=${SUPERCAT_2_INCLUDED_TYPES.join(',')}`
+          ? `includedTypes=restaurant | includedTypes=supermarket,grocery_store`
           : supercat === 3
-            ? `includedTypes=${SUPERCAT_3_INCLUDED_TYPES.join(',')}`
+            ? `includedTypes=gas_station | includedTypes=laundry`
             : `includedTypes=${SUPERCAT_4_INCLUDED_TYPES.join(',')}`;
 
     // Query strategy (cost-control): 1 llamada por supercat usando Places API (New).
     const includedTypes =
       supercat === 1
         ? (['campground', 'rv_park'] as const)
-        : supercat === 2
-          ? SUPERCAT_2_INCLUDED_TYPES
-          : supercat === 3
-            ? SUPERCAT_3_INCLUDED_TYPES
-            : SUPERCAT_4_INCLUDED_TYPES;
+        : supercat === 4
+          ? SUPERCAT_4_INCLUDED_TYPES
+          : ([] as const);
 
     // Nota: Places API (New) no ofrece “cuotas” por tipo en una sola llamada.
     // Con 1 llamada, puede ocurrir que salgan 0 resultados de una sub-categoría.
     const rankPreference: 'POPULARITY' | 'DISTANCE' = 'POPULARITY';
-    const queryInfo = { provider: 'places-new', includedTypes: [...includedTypes], rankPreference, keyword: null };
+    const queryInfo =
+      supercat === 2
+        ? {
+            provider: 'places-new',
+            subqueries: [
+              { category: 'restaurant', includedTypes: [...SUPERCAT_2_RESTAURANT_INCLUDED_TYPES] },
+              { category: 'supermarket', includedTypes: [...SUPERCAT_2_SUPERMARKET_INCLUDED_TYPES] },
+            ],
+            rankPreference,
+            keyword: null,
+          }
+        : supercat === 3
+          ? {
+              provider: 'places-new',
+              subqueries: [
+                { category: 'gas', includedTypes: [...SUPERCAT_3_GAS_INCLUDED_TYPES] },
+                { category: 'laundry', includedTypes: [...SUPERCAT_3_LAUNDRY_INCLUDED_TYPES] },
+              ],
+              rankPreference,
+              keyword: null,
+            }
+          : { provider: 'places-new', includedTypes: [...includedTypes], rankPreference, keyword: null };
 
     // Opción A: tope de radio por bloque/supercat (defensa también en servidor)
     const capMeters = SUPERCAT_RADIUS_CAP_METERS[supercat];
@@ -662,9 +683,9 @@ export async function POST(req: Request) {
       supercat === 1
         ? 'places-supercat-v8q2k'
         : supercat === 2
-          ? 'places-supercat-v6q1k'
+          ? 'places-supercat-v7q1k'
           : supercat === 3
-            ? 'places-supercat-v7q1k'
+            ? 'places-supercat-v8q1k'
             : 'places-supercat-v4q1k';
     const cacheKey = makePlacesSupercatCacheKey({
       supercat,
@@ -742,80 +763,17 @@ export async function POST(req: Request) {
     }
 
     // 0b) Cache fallback (to avoid accidental spend when bumping namespaces)
-    // If quantized key is a miss, try legacy namespaces/keys and rehydrate without calling Google.
-    if (cached.ok && !cached.hit) {
+    // We only fallback for camping (supercat=1). For other supercats, semantics/quality can change,
+    // so we prefer warming the new cache via fresh Google calls.
+    if (cached.ok && !cached.hit && supercat === 1) {
       const legacyNamespaces =
-        supercat === 1
-          ? ['places-supercat-v7', 'places-supercat-v6']
-          : supercat === 2
-            ? ['places-supercat-v5']
-            : supercat === 3
-              ? ['places-supercat-v6']
-              : ['places-supercat-v3'];
+        ['places-supercat-v7', 'places-supercat-v6'];
 
       for (const ns of legacyNamespaces) {
         // Legacy key uses exact center rounding (no quantization)
         const fbKey = makePlacesSupercatCacheKey({ supercat, lat: center.lat, lng: center.lng, radius, namespace: ns });
         const fb = await getPlacesSupercatCache({ key: fbKey.key });
         if (!fb.ok || !fb.hit) continue;
-
-        // For non-camping, rehydrate payload as-is (no semantic changes).
-        if (supercat !== 1) {
-          const payload = fb.payload as object;
-          const up = await upsertPlacesSupercatCache({
-            key: cacheKey.key,
-            supercat,
-            centerLat: cacheKey.lat,
-            centerLng: cacheKey.lng,
-            radius: cacheKey.radius,
-            payload,
-            ttlDays: placesCacheTtlDays,
-          });
-
-          await logApiToSupabase({
-            trip_id: tripId,
-            api: 'google-places',
-            method: 'GET',
-            url: 'supabase:api_cache_places_supercat',
-            status: 'CACHE_HIT_SUPABASE_FALLBACK',
-            duration_ms: 0,
-            cost: 0,
-            cached: true,
-            request: {
-              tripName,
-              supercat,
-              center,
-              radius,
-              requestedRadius,
-              radiusCapMeters: capMeters,
-              keyword,
-              query: queryInfo,
-              porteroAuditMode: porteroAuditResolved.mode,
-              porteroAuditSource: porteroAuditResolved.source,
-              porteroAuditEnv: porteroAuditResolved.envValue,
-              cacheTtlDays: placesCacheTtlDays,
-              cacheNamespace,
-              cacheRead: cacheReadDebug,
-              cache: { provider: 'supabase', table: 'api_cache_places_supercat', key: cacheKey.key },
-              cacheFallback: { provider: 'supabase', table: 'api_cache_places_supercat', key: fbKey.key, namespace: ns, expiresAt: fb.expiresAt },
-            },
-            response: {
-              status: 'CACHE_HIT_SUPABASE_FALLBACK',
-              resultsCount: readResultsCountFromPayload(payload),
-              cacheRead: cacheReadDebug,
-              cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, sourceNamespace: ns },
-              cacheWrite: up.ok
-                ? { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: true, expiresAt: up.expiresAt, ttlDays: up.ttlDays }
-                : { provider: 'supabase', action: 'upsert', table: 'api_cache_places_supercat', key: cacheKey.key, ok: false, reason: up.reason },
-            },
-          });
-
-          return NextResponse.json({
-            ...(payload as object),
-            resultsCount: readResultsCountFromPayload(payload),
-            cache: { provider: 'supabase', key: cacheKey.key, hit: true, source: 'fallback', sourceKey: fbKey.key, expiresAt: up.ok ? up.expiresAt : undefined },
-          });
-        }
 
         // Camping: if v7 hit, rehydrate as-is into v8q2k. If v6 hit, keep existing v6->v7 merge logic and still rehydrate.
         if (ns === 'places-supercat-v7') {
@@ -1001,9 +959,94 @@ export async function POST(req: Request) {
     let pages = 1;
     let totalDurationMs = 0;
     let googleCalls = 0;
+    let supercat2RestaurantRaw: ServerPlace[] | undefined;
+    let supercat2SupermarketRaw: ServerPlace[] | undefined;
+    let supercat3GasRaw: ServerPlace[] | undefined;
+    let supercat3LaundryRaw: ServerPlace[] | undefined;
 
-    {
-      const p = await fetchNearbyNew({ center, radius, apiKey, includedTypes: [...includedTypes], maxResultCount: 20, rankPreference });
+    const joinStatus = (a: string, b: string) => {
+      if (a === b) return a;
+      if (a === 'OK' && b === 'OK') return 'OK';
+      return `${a}|${b}`;
+    };
+
+    if (supercat === 2) {
+      const p1 = await fetchNearbyNew({
+        center,
+        radius,
+        apiKey,
+        includedTypes: [...SUPERCAT_2_RESTAURANT_INCLUDED_TYPES],
+        maxResultCount: 20,
+        rankPreference,
+      });
+      const r1 = (p1.ok ? (p1.json.places || []) : []).slice(0, 20).map(toServerPlaceFromNew);
+
+      const p2 = await fetchNearbyNew({
+        center,
+        radius,
+        apiKey,
+        includedTypes: [...SUPERCAT_2_SUPERMARKET_INCLUDED_TYPES],
+        maxResultCount: 20,
+        rankPreference,
+      });
+      const r2 = (p2.ok ? (p2.json.places || []) : []).slice(0, 20).map(toServerPlaceFromNew);
+
+      supercat2RestaurantRaw = r1;
+      supercat2SupermarketRaw = r2;
+
+      googleCalls = 2;
+      pages = 1;
+      status = joinStatus(p1.status, p2.status);
+      results = uniqByPlaceId([...r1, ...r2]);
+      totalDurationMs = p1.durationMs + p2.durationMs;
+      firstPageUrl = p1.url;
+      pageLogs = [
+        { status: p1.status, resultsCount: r1.length, durationMs: p1.durationMs, nextPageToken: null, url: p1.url },
+        { status: p2.status, resultsCount: r2.length, durationMs: p2.durationMs, nextPageToken: null, url: p2.url },
+      ];
+    } else if (supercat === 3) {
+      const p1 = await fetchNearbyNew({
+        center,
+        radius,
+        apiKey,
+        includedTypes: [...SUPERCAT_3_GAS_INCLUDED_TYPES],
+        maxResultCount: 20,
+        rankPreference,
+      });
+      const r1 = (p1.ok ? (p1.json.places || []) : []).slice(0, 20).map(toServerPlaceFromNew);
+
+      const p2 = await fetchNearbyNew({
+        center,
+        radius,
+        apiKey,
+        includedTypes: [...SUPERCAT_3_LAUNDRY_INCLUDED_TYPES],
+        maxResultCount: 20,
+        rankPreference,
+      });
+      const r2 = (p2.ok ? (p2.json.places || []) : []).slice(0, 20).map(toServerPlaceFromNew);
+
+      supercat3GasRaw = r1;
+      supercat3LaundryRaw = r2;
+
+      googleCalls = 2;
+      pages = 1;
+      status = joinStatus(p1.status, p2.status);
+      results = uniqByPlaceId([...r1, ...r2]);
+      totalDurationMs = p1.durationMs + p2.durationMs;
+      firstPageUrl = p1.url;
+      pageLogs = [
+        { status: p1.status, resultsCount: r1.length, durationMs: p1.durationMs, nextPageToken: null, url: p1.url },
+        { status: p2.status, resultsCount: r2.length, durationMs: p2.durationMs, nextPageToken: null, url: p2.url },
+      ];
+    } else {
+      const p = await fetchNearbyNew({
+        center,
+        radius,
+        apiKey,
+        includedTypes: [...includedTypes],
+        maxResultCount: 20,
+        rankPreference,
+      });
       googleCalls = 1;
       pages = 1;
 
@@ -1123,9 +1166,17 @@ export async function POST(req: Request) {
     }
 
     if (supercat === 2) {
-      const restaurant = uniqByPlaceId(results.filter(classifyRestaurant));
-      const supermarket = uniqByPlaceId(results.filter(classifySupermarket));
-      const payload = { ...basePayload, categories: { restaurant, supermarket } };
+      const restaurant = uniqByPlaceId(
+        (supercat2RestaurantRaw ?? results.filter(classifyRestaurant)).filter(classifyRestaurant),
+      ).slice(0, 20);
+      const supermarket = uniqByPlaceId(
+        (supercat2SupermarketRaw ?? results.filter(classifySupermarket)).filter(classifySupermarket),
+      ).slice(0, 20);
+      const payload = {
+        ...basePayload,
+        totals: { ...basePayload.totals, totalResults: restaurant.length + supermarket.length },
+        categories: { restaurant, supermarket },
+      };
 
       const up = await upsertPlacesSupercatCache({
         key: cacheKey.key,
@@ -1167,7 +1218,7 @@ export async function POST(req: Request) {
         response: {
           status,
           resultsCount: restaurant.length + supermarket.length,
-          totals: basePayload.totals,
+          totals: payload.totals,
           pageLogs,
           inputDebug: inputDebug ?? undefined,
           porteroAuditMode: porteroAuditResolved.mode,
@@ -1186,9 +1237,15 @@ export async function POST(req: Request) {
     }
 
     if (supercat === 3) {
-      const gas = uniqByPlaceId(results.filter(classifyGas));
-      const laundry = uniqByPlaceId(results.filter(classifyLaundry));
-      const payload = { ...basePayload, categories: { gas, laundry } };
+      const gas = uniqByPlaceId((supercat3GasRaw ?? results.filter(classifyGas)).filter(classifyGas)).slice(0, 20);
+      const laundry = uniqByPlaceId(
+        (supercat3LaundryRaw ?? results.filter(classifyLaundry)).filter(classifyLaundry),
+      ).slice(0, 20);
+      const payload = {
+        ...basePayload,
+        totals: { ...basePayload.totals, totalResults: gas.length + laundry.length },
+        categories: { gas, laundry },
+      };
 
       const up = await upsertPlacesSupercatCache({
         key: cacheKey.key,
@@ -1230,7 +1287,7 @@ export async function POST(req: Request) {
         response: {
           status,
           resultsCount: gas.length + laundry.length,
-          totals: basePayload.totals,
+          totals: payload.totals,
           pageLogs,
           inputDebug: inputDebug ?? undefined,
           porteroAuditMode: porteroAuditResolved.mode,
