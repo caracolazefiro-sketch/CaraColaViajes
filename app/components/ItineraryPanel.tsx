@@ -150,10 +150,21 @@ export default function ItineraryPanel({
                                             </div>
                                             
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                    {day.isDriving
-                                                        ? `${displayDistance} ${unitKm}${durationLabel ? ` · ${durationLabel}` : ''}`
-                                                        : t('ITINERARY_RELAX')}
+                                                <span className="text-[10px] font-mono px-0 py-0 rounded">
+                                                    {day.isDriving ? (
+                                                        <span className="whitespace-nowrap">
+                                                            <span className="text-red-600 font-bold">{displayDistance}</span>{' '}
+                                                            <span className="text-gray-500">{unitKm}</span>
+                                                            {durationLabel ? (
+                                                                <>
+                                                                    <span className="text-gray-300"> · </span>
+                                                                    <span className="text-blue-600 font-bold">{durationLabel}</span>
+                                                                </>
+                                                            ) : null}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-500">{t('ITINERARY_RELAX')}</span>
+                                                    )}
                                                 </span>
                                                 
                                                 {/* Botón buscar servicios cerca de esta etapa */}

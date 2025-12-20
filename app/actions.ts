@@ -838,6 +838,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
         // Estructura temporal para guardar paradas con sus coordenadas de inicio y fin
         const allDrivingStops: {
             from: string, to: string, distance: number,
+            durationMin: number,
             startCoords: {lat: number, lng: number}, // ✅ Start
             endCoords: {lat: number, lng: number},   // ✅ End (antes coordinates)
             masterLegIndex: number,
@@ -857,15 +858,21 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 let currentLegStartCoords = { lat: route.legs[0].start_location.lat, lng: route.legs[0].start_location.lng };
 
         let dayAccumulatorMeters = 0;
+        let dayAccumulatorSeconds = 0;
 
         for (let i = 0; i < route.legs.length; i++) {
             const leg = route.legs[i];
             const nextStopName = allStops[i + 1];
             let legDistanceMeters = 0;
+            let legDurationSeconds = 0;
 
-            // Calcular la distancia total de este leg
+            // Calcular la distancia/tiempo total de este leg (para poder repartir duración en cortes tácticos)
             for (const step of leg.steps) {
                 legDistanceMeters += step.distance.value;
+                const stepDuration = (step as unknown as { duration?: { value?: number } }).duration?.value;
+                if (typeof stepDuration === 'number' && Number.isFinite(stepDuration)) {
+                    legDurationSeconds += stepDuration;
+                }
             }
 
             // Si este tramo excede el límite diario MÁS la tolerancia, crear paradas tácticas.
@@ -875,14 +882,18 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 // Necesitamos dividir esta leg en múltiples días
                 for (const step of leg.steps) {
                     const stepDist = step.distance.value;
+                    const stepDuration = (step as unknown as { duration?: { value?: number } }).duration?.value;
+                    const stepDurationSeconds = typeof stepDuration === 'number' && Number.isFinite(stepDuration) ? stepDuration : 0;
 
                     if (dayAccumulatorMeters + stepDist < maxMeters) {
                         dayAccumulatorMeters += stepDist;
+                        if (stepDurationSeconds > 0) dayAccumulatorSeconds += stepDurationSeconds;
                     } else {
                         let metersNeeded = maxMeters - dayAccumulatorMeters;
                         let metersLeftInStep = stepDist;
                         const path = decodePolyline(step.polyline.points);
                         let currentPathIndex = 0;
+                        let secondsLeftInStep = stepDurationSeconds;
 
                         while (metersLeftInStep >= metersNeeded) {
                             let distWalked = 0;
@@ -893,6 +904,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 if (distWalked + segment >= metersNeeded) {
                                     stopCoords = path[p+1];
                                     currentPathIndex = p + 1;
+                                    // Consumimos tiempo proporcional al corte dentro del step
+                                    if (stepDist > 0 && secondsLeftInStep > 0) {
+                                        const ratio = metersNeeded / stepDist;
+                                        const secondsConsumed = Math.round(stepDurationSeconds * ratio);
+                                        dayAccumulatorSeconds += secondsConsumed;
+                                        secondsLeftInStep = Math.max(0, secondsLeftInStep - secondsConsumed);
+                                    }
                                     metersLeftInStep -= metersNeeded;
                                     break;
                                 }
@@ -906,11 +924,13 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
                         // Distancia del segmento: siempre es maxMeters porque cortamos exactamente al límite
                         const realDistance = maxMeters / 1000;
+                        const realDurationMin = Math.max(0, Math.round(dayAccumulatorSeconds / 60));
 
                         allDrivingStops.push({
                             from: currentLegStartName,
                             to: stopName,
                             distance: realDistance,
+                            durationMin: realDurationMin,
                             startCoords: currentLegStartCoords,
                             endCoords: stopCoords,
                             masterLegIndex: i,
@@ -925,9 +945,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             currentLegStartName = stopNameRaw;
                             currentLegStartCoords = stopCoords;
                             dayAccumulatorMeters = 0;
+                            dayAccumulatorSeconds = 0;
                             metersNeeded = maxMeters;
                         }
                         dayAccumulatorMeters += metersLeftInStep;
+                        if (secondsLeftInStep > 0) dayAccumulatorSeconds += secondsLeftInStep;
                     }
                 }
 
@@ -946,6 +968,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                             to: nextStopName,
                             endCoords: legEndCoords,
                             distance: last.distance + tailKm,
+                            durationMin: last.durationMin + Math.max(0, Math.round(dayAccumulatorSeconds / 60)),
                             masterLegIndex: i,
                             masterFromStopIndex: i,
                             masterToStopIndex: i + 1,
@@ -955,6 +978,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                         currentLegStartName = nextStopName;
                         currentLegStartCoords = legEndCoords;
                         dayAccumulatorMeters = 0;
+                        dayAccumulatorSeconds = 0;
                         if (i < route.legs.length - 1) finalWaypointsForMap.push(nextStopName);
                         continue;
                     }
@@ -962,6 +986,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             } else {
                 // NUEVO: El waypoint cabe en el día actual, añadimos toda la distancia
                 dayAccumulatorMeters += legDistanceMeters;
+                if (legDurationSeconds > 0) dayAccumulatorSeconds += legDurationSeconds;
             }
 
             // FORZAR: Cada waypoint es fin de etapa obligatorio
@@ -971,6 +996,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 from: currentLegStartName,
                 to: nextStopName,
                 distance: dayAccumulatorMeters / 1000,
+                durationMin: Math.max(0, Math.round(dayAccumulatorSeconds / 60)),
                 startCoords: currentLegStartCoords,
                 endCoords: legEndCoords,
                 masterLegIndex: i,
@@ -985,6 +1011,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             currentLegStartName = nextStopName;
             currentLegStartCoords = legEndCoords;
             dayAccumulatorMeters = 0;
+            dayAccumulatorSeconds = 0;
         }
 
         // --- CONSTRUCCIÓN DEL ITINERARIO ---
@@ -1005,6 +1032,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 from: stop.from,
                 to: stop.to,
                 distance: stop.distance,
+                 durationMin: stop.durationMin,
                 isDriving: true,
                      type: stop.masterKind === 'tactical' ? 'tactical' : 'overnight',
                 startCoordinates: stop.startCoords,
