@@ -381,7 +381,8 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 }) => {
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
-    const { routeWeather, weatherStatus } = useWeather(day.coordinates, day.isoDate, day.startCoordinates);
+    const endCoordsForWeather = day.coordinates ?? day.startCoordinates;
+    const { routeWeather, weatherStatus } = useWeather(endCoordsForWeather, day.isoDate, day.startCoordinates);
     const { elevationData, loadingElevation, calculateElevation, clearElevation } = useElevation();
     // 🔥 Ya NO creamos nuestro propio hook; usamos props recibidos de page.tsx
 
@@ -479,8 +480,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 
                 {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA + TEMPERATURA */}
                 <div className="bg-white/90 px-2 py-1.5 rounded-md shadow-sm border border-gray-100 text-right min-w-[96px]">
+                    {!endCoordsForWeather && (
+                        <div className="text-xs text-gray-400 leading-tight">⚠️ {isImperial ? 'No coords' : 'Sin coords'}</div>
+                    )}
                     {weatherStatus === 'loading' && <div className="text-xs text-gray-400">{t('FORM_LOADING')}</div>}
                     {weatherStatus === 'far_future' && <div className="text-xs text-gray-400 leading-tight">📅 +14 {t('STATS_DAYS')}</div>}
+                    {weatherStatus === 'error' && endCoordsForWeather && (
+                        <div className="text-xs text-gray-400 leading-tight">⚠️ {isImperial ? 'No weather' : 'Sin clima'}</div>
+                    )}
                     {weatherStatus === 'success' && routeWeather && routeWeather.end && (
                         <div>
                             <div className="flex justify-end gap-2 items-center mb-1">
