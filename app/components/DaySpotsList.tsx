@@ -472,7 +472,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                         <span className="text-gray-300">|</span>
                                         <span className="text-blue-600">{formatDuration(day.durationMin)}</span>
                                         <span className="text-gray-300">|</span>
-                                        <span
+                                        <button
                                             type="button"
                                             onMouseEnter={() => {
                                                 setShowElevationPopover(true);
@@ -482,6 +482,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                                 }
                                             }}
                                             onMouseLeave={() => setShowElevationPopover(false)}
+                                            disabled={loadingElevation || !(day.coordinates ?? day.startCoordinates)}
                                             className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
                                                 (day.coordinates ?? day.startCoordinates)
                                                     ? 'text-gray-500 hover:text-gray-700'
@@ -490,7 +491,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                             title={isImperial ? 'Elevation profile' : 'Perfil de desnivel'}
                                         >
                                             <IconTrendingUp className="h-3 w-3" /> {isImperial ? 'Elevation' : 'Desnivel'}
-                                        </span>
+                                        </button>
                                     </>
                                 ) : null}
                             </>
