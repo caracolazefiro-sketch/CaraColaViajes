@@ -121,6 +121,9 @@ export default function ItineraryPanel({
 >
                             {dailyItinerary.map((day, index) => {
                                 const displayDistance = day.distance ? convert(day.distance, 'km').toFixed(0) : '0';
+                                const fromLabel = (day.from || '').split('|')[0];
+                                const toLabel = (day.to || '').replace('📍 Parada Táctica: ', '').split('|')[0];
+                                const nonDrivingLabel = (toLabel || fromLabel).trim();
                                 return (
                                     <div 
                                         key={index} 
@@ -185,7 +188,13 @@ export default function ItineraryPanel({
                                             </div>
                                         </div>
                                         <div className="text-xs text-gray-800 font-medium mb-2">
-                                            {day.from.split('|')[0]} ➝ {day.to.replace('📍 Parada Táctica: ', '').split('|')[0]}
+                                            {day.isDriving ? (
+                                                <>
+                                                    {fromLabel} ➝ {toLabel}
+                                                </>
+                                            ) : (
+                                                <>{nonDrivingLabel}</>
+                                            )}
                                         </div>
                                         
                                         {/* LISTA DE SITIOS GUARDADOS EN EL RESUMEN */}

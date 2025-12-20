@@ -83,6 +83,7 @@ export default function Home() {
 
   const {
       results, setResults, directionsResponse,
+      setDirectionsResponse,
       loading, calculateRoute, addDayToItinerary, removeDayFromItinerary
   } = useTripCalculator(convert, settings.units);
 
@@ -117,6 +118,7 @@ export default function Home() {
   const { adjustModalOpen, adjustingDayIndex, handleAdjustDay, handleConfirmAdjust, closeAdjustModal } = useStageAdjust({
     results,
     setResults,
+    setDirectionsResponse,
     formData,
     setFormData,
     showToast,

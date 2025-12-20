@@ -441,7 +441,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         {day.isDriving ? t('ITINERARY_DRIVING') : t('ITINERARY_STAY')}
                     </h4>
                     <p className="text-md font-semibold text-gray-800">
-                        {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
+                        {day.isDriving ? (
+                            <>
+                                {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
+                            </>
+                        ) : (
+                            <>{rawCityName}</>
+                        )}
                     </p>
                     <div className="flex justify-between items-center mt-1">
                         <p className="text-xs text-gray-500 font-mono">{day.date}</p>

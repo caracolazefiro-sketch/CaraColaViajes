@@ -10,6 +10,7 @@ type ShowToast = (message: string, type?: ToastType) => void;
 type UseStageAdjustParams<TForm extends TripFormData & { tripName?: string; etapas: string }> = {
   results: TripResult;
   setResults: React.Dispatch<React.SetStateAction<TripResult>>;
+  setDirectionsResponse?: React.Dispatch<React.SetStateAction<google.maps.DirectionsResult | null>>;
   formData: TForm;
   setFormData: React.Dispatch<React.SetStateAction<TForm>>;
   showToast: ShowToast;
@@ -19,6 +20,7 @@ type UseStageAdjustParams<TForm extends TripFormData & { tripName?: string; etap
 export function useStageAdjust<TForm extends TripFormData & { tripName?: string; etapas: string }>({
   results,
   setResults,
+  setDirectionsResponse,
   formData,
   setFormData,
   showToast,
@@ -83,6 +85,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         if (adjustingDayIndex === updatedItinerary.length - 1) {
           console.log('✅ Última etapa - solo actualizar destino');
           setResults({ ...results, dailyItinerary: updatedItinerary });
+          // Si solo cambiamos el destino del día final, forzamos que el mapa no se quede con una ruta vieja.
+          setDirectionsResponse?.(null);
           showToast('Parada actualizada correctamente', 'success');
           closeAdjustModal();
           return;
@@ -142,6 +146,15 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           return na.includes(cb) || nb.includes(ca) || ca === cb;
         };
 
+        // Caso especial: si el usuario ajusta una parada táctica para "llegar ya" al DESTINO final,
+        // NO debemos insertar el destino como waypoint, porque Google generará un último leg 0km (Destino→Destino).
+        const approxEq = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) <= eps;
+        const finalCoords = updatedItinerary[updatedItinerary.length - 1]?.coordinates;
+        const isFinalDestinationByText = matchesLoosely(newDestination, formData.destino);
+        const isFinalDestinationByCoords =
+          !!finalCoords && approxEq(finalCoords.lat, newCoordinates.lat) && approxEq(finalCoords.lng, newCoordinates.lng);
+        const isAdjustingToFinalDestination = isFinalDestinationByText || isFinalDestinationByCoords;
+
         // Si el usuario ya había intentado antes y el sistema dejó el nuevo destino mal colocado
         // (p.ej. Dax después de París), lo eliminamos primero para reinsertarlo en el sitio correcto.
         const beforeDedup = waypointsFromForm;
@@ -183,6 +196,15 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           console.log('  ✅ Reemplazando waypoint existente en índice', previousWaypointIndex);
         } else {
           console.log('  ℹ️ No se encontró el waypoint previo en formData.etapas; aplicando inserción fallback');
+
+          if (isAdjustingToFinalDestination) {
+            updatedMandatoryWaypoints = [...waypointsFromForm];
+            console.log('  ✅ Ajuste hacia DESTINO final: no insertar waypoint (evita leg 0km).', {
+              newDestination,
+              destino: formData.destino,
+              updatedMandatoryWaypoints,
+            });
+          } else {
 
           // ✅ Estrategia determinista (itinerario maestro):
           // Si el servidor nos marca en qué leg cae este día (entre qué paradas obligatorias),
@@ -232,6 +254,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
               updatedMandatoryWaypoints = [...waypointsFromForm, newDestination];
               console.log('  ⚠️ No encontrado waypoint ancla; agregando al final');
             }
+          }
           }
         }
 
@@ -462,6 +485,10 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           dailyItinerary: finalItinerary,
         });
 
+        // 🔁 Importante: si hay un DirectionsResult client-side (DirectionsRenderer), el mapa prioriza eso.
+        // Tras ajustar parada, lo reseteamos para que TripMap pinte el overviewPolyline nuevo del servidor.
+        setDirectionsResponse?.(null);
+
         showToast('Ruta recalculada correctamente', 'success');
         closeAdjustModal();
       } catch (error) {
@@ -472,7 +499,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         );
       }
     },
-    [adjustingDayIndex, closeAdjustModal, formData, results, setFormData, setResults, showToast, tripId]
+    [adjustingDayIndex, closeAdjustModal, formData, results, setDirectionsResponse, setFormData, setResults, showToast, tripId]
   );
 
   return {
