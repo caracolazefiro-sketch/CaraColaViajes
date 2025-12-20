@@ -434,13 +434,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     };
 
     return (
-        <div className={`p-4 rounded-xl space-y-4 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
+        <div className={`p-3 rounded-xl space-y-3 h-full overflow-y-auto transition-all ${day.isDriving ? 'bg-red-50 border-l-4 border-red-600' : 'bg-orange-50 border-l-4 border-orange-400'}`}>
             <div className="flex justify-between items-start">
                 <div>
-                    <h4 className={`text-xl font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
+                    <h4 className={`text-lg font-extrabold ${day.isDriving ? 'text-red-800' : 'text-orange-800'}`}>
                         {day.isDriving ? t('ITINERARY_DRIVING') : t('ITINERARY_STAY')}
                     </h4>
-                    <p className="text-md font-semibold text-gray-800">
+                    <p className="text-sm font-semibold text-gray-800">
                         {day.isDriving ? (
                             <>
                                 {day.from.split('|')[0]} <span className="text-gray-400">➝</span> {rawCityName}
@@ -460,21 +460,21 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 </div>
                 
                 {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA + TEMPERATURA */}
-                <div className="bg-white/90 p-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[90px]">
+                <div className="bg-white/90 px-2 py-1.5 rounded-md shadow-sm border border-gray-100 text-right min-w-[78px]">
                     {weatherStatus === 'loading' && <div className="text-[10px] text-gray-400">{t('FORM_LOADING')}</div>}
                     {weatherStatus === 'far_future' && <div className="text-[10px] text-gray-400 leading-tight">📅 +14 {t('STATS_DAYS')}</div>}
                     {weatherStatus === 'success' && routeWeather && routeWeather.end && (
                         <div>
                             <div className="flex justify-end gap-2 items-center mb-1">
                                 {routeWeather.summary === 'danger' && <span className="animate-pulse text-red-600" title="Alert">⚠️</span>}
-                                <span className="text-2xl">{getWeatherIcon(routeWeather.end.code)}</span>
+                                <span className="text-xl leading-none">{getWeatherIcon(routeWeather.end.code)}</span>
                             </div>
-                            <div className="text-xs font-bold text-gray-800">
+                            <div className="text-[11px] font-bold text-gray-800 leading-tight">
                                 {/* 🌡️ CONVERSIÓN DE TEMPERATURA AQUÍ */}
                                 {formatTemp(routeWeather.end.maxTemp)}° <span className="text-gray-400">/ {formatTemp(routeWeather.end.minTemp)}°{tempUnit}</span>
                             </div>
                             
-                            <div className="flex flex-col text-[9px] mt-1 gap-0.5">
+                            <div className="flex flex-col text-[9px] mt-1 gap-0">
                                 <span className={`${routeWeather.end.rainProb > 50 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                                     💧 {routeWeather.end.rainProb}%
                                 </span>
@@ -490,7 +490,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
             {/* Aviso de Peligro si el semáforo es Rojo */}
             {weatherStatus === 'success' && routeWeather?.summary === 'danger' && (
-                <div className="bg-red-100 border border-red-200 text-red-800 p-2 rounded text-xs flex items-center gap-2">
+                <div className="bg-red-100 border border-red-200 text-red-800 p-2 rounded text-[11px] flex items-center gap-2">
                     <span className="text-lg">🚨</span>
                     <div>
                         <span className="font-bold block">{isImperial ? 'Caution on Route' : 'Precaución en ruta'}</span>
