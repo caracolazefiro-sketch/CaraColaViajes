@@ -267,6 +267,16 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         const waypointLabelByCoords = new Map<string, string>();
         const normalizeCoordsKey = (raw: string) => String(raw).replace(/\s+/g, '');
 
+        // Asegurar que ORIGEN/DESTINO también se traduzcan si Google devuelve "lat,lng".
+        const originLabel = stripDecorations(formData.origen);
+        const destinationLabel = stripDecorations(isAdjustingLastDrivingStage ? newDestination : formData.destino);
+        if (originParam && coordsToParam(firstDay?.startCoordinates)) {
+          waypointLabelByCoords.set(normalizeCoordsKey(originParam), originLabel);
+        }
+        if (destinationParam && coordsToParam(isAdjustingLastDrivingStage ? newCoordinates : lastDay?.coordinates)) {
+          waypointLabelByCoords.set(normalizeCoordsKey(destinationParam), destinationLabel);
+        }
+
         const normalizedWaypoints = updatedMandatoryWaypoints.map((wp) => {
           const cleanWp = stripDecorations(wp);
 
@@ -337,8 +347,9 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         const applyWaypointLabels = (it: typeof recalcResult.dailyItinerary) => {
           if (!it) return it;
           return it.map((d) => {
-            const fromKey = normalizeCoordsKey(stripDecorations(String(d.from ?? '')));
-            const toKey = normalizeCoordsKey(stripDecorations(String(d.to ?? '')));
+            const fromKey = normalizeCoordsKey(coordsToParam(d.startCoordinates) || stripDecorations(String(d.from ?? '')));
+            const toKey = normalizeCoordsKey(coordsToParam(d.coordinates) || stripDecorations(String(d.to ?? '')));
+
             const mappedFrom = waypointLabelByCoords.get(fromKey);
             const mappedTo = waypointLabelByCoords.get(toKey);
             return {
