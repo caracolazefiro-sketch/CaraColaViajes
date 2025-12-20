@@ -11,12 +11,19 @@ interface TestItem {
     notes: string;
 }
 
+type TestState = {
+    status: 'pending' | 'pass' | 'fail';
+    notes: string;
+};
+
 export default function TestManualChecklist() {
     const todayEs = new Date().toLocaleDateString('es-ES');
     const [stressNarrow, setStressNarrow] = useState(false);
     const [stressLongText, setStressLongText] = useState(false);
     const [stressManyTests, setStressManyTests] = useState(false);
     const [stressCompact, setStressCompact] = useState(false);
+
+    const [testStateById, setTestStateById] = useState<Record<string, TestState>>({});
 
     const baseTests = useMemo<TestItem[]>(() => [
         {
@@ -239,7 +246,7 @@ export default function TestManualChecklist() {
         ' SUPER-LARGO_SIN_ESPACIOS_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_SUPER-LARGO_SIN_ESPACIOS_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
     const tests = useMemo<TestItem[]>(() => {
-        const withStress = stressLongText
+        const withStressText = stressLongText
             ? baseTests.map((t) => ({
                   ...t,
                   title: `${t.title}${longTextSeed}`,
@@ -248,30 +255,48 @@ export default function TestManualChecklist() {
               }))
             : baseTests;
 
-        if (!stressManyTests) return withStress;
+        const withExtra = (() => {
+            if (!stressManyTests) return withStressText;
 
-        const extra = Array.from({ length: 40 }).map((_, i) => ({
-            id: `stress-${i + 1}`,
-            title: `Stress ${i + 1}: Scroll/overflow/perf`,
-            steps: [
-                'Alternar categorías rápidamente (camping/gas/restaurant/tourism) 10 veces',
-                'Cambiar de día 1→fin→1 rápidamente',
-                'Guardar 15+ lugares en un día y comprobar que UI no se rompe',
-            ],
-            verification: '✅ VERIFICAR: No hay scroll horizontal inesperado, ni UI congelada, ni pérdidas de estado.',
-            status: 'pending' as const,
-            notes: '',
-        }));
+            const extra = Array.from({ length: 40 }).map((_, i) => ({
+                id: `stress-${i + 1}`,
+                title: `Stress ${i + 1}: Scroll/overflow/perf`,
+                steps: [
+                    'Alternar categorías rápidamente (camping/gas/restaurant/tourism) 10 veces',
+                    'Cambiar de día 1→fin→1 rápidamente',
+                    'Guardar 15+ lugares en un día y comprobar que UI no se rompe',
+                ],
+                verification: '✅ VERIFICAR: No hay scroll horizontal inesperado, ni UI congelada, ni pérdidas de estado.',
+                status: 'pending' as const,
+                notes: '',
+            }));
 
-        return [...withStress, ...extra];
-    }, [baseTests, stressLongText, stressManyTests]);
+            return [...withStressText, ...extra];
+        })();
+
+        // Apply per-test state (status/notes) on top of the test definitions
+        return withExtra.map((t) => {
+            const st = testStateById[t.id];
+            return {
+                ...t,
+                status: st?.status ?? t.status,
+                notes: st?.notes ?? t.notes,
+            };
+        });
+    }, [baseTests, stressLongText, stressManyTests, testStateById]);
 
     const updateTestStatus = (id: string, status: 'pending' | 'pass' | 'fail') => {
-        setTests(tests.map(test => test.id === id ? { ...test, status } : test));
+        setTestStateById((prev) => ({
+            ...prev,
+            [id]: { status, notes: prev[id]?.notes ?? '' },
+        }));
     };
 
     const updateTestNotes = (id: string, notes: string) => {
-        setTests(tests.map(test => test.id === id ? { ...test, notes } : test));
+        setTestStateById((prev) => ({
+            ...prev,
+            [id]: { status: prev[id]?.status ?? 'pending', notes },
+        }));
     };
 
     const getStatusColor = (status: string) => {
