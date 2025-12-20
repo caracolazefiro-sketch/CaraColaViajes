@@ -52,6 +52,19 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
 
       const coordsToParam = (c?: { lat: number; lng: number }) => (c ? `${c.lat},${c.lng}` : undefined);
 
+      const parseCoordsParam = (raw: string): { lat: number; lng: number } | null => {
+        const s = String(raw ?? '').replace(/\s+/g, '');
+        const m = s.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+        if (!m) return null;
+        const lat = Number(m[1]);
+        const lng = Number(m[2]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return { lat, lng };
+      };
+
+      const coordsKeyFromCoords = (c?: { lat: number; lng: number }, precision = 5) =>
+        c ? `${c.lat.toFixed(precision)},${c.lng.toFixed(precision)}` : '';
+
       showToast('Recalculando ruta...', 'info');
 
       try {
@@ -290,27 +303,33 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         const waypointLabelByCoords = new Map<string, string>();
         const normalizeCoordsKey = (raw: string) => String(raw).replace(/\s+/g, '');
 
+        const setCoordLabel = (coords: { lat: number; lng: number } | undefined, label: string) => {
+          if (!coords) return;
+          waypointLabelByCoords.set(coordsKeyFromCoords(coords, 5), label);
+          waypointLabelByCoords.set(coordsKeyFromCoords(coords, 4), label);
+        };
+
         // Asegurar que ORIGEN/DESTINO también se traduzcan si Google devuelve "lat,lng".
         const originLabel = stripDecorations(formData.origen);
         const destinationLabel = stripDecorations(isAdjustingLastDrivingStage ? newDestination : formData.destino);
-        if (originParam && coordsToParam(firstDay?.startCoordinates)) {
-          waypointLabelByCoords.set(normalizeCoordsKey(originParam), originLabel);
-        }
-        if (destinationParam && coordsToParam(isAdjustingLastDrivingStage ? newCoordinates : lastDay?.coordinates)) {
-          waypointLabelByCoords.set(normalizeCoordsKey(destinationParam), destinationLabel);
-        }
+        setCoordLabel(firstDay?.startCoordinates, originLabel);
+        setCoordLabel(isAdjustingLastDrivingStage ? newCoordinates : lastDay?.coordinates, destinationLabel);
+        if (originParam) waypointLabelByCoords.set(normalizeCoordsKey(originParam), originLabel);
+        if (destinationParam) waypointLabelByCoords.set(normalizeCoordsKey(destinationParam), destinationLabel);
 
         const normalizedWaypoints = updatedMandatoryWaypoints.map((wp) => {
           const cleanWp = stripDecorations(wp);
 
           if (wp === newDestination) {
             const coordParam = coordsToParam(newCoordinates);
+            setCoordLabel(newCoordinates, cleanWp);
             if (coordParam) waypointLabelByCoords.set(normalizeCoordsKey(coordParam), cleanWp);
             return coordParam || normalizeForGoogle(cleanWp);
           }
 
           const coords = findCoordsForText(wp);
           const coordParam = coordsToParam(coords);
+          setCoordLabel(coords, cleanWp);
           if (coordParam) waypointLabelByCoords.set(normalizeCoordsKey(coordParam), cleanWp);
           return coordParam || normalizeForGoogle(cleanWp);
         });
@@ -370,8 +389,17 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         const applyWaypointLabels = (it: typeof recalcResult.dailyItinerary) => {
           if (!it) return it;
           return it.map((d) => {
-            const fromKey = normalizeCoordsKey(coordsToParam(d.startCoordinates) || stripDecorations(String(d.from ?? '')));
-            const toKey = normalizeCoordsKey(coordsToParam(d.coordinates) || stripDecorations(String(d.to ?? '')));
+            const fromCoords = d.startCoordinates ?? parseCoordsParam(String(d.from ?? '')) ?? undefined;
+            const toCoords = d.coordinates ?? parseCoordsParam(String(d.to ?? '')) ?? undefined;
+
+            const fromKey =
+              coordsKeyFromCoords(fromCoords, 5) ||
+              coordsKeyFromCoords(fromCoords, 4) ||
+              normalizeCoordsKey(stripDecorations(String(d.from ?? '')));
+            const toKey =
+              coordsKeyFromCoords(toCoords, 5) ||
+              coordsKeyFromCoords(toCoords, 4) ||
+              normalizeCoordsKey(stripDecorations(String(d.to ?? '')));
 
             const mappedFrom = waypointLabelByCoords.get(fromKey);
             const mappedTo = waypointLabelByCoords.get(toKey);
@@ -396,6 +424,33 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
 
           const destKey = normalizeForComparison(stripDecorations(newDestination));
 
+          // Tras recalcular en servidor, el número de días puede cambiar (post-segmentación).
+          // No podemos asumir que `adjustingDayIndex` apunta al mismo día en `finalItinerary`.
+          const oldDay = results.dailyItinerary?.[adjustingDayIndex];
+          const oldToKey = normalizeForComparison(stripDecorations(String(oldDay?.to ?? '')));
+          const oldEndCoords = oldDay?.coordinates;
+
+          const findMergeStartIndex = () => {
+            if (oldEndCoords) {
+              for (let i = 0; i < finalItinerary.length; i++) {
+                const d = finalItinerary[i];
+                if (!d?.isDriving || !d.coordinates) continue;
+                if (approxEq(d.coordinates.lat, oldEndCoords.lat) && approxEq(d.coordinates.lng, oldEndCoords.lng)) return i;
+              }
+            }
+            if (oldToKey) {
+              for (let i = 0; i < finalItinerary.length; i++) {
+                const d = finalItinerary[i];
+                if (!d?.isDriving) continue;
+                const candKey = normalizeForComparison(stripDecorations(String(d.to ?? '')));
+                if (candKey && (candKey === oldToKey || candKey.includes(oldToKey) || oldToKey.includes(candKey))) return i;
+              }
+            }
+            return adjustingDayIndex;
+          };
+
+          const mergeStartIdx = findMergeStartIndex();
+
           const findReachIndex = () => {
             for (let i = 0; i < finalItinerary.length; i++) {
               const d = finalItinerary[i];
@@ -415,8 +470,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           };
 
           const reachIdx = findReachIndex();
-          if (reachIdx !== -1 && reachIdx > adjustingDayIndex) {
-            const mergedSlice = finalItinerary.slice(adjustingDayIndex, reachIdx + 1);
+          if (reachIdx !== -1 && reachIdx > mergeStartIdx) {
+            const mergedSlice = finalItinerary.slice(mergeStartIdx, reachIdx + 1);
             const first = mergedSlice[0];
             const totalKm = mergedSlice.reduce((acc, d) => acc + (Number(d.distance) || 0), 0);
 
@@ -430,7 +485,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
             };
 
             const nextDays = finalItinerary.slice(reachIdx + 1);
-            finalItinerary = [...finalItinerary.slice(0, adjustingDayIndex), mergedDay, ...nextDays];
+            finalItinerary = [...finalItinerary.slice(0, mergeStartIdx), mergedDay, ...nextDays];
 
             // Reindexar días y fechas manteniendo la fecha de inicio del itinerario
             const start = new Date(finalItinerary[0].isoDate || formData.fechaInicio);
@@ -448,7 +503,14 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
               return out;
             });
 
-            console.log('🧩 Merge táctico→destino (ajuste de día):', { adjustingDayIndex, reachIdx, totalKm });
+            console.log('🧩 Merge táctico→destino (ajuste de día):', {
+              adjustingDayIndex,
+              mergeStartIdx,
+              reachIdx,
+              totalKm,
+              oldTo: oldDay?.to,
+              newTo: newDestination,
+            });
           }
         }
 
