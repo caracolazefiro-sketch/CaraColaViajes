@@ -75,17 +75,17 @@ export default function ItineraryPanel({
                     <div className="overflow-y-auto h-full print:h-auto print:overflow-visible">
                         
                         {/* HEADER COMPACTO Y ELEGANTE */}
-                        <div className="bg-gradient-to-br from-blue-50 via-white to-red-50 border-b border-gray-200 p-4 pb-3">
+                        <div className="bg-gradient-to-br from-blue-50 via-white to-red-50 border-b border-gray-200 p-3 pb-2">
                             {tripName && (
-                                <div className="flex items-center justify-center gap-2 mb-3">
-                                    <IconTruck size={20} className="text-red-600" />
-                                    <h3 className="text-lg font-bold text-gray-800">{tripName}</h3>
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                    <IconTruck size={18} className="text-red-600" />
+                                    <h3 className="text-base font-bold text-gray-800">{tripName}</h3>
                                 </div>
                             )}
                             
                             {/* Caja compacta con toda la info en una línea */}
                             <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-3 py-2 mb-2">
-                                <div className="flex items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center justify-between gap-3 text-[11px]">
                                     {/* Ruta */}
                                     <div className="flex items-center gap-1.5 font-semibold text-gray-700">
                                         <span>{origin.split(',')[0]}</span>
@@ -104,7 +104,7 @@ export default function ItineraryPanel({
                                     
                                     {/* Distancia */}
                                     <div className="text-center">
-                                        <span className="font-extrabold text-red-600 text-base">{displayTotalKm}</span>
+                                        <span className="font-extrabold text-red-600 text-sm">{displayTotalKm}</span>
                                         <span className="text-gray-500 ml-0.5">{unitKm}</span>
                                     </div>
                                     
@@ -112,7 +112,7 @@ export default function ItineraryPanel({
                                     
                                     {/* Días */}
                                     <div className="text-center">
-                                        <span className="font-extrabold text-red-600 text-base">{dailyItinerary.length}</span>
+                                        <span className="font-extrabold text-red-600 text-sm">{dailyItinerary.length}</span>
                                         <span className="text-gray-500 ml-0.5">{dailyItinerary.length === 1 ? 'día' : 'días'}</span>
                                     </div>
                                 </div>
@@ -126,8 +126,7 @@ export default function ItineraryPanel({
                         </div>
 
                         {/* LISTA DE DÍAS */}
-                        <div className="p-4 space-y-3"
->
+                        <div className="p-3 space-y-2">
                             {dailyItinerary.map((day, index) => {
                                 const displayDistance = day.distance ? convert(day.distance, 'km').toFixed(0) : '0';
                                 const durationLabel = day.isDriving ? formatDuration(day.durationMin) : '';
@@ -138,20 +137,20 @@ export default function ItineraryPanel({
                                     <div 
                                         key={index} 
                                         onClick={() => onSelectDay(index)}
-                                        className="border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white print-break group"
+                                        className="border border-gray-200 rounded-lg p-3 hover:border-red-300 hover:bg-red-50 cursor-pointer transition-all shadow-sm bg-white print-break group"
                                     >
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="font-bold text-red-700 text-sm flex items-center gap-1">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <div className="flex items-baseline gap-2 min-w-0">
+                                                <span className="font-bold text-red-700 text-xs flex items-center gap-1 shrink-0">
                                                     {day.isDriving ? '🚐' : '🏖️'} {t('STATS_DAY')} {day.day}
                                                 </span>
-                                                <span className="text-xs text-gray-400 font-medium">
+                                                <span className="text-[10px] text-gray-400 font-medium truncate">
                                                     {day.date}
                                                 </span>
                                             </div>
                                             
                                             <div className="flex items-center gap-2">
-                                                <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                                <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                                                     {day.isDriving
                                                         ? `${displayDistance} ${unitKm}${durationLabel ? ` · ${durationLabel}` : ''}`
                                                         : t('ITINERARY_RELAX')}
@@ -161,10 +160,10 @@ export default function ItineraryPanel({
                                                 {day.isDriving && day.coordinates && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onSearchNearDay(index); }}
-                                                        className="text-blue-600 hover:bg-blue-100 p-1.5 rounded-full border border-blue-200 bg-white shadow-sm transition-all hover:scale-105"
+                                                        className="text-blue-600 hover:bg-blue-100 p-1 rounded-full border border-blue-200 bg-white shadow-sm transition-all"
                                                         title="🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."
                                                     >
-                                                        <IconSearch className="h-4 w-4" />
+                                                        <IconSearch className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
                                                 
@@ -172,17 +171,17 @@ export default function ItineraryPanel({
                                                 {day.isDriving && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onAdjustDay(index); }}
-                                                        className="text-orange-600 hover:bg-orange-100 p-1.5 rounded-full border border-orange-200 bg-white shadow-sm transition-all hover:scale-105"
+                                                        className="text-orange-600 hover:bg-orange-100 p-1 rounded-full border border-orange-200 bg-white shadow-sm transition-all"
                                                         title="⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."
                                                     >
-                                                        <IconSettings className="h-4 w-4" />
+                                                        <IconSettings className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
                                                 
                                                 <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); onAddDay(index); }}
-                                                        className="text-green-600 hover:bg-green-100 p-1.5 rounded-full text-xs font-bold border border-green-200 bg-white shadow-sm"
+                                                        className="text-green-600 hover:bg-green-100 p-1 rounded-full text-[10px] font-bold border border-green-200 bg-white shadow-sm"
                                                         title={t('ITINERARY_ADD_DAY')}
                                                     >
                                                         <IconPlusSm />
@@ -190,7 +189,7 @@ export default function ItineraryPanel({
                                                     {!day.isDriving && (
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); onRemoveDay(index); }}
-                                                            className="text-red-500 hover:bg-red-100 p-1.5 rounded-full text-xs font-bold border border-red-200 bg-white shadow-sm"
+                                                            className="text-red-500 hover:bg-red-100 p-1 rounded-full text-[10px] font-bold border border-red-200 bg-white shadow-sm"
                                                             title={t('ITINERARY_REMOVE_DAY')}
                                                         >
                                                             <IconTrashSm />
@@ -199,7 +198,7 @@ export default function ItineraryPanel({
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="text-xs text-gray-800 font-medium mb-2">
+                                        <div className="text-[11px] text-gray-800 font-medium mb-1.5">
                                             {day.isDriving ? (
                                                 <>
                                                     {fromLabel} ➝ {toLabel}

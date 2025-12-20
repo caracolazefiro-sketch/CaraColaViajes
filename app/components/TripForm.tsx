@@ -78,10 +78,10 @@ export default function TripForm({
     useEffect(() => {
         if (isExpandedProp !== undefined) return;
         if (!loading && results.totalDays !== null) {
-            const t = window.setTimeout(() => setInternalExpanded(false), 0);
+            const t = window.setTimeout(() => setIsExpanded(false), 0);
             return () => window.clearTimeout(t);
         }
-    }, [isExpandedProp, loading, results.totalDays]);
+    }, [isExpandedProp, loading, results.totalDays, setIsExpanded]);
 
     const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim().length > 0) : [];
 

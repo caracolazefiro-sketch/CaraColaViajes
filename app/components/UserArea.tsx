@@ -117,18 +117,21 @@ export default function UserArea({ t, onLoadTrip }: UserAreaProps) {
 
     if (!user) {
         return (
-            <div className="flex flex-col items-end gap-2">
-                <div className="flex gap-2 text-[10px] text-gray-500 mb-1">
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-[10px] text-gray-500 whitespace-nowrap shrink-0">
                     <button onClick={() => setAuthMode('magic')} className={`hover:text-red-600 ${authMode === 'magic' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_MAGIC_LINK')}</button>
                     <span>|</span>
                     <button onClick={() => setAuthMode('password')} className={`hover:text-red-600 ${authMode === 'password' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_PASSWORD')}</button>
                     <span>|</span>
                     <button onClick={() => setAuthMode('register')} className={`hover:text-red-600 ${authMode === 'register' ? 'font-bold text-red-600 underline' : ''}`}>{t('AUTH_REGISTER')}</button>
                 </div>
-                <form onSubmit={authMode === 'magic' ? handleMagicLogin : (authMode === 'password' ? handlePasswordLogin : handleSignUp)} className="flex flex-col md:flex-row gap-2 items-center bg-white p-2 rounded border border-gray-200 shadow-sm">
-                    <input type="email" placeholder={t('AUTH_EMAIL_PLACEHOLDER')} value={email} onChange={(e) => setEmail(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-xs w-32 focus:outline-none focus:border-red-500" required />
-                    {authMode !== 'magic' && <input type="password" placeholder={t('AUTH_PASSWORD_PLACEHOLDER')} value={password} onChange={(e) => setPassword(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-xs w-24 focus:outline-none focus:border-red-500" required minLength={6} />}
-                    <button type="submit" disabled={loading} className="bg-gray-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap">
+                <form
+                    onSubmit={authMode === 'magic' ? handleMagicLogin : (authMode === 'password' ? handlePasswordLogin : handleSignUp)}
+                    className="flex items-center gap-2 flex-nowrap bg-white p-2 rounded border border-gray-200 shadow-sm"
+                >
+                    <input type="email" placeholder={t('AUTH_EMAIL_PLACEHOLDER')} value={email} onChange={(e) => setEmail(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-[11px] w-36 focus:outline-none focus:border-red-500" required />
+                    {authMode !== 'magic' && <input type="password" placeholder={t('AUTH_PASSWORD_PLACEHOLDER')} value={password} onChange={(e) => setPassword(e.target.value)} className="px-2 py-1 rounded border border-gray-300 text-[11px] w-28 focus:outline-none focus:border-red-500" required minLength={6} />}
+                    <button type="submit" disabled={loading} className="bg-gray-800 text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-black disabled:opacity-50 whitespace-nowrap">
                         {loading ? '...' : (authMode === 'magic' ? t('AUTH_SEND_LINK') : (authMode === 'register' ? t('AUTH_CREATE_ACCOUNT') : t('AUTH_LOGIN')))}
                     </button>
                 </form>

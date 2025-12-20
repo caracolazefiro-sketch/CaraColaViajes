@@ -19,10 +19,10 @@ export default function AppHeader({
 }: AppHeaderProps) {
     return (
         <div className="relative no-print w-full bg-white/80 backdrop-blur-sm border-b border-gray-200 py-2 shadow-sm">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-2 px-4 max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row md:flex-nowrap items-center justify-between gap-2 md:gap-3 px-4 max-w-6xl mx-auto">
                 
                 {/* 1. LOGO (Izquierda) */}
-                <div className="flex items-center">
+                <div className="flex items-center shrink-0">
                     <Image
                         src="/logo.jpg"
                         alt={t('APP_TITLE')}
@@ -34,10 +34,14 @@ export default function AppHeader({
                 </div>
 
                 {/* 2. DATOS DEL VIAJE + ACCIONES (Centro) */}
-                {centerContent ? <div className="w-full md:flex-1 md:px-4">{centerContent}</div> : <div className="hidden md:block md:flex-1" />}
+                {centerContent ? (
+                    <div className="w-full md:flex-1 md:px-4 min-w-0 overflow-hidden">{centerContent}</div>
+                ) : (
+                    <div className="hidden md:block md:flex-1" />
+                )}
 
                 {/* 3. ZONA DERECHA: IDIOMA + USUARIO */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 shrink-0">
                     
                     {/* SELECTOR DE IDIOMA (Banderas) */}
                     <div className="flex items-center bg-gray-100 rounded-full p-1 border border-gray-200">

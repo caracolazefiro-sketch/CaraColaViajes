@@ -362,28 +362,32 @@ export default function Home() {
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:[grid-template-columns:1fr_4fr] gap-6 lg:min-h-[650px]">
+            <div className="grid grid-cols-1 lg:[grid-template-columns:3fr_7fr] gap-6 lg:min-h-[520px] lg:h-[calc(100vh-280px)] lg:max-h-[650px] min-h-0">
 
-                    <ItineraryPanel
-                        dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
-                        tripName={formData.tripName}
-                        places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
-                        onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
-                        onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
-                        onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
-                        minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
-                    />
+              <div className="min-w-0 min-h-0 h-full">
+                <ItineraryPanel
+                    dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
+                    tripName={formData.tripName}
+                    places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
+                    onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
+                    onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
+                    onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
+                    minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
+                />
+              </div>
 
-                    <TripMap
-                        setMap={setMap} mapBounds={mapBounds} directionsResponse={directionsResponse} dailyItinerary={results.dailyItinerary}
-                      overviewPolyline={results.overviewPolyline ?? null}
-                        places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
-                        onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
-                        onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
-                        minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
-                        t={t}
-                    />
-                </div>
+              <div className="min-w-0 min-h-0 h-full">
+                <TripMap
+                    setMap={setMap} mapBounds={mapBounds} directionsResponse={directionsResponse} dailyItinerary={results.dailyItinerary}
+                  overviewPolyline={results.overviewPolyline ?? null}
+                    places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
+                    onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
+                    onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
+                    minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
+                    t={t}
+                />
+              </div>
+            </div>
             </div>
         )}
 
