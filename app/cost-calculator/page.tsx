@@ -258,6 +258,10 @@ export default function CostCalculatorPage() {
   const input =
     'mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
+  const placesModel4CallsPerFullStop = 4;
+  const placesModel6CallsPerFullStop = 6;
+  const placesDeltaCallsPerFullStop = placesModel6CallsPerFullStop - placesModel4CallsPerFullStop;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -268,6 +272,15 @@ export default function CostCalculatorPage() {
             Geocoding y Places Autocomplete.
             Weather (Open-Meteo) se muestra pero es $0.
           </p>
+          <div className="text-gray-700 mt-3 text-sm">
+            <div className="font-semibold">Qué significa “4 vs 6” en Places</div>
+            <div className="mt-1">
+              - <span className="font-semibold">Modelo 4 (1 llamada por bloque/supercat):</span> camping (1) + comer+super (1) + gas+lavar (1) + turismo (1) = {placesModel4CallsPerFullStop}
+            </div>
+            <div>
+              - <span className="font-semibold">Modelo 6 (1 llamada por categoría):</span> camping (1) + restaurant (1) + supermarket/grocery (1) + gas (1) + laundry (1) + turismo (1) = {placesModel6CallsPerFullStop}
+            </div>
+          </div>
           <p className="text-gray-700 mt-2">
             Caché: aplico un hit-rate medio anual (lineal) desde “inicio de año” a “fin de año”.
           </p>
@@ -608,10 +621,13 @@ export default function CostCalculatorPage() {
             <div className="mt-4 rounded border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
               <div className="font-semibold">Lectura rápida</div>
               <div className="mt-1">
-                - Solo por Places, la diferencia “6 vs 4” sin caché es exactamente 2×{formatUsd(costs.placesUsdPerRequest)} = {formatUsd(2 * costs.placesUsdPerRequest)} por bloque.
+                - Solo por Places, si en un punto haces <span className="font-semibold">todas</span> las categorías, la diferencia “6 vs 4” sin caché es exactamente {placesDeltaCallsPerFullStop}×{formatUsd(costs.placesUsdPerRequest)} = {formatUsd(placesDeltaCallsPerFullStop * costs.placesUsdPerRequest)}.
               </div>
               <div>
                 - Con caché, esa diferencia se multiplica por (1 - hitRatePlaces).
+              </div>
+              <div className="mt-1">
+                - Ese +{placesDeltaCallsPerFullStop} viene de separar <span className="font-semibold">Comer/Super</span> (supercat2: 2 llamadas) y <span className="font-semibold">Gas/Lavar</span> (supercat3: 2 llamadas).
               </div>
             </div>
           )}
