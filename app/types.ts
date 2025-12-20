@@ -27,6 +27,7 @@ export interface DailyPlan {
     from: string; 
     to: string; 
     distance: number; 
+    durationMin?: number;
     isDriving: boolean; 
     // ✅ NUEVO: Coordenadas de inicio para el clima en ruta
     startCoordinates?: Coordinates; 

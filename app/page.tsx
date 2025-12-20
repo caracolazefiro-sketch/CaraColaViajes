@@ -115,7 +115,7 @@ export default function Home() {
       setApiTripId
   );
 
-  const { adjustModalOpen, adjustingDayIndex, handleAdjustDay, handleConfirmAdjust, closeAdjustModal } = useStageAdjust({
+  const { adjustModalOpen, adjustingDayIndex, isRecalculating, handleAdjustDay, handleConfirmAdjust, closeAdjustModal } = useStageAdjust({
     results,
     setResults,
     setDirectionsResponse,
@@ -124,6 +124,8 @@ export default function Home() {
     showToast,
     tripId: apiTripId,
   });
+
+  const isBlockingUi = loading || isRecalculating;
 
   const { handleCalculateAll } = useTripCompute({
     formData,
@@ -246,7 +248,14 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center py-8 px-4 font-sans text-gray-900">
       <style jsx global>{printStyles}</style>
-      <div className="w-full max-w-6xl space-y-6">
+      <div className="w-full max-w-6xl space-y-6 relative">
+
+        {isBlockingUi && (
+          <div className="absolute inset-0 z-40 no-print">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-red-600 animate-pulse" />
+            <div className="absolute inset-0 bg-white/60 cursor-wait" />
+          </div>
+        )}
 
         <div className="w-full no-print">
             <AppHeader onLoadTrip={handleLoadCloudTrip} currentTripId={currentTripId} t={t} setLang={setLang} language={language} />
@@ -277,7 +286,7 @@ export default function Home() {
                     t={t} settings={settings}
                 />
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:min-h-[650px]">
 
                     <ItineraryPanel
                         dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}

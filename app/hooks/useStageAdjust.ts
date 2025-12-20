@@ -36,6 +36,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
 }: UseStageAdjustParams<TForm>) {
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [adjustingDayIndex, setAdjustingDayIndex] = useState<number | null>(null);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   const handleAdjustDay = useCallback((dayIndex: number) => {
     setAdjustingDayIndex(dayIndex);
@@ -50,6 +51,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
   const handleConfirmAdjust = useCallback(
     async (newDestination: string, newCoordinates: { lat: number; lng: number }) => {
       if (adjustingDayIndex === null || !results.dailyItinerary) return;
+
+      let didStartRecalc = false;
 
       const stripDecorations = (raw: string) =>
         String(raw ?? '')
@@ -350,6 +353,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         const normalizedSuffixWaypoints = normalizedWaypoints.slice(Math.max(0, Math.min(normalizedWaypoints.length, legIndexForDay)));
 
         // PASO 3: Enviar a Google la ruta NUEVA
+        didStartRecalc = true;
+        setIsRecalculating(true);
         const recalcResult = await getDirectionsAndCost({
           tripId: tripId ?? undefined,
           tripName: formData.tripName || '',
@@ -597,6 +602,8 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           'Error al recalcular ruta: ' + (error instanceof Error ? error.message : 'Error desconocido'),
           'error'
         );
+      } finally {
+        if (didStartRecalc) setIsRecalculating(false);
       }
     },
     [adjustingDayIndex, closeAdjustModal, formData, results, setDirectionsResponse, setFormData, setResults, showToast, tripId]
@@ -605,6 +612,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
   return {
     adjustModalOpen,
     adjustingDayIndex,
+    isRecalculating,
     handleAdjustDay,
     handleConfirmAdjust,
     closeAdjustModal,

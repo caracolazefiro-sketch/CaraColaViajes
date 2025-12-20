@@ -226,6 +226,55 @@ export default function TripMap({
         return poly;
     }, [overviewPolyline]);
 
+    const fullRoutePath = useMemo(() => {
+        if (directionsResponse?.routes?.[0]?.overview_path && Array.isArray(directionsResponse.routes[0].overview_path)) {
+            return directionsResponse.routes[0].overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
+        }
+        return decodedOverviewPath;
+    }, [directionsResponse, decodedOverviewPath]);
+
+    const selectedDaySegmentPath = useMemo(() => {
+        if (!dailyItinerary || selectedDayIndex === null) return null;
+        const day = dailyItinerary[selectedDayIndex];
+        if (!day?.isDriving) return null;
+        const start = day.startCoordinates;
+        const end = day.coordinates;
+        if (!start || !end) return null;
+        const path = fullRoutePath;
+        if (!path || path.length < 2) return null;
+
+        const dist2 = (a: google.maps.LatLngLiteral, b: { lat: number; lng: number }) => {
+            const dx = a.lat - b.lat;
+            const dy = a.lng - b.lng;
+            return dx * dx + dy * dy;
+        };
+
+        let bestStart = 0;
+        let bestEnd = 0;
+        let bestStartD = Number.POSITIVE_INFINITY;
+        let bestEndD = Number.POSITIVE_INFINITY;
+
+        for (let i = 0; i < path.length; i++) {
+            const p = path[i];
+            const ds = dist2(p, start);
+            if (ds < bestStartD) {
+                bestStartD = ds;
+                bestStart = i;
+            }
+            const de = dist2(p, end);
+            if (de < bestEndD) {
+                bestEndD = de;
+                bestEnd = i;
+            }
+        }
+
+        const a = Math.min(bestStart, bestEnd);
+        const b = Math.max(bestStart, bestEnd);
+        const segment = path.slice(a, b + 1);
+        if (segment.length < 2) return null;
+        return segment;
+    }, [dailyItinerary, selectedDayIndex, fullRoutePath]);
+
     // Listener para el mapa
     const handleMapLoad = (map: google.maps.Map) => {
         setMap(map);
@@ -362,7 +411,7 @@ export default function TripMap({
     const routeKey = (directionsResponse?.routes?.[0]?.overview_polyline as unknown as string) || overviewPolyline || 'no-route';
 
     return (
-        <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
+        <div className="h-full bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
             <div className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
                     <button type="submit" className="p-2 text-gray-400 hover:text-blue-500"><IconSearch /></button>
@@ -411,6 +460,14 @@ export default function TripMap({
                         key={routeKey}
                         path={decodedOverviewPath}
                         options={{ strokeColor: '#DC2626', strokeOpacity: 1, strokeWeight: 4 }}
+                    />
+                )}
+
+                {/* Highlight del tramo del día seleccionado (sin llamadas extra: se recorta del overview polyline) */}
+                {selectedDaySegmentPath && (
+                    <Polyline
+                        path={selectedDaySegmentPath}
+                        options={{ strokeColor: '#DC2626', strokeOpacity: 1, strokeWeight: 8, zIndex: 999 }}
                     />
                 )}
 

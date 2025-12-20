@@ -57,8 +57,17 @@ export default function ItineraryPanel({
     const firstDate = dailyItinerary[0]?.date;
     const lastDate = dailyItinerary[dailyItinerary.length - 1]?.date;
 
+    const formatDuration = (minutes?: number) => {
+        if (typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes <= 0) return '';
+        const m = Math.round(minutes);
+        const h = Math.floor(m / 60);
+        const mm = m % 60;
+        if (h <= 0) return `${mm}m`;
+        return `${h}h ${mm.toString().padStart(2, '0')}m`;
+    };
+
     return (
-        <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-[500px] print:h-auto print:overflow-visible">
+        <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-full print:h-auto print:overflow-visible">
             <div className='p-0 h-full overflow-hidden print:h-auto print:overflow-visible'>
                 
                 {selectedDayIndex === null ? (
@@ -121,6 +130,7 @@ export default function ItineraryPanel({
 >
                             {dailyItinerary.map((day, index) => {
                                 const displayDistance = day.distance ? convert(day.distance, 'km').toFixed(0) : '0';
+                                const durationLabel = day.isDriving ? formatDuration(day.durationMin) : '';
                                 const fromLabel = (day.from || '').split('|')[0];
                                 const toLabel = (day.to || '').replace('📍 Parada Táctica: ', '').split('|')[0];
                                 const nonDrivingLabel = (toLabel || fromLabel).trim();
@@ -142,7 +152,9 @@ export default function ItineraryPanel({
                                             
                                             <div className="flex items-center gap-2">
                                                 <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                    {day.isDriving ? `${displayDistance} ${unitKm}` : t('ITINERARY_RELAX')}
+                                                    {day.isDriving
+                                                        ? `${displayDistance} ${unitKm}${durationLabel ? ` · ${durationLabel}` : ''}`
+                                                        : t('ITINERARY_RELAX')}
                                                 </span>
                                                 
                                                 {/* Botón buscar servicios cerca de esta etapa */}
