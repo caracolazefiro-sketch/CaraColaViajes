@@ -202,7 +202,7 @@ export default function UserArea({ t, onLoadTrip, variant = 'header' }: UserArea
             <button onClick={handleLogout} className="text-gray-400 hover:text-red-500 text-xs underline">{t('HEADER_LOGOUT')}</button>
 
             {showTrips && (
-                <div className="fixed top-16 right-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-[9999] overflow-hidden animate-fadeIn text-left">
+                <div className="fixed top-16 right-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-[2147483647] overflow-hidden animate-fadeIn text-left">
                     <div className="bg-red-600 px-4 py-2 flex justify-between items-center"><h3 className="text-white font-bold text-sm">{t('HEADER_ARCHIVE_TITLE')}</h3><button onClick={() => setShowTrips(false)} className="text-white hover:text-gray-200">✕</button></div>
                     <div className="max-h-60 overflow-y-auto p-2 bg-gray-50">
                         {loading ? <p className="text-center text-xs text-gray-400 py-4">{t('LOADING_LIBRARY')}</p> : myTrips.length === 0 ? <p className="text-center text-xs text-gray-400 py-4">{t('NO_TRIPS_SAVED')}</p> : (

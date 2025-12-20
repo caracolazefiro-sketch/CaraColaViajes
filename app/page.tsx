@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { PlaceWithDistance, ServiceType, Coordinates } from './types';
@@ -28,6 +28,7 @@ import { useTripCompute } from './hooks/useTripCompute';
 import { useStageNavigation } from './hooks/useStageNavigation';
 import { useSavedPlacesUi } from './hooks/useSavedPlacesUi';
 import { useStageAdjust } from './hooks/useStageAdjust';
+import { normalizeForGoogle } from './utils/googleNormalize';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -132,6 +133,7 @@ export default function Home() {
   const { handleCalculateAll } = useTripCompute({
     formData,
     setFormData,
+    setResults,
     resetPlaces,
     calculateRoute,
     setApiTripId,
@@ -141,6 +143,57 @@ export default function Home() {
     },
     showToast,
   });
+
+  // When loading a saved trip, UI results come from storage/cloud, but directionsResponse is not rebuilt.
+  // Rebuild directions for the map (markers + full route) WITHOUT touching results.
+  const directionsKeyRef = useRef<string>('');
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (directionsResponse) return;
+    if (!results?.dailyItinerary?.length) return;
+    if (!formData.origen || !formData.destino) return;
+    if (typeof google === 'undefined') return;
+
+    const key = JSON.stringify({
+      o: formData.origen,
+      d: formData.destino,
+      e: formData.etapas,
+      t: formData.evitarPeajes,
+      r: formData.vueltaACasa,
+    });
+    if (directionsKeyRef.current === key) return;
+    directionsKeyRef.current = key;
+
+    const run = async () => {
+      try {
+        const directionsService = new google.maps.DirectionsService();
+        let destination = normalizeForGoogle(String(formData.destino || ''));
+        const waypoints = String(formData.etapas || '')
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((location) => ({ location: normalizeForGoogle(location), stopover: true }));
+
+        if (formData.vueltaACasa) {
+          destination = normalizeForGoogle(String(formData.origen || ''));
+          waypoints.push({ location: normalizeForGoogle(String(formData.destino || '')), stopover: true });
+        }
+
+        const result = await directionsService.route({
+          origin: normalizeForGoogle(String(formData.origen || '')),
+          destination,
+          waypoints,
+          travelMode: google.maps.TravelMode.DRIVING,
+          avoidTolls: Boolean(formData.evitarPeajes),
+        });
+        setDirectionsResponse(result);
+      } catch {
+        // If this fails, TripMap will still render overviewPolyline fallback.
+      }
+    };
+
+    void run();
+  }, [directionsResponse, formData.destino, formData.etapas, formData.evitarPeajes, formData.origen, formData.vueltaACasa, isLoaded, results?.dailyItinerary, setDirectionsResponse]);
 
   const handleCalculateAllWithUi = useCallback(
     async (e: React.FormEvent) => {

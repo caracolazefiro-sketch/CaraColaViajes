@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { ToastType } from './useToast';
 import type { TripFormData } from './useTripCalculator';
+import type { TripResult } from '../types';
 import { getDirectionsAndCost } from '../actions';
 import { normalizeForGoogle } from '../utils/googleNormalize';
 
@@ -9,6 +10,7 @@ type ShowToast = (message: string, type?: ToastType) => void;
 type UseTripComputeParams<TForm extends TripFormData & { tripName: string; etapas: string }> = {
   formData: TForm;
   setFormData: React.Dispatch<React.SetStateAction<TForm>>;
+  setResults: React.Dispatch<React.SetStateAction<TripResult>>;
   resetPlaces: () => void;
   calculateRoute: (formData: TripFormData) => void;
   setApiTripId: (tripId: string) => void;
@@ -27,6 +29,7 @@ const computeTripName = (formData: { tripName?: string; origen: string; destino:
 export function useTripCompute<TForm extends TripFormData & { tripName: string; etapas: string }>({
   formData,
   setFormData,
+  setResults,
   resetPlaces,
   calculateRoute,
   setApiTripId,
@@ -81,6 +84,16 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
         if (res.error) {
           showToast('Servidor: ' + res.error, 'error');
         } else {
+          // IMPORTANT: Update UI with server itinerary (includes durationMin/startCoordinates/overviewPolyline)
+          const serverItinerary = res.dailyItinerary;
+          if (serverItinerary?.length) {
+            setResults((prev) => ({
+              ...prev,
+              dailyItinerary: serverItinerary,
+              overviewPolyline: res.overviewPolyline ?? prev.overviewPolyline ?? null,
+              totalDays: serverItinerary.length,
+            }));
+          }
           showToast('Ruta calculada y logs enviados', 'success');
         }
       } catch (err) {
@@ -89,7 +102,7 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
         console.error(err);
       }
     },
-    [calculateRoute, formData, resetPlaces, resetUi, setApiTripId, setFormData, showToast]
+    [calculateRoute, formData, resetPlaces, resetUi, setApiTripId, setFormData, setResults, showToast]
   );
 
   return { handleCalculateAll };
