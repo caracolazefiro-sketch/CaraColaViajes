@@ -458,42 +458,41 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             <>{rawCityName}</>
                         )}
                     </p>
-                    <div className="flex justify-between items-center mt-1">
-                        <p className="text-xs text-gray-500 font-mono">{day.date}</p>
-                        <div className="flex items-center gap-2 text-xs font-bold ml-4">
-                            <span className="text-gray-700">{t('STATS_DAY')} {day.day}</span>
-                            {day.isDriving && (
-                                <>
-                                    <span className="text-gray-300">·</span>
-                                    <span className="text-red-600">{convert(day.distance, 'km').toFixed(0)} {isImperial ? 'mi' : 'km'}</span>
-                                    {formatDuration(day.durationMin) ? (
-                                        <>
-                                            <span className="text-gray-300">·</span>
-                                            <span className="text-blue-600">{formatDuration(day.durationMin)}</span>
-                                        </>
-                                    ) : null}
-                                </>
-                            )}
-                        </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs font-bold flex-wrap">
+                        <span className="text-gray-700">{t('STATS_DAY')} {day.day}</span>
+                        <span className="text-gray-300">|</span>
+                        <span className="text-gray-500 font-mono">{day.date}</span>
+                        {day.isDriving && (
+                            <>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-red-600">{convert(day.distance, 'km').toFixed(0)} {isImperial ? 'mi' : 'km'}</span>
+                                {formatDuration(day.durationMin) ? (
+                                    <>
+                                        <span className="text-gray-300">|</span>
+                                        <span className="text-blue-600">{formatDuration(day.durationMin)}</span>
+                                    </>
+                                ) : null}
+                            </>
+                        )}
                     </div>
                 </div>
                 
                 {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA + TEMPERATURA */}
-                <div className="bg-white/90 px-3 py-2 rounded-lg shadow-sm border border-gray-100 text-right min-w-[140px]">
+                <div className="bg-white/90 px-2 py-1.5 rounded-md shadow-sm border border-gray-100 text-right min-w-[96px]">
                     {weatherStatus === 'loading' && <div className="text-xs text-gray-400">{t('FORM_LOADING')}</div>}
                     {weatherStatus === 'far_future' && <div className="text-xs text-gray-400 leading-tight">📅 +14 {t('STATS_DAYS')}</div>}
                     {weatherStatus === 'success' && routeWeather && routeWeather.end && (
                         <div>
                             <div className="flex justify-end gap-2 items-center mb-1">
                                 {routeWeather.summary === 'danger' && <span className="animate-pulse text-red-600" title="Alert">⚠️</span>}
-                                <span className="text-2xl leading-none">{getWeatherIcon(routeWeather.end.code)}</span>
+                                <span className="text-xl leading-none">{getWeatherIcon(routeWeather.end.code)}</span>
                             </div>
-                            <div className="text-xs font-bold text-gray-800 leading-tight">
+                            <div className="text-[11px] font-bold text-gray-800 leading-tight">
                                 {/* 🌡️ CONVERSIÓN DE TEMPERATURA AQUÍ */}
                                 {formatTemp(routeWeather.end.maxTemp)}° <span className="text-gray-400">/ {formatTemp(routeWeather.end.minTemp)}°{tempUnit}</span>
                             </div>
                             
-                            <div className="flex flex-col text-[10px] mt-1 gap-0">
+                            <div className="flex flex-col text-[9px] mt-1 gap-0">
                                 <span className={`${routeWeather.end.rainProb > 50 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
                                     💧 {routeWeather.end.rainProb}%
                                 </span>

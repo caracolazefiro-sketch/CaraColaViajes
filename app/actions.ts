@@ -514,6 +514,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 const nextStopName = allStops[i + 1];
                 let legDistanceMeters = 0;
                 let legDurationSeconds = 0;
+                const legDurationFallbackSeconds = Number((leg as unknown as { duration?: { value?: number } })?.duration?.value || 0);
 
                 for (const step of leg.steps) {
                     legDistanceMeters += step.distance.value;
@@ -524,6 +525,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     }
                 }
 
+                // Fallback: if steps don't include duration, use the leg.duration and (later) distribute by distance.
+                if (legDurationSeconds <= 0 && legDurationFallbackSeconds > 0) {
+                    legDurationSeconds = legDurationFallbackSeconds;
+                }
+
                 // Si este tramo excede el límite diario MÁS la tolerancia, crear paradas tácticas.
                 // Si solo se pasa un poco (<= tolerancia), no segmentamos: reducimos geocoding y evitamos días raros.
                 if (dayAccumulatorMeters + legDistanceMeters > splitThresholdMeters) {
@@ -531,7 +537,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                     for (const step of leg.steps) {
                         const stepDist = step.distance.value;
                         const stepDuration = (step as unknown as { duration?: { value?: number } }).duration?.value;
-                        const stepDurationSeconds = typeof stepDuration === 'number' && Number.isFinite(stepDuration) ? stepDuration : 0;
+                        const stepDurationSeconds = typeof stepDuration === 'number' && Number.isFinite(stepDuration)
+                            ? stepDuration
+                            : (legDurationSeconds > 0 && legDistanceMeters > 0
+                                ? Math.round(legDurationSeconds * (stepDist / legDistanceMeters))
+                                : 0);
 
                         if (dayAccumulatorMeters + stepDist < maxMeters) {
                             dayAccumulatorMeters += stepDist;
@@ -865,6 +875,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             const nextStopName = allStops[i + 1];
             let legDistanceMeters = 0;
             let legDurationSeconds = 0;
+            const legDurationFallbackSeconds = Number((leg as unknown as { duration?: { value?: number } })?.duration?.value || 0);
 
             // Calcular la distancia/tiempo total de este leg (para poder repartir duración en cortes tácticos)
             for (const step of leg.steps) {
@@ -875,6 +886,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 }
             }
 
+            // Fallback: if steps don't include duration, use the leg.duration and (later) distribute by distance.
+            if (legDurationSeconds <= 0 && legDurationFallbackSeconds > 0) {
+                legDurationSeconds = legDurationFallbackSeconds;
+            }
+
             // Si este tramo excede el límite diario MÁS la tolerancia, crear paradas tácticas.
             // Si solo se pasa un poco (<= tolerancia), no segmentamos.
             if (dayAccumulatorMeters + legDistanceMeters > splitThresholdMeters) {
@@ -883,7 +899,11 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 for (const step of leg.steps) {
                     const stepDist = step.distance.value;
                     const stepDuration = (step as unknown as { duration?: { value?: number } }).duration?.value;
-                    const stepDurationSeconds = typeof stepDuration === 'number' && Number.isFinite(stepDuration) ? stepDuration : 0;
+                    const stepDurationSeconds = typeof stepDuration === 'number' && Number.isFinite(stepDuration)
+                        ? stepDuration
+                        : (legDurationSeconds > 0 && legDistanceMeters > 0
+                            ? Math.round(legDurationSeconds * (stepDist / legDistanceMeters))
+                            : 0);
 
                     if (dayAccumulatorMeters + stepDist < maxMeters) {
                         dayAccumulatorMeters += stepDist;

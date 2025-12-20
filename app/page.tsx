@@ -285,9 +285,20 @@ export default function Home() {
               t={t}
               setLang={setLang}
               language={language}
+              rightAddon={
+                results.totalDays ? (
+                  <button
+                    onClick={() => setUserWantsEditTrip((prev) => !prev)}
+                    className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors shrink-0"
+                    title={t('DASHBOARD_EDIT')}
+                  >
+                    <span>{t('DASHBOARD_EDIT')}</span>
+                  </button>
+                ) : null
+              }
               centerContent={
                 results.totalDays ? (
-                  <div className="w-full bg-white rounded-xl shadow-md border border-gray-200 flex flex-col md:flex-row items-center justify-between p-2 gap-2">
+                  <div className="w-full md:w-auto bg-white rounded-xl shadow-md border border-gray-200 flex flex-col md:flex-row items-center justify-between p-2 gap-2">
                     <div className="flex items-center gap-2 overflow-hidden w-full md:w-auto px-2">
                       <span className="text-red-600 font-bold text-sm truncate">{displayTripName}</span>
                       {formData.vueltaACasa && (
@@ -317,14 +328,6 @@ export default function Home() {
                         onReset={handleResetTrip}
                         t={t}
                       />
-                      <div className="w-px h-6 bg-gray-200 hidden md:block"></div>
-                      <button
-                        onClick={() => setUserWantsEditTrip((prev) => !prev)}
-                        className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
-                        title={t('DASHBOARD_EDIT')}
-                      >
-                        <span>{t('DASHBOARD_EDIT')}</span>
-                      </button>
                     </div>
                   </div>
                 ) : null

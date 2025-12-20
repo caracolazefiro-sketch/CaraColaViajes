@@ -12,10 +12,11 @@ interface AppHeaderProps {
     setLang: (lang: 'es' | 'en') => void;
     language: 'es' | 'en';
     centerContent?: React.ReactNode;
+    rightAddon?: React.ReactNode;
 }
 
 export default function AppHeader({ 
-    onLoadTrip, currentTripId, t, setLang, language, centerContent
+    onLoadTrip, currentTripId, t, setLang, language, centerContent, rightAddon
 }: AppHeaderProps) {
     const hasCenter = Boolean(centerContent);
 
@@ -50,13 +51,15 @@ export default function AppHeader({
 
                 {/* 2. DATOS DEL VIAJE + ACCIONES (Centro) */}
                 {centerContent ? (
-                    <div className="w-full md:col-start-2 md:px-4 min-w-0 overflow-hidden">{centerContent}</div>
+                    <div className="md:col-start-2 md:px-2 min-w-0 overflow-hidden">{centerContent}</div>
                 ) : (
                     <div className="hidden md:block md:flex-1" />
                 )}
 
                 {/* 3. ZONA DERECHA: IDIOMA + USUARIO */}
                 <div className={hasCenter ? 'flex items-center justify-end gap-3 shrink-0 md:col-start-3 min-w-0' : 'flex items-center justify-end gap-3 shrink-0'}>
+
+                    {rightAddon ? <div className="shrink-0">{rightAddon}</div> : null}
                     
                     {/* SELECTOR DE IDIOMA (Banderas) */}
                     <div className="flex items-center bg-gray-100 rounded-full p-1 border border-gray-200">

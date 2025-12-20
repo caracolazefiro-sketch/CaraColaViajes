@@ -27,6 +27,40 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     const [hasLoadedUserData, setHasLoadedUserData] = useState(false);
     const previousUserIdRef = useRef<string | null>(null);
 
+    const normalizeTripResults = useCallback((raw: TripResult): TripResult => {
+        const dailyItinerary = Array.isArray(raw.dailyItinerary)
+            ? raw.dailyItinerary.map((d) => {
+                const distance = typeof (d as unknown as { distance?: unknown }).distance === 'string'
+                    ? Number((d as unknown as { distance: string }).distance)
+                    : d.distance;
+                const durationMinRaw = (d as unknown as { durationMin?: unknown }).durationMin;
+                const durationMin = typeof durationMinRaw === 'string' ? Number(durationMinRaw) : d.durationMin;
+                return {
+                    ...d,
+                    distance: Number.isFinite(distance) ? Number(distance) : d.distance,
+                    durationMin: typeof durationMin === 'number' && Number.isFinite(durationMin) ? durationMin : d.durationMin,
+                };
+            })
+            : raw.dailyItinerary;
+
+        return {
+            ...raw,
+            totalDays: typeof (raw as unknown as { totalDays?: unknown }).totalDays === 'string'
+                ? Number((raw as unknown as { totalDays: string }).totalDays)
+                : raw.totalDays,
+            distanceKm: typeof (raw as unknown as { distanceKm?: unknown }).distanceKm === 'string'
+                ? Number((raw as unknown as { distanceKm: string }).distanceKm)
+                : raw.distanceKm,
+            totalCost: typeof (raw as unknown as { totalCost?: unknown }).totalCost === 'string'
+                ? Number((raw as unknown as { totalCost: string }).totalCost)
+                : raw.totalCost,
+            liters: typeof (raw as unknown as { liters?: unknown }).liters === 'string'
+                ? Number((raw as unknown as { liters: string }).liters)
+                : raw.liters,
+            dailyItinerary,
+        };
+    }, []);
+
     const setApiTripIdSafe = useCallback(
         (tripId: string | null) => {
             if (setApiTripId) setApiTripId(tripId);
@@ -73,7 +107,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                         try {
                             const parsed = JSON.parse(savedData);
                             if (parsed.formData) setFormData(parsed.formData);
-                            if (parsed.results) setResults(parsed.results);
+                            if (parsed.results) setResults(normalizeTripResults(parsed.results));
                             if (parsed.tripId) setCurrentTripId(parsed.tripId);
                             if (typeof parsed.apiTripId === 'string' || parsed.apiTripId === null) setApiTripIdSafe(parsed.apiTripId);
                         } catch (e: unknown) { 
@@ -121,7 +155,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                             try {
                                 const parsed = JSON.parse(savedData);
                                 if (parsed.formData) setFormData(parsed.formData);
-                                if (parsed.results) setResults(parsed.results);
+                                if (parsed.results) setResults(normalizeTripResults(parsed.results));
                                 if (parsed.tripId) setCurrentTripId(parsed.tripId);
                                 if (typeof parsed.apiTripId === 'string' || parsed.apiTripId === null) setApiTripIdSafe(parsed.apiTripId);
                             } catch (e: unknown) { 
@@ -145,7 +179,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 subscription.unsubscribe();
             };
         }
-    }, [resetUiState, setApiTripIdSafe, setCurrentTripId, setFormData, setResults]);
+    }, [normalizeTripResults, resetUiState, setApiTripIdSafe, setCurrentTripId, setFormData, setResults]);
 
     // 2. AUTOGUARDADO (LocalStorage con user_id)
     useEffect(() => {
@@ -196,7 +230,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
     const handleLoadCloudTrip = (tripData: TripData, tripId: number) => {
         if (tripData) {
             setFormData(tripData.formData as T);
-            setResults(tripData.results);
+            setResults(normalizeTripResults(tripData.results));
             setCurrentTripId(tripId);
             // Correlación estable para logs cuando el viaje viene de cloud
             setApiTripIdSafe(tripData.apiTripId ?? `cloud-${tripId}`);
