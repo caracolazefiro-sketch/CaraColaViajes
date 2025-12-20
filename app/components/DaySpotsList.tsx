@@ -536,7 +536,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 {/* ⛰️ POPOVER DESNIVEL (hover) */}
                 {showElevationPopover && (day.coordinates ?? day.startCoordinates) && (
                     <div
-                        className="absolute right-0 top-full mt-2 z-30 w-[360px] bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+                        className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 w-[360px] max-w-[92vw] bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
                         onMouseEnter={() => setShowElevationPopover(true)}
                         onMouseLeave={() => setShowElevationPopover(false)}
                     >
