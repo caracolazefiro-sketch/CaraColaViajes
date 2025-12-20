@@ -15,7 +15,6 @@ import { areasAcLabelForCode } from '../utils/areasacLegend';
 
 // Iconos
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
-const IconMountain = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
 interface IconPlusProps {
     className?: string;
 }
@@ -471,6 +470,16 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                     <>
                                         <span className="text-gray-300">|</span>
                                         <span className="text-blue-600">{formatDuration(day.durationMin)}</span>
+                                        <span className="text-gray-300">|</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => calculateElevation(day.from, day.coordinates ?? day.startCoordinates)}
+                                            disabled={loadingElevation || !(day.coordinates ?? day.startCoordinates)}
+                                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title={isImperial ? 'Elevation profile' : 'Perfil de desnivel'}
+                                        >
+                                            <IconTrendingUp className="h-3 w-3" /> {isImperial ? 'Elevation' : 'Desnivel'}
+                                        </button>
                                     </>
                                 ) : null}
                             </>
@@ -479,7 +488,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 </div>
                 
                 {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA + TEMPERATURA */}
-                <div className="bg-white/90 px-2 py-1.5 rounded-md shadow-sm border border-gray-100 text-right min-w-[96px]">
+                <div className="bg-white/90 px-1.5 py-1 rounded-md shadow-sm border border-gray-100 text-right min-w-[78px]">
                     {!endCoordsForWeather && (
                         <div className="text-xs text-gray-400 leading-tight">⚠️ {isImperial ? 'No coords' : 'Sin coords'}</div>
                     )}
@@ -579,6 +588,79 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
             {day.isDriving && (
                 <div className="pt-3 border-t border-dashed border-red-200 mt-2">
+                    {/* Sliders de filtrado - Copia sincronizada con el mapa */}
+                    {setMinRating && setSearchRadius && setSortBy && (
+                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-2 mb-3 border border-gray-200 shadow-sm">
+                            <div className="flex flex-wrap items-center gap-3">
+                                {/* Rating Slider */}
+                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
+                                        <IconStar size={11} /> {minRating.toFixed(1)}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="5"
+                                        step="0.5"
+                                        value={minRating}
+                                        onChange={(e) => setMinRating(parseFloat(e.target.value))}
+                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
+                                        style={{
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            WebkitAppearance: 'none',
+                                        } as React.CSSProperties}
+                                    />
+                                </div>
+
+                                {/* Radio Slider */}
+                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
+                                        <IconMapPin size={11} /> {searchRadius}km
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="5"
+                                        max="25"
+                                        step="5"
+                                        value={searchRadius}
+                                        onChange={(e) => setSearchRadius(parseInt(e.target.value))}
+                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
+                                        style={{
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            WebkitAppearance: 'none',
+                                        } as React.CSSProperties}
+                                    />
+                                </div>
+
+                                {/* Sort Slider */}
+                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
+                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
+                                        <IconTrendingUp size={11} /> {sortBy === 'score' ? 'Rel' : sortBy === 'distance' ? 'Dist' : 'Rate'}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="2"
+                                        step="1"
+                                        value={sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setSortBy(val === 0 ? 'score' : val === 1 ? 'distance' : 'rating');
+                                        }}
+                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
+                                        style={{
+                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) 100%)`,
+                                            WebkitAppearance: 'none',
+                                        } as React.CSSProperties}
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[9px] text-gray-500 mt-1.5 italic leading-tight">
+                                💡 Solo filtran búsquedas, no lugares guardados
+                            </p>
+                        </div>
+                    )}
+
                     {/* Grid de botones de servicios compacto */}
                     <div className="grid grid-cols-3 gap-2 mb-4">
                         <ServiceButton 
@@ -681,79 +763,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         </button>
                     </div>
 
-                    {/* Sliders de filtrado - Copia sincronizada con el mapa */}
-                    {setMinRating && setSearchRadius && setSortBy && (
-                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-2 mb-3 border border-gray-200 shadow-sm">
-                            <div className="flex flex-wrap items-center gap-3">
-                                {/* Rating Slider */}
-                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
-                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
-                                        <IconStar size={11} /> {minRating.toFixed(1)}
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="5"
-                                        step="0.5"
-                                        value={minRating}
-                                        onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
-                                        style={{
-                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) ${(minRating / 5) * 100}%, rgba(75,85,99,0.2) 100%)`,
-                                            WebkitAppearance: 'none',
-                                        } as React.CSSProperties}
-                                    />
-                                </div>
-
-                                {/* Radio Slider */}
-                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
-                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
-                                        <IconMapPin size={11} /> {searchRadius}km
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="5"
-                                        max="25"
-                                        step="5"
-                                        value={searchRadius}
-                                        onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
-                                        style={{
-                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) ${((searchRadius - 5) / 20) * 100}%, rgba(75,85,99,0.2) 100%)`,
-                                            WebkitAppearance: 'none',
-                                        } as React.CSSProperties}
-                                    />
-                                </div>
-
-                                {/* Sort Slider */}
-                                <div className="flex flex-col gap-1 flex-1 min-w-[90px]">
-                                    <label className="text-[10px] font-semibold text-gray-600 flex items-center gap-1">
-                                        <IconTrendingUp size={11} /> {sortBy === 'score' ? 'Rel' : sortBy === 'distance' ? 'Dist' : 'Rate'}
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="2"
-                                        step="1"
-                                        value={sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2}
-                                        onChange={(e) => {
-                                            const val = parseInt(e.target.value);
-                                            setSortBy(val === 0 ? 'score' : val === 1 ? 'distance' : 'rating');
-                                        }}
-                                        className="w-full h-1 rounded appearance-none cursor-pointer slider-thumb-red"
-                                        style={{
-                                            background: `linear-gradient(to right, #DC2626 0%, #DC2626 ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) ${((sortBy === 'score' ? 0 : sortBy === 'distance' ? 1 : 2) / 2) * 100}%, rgba(75,85,99,0.2) 100%)`,
-                                            WebkitAppearance: 'none',
-                                        } as React.CSSProperties}
-                                    />
-                                </div>
-                            </div>
-                            <p className="text-[9px] text-gray-500 mt-1.5 italic leading-tight">
-                                💡 Solo filtran búsquedas, no lugares guardados
-                            </p>
-                        </div>
-                    )}
-
                     <div className="space-y-2">
                         <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
                         <ServiceList type="gas" title={t('SERVICE_GAS')} colorClass="text-orange-600" markerColor="bg-orange-500" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />
@@ -770,11 +779,6 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         )}
                     </div>
                      <div className="mt-4 pt-2 border-t border-gray-100">
-                        {!elevationData && !loadingElevation && (
-                            <button onClick={() => calculateElevation(day.from, day.coordinates)} className="w-full text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 py-2 rounded border border-gray-300 flex items-center justify-center gap-2 transition">
-                                <IconMountain /> {isImperial ? 'Check Elevation' : 'Analizar Desnivel'}
-                            </button>
-                        )}
                         {loadingElevation && <p className="text-xs text-center text-gray-400 animate-pulse py-2">{t('FORM_LOADING')}</p>}
                         {elevationData && (
                             <div className="relative">
