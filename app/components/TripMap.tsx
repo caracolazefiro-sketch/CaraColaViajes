@@ -282,9 +282,9 @@ export default function TripMap({
 
         // Sync map type for custom small controls
         try {
-            setMapTypeId(map.getMapTypeId());
+            setMapTypeId(String(map.getMapTypeId() ?? 'roadmap'));
             map.addListener('maptypeid_changed', () => {
-                setMapTypeId(map.getMapTypeId());
+                setMapTypeId(String(map.getMapTypeId() ?? 'roadmap'));
             });
         } catch {
             // ignore
