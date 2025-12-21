@@ -13,8 +13,8 @@ const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 
 const IconPlusCircle = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
-const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
-const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
+const IconSearch = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
+const IconX = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
 
 function parseAreasAcNote(note: string): { header: string; compactHeader: string; codes: string[] } {
     const raw = String(note || '').trim();
@@ -108,6 +108,7 @@ export default function TripMap({
 
     const [searchQuery, setSearchQuery] = useState('');
     const [clickedGooglePlace, setClickedGooglePlace] = useState<PlaceWithDistance | null>(null);
+    const [mapTypeId, setMapTypeId] = useState<google.maps.MapTypeId | string>('roadmap');
 
     // Cache local para evitar repetir Place Details (fotos, etc.) en clicks.
     const placeDetailsCacheRef = useRef<Record<string, Partial<PlaceWithDistance>>>({});
@@ -279,6 +280,16 @@ export default function TripMap({
     const handleMapLoad = (map: google.maps.Map) => {
         setMap(map);
 
+        // Sync map type for custom small controls
+        try {
+            setMapTypeId(map.getMapTypeId());
+            map.addListener('maptypeid_changed', () => {
+                setMapTypeId(map.getMapTypeId());
+            });
+        } catch {
+            // ignore
+        }
+
         map.addListener('dragstart', () => {
             hasUserInteracted.current = true;
         });
@@ -389,9 +400,10 @@ export default function TripMap({
     const mapOptions = useMemo((): google.maps.MapOptions => {
         const g = typeof google !== 'undefined' ? google : undefined;
         return {
-            zoomControl: true,
+            // Use custom compact controls to avoid covering the map
+            zoomControl: false,
             streetViewControl: false,
-            mapTypeControl: true,
+            mapTypeControl: false,
             fullscreenControl: true,
             scaleControl: true,
             mapTypeControlOptions: g
@@ -412,9 +424,58 @@ export default function TripMap({
 
     return (
         <div className="h-full bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
-            <div className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-1 w-64 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
+            {/* Controles compactos (reemplazan los controles grandes de Google) */}
+            <div className="absolute top-4 left-4 z-10 flex flex-col items-start gap-2">
+                {/* Map type: Mapa / Satélite */}
+                <div className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden flex">
+                    <button
+                        type="button"
+                        onClick={() => mapInstance?.setMapTypeId('roadmap')}
+                        className={`px-2 py-1 text-[11px] font-semibold transition ${mapTypeId === 'roadmap' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                    >
+                        Mapa
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => mapInstance?.setMapTypeId('satellite')}
+                        className={`px-2 py-1 text-[11px] font-semibold transition border-l border-gray-200 ${mapTypeId === 'satellite' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                    >
+                        Satélite
+                    </button>
+                </div>
+
+                {/* Zoom + / - (compacto, en una sola línea) */}
+                <div className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden inline-flex w-fit">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!mapInstance) return;
+                            const z = mapInstance.getZoom() ?? 6;
+                            mapInstance.setZoom(z + 1);
+                        }}
+                        className="h-7 w-7 flex-none flex items-center justify-center text-gray-700 hover:bg-gray-50 transition"
+                        aria-label="Zoom in"
+                    >
+                        <span className="text-[18px] leading-none">+</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!mapInstance) return;
+                            const z = mapInstance.getZoom() ?? 6;
+                            mapInstance.setZoom(z - 1);
+                        }}
+                        className="h-7 w-7 flex-none flex items-center justify-center text-gray-700 hover:bg-gray-50 transition border-l border-gray-200"
+                        aria-label="Zoom out"
+                    >
+                        <span className="text-[18px] leading-none">−</span>
+                    </button>
+                </div>
+            </div>
+
+            <div className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-0.5 w-56 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
-                    <button type="submit" className="p-2 text-gray-400 hover:text-blue-500"><IconSearch /></button>
+                    <button type="submit" className="p-1.5 text-gray-400 hover:text-blue-500"><IconSearch /></button>
                     <input
                         type="text"
                         placeholder={searchPlaceholder}
@@ -424,7 +485,7 @@ export default function TripMap({
                     />
                 </form>
                 {places.search && places.search.length > 0 && (
-                    <button onClick={() => { setSearchQuery(''); onClearSearch(); }} className="p-2 text-gray-300 hover:text-red-500"><IconX /></button>
+                    <button onClick={() => { setSearchQuery(''); onClearSearch(); }} className="p-1.5 text-gray-300 hover:text-red-500"><IconX /></button>
                 )}
             </div>
 

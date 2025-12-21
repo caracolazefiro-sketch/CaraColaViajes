@@ -45,7 +45,7 @@ export default function StageSelector({ dailyItinerary, selectedDayIndex, onSele
                     return (
                         <button 
                             key={index} 
-                            onClick={() => onSelectDay(index)} 
+                            onClick={() => onSelectDay(selectedDayIndex === index ? null : index)} 
                             className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-bold transition-all border flex items-center gap-1.5 ${selectedDayIndex === index ? 'bg-red-600 text-white border-red-600 shadow-sm' : (day.isDriving ? 'bg-white text-gray-700 border-gray-200 hover:border-red-300' : 'bg-orange-50 text-orange-800 border-orange-200 hover:border-orange-300')}`}
                         >
                             <span>{day.isDriving ? '🚐' : '🏖️'}</span> 
