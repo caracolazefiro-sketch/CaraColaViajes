@@ -43,6 +43,14 @@ export default function DebugTools() {
     type ConsoleMethod = (...args: unknown[]) => void;
     const consoleMethods = console as unknown as Record<'log' | 'error' | 'warn' | 'info', ConsoleMethod>;
 
+    const isGoogleUtcOffsetDeprecation = (args: unknown[]) => {
+      return args.some(
+        (arg) =>
+          typeof arg === 'string' &&
+          (arg.includes('utc_offset is deprecated') || arg.includes('goo.gle/js-open-now'))
+      );
+    };
+
     const addLog = (level: LogEntry['level'], ...args: unknown[]) => {
       const timestamp = new Date().toLocaleTimeString();
       const message = args
@@ -79,7 +87,14 @@ export default function DebugTools() {
 
     // Reemplazar console methods
     consoleMethods.log = (...args: unknown[]) => addLog('log', ...args);
-    consoleMethods.error = (...args: unknown[]) => addLog('error', ...args);
+    consoleMethods.error = (...args: unknown[]) => {
+      // Google Places emits this as console.error; it's a deprecation warning, not an app error.
+      if (isGoogleUtcOffsetDeprecation(args)) {
+        addLog('warn', ...args);
+        return;
+      }
+      addLog('error', ...args);
+    };
     consoleMethods.warn = (...args: unknown[]) => addLog('warn', ...args);
     consoleMethods.info = (...args: unknown[]) => addLog('info', ...args);
 

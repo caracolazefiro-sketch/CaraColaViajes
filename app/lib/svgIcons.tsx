@@ -195,3 +195,86 @@ export const IconTrendingUp: React.FC<IconProps> = ({ size = 24, className = '',
     <polyline points="17 6 23 6 23 12" />
   </svg>
 );
+
+// ========== ICONOS DE CLIMA (propios) ==========
+
+export const IconSun: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+  </svg>
+);
+
+export const IconCloud: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M17.5 19H7a4 4 0 0 1 0-8 5 5 0 0 1 9.8-1.2A3.5 3.5 0 1 1 17.5 19Z" />
+  </svg>
+);
+
+export const IconCloudSun: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M8 12a4 4 0 1 1 7.3 2.2" />
+    <path d="M6 12.5a4 4 0 0 1 1-7.9 5 5 0 0 1 9.8 1.2" />
+    <path d="M17.5 19H7a3.5 3.5 0 0 1-.4-7" />
+  </svg>
+);
+
+export const IconFog: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M17.5 12H7a4 4 0 0 1 0-8 5 5 0 0 1 9.8-1.2A3.5 3.5 0 1 1 17.5 12Z" />
+    <path d="M3 15h18" />
+    <path d="M5 18h14" />
+    <path d="M7 21h10" />
+  </svg>
+);
+
+export const IconCloudRain: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M17.5 14H7a4 4 0 0 1 0-8 5 5 0 0 1 9.8-1.2A3.5 3.5 0 1 1 17.5 14Z" />
+    <path d="M8 17v3" />
+    <path d="M12 17v3" />
+    <path d="M16 17v3" />
+  </svg>
+);
+
+export const IconCloudSnow: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M17.5 14H7a4 4 0 0 1 0-8 5 5 0 0 1 9.8-1.2A3.5 3.5 0 1 1 17.5 14Z" />
+    <path d="M8 18h.01" />
+    <path d="M12 18h.01" />
+    <path d="M16 18h.01" />
+    <path d="M10 21h.01" />
+    <path d="M14 21h.01" />
+  </svg>
+);
+
+export const IconCloudLightning: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M17.5 14H7a4 4 0 0 1 0-8 5 5 0 0 1 9.8-1.2A3.5 3.5 0 1 1 17.5 14Z" />
+    <path d="M13 14l-3 6h3l-2 4" />
+  </svg>
+);
+
+export const IconWind: React.FC<IconProps> = ({ size = 24, className = '', stroke = 'currentColor', strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M3 8h10a3 3 0 1 0-3-3" />
+    <path d="M3 12h14a3 3 0 1 1-3 3" />
+    <path d="M3 16h8a2 2 0 1 1-2 2" />
+  </svg>
+);
+
+export const WeatherIcon: React.FC<{ code: number; size?: number; className?: string }> = ({
+  code,
+  size = 18,
+  className = '',
+}) => {
+  const props: IconProps = { size, className };
+  if (code === 0) return <IconSun {...props} />;
+  if (code >= 1 && code <= 3) return <IconCloudSun {...props} />;
+  if (code >= 45 && code <= 48) return <IconFog {...props} />;
+  if (code >= 51 && code <= 67) return <IconCloudRain {...props} />;
+  if (code >= 71 && code <= 77) return <IconCloudSnow {...props} />;
+  if (code >= 80 && code <= 82) return <IconCloudRain {...props} />;
+  if (code >= 95) return <IconCloudLightning {...props} />;
+  return <IconCloud {...props} />;
+};

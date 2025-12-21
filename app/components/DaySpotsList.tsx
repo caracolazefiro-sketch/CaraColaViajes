@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DailyPlan, PlaceWithDistance, ServiceType } from '../types';
-import { getWeatherIcon } from '../constants';
 import ElevationChart from './ElevationChart';
 import AddPlaceForm from './AddPlaceForm';
 import StarRating from './StarRating';
 import { useWeather } from '../hooks/useWeather';
 import { useElevation } from '../hooks/useElevation';
 import { filterAndSort } from '../hooks/useSearchFilters';
-import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp } from '../lib/svgIcons';
+import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp, IconDroplet, IconWind, WeatherIcon, IconAlertCircle } from '../lib/svgIcons';
 import { ServiceIcons } from './ServiceIcons';
 import { areasAcLabelForCode } from '../utils/areasacLegend';
 
@@ -382,12 +381,46 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     const endCoordsForWeather = day.coordinates ?? day.startCoordinates;
     const { routeWeather, weatherStatus } = useWeather(endCoordsForWeather, day.isoDate, day.startCoordinates);
-    const { elevationData, loadingElevation, calculateElevation } = useElevation();
+    const { elevationData, loadingElevation, calculateElevation, clearElevation } = useElevation();
     // 🔥 Ya NO creamos nuestro propio hook; usamos props recibidos de page.tsx
 
     const [showForm, setShowForm] = useState(false);
     const [placeToEdit, setPlaceToEdit] = useState<PlaceWithDistance | null>(null);
     const [showElevationPopover, setShowElevationPopover] = useState(false);
+    const hideElevationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const openElevationPopover = () => {
+        if (hideElevationTimer.current) {
+            clearTimeout(hideElevationTimer.current);
+            hideElevationTimer.current = null;
+        }
+        setShowElevationPopover(true);
+    };
+
+    const closeElevationPopoverWithDelay = () => {
+        if (hideElevationTimer.current) {
+            clearTimeout(hideElevationTimer.current);
+        }
+        // Minimal persistence to allow moving to the chart/tooltip.
+        hideElevationTimer.current = setTimeout(() => {
+            setShowElevationPopover(false);
+            hideElevationTimer.current = null;
+        }, 220);
+    };
+
+    // If the parent reuses this component instance for a different day, avoid showing stale elevation.
+    useEffect(() => {
+        clearElevation();
+    }, [day.isoDate, day.from, day.to, clearElevation]);
+
+    useEffect(() => {
+        return () => {
+            if (hideElevationTimer.current) {
+                clearTimeout(hideElevationTimer.current);
+                hideElevationTimer.current = null;
+            }
+        };
+    }, []);
 
     const saved = (day.savedPlaces || []).sort((a, b) => (CATEGORY_ORDER[a.type || 'custom'] || 99) - (CATEGORY_ORDER[b.type || 'custom'] || 99));
     const isSaved = (id?: string) => id ? saved.some(p => p.place_id === id) : false;
@@ -396,6 +429,20 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
     const isImperial = convert(1, 'km') !== 1;
     const speedUnit = isImperial ? 'mph' : 'km/h';
     const tempUnit = isImperial ? '°F' : '°C';
+
+    const weatherTone = routeWeather?.summary;
+    const weatherPillClass =
+        weatherTone === 'danger'
+            ? 'bg-red-50/90 border-red-200'
+            : weatherTone === 'caution'
+                ? 'bg-orange-50/90 border-orange-200'
+                : 'bg-white/90 border-gray-100';
+    const weatherIconClass =
+        weatherTone === 'danger'
+            ? 'text-red-700'
+            : weatherTone === 'caution'
+                ? 'text-orange-700'
+                : 'text-gray-700';
 
     // Helper para convertir temperatura
     const formatTemp = (celsius: number) => {
@@ -475,13 +522,13 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                         <button
                                             type="button"
                                             onMouseEnter={() => {
-                                                setShowElevationPopover(true);
+                                                openElevationPopover();
                                                 const coords = day.coordinates ?? day.startCoordinates;
                                                 if (coords && !elevationData && !loadingElevation) {
-                                                    calculateElevation(day.from, coords);
+                                                    calculateElevation(day.from, day.startCoordinates, coords, day.distance);
                                                 }
                                             }}
-                                            onMouseLeave={() => setShowElevationPopover(false)}
+                                            onMouseLeave={closeElevationPopoverWithDelay}
                                             disabled={loadingElevation || !(day.coordinates ?? day.startCoordinates)}
                                             className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
                                                 (day.coordinates ?? day.startCoordinates)
@@ -500,7 +547,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 </div>
                 
                 {/* 🌡️ WIDGET CLIMA: SEMÁFORO DE RUTA + TEMPERATURA */}
-                <div className="bg-white/90 px-1.5 py-1 rounded-md shadow-sm border border-gray-100 text-right min-w-[78px]">
+                <div className={`${weatherPillClass} px-2 py-1 rounded-md shadow-sm border text-right min-w-[92px]`}>
                     {!endCoordsForWeather && (
                         <div className="text-xs text-gray-400 leading-tight">⚠️ {isImperial ? 'No coords' : 'Sin coords'}</div>
                     )}
@@ -512,8 +559,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                     {weatherStatus === 'success' && routeWeather && routeWeather.end && (
                         <div>
                             <div className="flex justify-end gap-2 items-center mb-1">
-                                {routeWeather.summary === 'danger' && <span className="animate-pulse text-red-600" title="Alert">⚠️</span>}
-                                <span className="text-xl leading-none">{getWeatherIcon(routeWeather.end.code)}</span>
+                                {routeWeather.summary === 'danger' && (
+                                    <span className="text-red-600" title="Alert">
+                                        <IconAlertCircle size={16} />
+                                    </span>
+                                )}
+                                <span className={weatherIconClass}>
+                                    <WeatherIcon code={routeWeather.end.code} size={18} />
+                                </span>
                             </div>
                             <div className="text-[11px] font-bold text-gray-800 leading-tight">
                                 {/* 🌡️ CONVERSIÓN DE TEMPERATURA AQUÍ */}
@@ -521,12 +574,21 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                             </div>
                             
                             <div className="flex flex-col text-[9px] mt-1 gap-0">
-                                <span className={`${routeWeather.end.rainProb > 50 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
-                                    💧 {routeWeather.end.rainProb}%
+                                <span className={`flex justify-end items-center gap-1 ${routeWeather.end.rainProb > 50 ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>
+                                    <IconDroplet size={12} /> {routeWeather.end.rainProb}%
                                 </span>
-                                <span className={`${routeWeather.end.windSpeed > 25 ? 'text-orange-600 font-bold' : 'text-gray-400'}`} title="Wind">
+                                <span
+                                    className={`flex justify-end items-center gap-1 ${
+                                        routeWeather.end.windSpeed > 50
+                                            ? 'text-red-600 font-bold'
+                                            : routeWeather.end.windSpeed > 25
+                                                ? 'text-orange-600 font-bold'
+                                                : 'text-gray-400'
+                                    }`}
+                                    title="Wind"
+                                >
                                     {/* 🔄 Conversión de unidad de viento: kph a mph si es necesario */}
-                                    💨 {Math.round(convert(routeWeather.end.windSpeed, 'kph'))} {speedUnit}
+                                    <IconWind size={12} /> {Math.round(convert(routeWeather.end.windSpeed, 'kph'))} {speedUnit}
                                 </span>
                             </div>
                         </div>
@@ -536,16 +598,20 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                 {/* ⛰️ POPOVER DESNIVEL (hover) */}
                 {showElevationPopover && (day.coordinates ?? day.startCoordinates) && (
                     <div
-                        className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 w-[360px] max-w-[92vw] bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
-                        onMouseEnter={() => setShowElevationPopover(true)}
-                        onMouseLeave={() => setShowElevationPopover(false)}
+                        className="absolute left-2 right-2 top-full mt-2 z-30 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+                        onMouseEnter={openElevationPopover}
+                        onMouseLeave={closeElevationPopoverWithDelay}
                     >
                         {loadingElevation && (
                             <div className="p-3 text-xs text-center text-gray-500 animate-pulse">{t('FORM_LOADING')}</div>
                         )}
                         {!loadingElevation && elevationData && (
                             <div className="p-2">
-                                <ElevationChart data={elevationData} />
+                                <ElevationChart
+                                    data={elevationData}
+                                    originLabel={day.from.split('|')[0]}
+                                    destinationLabel={rawCityName}
+                                />
                             </div>
                         )}
                         {!loadingElevation && !elevationData && (
@@ -557,14 +623,39 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
 
             {/* Aviso de Peligro si el semáforo es Rojo */}
             {weatherStatus === 'success' && routeWeather?.summary === 'danger' && (
-                <div className="bg-red-100 border border-red-200 text-red-800 p-2 rounded text-[11px] flex items-center gap-2">
-                    <span className="text-lg">🚨</span>
-                    <div>
-                        <span className="font-bold block">{isImperial ? 'Caution on Route' : 'Precaución en ruta'}</span>
-                        {isImperial 
-                            ? `Strong wind (${Math.round(convert(routeWeather.end?.windSpeed || 0, 'kph'))} mph) or bad weather.`
-                            : `Viento fuerte (${Math.round(routeWeather.end?.windSpeed || 0)} km/h) o condiciones adversas.`
-                        }
+                <div className="bg-red-100 border border-red-200 text-red-800 p-2 rounded text-[11px] flex items-center gap-2 min-w-0">
+                    <span className="text-red-700 shrink-0">
+                        <IconAlertCircle size={18} />
+                    </span>
+                    <div className="min-w-0 flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                        <span className="font-bold shrink-0">{isImperial ? 'Caution on Route' : 'Precaución en ruta'}:</span>
+                        <span className="truncate">
+                            {(() => {
+                            const start = routeWeather.start;
+                            const end = routeWeather.end;
+                            const worstWindKph = Math.max(start?.windSpeed ?? 0, end?.windSpeed ?? 0);
+                            const worstRain = Math.max(start?.rainProb ?? 0, end?.rainProb ?? 0);
+                            const codes = [start?.code, end?.code].filter((c): c is number => typeof c === 'number');
+                            const hasSnow = codes.some((c) => (c >= 71 && c <= 77) || c === 85 || c === 86);
+
+                            const reasons: string[] = [];
+                            if (worstWindKph > 50) {
+                                const windDisplay = Math.round(convert(worstWindKph, 'kph'));
+                                reasons.push(isImperial ? `Strong wind (${windDisplay} ${speedUnit})` : `Viento fuerte (${windDisplay} ${speedUnit})`);
+                            }
+                            if (worstRain > 80) {
+                                reasons.push(isImperial ? `High rain probability (${worstRain}%)` : `Alta probabilidad de lluvia (${worstRain}%)`);
+                            }
+                            if (hasSnow) {
+                                reasons.push(isImperial ? 'Possible snow' : 'Posible nieve');
+                            }
+
+                            if (reasons.length === 0) {
+                                return <>{isImperial ? 'Adverse conditions.' : 'Condiciones adversas.'}</>;
+                            }
+                            return <>{reasons.join(isImperial ? ' · ' : ' · ')}.</>;
+                            })()}
+                        </span>
                     </div>
                 </div>
             )}

@@ -309,11 +309,20 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         };
 
         // Asegurar que ORIGEN/DESTINO también se traduzcan si Google devuelve "lat,lng".
+        // Ojo: cuando recalculamos un "sufijo" desde una etapa intermedia, el origen del sufijo
+        // NO es el origen global del viaje (p.ej. día 2 empieza en Burgos, no en Madrid).
         const originLabel = stripDecorations(formData.origen);
+        const suffixOriginLabel = stripDecorations(String(suffixStartDay?.from ?? formData.origen));
         const destinationLabel = stripDecorations(isAdjustingLastDrivingStage ? newDestination : formData.destino);
         setCoordLabel(firstDay?.startCoordinates, originLabel);
+        setCoordLabel(suffixStartDay?.startCoordinates, suffixOriginLabel);
         setCoordLabel(isAdjustingLastDrivingStage ? newCoordinates : lastDay?.coordinates, destinationLabel);
-        if (suffixOriginParam) waypointLabelByCoords.set(normalizeCoordsKey(suffixOriginParam), originLabel);
+        if (suffixOriginParam) {
+          waypointLabelByCoords.set(
+            normalizeCoordsKey(suffixOriginParam),
+            adjustingDayIndex === 0 ? originLabel : suffixOriginLabel
+          );
+        }
         if (destinationParam) waypointLabelByCoords.set(normalizeCoordsKey(destinationParam), destinationLabel);
 
         const normalizedWaypoints = updatedMandatoryWaypoints.map((wp) => {
