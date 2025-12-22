@@ -6,6 +6,7 @@ type UseStageNavigationParams = {
   directionsResponse: google.maps.DirectionsResult | null;
   dailyItinerary: DailyPlan[] | null;
   toggles: Record<ServiceType, boolean>;
+  trialMode?: boolean;
 
   setSelectedDayIndex: (dayIndex: number | null) => void;
   setHoveredPlace: (place: null) => void;
@@ -54,6 +55,7 @@ export function useStageNavigation({
   directionsResponse,
   dailyItinerary,
   toggles,
+  trialMode = false,
   setSelectedDayIndex,
   setHoveredPlace,
   setMapBounds,
@@ -87,8 +89,8 @@ export function useStageNavigation({
       resetPlaces();
       setHoveredPlace(null);
 
-      let coords: Coordinates | undefined = dailyPlan.coordinates;
-      if (!coords) {
+      let coords: Coordinates | undefined = dailyPlan.coordinates ?? dailyPlan.startCoordinates;
+      if (!coords && !trialMode) {
         const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
         const coord = await geocodeCity(cleanTo);
         coords = coord ? { lat: coord.lat, lng: coord.lng } : undefined;
@@ -98,11 +100,12 @@ export function useStageNavigation({
         setMapBounds(boundsAround(coords));
       }
     },
-    [dailyItinerary, directionsResponse, resetPlaces, setHoveredPlace, setMapBounds, setSelectedDayIndex]
+    [dailyItinerary, directionsResponse, resetPlaces, setHoveredPlace, setMapBounds, setSelectedDayIndex, trialMode]
   );
 
   const handleSearchNearDay = useCallback(
     async (dayIndex: number) => {
+      if (trialMode) return;
       if (typeof google === 'undefined' || !dailyItinerary) return;
       const dailyPlan = dailyItinerary[dayIndex];
       if (!dailyPlan || !dailyPlan.isDriving) return;
@@ -113,9 +116,9 @@ export function useStageNavigation({
       clearSearch();
       resetPlaces();
 
-      let searchCoords: Coordinates | undefined = dailyPlan.coordinates;
+      let searchCoords: Coordinates | undefined = dailyPlan.coordinates ?? dailyPlan.startCoordinates;
 
-      if (!searchCoords) {
+      if (!searchCoords && !trialMode) {
         const cleanTo = dailyPlan.to.replace('📍 Parada Táctica: ', '').split('|')[0];
         const geocoded = await geocodeCity(cleanTo);
         searchCoords = geocoded ? { lat: geocoded.lat, lng: geocoded.lng } : undefined;
@@ -167,6 +170,7 @@ export function useStageNavigation({
       setHoveredPlace,
       setMapBounds,
       setSelectedDayIndex,
+      trialMode,
       toggles,
     ]
   );

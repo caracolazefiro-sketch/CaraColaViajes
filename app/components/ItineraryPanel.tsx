@@ -44,6 +44,9 @@ interface ItineraryPanelProps {
 
     // Modo prueba: botones visibles pero no-op
     trialMode?: boolean;
+
+    // Auth token (si hay login) para llamadas server-side internas
+    authToken?: string;
 }
 
 export default function ItineraryPanel({
@@ -51,7 +54,8 @@ export default function ItineraryPanel({
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
     onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert,
     minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy,
-    trialMode = false
+    trialMode = false,
+    authToken
 }: ItineraryPanelProps) {
 
     if (!dailyItinerary) return null;
@@ -335,6 +339,8 @@ export default function ItineraryPanel({
                         sortBy={sortBy}
                         setSortBy={setSortBy}
                         t={t} convert={convert}
+                        trialMode={trialMode}
+                        authToken={authToken}
                     />
                 )}
             </div>

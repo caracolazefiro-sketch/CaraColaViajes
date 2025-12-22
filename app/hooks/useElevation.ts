@@ -19,7 +19,7 @@ type ElevationApiResult = {
     resolution?: number;
 };
 
-export function useElevation() {
+export function useElevation(authToken?: string) {
     const [elevationData, setElevationData] = useState<ElevationPoint[] | null>(null);
     const [loadingElevation, setLoadingElevation] = useState(false);
 
@@ -65,6 +65,7 @@ export function useElevation() {
                     headers: {
                         'content-type': 'application/json',
                         ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                        ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
                     },
                     body: JSON.stringify({
                         origin: originCoords ? originCoords : cleanFrom,
@@ -95,6 +96,7 @@ export function useElevation() {
                     headers: {
                         'content-type': 'application/json',
                         ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                        ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
                     },
                     body: JSON.stringify({ polyline, samples: 100 }),
                 });
@@ -160,7 +162,7 @@ export function useElevation() {
                 setElevationData(null);
             }
         })();
-    }, []);
+    }, [authToken]);
 
     const clearElevation = useCallback(() => {
         requestSeq.current += 1; // invalidate in-flight requests

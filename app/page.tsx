@@ -12,6 +12,7 @@ import TripMap from './components/TripMap';
 import StageSelector from './components/StageSelector';
 import ItineraryPanel from './components/ItineraryPanel';
 import ToastContainer from './components/ToastContainer';
+import { emitCenteredNotice } from './utils/centered-notice';
 import AdjustStageModal from './components/AdjustStageModal';
 import DebugTools from './components/DebugTools';
 import TripActionButtons from './components/TripActionButtons';
@@ -161,6 +162,7 @@ export default function Home() {
     directionsResponse,
     dailyItinerary: results.dailyItinerary,
     toggles,
+    trialMode,
     setSelectedDayIndex,
     setHoveredPlace: () => setHoveredPlace(null),
     setMapBounds,
@@ -182,6 +184,10 @@ export default function Home() {
   });
 
   const handleToggleWrapper = async (type: ServiceType) => {
+    if (trialMode) {
+      emitCenteredNotice(t('TRIAL_TOOLTIP_LOGIN'));
+      return;
+    }
     const day = selectedDayIndex !== null ? results.dailyItinerary?.[selectedDayIndex] : null;
     let coords: Coordinates | undefined = day?.coordinates || day?.startCoordinates;
     let coordsSource: 'day.coordinates' | 'day.startCoordinates' | 'geocode(day.to)' | 'map.center' | 'none' = 'none';
@@ -398,6 +404,7 @@ export default function Home() {
                     onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
                     minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
                   trialMode={trialMode}
+                  authToken={authToken ?? undefined}
                 />
               </div>
 
@@ -427,6 +434,8 @@ export default function Home() {
             currentDestination={results.dailyItinerary[adjustingDayIndex].to}
             onClose={closeAdjustModal}
             onConfirm={handleConfirmAdjust}
+            trialMode={trialMode}
+            trialMessage={t('TRIAL_TOOLTIP_LOGIN')}
           />
         )}
       </div>

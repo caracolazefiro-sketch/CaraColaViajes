@@ -11,6 +11,7 @@ import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconTrophy, IconGem, IconFlame, IconMapPin, IconStar, IconTrendingUp, IconDroplet, IconWind, WeatherIcon, IconAlertCircle } from '../lib/svgIcons';
 import { ServiceIcons } from './ServiceIcons';
 import { areasAcLabelForCode } from '../utils/areasacLegend';
+import { emitCenteredNotice } from '../utils/centered-notice';
 
 // Iconos
 const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>);
@@ -372,16 +373,23 @@ interface DaySpotsListProps {
     setSearchRadius?: (radius: number) => void;
     sortBy?: 'score' | 'distance' | 'rating';
     setSortBy?: (sort: 'score' | 'distance' | 'rating') => void;
+    trialMode?: boolean;
+    authToken?: string;
 }
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
-    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert, auditMode, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
+    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert, auditMode,
+    minRating = 0, setMinRating,
+    searchRadius = 50, setSearchRadius,
+    sortBy = 'score', setSortBy,
+    trialMode = false,
+    authToken,
 }) => {
     
     const rawCityName = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
     const endCoordsForWeather = day.coordinates ?? day.startCoordinates;
     const { routeWeather, weatherStatus } = useWeather(endCoordsForWeather, day.isoDate, day.startCoordinates);
-    const { elevationData, loadingElevation, calculateElevation, clearElevation } = useElevation();
+    const { elevationData, loadingElevation, calculateElevation, clearElevation } = useElevation(authToken);
     // 🔥 Ya NO creamos nuestro propio hook; usamos props recibidos de page.tsx
 
     const [showForm, setShowForm] = useState(false);
@@ -522,14 +530,18 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                         <button
                                             type="button"
                                             onMouseEnter={() => {
-                                                openElevationPopover();
+                                                    if (trialMode) {
+                                                        emitCenteredNotice(t('TRIAL_TOOLTIP_LOGIN'));
+                                                        return;
+                                                    }
+                                                    openElevationPopover();
                                                 const coords = day.coordinates ?? day.startCoordinates;
                                                 if (coords && !elevationData && !loadingElevation) {
                                                     calculateElevation(day.from, day.startCoordinates, coords, day.distance);
                                                 }
                                             }}
                                             onMouseLeave={closeElevationPopoverWithDelay}
-                                            disabled={loadingElevation || !(day.coordinates ?? day.startCoordinates)}
+                                                disabled={trialMode || loadingElevation || !(day.coordinates ?? day.startCoordinates)}
                                             className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
                                                 (day.coordinates ?? day.startCoordinates)
                                                     ? 'text-gray-500 hover:text-gray-700'

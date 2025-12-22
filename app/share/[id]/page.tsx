@@ -9,6 +9,7 @@ import { supabase } from '../../supabase';
 import { MARKER_ICONS } from '../../constants';
 import { PlaceWithDistance, DailyPlan, TripResult } from '../../types';
 import { getOrCreateClientId } from '../../utils/client-id';
+import { emitCenteredNotice } from '../../utils/centered-notice';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -96,17 +97,38 @@ export default function SharedTripPage() {
         return cleanData;
     };
 
-    const calculateRouteForMap = useCallback(async (formData: Record<string, string | number | boolean>, itinerary: DailyPlan[] | null) => {
+    const calculateRouteForMap = useCallback(async (formData: Record<string, string | number | boolean>, results: TripResult) => {
         const origin = String(formData.origen || '').trim();
         const destination = String(formData.destino || '').trim();
         if (!origin || !destination) return;
 
-        const waypoints = (itinerary || [])
+        const existingPolyline = typeof results?.overviewPolyline === 'string' ? results.overviewPolyline : null;
+        if (existingPolyline) {
+            const decoded = decodePolyline(existingPolyline);
+            setRoutePath(decoded);
+
+            if (typeof google !== 'undefined' && decoded.length) {
+                const b = new google.maps.LatLngBounds();
+                decoded.forEach((p) => b.extend(p));
+                setRouteBounds(b);
+            }
+            return;
+        }
+
+        const waypoints = (results.dailyItinerary || [])
             .filter((day: DailyPlan) => day.type === 'tactical')
             .map((day: DailyPlan) => day.coordinates)
             .filter((c): c is { lat: number; lng: number } => !!c && typeof c.lat === 'number' && typeof c.lng === 'number');
 
         try {
+            if (!supabase) return;
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                emitCenteredNotice('Inicia sesión para cargar la ruta en el mapa compartido.');
+                return;
+            }
+
             const clientId = getOrCreateClientId();
             const res = await fetch('/api/google/directions', {
                 method: 'POST',
@@ -166,7 +188,7 @@ export default function SharedTripPage() {
             setTrip(data);
             setLoading(false);
             
-            calculateRouteForMap(data.trip_data.formData, data.trip_data.results.dailyItinerary);
+            calculateRouteForMap(data.trip_data.formData, data.trip_data.results);
         };
 
         fetchTrip();

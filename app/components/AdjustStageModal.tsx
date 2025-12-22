@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IconX } from '../lib/svgIcons';
 import { getOrCreateClientId } from '../utils/client-id';
+import { emitCenteredNotice } from '../utils/centered-notice';
 
 interface AdjustStageModalProps {
     isOpen: boolean;
@@ -10,6 +11,8 @@ interface AdjustStageModalProps {
     currentDestination: string;
     onClose: () => void;
     onConfirm: (newDestination: string, newCoordinates: { lat: number; lng: number }) => void;
+    trialMode?: boolean;
+    trialMessage?: string;
 }
 
 export default function AdjustStageModal({
@@ -17,7 +20,9 @@ export default function AdjustStageModal({
     dayIndex,
     currentDestination,
     onClose,
-    onConfirm
+    onConfirm,
+    trialMode = false,
+    trialMessage = 'Modo prueba: inicia sesión para desbloquear esta función.',
 }: AdjustStageModalProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [isResolving, setIsResolving] = useState(false);
@@ -30,6 +35,10 @@ export default function AdjustStageModal({
     }, [isOpen]);
 
     const handleConfirm = () => {
+        if (trialMode) {
+            emitCenteredNotice(trialMessage);
+            return;
+        }
         const q = searchQuery.trim();
         if (!q) return;
 
@@ -110,6 +119,7 @@ export default function AdjustStageModal({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Busca una ciudad o lugar..."
+                            disabled={trialMode}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                         />
                         <p className="text-xs text-gray-500 mt-2">
@@ -128,7 +138,7 @@ export default function AdjustStageModal({
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={!searchQuery.trim() || isResolving}
+                        disabled={trialMode || !searchQuery.trim() || isResolving}
                         className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                     >
                         {isResolving ? 'Buscando…' : 'Confirmar'}
