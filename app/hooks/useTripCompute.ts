@@ -4,6 +4,7 @@ import type { TripFormData } from './useTripCalculator';
 import type { TripResult } from '../types';
 import { getDirectionsAndCost } from '../actions';
 import { normalizeForGoogle } from '../utils/googleNormalize';
+import { getOrCreateClientId } from '../utils/client-id';
 
 type ShowToast = (message: string, type?: ToastType) => void;
 
@@ -12,10 +13,12 @@ type UseTripComputeParams<TForm extends TripFormData & { tripName: string; etapa
   setFormData: React.Dispatch<React.SetStateAction<TForm>>;
   setResults: React.Dispatch<React.SetStateAction<TripResult>>;
   resetPlaces: () => void;
-  calculateRoute: (formData: TripFormData) => void;
+  setLoading: (v: boolean) => void;
+  setDirectionsResponse?: React.Dispatch<React.SetStateAction<google.maps.DirectionsResult | null>>;
   setApiTripId: (tripId: string) => void;
   resetUi: () => void;
   showToast: ShowToast;
+  authToken?: string | null;
 };
 
 const computeTripName = (formData: { tripName?: string; origen: string; destino: string; fechaInicio: string }) => {
@@ -31,10 +34,12 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
   setFormData,
   setResults,
   resetPlaces,
-  calculateRoute,
+  setLoading,
+  setDirectionsResponse,
   setApiTripId,
   resetUi,
   showToast,
+  authToken,
 }: UseTripComputeParams<TForm>) {
   const computeSeqRef = useRef(0);
 
@@ -55,10 +60,11 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
       resetUi();
       resetPlaces();
 
-      // 1) UI (cliente): DirectionsRenderer con A/B
-      calculateRoute(formData);
+      // UI: bloquear mientras calculamos (todo server-side)
+      setLoading(true);
+      setDirectionsResponse?.(null);
 
-      // 2) Logs/caché (servidor)
+      // Logs/caché (servidor)
       try {
         const normalizedWaypoints = (formData.etapas || '')
           .split('|')
@@ -66,9 +72,13 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
           .filter(Boolean)
           .map(normalizeForGoogle);
 
+        const clientId = getOrCreateClientId();
+
         const res = await getDirectionsAndCost({
           tripId: tripIdForLogs,
           tripName: tripNameForLogs,
+          clientId,
+          authToken: authToken || undefined,
           origin: normalizeForGoogle(formData.origen),
           destination: normalizeForGoogle(formData.destino),
           waypoints: normalizedWaypoints,
@@ -83,26 +93,43 @@ export function useTripCompute<TForm extends TripFormData & { tripName: string; 
 
         if (res.error) {
           showToast('Servidor: ' + res.error, 'error');
+          setResults((prev) => ({ ...prev, error: res.error || 'Error servidor' }));
         } else {
           // IMPORTANT: Update UI with server itinerary (includes durationMin/startCoordinates/overviewPolyline)
           const serverItinerary = res.dailyItinerary;
-          if (serverItinerary?.length) {
-            setResults((prev) => ({
-              ...prev,
-              dailyItinerary: serverItinerary,
-              overviewPolyline: res.overviewPolyline ?? prev.overviewPolyline ?? null,
-              totalDays: serverItinerary.length,
-            }));
-          }
+          const distanceKmMetric = typeof res.distanceKm === 'number' && Number.isFinite(res.distanceKm) ? res.distanceKm : null;
+          const distanceForCalc = distanceKmMetric ?? (serverItinerary?.reduce((sum, d) => sum + (d?.distance || 0), 0) ?? 0);
+
+          // Keep legacy behavior: distanceKm/liters/totalCost are "user unit" derived via converter elsewhere.
+          const distanceUserUnit = distanceForCalc;
+          const litersUserUnit = (distanceUserUnit / 100) * (formData.consumo || 0);
+          const costUserUnit = litersUserUnit * (formData.precioGasoil || 0);
+
+          setResults((prev) => ({
+            ...prev,
+            error: null,
+            dailyItinerary: serverItinerary ?? prev.dailyItinerary,
+            overviewPolyline: res.overviewPolyline ?? prev.overviewPolyline ?? null,
+            totalDays: serverItinerary?.length ?? prev.totalDays,
+            distanceKm: distanceUserUnit,
+            liters: litersUserUnit,
+            totalCost: costUserUnit,
+          }));
+
           showToast('Ruta calculada y logs enviados', 'success');
         }
       } catch (err) {
         if (computeSeqRef.current !== seq) return;
         showToast('Error generando logs (servidor)', 'error');
         console.error(err);
+        setResults((prev) => ({ ...prev, error: 'Error generando logs (servidor)' }));
+      } finally {
+        if (computeSeqRef.current === seq) {
+          setLoading(false);
+        }
       }
     },
-    [calculateRoute, formData, resetPlaces, resetUi, setApiTripId, setFormData, setResults, showToast]
+    [formData, resetPlaces, resetUi, setApiTripId, setDirectionsResponse, setFormData, setLoading, setResults, showToast, authToken]
   );
 
   return { handleCalculateAll };

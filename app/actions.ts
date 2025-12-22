@@ -6,6 +6,7 @@ import { getCachedCityName, setCachedCityName } from './motor-bueno/geocoding-ca
 // 🔍 API Logger para tracking de llamadas
 import { apiLogger } from './utils/api-logger';
 import { logApiToSupabase } from './utils/server-logs';
+import { supabaseServer } from './utils/supabase-server';
 import {
     getGeocodingCache,
     makeGeocodingCacheKey,
@@ -49,6 +50,8 @@ interface DirectionsRequest {
     fechaRegreso: string;
     tripName?: string;
     tripId?: string;
+    clientId?: string;
+    authToken?: string;
 }
 
 interface DirectionsResult {
@@ -126,12 +129,75 @@ type CityNameContext = {
     tripId?: string;
     attempt?: number;
     purpose?: 'tactical-stop' | 'general';
+    clientId?: string;
 };
+
+async function isRateLimitedServerAction(params: {
+    api: string;
+    routeTag: string;
+    clientId?: string;
+    tripId?: string;
+    limitPerMinute: number;
+}): Promise<{ limited: boolean; reason?: string }> {
+    if (!supabaseServer) return { limited: false };
+
+    const sinceIso = new Date(Date.now() - 60_000).toISOString();
+
+    const clientId = params.clientId || undefined;
+    const tripId = params.tripId || undefined;
+
+    let q = supabaseServer
+        .from('api_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('api', params.api)
+        .gte('created_at', sinceIso)
+        .filter('request->>route', 'eq', params.routeTag);
+
+    if (clientId) {
+        q = q.filter('request->>client_id', 'eq', clientId);
+    } else if (tripId) {
+        q = q.eq('trip_id', tripId);
+    } else {
+        return { limited: false };
+    }
+
+    const { count, error } = await q;
+    if (error) return { limited: false };
+    if ((count ?? 0) >= params.limitPerMinute) {
+        return { limited: true, reason: `rate-limit ${params.limitPerMinute}/min` };
+    }
+    return { limited: false };
+}
+
+async function getAuthUserIdFromToken(token?: string): Promise<string | undefined> {
+    try {
+        if (!token || !supabaseServer) return undefined;
+        const { data, error } = await supabaseServer.auth.getUser(token);
+        if (error) return undefined;
+        return data?.user?.id || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function diffDaysInclusive(startIso: string, endIso: string): number | null {
+    try {
+        const start = new Date(startIso);
+        const end = new Date(endIso);
+        if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return null;
+        const ms = end.getTime() - start.getTime();
+        const days = Math.floor(ms / 86_400_000) + 1;
+        return days;
+    } catch {
+        return null;
+    }
+}
 
 async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, ctx?: CityNameContext): Promise<string> {
     const attempt = ctx?.attempt ?? 1;
     const tripId = ctx?.tripId;
     const purpose = ctx?.purpose;
+    const clientId = ctx?.clientId;
 
     // Cache más agresiva SOLO para paradas tácticas (puntos que se mueven ligeramente entre rutas).
     // Default: 3 decimales (~110m). Puede configurarse vía env si se quiere aún más hit-rate.
@@ -159,7 +225,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
                 duration_ms: 0,
                 cost: 0,
                 cached: true,
-                request: { lat, lng, cache: { provider: 'supabase', key: geoKey.key } },
+                request: { lat, lng, client_id: clientId, route: 'server-action:getCityNameFromCoords', purpose, cache: { provider: 'supabase', key: geoKey.key } },
                 response: {
                     status: 'CACHE_HIT_SUPABASE',
                     cityName: sbCache.cityName,
@@ -186,7 +252,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
                 duration_ms: 0,
                 cost: 0,
                 cached: true,
-                request: { lat, lng, cache: { provider: 'local-file' } },
+                request: { lat, lng, client_id: clientId, route: 'server-action:getCityNameFromCoords', purpose, cache: { provider: 'local-file' } },
                 response: { status: 'CACHE_HIT', cityName: cachedName, cache: { provider: 'local-file' }, cacheWrite: { provider: 'supabase', action: 'none' } }
             });
             return cachedName;
@@ -194,6 +260,42 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
 
         // ❌ MISS: Si no está en caché, llamar a Google API
         const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&result_type=locality|administrative_area_level_2&key=${apiKey}&language=es`;
+
+        // Freno por ritmo (solo cuando vamos a llamar a Google Geocoding)
+        const limitPerMinute = (() => {
+            const raw = process.env.GEOCODING_SERVER_ACTION_LIMIT_PER_MINUTE;
+            const parsed = raw ? Number(raw) : NaN;
+            return Number.isFinite(parsed) ? Math.max(1, Math.round(parsed)) : 60;
+        })();
+
+        const rl = await isRateLimitedServerAction({
+            api: 'google-geocoding',
+            routeTag: 'server-action:getCityNameFromCoords',
+            clientId,
+            tripId,
+            limitPerMinute,
+        });
+
+        if (rl.limited) {
+            const fallback = purpose === 'tactical-stop'
+                ? `Parada Táctica (${lat.toFixed(2)}, ${lng.toFixed(2)})`
+                : `Punto en Ruta (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+
+            await logApiToSupabase({
+                trip_id: tripId,
+                api: 'google-geocoding',
+                method: 'GET',
+                url: geocodeUrl,
+                status: 'RATE_LIMITED',
+                duration_ms: 0,
+                cost: 0,
+                cached: false,
+                request: { lat, lng, client_id: clientId, route: 'server-action:getCityNameFromCoords', purpose },
+                response: { status: 'RATE_LIMITED', reason: rl.reason, limitPerMinute, fallback },
+            });
+
+            return fallback;
+        }
 
         // 🔍 Timing de Geocoding API
         const geocodeStartTime = performance.now();
@@ -204,7 +306,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
 
         if (data.status === 'OVER_QUERY_LIMIT' && attempt <= 3) {
             await sleep(1000 * attempt);
-            return getCityNameFromCoords(lat, lng, apiKey, { tripId, attempt: attempt + 1, purpose });
+            return getCityNameFromCoords(lat, lng, apiKey, { tripId, attempt: attempt + 1, purpose, clientId });
         }
 
         if (data.status === 'OK' && data.results?.[0]) {
@@ -267,7 +369,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
                 duration_ms: Math.round(geocodeDuration),
                 cost: 0.005,
                 cached: false,
-                request: { lat, lng, cache: reqCache },
+                request: { lat, lng, client_id: clientId, route: 'server-action:getCityNameFromCoords', purpose, cache: reqCache },
                 response: {
                     status: data.status,
                     resultsCount: data.results?.length || 0,
@@ -289,7 +391,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
             duration_ms: Math.round(geocodeDuration),
             cost: 0.005,
             cached: false,
-            request: { lat, lng },
+            request: { lat, lng, client_id: clientId, route: 'server-action:getCityNameFromCoords', purpose },
             response: { status: data?.status, resultsCount: data?.results?.length || 0 }
         });
     } catch (e) { console.error("Geocode error", e); }
@@ -297,7 +399,7 @@ async function getCityNameFromCoords(lat: number, lng: number, apiKey: string, c
 }
 
 // Post-procesamiento: Segmentar etapas > maxKmPerDay usando interpolación + reverse geocoding
-async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string, tripId?: string): Promise<DailyPlan[]> {
+async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number, apiKey: string, tripId?: string, clientId?: string): Promise<DailyPlan[]> {
     // Tolerancia dinámica para evitar segmentar por diferencias mínimas (redondeos/variaciones de ruta).
     // Regla: ~10% del kmMaximoDia con cap 50km. Ej: 100→10, 200→20, 300→30, 400→40, 500+→50.
     const SEGMENTATION_DISTANCE_TOLERANCE_KM = Math.min(50, Math.max(10, Math.round(maxKmPerDay * 0.1)));
@@ -334,7 +436,7 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
 
                     // Obtener nombre real de la ciudad en ese punto
                     await sleep(100);
-                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey, { tripId, purpose: 'tactical-stop' });
+                    const cityName = await getCityNameFromCoords(intermediateCoords.lat, intermediateCoords.lng, apiKey, { tripId, purpose: 'tactical-stop', clientId });
                     segmentEndName = cityName;
                     segmentEndCoords = intermediateCoords;
                 }
@@ -374,6 +476,11 @@ async function postSegmentItinerary(itinerary: DailyPlan[], maxKmPerDay: number,
 export async function getDirectionsAndCost(data: DirectionsRequest): Promise<DirectionsResult> {
 
     const debugLog: string[] = [];
+    const clientId = data.clientId;
+    const routeTag = 'server-action:getDirectionsAndCost';
+
+    const authUserId = await getAuthUserIdFromToken(data.authToken);
+    const isLoggedIn = Boolean(authUserId);
 
     // 🔍 Iniciar tracking de viaje
     const tripId = apiLogger.startTrip(data.origin, data.destination, data.waypoints, data.tripId);
@@ -406,6 +513,23 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
     // Normalizar TODOS los waypoints (incluyendo paradas tácticas)
     // Google las trata como waypoints normales y genera rutas correctas
     const normalizedWaypoints = data.waypoints.map(w => normalizeForGoogle(w));
+
+    // Control absoluto (modo prueba): límites ANTES de llamar a Google
+    if (!isLoggedIn) {
+        const waypointsCount = normalizedWaypoints.filter(Boolean).length;
+        if (waypointsCount > 2) {
+            apiLogger.endTrip();
+            return { error: 'Modo prueba: máximo 2 paradas intermedias. Inicia sesión para desbloquear más.', debugLog };
+        }
+
+        if (data.fechaRegreso) {
+            const days = diffDaysInclusive(data.fechaInicio, data.fechaRegreso);
+            if (typeof days === 'number' && Number.isFinite(days) && days > 10) {
+                apiLogger.endTrip();
+                return { error: 'Modo prueba: máximo 10 días de duración. Inicia sesión para desbloquear más.', debugLog };
+            }
+        }
+    }
 
     const allStops = [data.origin, ...data.waypoints.filter(w => w), data.destination];
     const waypointsParam = normalizedWaypoints.length > 0 ? `&waypoints=${normalizedWaypoints.map(w => encodeURIComponent(w)).join('|')}` : '';
@@ -441,6 +565,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                 cached: true,
                 request: {
                     tripName: data.tripName,
+                    client_id: clientId,
+                    route: routeTag,
+                    user_id: authUserId,
                     origin: data.origin,
                     destination: data.destination,
                     waypoints: data.waypoints,
@@ -576,7 +703,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
                                 }
 
                                 await sleep(200);
-                                const stopName = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId, purpose: 'tactical-stop' });
+                                const stopName = await getCityNameFromCoords(stopCoords.lat, stopCoords.lng, apiKey, { tripId, purpose: 'tactical-stop', clientId });
 
                                 const realDistance = maxMeters / 1000;
                                 const realDurationMin = Math.max(0, Math.round(dayAccumulatorSeconds / 60));
@@ -734,7 +861,12 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             }
 
             debugLog.push(`\n📊 Itinerario ANTES de post-segmentación: ${dailyItinerary.length} días`);
-            const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey, tripId);
+            const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey, tripId, clientId);
+
+            if (!isLoggedIn && segmentedItinerary.length > 10) {
+                apiLogger.endTrip();
+                return { error: 'Modo prueba: el itinerario supera 10 días. Inicia sesión para desbloquear más.', debugLog };
+            }
             debugLog.push(`📊 Itinerario DESPUÉS de post-segmentación: ${segmentedItinerary.length} días`);
             segmentedItinerary.forEach((day) => {
                 debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);
@@ -753,6 +885,54 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
             const overviewPolyline = route?.overview_polyline?.points;
             return { distanceKm, mapUrl, overviewPolyline, dailyItinerary: segmentedItinerary, debugLog };
+        }
+
+        // Freno por ritmo (solo para MISS: cuando vamos a llamar a Google Directions)
+        const limitPerMinute = (() => {
+            const raw = process.env.DIRECTIONS_SERVER_ACTION_LIMIT_PER_MINUTE;
+            const parsed = raw ? Number(raw) : NaN;
+            return Number.isFinite(parsed) ? Math.max(1, Math.round(parsed)) : 12;
+        })();
+
+        const rl = await isRateLimitedServerAction({
+            api: 'google-directions',
+            routeTag,
+            clientId,
+            tripId: data.tripId,
+            limitPerMinute,
+        });
+
+        if (rl.limited) {
+            debugLog.push(`⛔ Rate limited: ${rl.reason || 'limited'}`);
+
+            await logApiToSupabase({
+                trip_id: tripId,
+                api: 'google-directions',
+                method: 'GET',
+                url: `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(normalizedOrigin)}&destination=${encodeURIComponent(normalizedDestination)}&mode=${data.travel_mode}${waypointsParam}`,
+                status: 'RATE_LIMITED',
+                duration_ms: 0,
+                cost: 0,
+                cached: false,
+                request: {
+                    tripName: data.tripName,
+                    client_id: clientId,
+                    route: routeTag,
+                    user_id: authUserId,
+                    origin: data.origin,
+                    destination: data.destination,
+                    waypoints: data.waypoints,
+                    cache: { provider: 'supabase', key: directionsKey.key, hit: false },
+                },
+                response: {
+                    status: 'RATE_LIMITED',
+                    reason: rl.reason,
+                    limitPerMinute,
+                }
+            });
+
+            apiLogger.endTrip();
+            return { error: `Rate limited (${limitPerMinute}/min). Espera 1 minuto y reintenta.`, debugLog };
         }
 
         // 🔍 Log de Directions API con timing
@@ -819,6 +999,9 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
             cached: false,
             request: {
                 tripName: data.tripName,
+                client_id: clientId,
+                route: routeTag,
+                user_id: authUserId,
                 origin: data.origin,
                 destination: data.destination,
                 waypoints: data.waypoints,
@@ -1110,7 +1293,7 @@ export async function getDirectionsAndCost(data: DirectionsRequest): Promise<Dir
 
         // POST-PROCESAMIENTO: Segmentar etapas > 300km/día
         debugLog.push(`\n📊 Itinerario ANTES de post-segmentación: ${dailyItinerary.length} días`);
-        const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey, tripId);
+            const segmentedItinerary = await postSegmentItinerary(dailyItinerary, data.kmMaximoDia, apiKey, tripId, clientId);
         debugLog.push(`📊 Itinerario DESPUÉS de post-segmentación: ${segmentedItinerary.length} días`);
         segmentedItinerary.forEach((day) => {
             debugLog.push(`  Día ${day.day}: ${day.from} → ${day.to} (${Math.round(day.distance)} km)`);

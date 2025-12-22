@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Coordinates, PlaceWithDistance, ServiceType } from '../types';
+import { getOrCreateClientId } from '../utils/client-id';
 
 type Supercat = 1 | 2 | 3 | 4;
 
@@ -22,7 +23,8 @@ export function useTripPlaces(
     map: google.maps.Map | null,
     tripId?: string | null,
     tripName?: string,
-    searchRadiusKm: number = 10
+    searchRadiusKm: number = 10,
+    authToken?: string | null
 ) {
     // Opción A: el slider global llega a 25km, pero cada bloque/tipo tiene su tope interno.
     const RADIUS_CAPS_KM = useMemo(
@@ -205,20 +207,16 @@ export function useTripPlaces(
     }, [haversineDistanceM]);
 
     const toPhotoUrl = useCallback((p: ServerPlace): string | undefined => {
-        const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-        if (!key) return undefined;
-
         // Legacy Places Photos: photo_reference (used by NearbySearch legacy JSON)
         const ref = p.photos?.[0]?.photo_reference;
         if (ref) {
-            return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${encodeURIComponent(ref)}&key=${encodeURIComponent(key)}`;
+            return `/api/google/place-photo?ref=${encodeURIComponent(ref)}&maxwidth=400`;
         }
 
         // Places API (New) photos: photo resource name (places/..../photos/..)
         const photoName = p.photoName;
         if (photoName) {
-            // Use the public key (NEXT_PUBLIC_*) so we don't leak server-only keys to the client.
-            return `https://places.googleapis.com/v1/${encodeURI(photoName)}/media?maxWidthPx=400&maxHeightPx=400&key=${encodeURIComponent(key)}`;
+            return `/api/google/place-photo?name=${encodeURIComponent(photoName)}&maxwidth=400&maxheight=400`;
         }
 
         return undefined;
@@ -246,9 +244,14 @@ export function useTripPlaces(
 
     const fetchSupercat = useCallback(async (supercat: Supercat, center: Coordinates, radiusMeters: number, signal?: AbortSignal) => {
         const radius = Math.max(1000, Math.min(50000, Math.round(radiusMeters)));
+        const clientId = getOrCreateClientId();
         const res = await fetch('/api/places-supercat', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: {
+                'content-type': 'application/json',
+                ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+            },
             body: JSON.stringify({
                 tripId: tripId || undefined,
                 tripName: tripName || undefined,
@@ -268,234 +271,59 @@ export function useTripPlaces(
             supercat: Supercat;
             categories: Record<string, ServerPlace[]>;
         };
-    }, [tripId, tripName]);
+    }, [authToken, tripId, tripName]);
 
     // BÚSQUEDA ESTÁNDAR (Categorías)
+    // Control absoluto: NO usar PlacesService/Autocomplete en cliente. Todo va por /api/places-supercat.
     const searchPlaces = useCallback((location: Coordinates, type: ServiceType) => {
-        if (!map || typeof google === 'undefined') return;
-        if (type === 'custom' || type === 'search' || type === 'found') return; // 'search' y 'found' van por otro lado
+        if (type === 'custom' || type === 'search' || type === 'found') return;
 
         const seq = (requestSeqByTypeRef.current[type] || 0) + 1;
         requestSeqByTypeRef.current[type] = seq;
 
-        // 1. GENERAR CLAVE DE CACHÉ
-        // Redondeamos coords para que pequeños movimientos no invaliden la caché innecesariamente
         const radiusMeters = effectiveRadiusMetersForType(type);
         const cacheKey = `${type}_${location.lat.toFixed(4)}_${location.lng.toFixed(4)}_r${radiusMeters}`;
 
-        // 2. VERIFICAR SI YA PAGAMOS POR ESTO
         if (placesCache.current[cacheKey]) {
-            // console.log("💰 Ahorro: Recuperando de caché", cacheKey);
-            setPlaces(prev => ({...prev, [type]: placesCache.current[cacheKey]}));
+            setPlaces(prev => ({ ...prev, [type]: placesCache.current[cacheKey] }));
             return;
         }
 
-        const service = new google.maps.places.PlacesService(map);
-        const centerPoint = new google.maps.LatLng(location.lat, location.lng);
-        let placeType = '';
-        let radius = radiusMeters;
-        let useKeyword = false; // Para búsquedas que requieren keyword en lugar de type
-        let searchKeyword = '';
+        const supercat: Supercat =
+            type === 'camping'
+                ? 1
+                : type === 'restaurant' || type === 'supermarket'
+                    ? 2
+                    : type === 'gas' || type === 'laundry'
+                        ? 3
+                        : 4;
 
-        switch(type) {
-            case 'camping': 
-                // Camping (solo camping). El Combo 1 se resuelve por searchComboCampingRestaurantSuper.
-                placeType = 'campground'; 
-                radius = radiusMeters;
-                useKeyword = true;
-                searchKeyword = 'camping OR "área de autocaravanas" OR "RV park" OR "motorhome area" OR pernocta OR "area camper" OR "área camper"';
-                break;
-            case 'restaurant':
-                // COMBO 1: normalmente viene por supercat server-side.
-                // Fallback cliente: keyword suele ser más robusto que `type` en algunos entornos.
-                radius = radiusMeters;
-                useKeyword = true;
-                searchKeyword = 'restaurant OR restaurante OR bar OR "fast food" OR comida OR "cafe" OR "cafetería" OR "cafeteria"';
-                break;
-            case 'supermarket':
-                // COMBO 1: normalmente viene por supercat server-side.
-                // Fallback cliente: keyword (type legacy puede devolver INVALID_REQUEST o 0 según proyecto).
-                radius = radiusMeters;
-                useKeyword = true;
-                searchKeyword = 'supermarket OR supermercado OR "grocery store" OR groceries OR "tienda de alimentación"';
-                break;
-            case 'gas': placeType = 'gas_station'; radius = radiusMeters; break;
-            case 'laundry': 
-                // COMBO 2: gas + laundry + tourism (bilingüe)
-                placeType = 'laundry'; 
-                radius = radiusMeters;
-                useKeyword = true;
-                searchKeyword = 'laundry OR "self-service laundry" OR "lavandería autoservicio"';
-                break;
-            case 'tourism':
-                // COMBO 2: normalmente viene por supercat server-side.
-                // Fallback cliente: búsqueda individual por tipo + keyword amplia.
-                placeType = 'tourist_attraction';
-                radius = radiusMeters;
-                useKeyword = true;
-                searchKeyword = 'tourist attraction OR museum OR parque OR park OR mirador OR viewpoint OR monument OR landmark';
-                break;
-        }
+        setLoadingPlaces(prev => ({ ...prev, [type]: true }));
 
-        setLoadingPlaces(prev => ({...prev, [type]: true}));
-        
-        console.log(`🔍 [${type}] Búsqueda iniciada:`, {
-            location: `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`,
-            radius: `${radius}m (${(radius/1000).toFixed(1)}km)`,
-            type: placeType,
-            keyword: useKeyword ? searchKeyword : 'N/A'
-        });
-        
-        const searchRequest: google.maps.places.PlaceSearchRequest = {
-            location: centerPoint,
-            radius,
-            ...(useKeyword ? { keyword: searchKeyword } : { type: placeType })
-        };
-        
-        service.nearbySearch(searchRequest, (res, status) => {
-            if (!isMountedRef.current) return;
-            if (requestSeqByTypeRef.current[type] !== seq) return;
-
+        (async () => {
             try {
-                setLoadingPlaces(prev => ({...prev, [type]: false}));
-                
-                console.log(`📊 [${type}] Respuesta de Google:`, {
-                    status,
-                    resultadosBrutos: res?.length || 0
-                });
-                
-                let finalSpots: PlaceWithDistance[] = [];
+                const data = await fetchSupercat(supercat, location, radiusMeters);
+                if (!isMountedRef.current) return;
+                if (requestSeqByTypeRef.current[type] !== seq) return;
 
-                if (status === google.maps.places.PlacesServiceStatus.OK && res) {
-                    let spots = res.map(spot => {
-                        let dist = 999999;
-                        if (spot.geometry?.location) {
-                            const loc = { lat: spot.geometry.location.lat(), lng: spot.geometry.location.lng() };
-                            dist = distanceFromCenter(location, loc);
-                        }
-                        
-                        // Obtener URL de foto
-                        let photoUrl: string | undefined;
-                        if (spot.photos && spot.photos.length > 0) {
-                            try {
-                                photoUrl = spot.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                            } catch (e) {
-                                console.warn(`[${type}] Error getting photo URL for`, spot.name, ':', e);
-                            }
-                        }
-                        
-                        // Convertir geometry de Google Maps a nuestro formato
-                        const geometry = spot.geometry?.location ? {
-                            location: {
-                                lat: spot.geometry.location.lat(),
-                                lng: spot.geometry.location.lng()
-                            }
-                        } : undefined;
-                        return { name: spot.name, rating: spot.rating, vicinity: spot.vicinity, place_id: spot.place_id, geometry, distanceFromCenter: dist, type, opening_hours: spot.opening_hours as PlaceWithDistance['opening_hours'], user_ratings_total: spot.user_ratings_total, photoUrl, types: spot.types };
-                    });
-                // Filtros del Portero
-                const rechazados: {name: string, types: string[], razon: string}[] = [];
-                spots = spots.filter(spot => {
-                    const tags = spot.types || [];
-                    let pasa = true;
-                    let razon = '';
-                    
-                    if (type === 'camping') { // COMBO 1: camping + restaurant + supermarket
-                        // Filtro estricto: debe ser campground/rv_park Y NO ser tienda/ferretería
-                        const esCamping = tags.includes('campground') || tags.includes('rv_park') || (tags.includes('parking') && /camping|area|camper|autocaravana/i.test(spot.name || ''));
-                        const esTienda = tags.includes('hardware_store') || tags.includes('store') || tags.includes('locksmith') || tags.includes('clothing_store') || tags.includes('sporting_goods_store') || tags.includes('shopping_mall');
-                        pasa = esCamping && !esTienda;
-                        if (!pasa) {
-                            if (esTienda) razon = 'Es tienda/ferretería, no camping real';
-                            else razon = 'No es campground, rv_park ni parking con nombre camping/autocaravana';
-                        }
-                    } else if (type === 'gas') { // COMBO 2: gas + laundry + tourism
-                        pasa = tags.includes('gas_station');
-                        if (!pasa) razon = 'No tiene tag gas_station';
-                    } else if (type === 'laundry') { // Filtro secundario para combo 2
-                        pasa = tags.includes('laundry') && !tags.includes('lodging');
-                        if (!pasa) razon = tags.includes('laundry') ? 'Es lodging (hotel con lavandería)' : 'No tiene tag laundry';
-                    } else if (type === 'tourism') { // Filtro secundario para combo 2
-                        pasa = tags.includes('tourist_attraction') || tags.includes('museum') || tags.includes('park') || tags.includes('point_of_interest');
-                        if (!pasa) razon = 'No es atracción turística reconocida';
-                    } else if (type === 'restaurant') {
-                        // Filtro básico: evitar cosas claramente no-comida
-                        pasa = tags.includes('restaurant') || tags.includes('meal_takeaway') || tags.includes('meal_delivery') || /restaurant|restaurante|bar|caf(e|é)|pizzeria/i.test(spot.name || '');
-                        if (!pasa) razon = 'No parece restaurante (tags/nombre)';
-                    } else if (type === 'supermarket') {
-                        pasa = tags.includes('grocery_or_supermarket') || tags.includes('supermarket') || tags.includes('store');
-                        if (!pasa) razon = 'No parece supermercado (tags)';
-                    }
-                    
-                    if (!pasa) {
-                        rechazados.push({ name: spot.name || 'Sin nombre', types: tags, razon });
-                    }
-                    
-                    return pasa;
-                });
-                
-                const filtrados = res.length - spots.length;
-                console.log(`🚫 [${type}] Filtrado del Portero:`, {
-                    recibidos: res.length,
-                    rechazados: filtrados,
-                    aceptados: spots.length,
-                    porcentajeRechazo: `${((filtrados/res.length)*100).toFixed(1)}%`
-                });
-                
-                if (rechazados.length > 0) {
-                    console.log(`📋 [${type}] Primeros rechazados (máx 5):`, rechazados.slice(0, 5));
-                }
-                
-                // Calcular score para cada lugar
-                const spotsWithScore = spots.map(spot => {
-                    const dist = spot.distanceFromCenter || 999999;
-                    const rating = spot.rating || 0;
-                    const reviews = spot.user_ratings_total || 0;
-                    // Usar optional chaining sin acceder a open_now deprecado
-                    
-                    // Score de distancia (40%): exponencial, mejor cerca
-                    const distanceScore = Math.max(0, 100 * Math.exp(-dist / 5000)); // Decae rápido después de 5km
-                    
-                    // Score de rating (30%): lineal sobre 5
-                    const ratingScore = rating > 0 ? (rating / 5) * 100 : 50; // Sin rating = penalización a 50
-                    
-                    // Score de reviews (20%): logarítmico
-                    const reviewsScore = reviews > 0 ? Math.min(100, Math.log10(reviews + 1) * 50) : 25;
-                    
-                    // Score de disponibilidad (10%) - neutral por defecto al no usar API deprecada
-                    const openScore = 75; // Valor neutral al no tener info de apertura
-                    
-                    const totalScore = Math.round(
-                        distanceScore * 0.4 + 
-                        ratingScore * 0.3 + 
-                        reviewsScore * 0.2 + 
-                        openScore * 0.1
-                    );
-                    
-                    return { ...spot, score: totalScore };
-                });
-                
-                // Ordenar por score en lugar de solo distancia
-                    finalSpots = spotsWithScore.sort((a, b) => (b.score || 0) - (a.score || 0));
-                } else {
-                    console.warn(`❌ [${type}] Sin resultados:`, status);
-                } 
-                
-                // 3. GUARDAR RESULTADO EN CACHÉ (Incluso si está vacío, para no reintentar a lo tonto)
-                placesCache.current[cacheKey] = finalSpots;
-                setPlaces(prev => ({...prev, [type]: finalSpots}));
-                
-                console.log(`✅ [${type}] Búsqueda completada:`, {
-                    resultadosFinales: finalSpots.length,
-                    cacheKey
-                });
-            } catch (err) {
-                console.error(`❌ [${type}] Error procesando respuesta nearbySearch:`, err);
-                setLoadingPlaces(prev => ({ ...prev, [type]: false }));
+                const raw = (data.categories[type] || []) as ServerPlace[];
+                const list = raw.map(p => toPlace(location, type, p));
+
+                placesCache.current[cacheKey] = list;
+                setPlaces(prev => ({ ...prev, [type]: list }));
+            } catch (e) {
+                console.error(`❌ [${type}] places-supercat fallback failed:`, e);
+                if (!isMountedRef.current) return;
+                if (requestSeqByTypeRef.current[type] !== seq) return;
+                placesCache.current[cacheKey] = [];
                 setPlaces(prev => ({ ...prev, [type]: [] }));
+            } finally {
+                if (isMountedRef.current && requestSeqByTypeRef.current[type] === seq) {
+                    setLoadingPlaces(prev => ({ ...prev, [type]: false }));
+                }
             }
-        });
-    }, [map, distanceFromCenter, effectiveRadiusMetersForType]);
+        })();
+    }, [effectiveRadiusMetersForType, fetchSupercat, toPlace]);
 
     // --- SOLUCIÓN AGRESIVA: 4 llamadas deterministas (1 request por bloque) ---
 

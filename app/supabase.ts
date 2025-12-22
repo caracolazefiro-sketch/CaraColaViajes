@@ -1,4 +1,5 @@
 // app/supabase.ts
+// Client-side Supabase (anon key). Keep server-only service role client OUT of this module.
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase is optional - only create client if env vars are provided
@@ -15,15 +16,6 @@ function isValidHttpUrl(u: string | null | undefined): boolean {
   }
 }
 
-// Server-side: prefer private URL and service role key when available
-const supabaseUrlServer = process.env.SUPABASE_URL || supabaseUrlPublic || null;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
-
 export const supabase = (isValidHttpUrl(supabaseUrlPublic) && !!supabaseAnonKey)
   ? createClient(supabaseUrlPublic as string, supabaseAnonKey as string)
-  : null;
-
-// Server-only client (bypasses RLS via service role). DO NOT expose to client.
-export const supabaseServer = (isValidHttpUrl(supabaseUrlServer) && !!supabaseServiceRoleKey)
-  ? createClient(supabaseUrlServer as string, supabaseServiceRoleKey as string)
   : null;

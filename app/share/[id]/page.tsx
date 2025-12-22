@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
 // Importamos desde dos niveles arriba (../../)
 import { supabase } from '../../supabase'; 
 import { MARKER_ICONS } from '../../constants';
 import { PlaceWithDistance, DailyPlan, TripResult } from '../../types';
+import { getOrCreateClientId } from '../../utils/client-id';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -15,6 +16,38 @@ const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
 // Icono Copiar
 const IconCopy = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>);
+
+const decodePolyline = (encoded: string): Array<{ lat: number; lng: number }> => {
+    const poly: Array<{ lat: number; lng: number }> = [];
+    let index = 0;
+    let lat = 0;
+    let lng = 0;
+    while (index < encoded.length) {
+        let b = 0;
+        let shift = 0;
+        let result = 0;
+        do {
+            b = encoded.charCodeAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        const dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
+        lat += dlat;
+
+        shift = 0;
+        result = 0;
+        do {
+            b = encoded.charCodeAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        const dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
+        lng += dlng;
+
+        poly.push({ lat: lat / 1e5, lng: lng / 1e5 });
+    }
+    return poly;
+};
 
 export default function SharedTripPage() {
     const params = useParams(); 
@@ -38,7 +71,9 @@ export default function SharedTripPage() {
     const [trip, setTrip] = useState<SharedTrip>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null);
+    const [routePath, setRoutePath] = useState<Array<{ lat: number; lng: number }> | null>(null);
+    const [routeBounds, setRouteBounds] = useState<google.maps.LatLngBounds | null>(null);
+    const [map, setMap] = useState<google.maps.Map | null>(null);
     const [activeDay, setActiveDay] = useState<number | null>(null);
     const [hoveredPlace, setHoveredPlace] = useState<PlaceWithDistance | null>(null);
 
@@ -61,24 +96,52 @@ export default function SharedTripPage() {
         return cleanData;
     };
 
-    const calculateRouteForMap = async (formData: Record<string, string | number | boolean>, itinerary: DailyPlan[] | null) => {
-        if (typeof google === 'undefined') return;
-        const directionsService = new google.maps.DirectionsService();
+    const calculateRouteForMap = useCallback(async (formData: Record<string, string | number | boolean>, itinerary: DailyPlan[] | null) => {
+        const origin = String(formData.origen || '').trim();
+        const destination = String(formData.destino || '').trim();
+        if (!origin || !destination) return;
+
         const waypoints = (itinerary || [])
             .filter((day: DailyPlan) => day.type === 'tactical')
-            .map((day: DailyPlan) => ({ location: day.coordinates, stopover: true }));
+            .map((day: DailyPlan) => day.coordinates)
+            .filter((c): c is { lat: number; lng: number } => !!c && typeof c.lat === 'number' && typeof c.lng === 'number');
 
         try {
-            const result = await directionsService.route({
-                origin: formData.origen as string,
-                destination: formData.destino as string,
-                waypoints: waypoints,
-                travelMode: google.maps.TravelMode.DRIVING,
-                avoidTolls: formData.evitarPeajes as boolean,
+            const clientId = getOrCreateClientId();
+            const res = await fetch('/api/google/directions', {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                },
+                body: JSON.stringify({
+                    origin,
+                    destination,
+                    waypoints,
+                    travelMode: 'driving',
+                    avoidTolls: Boolean(formData.evitarPeajes),
+                    language: 'es',
+                    tripId: params.id ? `share-${params.id}` : undefined,
+                }),
             });
-            setDirectionsResponse(result);
-        } catch (e: unknown) { console.error("Error mapa share", e); }
-    };
+
+            if (!res.ok) return;
+            const json = await res.json();
+            const poly = typeof json?.overviewPolyline === 'string' ? json.overviewPolyline : null;
+            if (!poly) return;
+
+            const decoded = decodePolyline(poly);
+            setRoutePath(decoded);
+
+            if (typeof google !== 'undefined' && decoded.length) {
+                const b = new google.maps.LatLngBounds();
+                decoded.forEach((p) => b.extend(p));
+                setRouteBounds(b);
+            }
+        } catch (e: unknown) {
+            console.error('Error mapa share', e);
+        }
+    }, [params.id]);
 
     useEffect(() => {
         const fetchTrip = async () => {
@@ -107,7 +170,12 @@ export default function SharedTripPage() {
         };
 
         fetchTrip();
-    }, [params.id]);
+    }, [params.id, calculateRouteForMap]);
+
+    useEffect(() => {
+        if (!map || !routeBounds) return;
+        try { map.fitBounds(routeBounds); } catch { }
+    }, [map, routeBounds]);
 
     const handleCloneTrip = async () => {
         if (!trip || !supabase) return;
@@ -178,8 +246,20 @@ export default function SharedTripPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 h-[500px] bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative">
-                        <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={6} onLoad={(mapInstance) => { if (directionsResponse) mapInstance.fitBounds(directionsResponse.routes[0].bounds); }}>
-                            {directionsResponse && <DirectionsRenderer directions={directionsResponse} options={{ polylineOptions: { strokeColor: "#DC2626", strokeWeight: 4 } }} />}
+                        <GoogleMap
+                            mapContainerStyle={containerStyle}
+                            center={center}
+                            zoom={6}
+                            onLoad={(mapInstance) => {
+                                setMap(mapInstance);
+                            }}
+                        >
+                            {routePath && routePath.length > 1 && (
+                                <Polyline
+                                    path={routePath}
+                                    options={{ strokeColor: '#DC2626', strokeWeight: 4, strokeOpacity: 0.9 }}
+                                />
+                            )}
                             {(trip.trip_data.results.dailyItinerary || []).map((day: DailyPlan, dIdx: number) => (
                                         (activeDay === null || activeDay === dIdx) && day.savedPlaces?.map((spot: PlaceWithDistance, i: number) => (
                                             spot.geometry?.location && (

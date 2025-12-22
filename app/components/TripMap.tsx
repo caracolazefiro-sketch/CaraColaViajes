@@ -8,6 +8,7 @@ import StarRating from './StarRating';
 import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconStar, IconMapPin, IconTrendingUp } from '../lib/svgIcons';
 import { areasAcLabelForCode } from '../utils/areasacLegend';
+import { getOrCreateClientId } from '../utils/client-id';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -98,17 +99,46 @@ interface TripMapProps {
     sortBy?: 'score' | 'distance' | 'rating';
     setSortBy?: (sort: 'score' | 'distance' | 'rating') => void;
     t?: (key: string) => string;
+
+    // Modo prueba: caja de búsqueda visible pero inerte
+    trialMode?: boolean;
 }
 
 export default function TripMap({
     setMap, mapBounds, directionsResponse, overviewPolyline, dailyItinerary, places, toggles,
     selectedDayIndex, hoveredPlace, setHoveredPlace, onPlaceClick, onAddPlace,
-    onSearch, onClearSearch, mapInstance, t, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
+    onSearch, onClearSearch, mapInstance, t, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy,
+    trialMode = false
 }: TripMapProps) {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [clickedGooglePlace, setClickedGooglePlace] = useState<PlaceWithDistance | null>(null);
     const [mapTypeId, setMapTypeId] = useState<google.maps.MapTypeId | string>('roadmap');
+
+    const clientIdRef = useRef<string | undefined>(undefined);
+    useEffect(() => {
+        clientIdRef.current = getOrCreateClientId();
+    }, []);
+
+    const fetchPlaceDetails = async (placeId: string) => {
+        const clientId = clientIdRef.current;
+        const res = await fetch('/api/google/places-details', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+            },
+            body: JSON.stringify({
+                placeId,
+                fields: ['photos', 'name', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'geometry', 'types'],
+                language: 'es',
+            }),
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        if (!json || !json.ok || !json.place) return null;
+        return json.place as PlaceWithDistance;
+    };
 
     // Cache local para evitar repetir Place Details (fotos, etc.) en clicks.
     const placeDetailsCacheRef = useRef<Record<string, Partial<PlaceWithDistance>>>({});
@@ -116,10 +146,9 @@ export default function TripMap({
 
     const tryEnrichPlaceOnClick = (spot: PlaceWithDistance) => {
         const placeId = spot.place_id || '';
-        if (!mapInstance) {
-            setHoveredPlace(spot);
-            return;
-        }
+
+        // Mostramos el spot inmediatamente; si luego enriquecemos, actualizamos.
+        setHoveredPlace(spot);
 
         // No intentar enrich para no-Google IDs
         if (!placeId || placeId.startsWith('custom-') || placeId.startsWith('areasac:')) {
@@ -139,52 +168,30 @@ export default function TripMap({
         }
 
         placeDetailsInFlightRef.current[placeId] = true;
-        setHoveredPlace(spot);
+        void (async () => {
+            try {
+                const details = await fetchPlaceDetails(placeId);
+                placeDetailsInFlightRef.current[placeId] = false;
+                if (!details) return;
 
-        try {
-            const service = new google.maps.places.PlacesService(mapInstance);
-            service.getDetails(
-                {
-                    placeId,
-                    fields: ['photos', 'name', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'geometry', 'types'],
-                },
-                (place, status) => {
-                    placeDetailsInFlightRef.current[placeId] = false;
-                    if (status !== google.maps.places.PlacesServiceStatus.OK || !place) return;
+                const enriched: Partial<PlaceWithDistance> = {
+                    name: details.name || spot.name,
+                    vicinity: details.vicinity || spot.vicinity,
+                    rating: details.rating ?? spot.rating,
+                    user_ratings_total: details.user_ratings_total ?? spot.user_ratings_total,
+                    types: details.types || spot.types,
+                    photoUrl: details.photoUrl || spot.photoUrl,
+                    geometry: details.geometry || spot.geometry,
+                };
 
-                    const lat = place.geometry?.location?.lat?.();
-                    const lng = place.geometry?.location?.lng?.();
-                    let photoUrl: string | undefined;
-                    if (place.photos && place.photos.length > 0) {
-                        try {
-                            photoUrl = place.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                        } catch {
-                            // ignore
-                        }
-                    }
-
-                    const enriched: Partial<PlaceWithDistance> = {
-                        name: place.name || spot.name,
-                        vicinity: (place.formatted_address as string) || (place.vicinity as string) || spot.vicinity,
-                        rating: place.rating ?? spot.rating,
-                        user_ratings_total: place.user_ratings_total ?? spot.user_ratings_total,
-                        types: (place.types as string[] | undefined) || spot.types,
-                        photoUrl: photoUrl || spot.photoUrl,
-                        geometry:
-                            lat != null && lng != null
-                                ? { location: { lat, lng } }
-                                : spot.geometry,
-                    };
-
-                    placeDetailsCacheRef.current[placeId] = enriched;
-                    if (hoveredPlace && hoveredPlace.place_id === placeId) {
-                        setHoveredPlace({ ...hoveredPlace, ...enriched });
-                    }
+                placeDetailsCacheRef.current[placeId] = enriched;
+                if (hoveredPlace && hoveredPlace.place_id === placeId) {
+                    setHoveredPlace({ ...hoveredPlace, ...enriched });
                 }
-            );
-        } catch {
-            placeDetailsInFlightRef.current[placeId] = false;
-        }
+            } catch {
+                placeDetailsInFlightRef.current[placeId] = false;
+            }
+        })();
     };
 
     // CONTROL DE INTERACCIÓN (SISTEMA VS HUMANO)
@@ -233,6 +240,48 @@ export default function TripMap({
         }
         return decodedOverviewPath;
     }, [directionsResponse, decodedOverviewPath]);
+
+    const routeLetterMarkers = useMemo(() => {
+        // If DirectionsRenderer is active, Google already draws A/B/C.
+        if (directionsResponse) return null;
+        if (!dailyItinerary || dailyItinerary.length === 0) return null;
+
+        const drivingDays = dailyItinerary.filter((d) => d && d.isDriving);
+
+        const start = drivingDays.find((d) => d.startCoordinates)?.startCoordinates
+            ?? dailyItinerary.find((d) => d && d.coordinates)?.coordinates
+            ?? null;
+
+        const points: Array<{ position: { lat: number; lng: number }; label: string; title: string }> = [];
+
+        if (start) {
+            points.push({ position: start, label: 'A', title: 'Origen' });
+        }
+
+        // Add one marker per driving segment end.
+        let code = 'B'.charCodeAt(0);
+        for (let i = 0; i < drivingDays.length; i++) {
+            const end = drivingDays[i]?.coordinates;
+            if (!end) continue;
+
+            const label = code <= 'Z'.charCodeAt(0) ? String.fromCharCode(code) : String(code - 'A'.charCodeAt(0) + 1);
+            code++;
+
+            const title = i === drivingDays.length - 1 ? 'Destino' : 'Parada';
+            points.push({ position: end, label, title });
+        }
+
+        // Avoid duplicates if start equals first end.
+        const uniq: typeof points = [];
+        const seen = new Set<string>();
+        for (const p of points) {
+            const k = `${p.position.lat.toFixed(6)},${p.position.lng.toFixed(6)},${p.label}`;
+            if (seen.has(k)) continue;
+            seen.add(k);
+            uniq.push(p);
+        }
+        return uniq;
+    }, [directionsResponse, dailyItinerary]);
 
     const selectedDaySegmentPath = useMemo(() => {
         if (!dailyItinerary || selectedDayIndex === null) return null;
@@ -302,47 +351,33 @@ export default function TripMap({
 
         // Listener para clicks en POIs de Google Maps
         map.addListener('click', (e: google.maps.MapMouseEvent | google.maps.IconMouseEvent) => {
-            // @ts-expect-error - placeId existe en IconMouseEvent
-            if (e.placeId) {
-                e.stop(); // Prevenir el InfoWindow por defecto de Google
+            const placeId = (e as google.maps.IconMouseEvent).placeId;
+            if (placeId) {
+                if ('stop' in e && typeof e.stop === 'function') {
+                    e.stop(); // Prevenir el InfoWindow por defecto de Google
+                }
 
-                const service = new google.maps.places.PlacesService(map);
-                // @ts-expect-error - Type mismatch in Google Maps API
-                service.getDetails({ placeId: e.placeId, fields: ['photos', 'name', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'geometry', 'types'] }, (place, status) => {
-                    if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-                        // Convertir a nuestro formato
-                        const lat = place.geometry?.location?.lat();
-                        const lng = place.geometry?.location?.lng();
+                void (async () => {
+                    const details = await fetchPlaceDetails(String(placeId));
+                    const lat = details?.geometry?.location?.lat;
+                    const lng = details?.geometry?.location?.lng;
+                    if (typeof lat !== 'number' || typeof lng !== 'number') return;
 
-                        if (lat && lng) {
-                            let photoUrl: string | undefined;
-                            if (place.photos && place.photos.length > 0) {
-                                try {
-                                    photoUrl = place.photos[0].getUrl({ maxWidth: 400, maxHeight: 400 });
-                                } catch (err) {
-                                    console.warn('Error getting photo URL:', err);
-                                }
-                            }
+                    const placeData: PlaceWithDistance = {
+                        place_id: details?.place_id || String(placeId),
+                        name: details?.name || 'Lugar sin nombre',
+                        vicinity: details?.vicinity || '',
+                        geometry: { location: { lat, lng } },
+                        rating: details?.rating,
+                        user_ratings_total: details?.user_ratings_total,
+                        type: 'found',
+                        types: details?.types,
+                        photoUrl: details?.photoUrl,
+                        distanceFromCenter: 0,
+                    };
 
-                            const placeData: PlaceWithDistance = {
-                                place_id: place.place_id || '',
-                                name: place.name || 'Lugar sin nombre',
-                                vicinity: place.formatted_address || place.vicinity || '',
-                                geometry: {
-                                    location: { lat, lng }
-                                },
-                                rating: place.rating,
-                                user_ratings_total: place.user_ratings_total,
-                                type: 'found', // Marcado como "found" - descubierto en el mapa
-                                types: place.types,
-                                photoUrl,
-                                distanceFromCenter: 0 // No calculamos distancia para clicks en mapa
-                            };
-
-                            setClickedGooglePlace(placeData);
-                        }
-                    }
-                });
+                    setClickedGooglePlace(placeData);
+                })();
             }
         });
     };
@@ -385,6 +420,7 @@ export default function TripMap({
 
     const handleSearchSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
+        if (trialMode) return;
         if (!searchQuery.trim() || !mapInstance) return;
         const c = mapInstance.getCenter();
         if (c) onSearch(searchQuery, c.lat(), c.lng());
@@ -396,6 +432,7 @@ export default function TripMap({
     };
 
     const searchPlaceholder = t ? t('MAP_SEARCH_PLACEHOLDER') : 'Buscar en esta zona...';
+    const trialTooltip = t ? t('TRIAL_TOOLTIP_LOGIN') : 'Modo prueba: inicia sesión para desbloquear esta función.';
 
     const mapOptions = useMemo((): google.maps.MapOptions => {
         const g = typeof google !== 'undefined' ? google : undefined;
@@ -473,19 +510,43 @@ export default function TripMap({
                 </div>
             </div>
 
-            <div className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-0.5 w-56 border border-gray-200 transition-opacity opacity-90 hover:opacity-100">
+            <div
+                className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-0.5 w-56 border border-gray-200 transition-opacity opacity-90 hover:opacity-100"
+                title={trialMode ? trialTooltip : undefined}
+            >
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
-                    <button type="submit" className="p-1.5 text-gray-400 hover:text-blue-500"><IconSearch /></button>
+                    <button
+                        type="submit"
+                        className="p-1.5 text-gray-400 hover:text-blue-500"
+                        onClick={(e) => {
+                            if (trialMode) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }
+                        }}
+                    >
+                        <IconSearch />
+                    </button>
                     <input
                         type="text"
                         placeholder={searchPlaceholder}
                         className="w-full text-xs outline-none text-gray-700"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        disabled={trialMode}
                     />
                 </form>
                 {places.search && places.search.length > 0 && (
-                    <button onClick={() => { setSearchQuery(''); onClearSearch(); }} className="p-1.5 text-gray-300 hover:text-red-500"><IconX /></button>
+                    <button
+                        onClick={() => {
+                            if (trialMode) return;
+                            setSearchQuery('');
+                            onClearSearch();
+                        }}
+                        className="p-1.5 text-gray-300 hover:text-red-500"
+                    >
+                        <IconX />
+                    </button>
                 )}
             </div>
 
@@ -524,6 +585,21 @@ export default function TripMap({
                     />
                 )}
 
+                {/* A/B/C markers when route is drawn via Polyline (server-side polyline) */}
+                {routeLetterMarkers?.map((m, i) => (
+                    <Marker
+                        key={`route-letter-${i}`}
+                        position={m.position}
+                        label={{
+                            text: m.label,
+                            color: '#ffffff',
+                            fontWeight: 'bold',
+                            fontSize: '12px',
+                        }}
+                        title={m.title}
+                    />
+                ))}
+
                 {/* Highlight del tramo del día seleccionado (sin llamadas extra: se recorta del overview polyline) */}
                 {selectedDaySegmentPath && (
                     <Polyline
@@ -532,8 +608,8 @@ export default function TripMap({
                     />
                 )}
 
-                {/* Marcadores de pernocta con círculos verdes y nombre de ciudad */}
-                {dailyItinerary?.map((day, i) => day.coordinates && (
+                {/* Marcadores de pernocta (solo no-driving) con círculos verdes y nombre de ciudad */}
+                {dailyItinerary?.map((day, i) => day.coordinates && !day.isDriving && (
                     <Marker
                         key={`itinerary-${i}`}
                         position={day.coordinates}

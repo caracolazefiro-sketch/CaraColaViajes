@@ -11,6 +11,7 @@ import {
   makePlacesSupercatCacheKey,
   upsertPlacesSupercatCache,
 } from '../../utils/supabase-cache';
+import { supabaseServer } from '../../utils/supabase-server';
 
 type LatLng = { lat: number; lng: number };
 
@@ -57,6 +58,102 @@ type PlacesSupercatRequest = {
   radius?: number;
   supercat: Supercat;
 };
+
+function getClientIp(req: Request): string | undefined {
+  const xff = req.headers.get('x-forwarded-for');
+  if (xff) return xff.split(',')[0]?.trim() || undefined;
+  const realIp = req.headers.get('x-real-ip');
+  return realIp || undefined;
+}
+
+function getClientId(req: Request): string | undefined {
+  return req.headers.get('x-caracola-client-id') || undefined;
+}
+
+async function getAuthUserIdFromBearer(req: Request): Promise<string | undefined> {
+  try {
+    if (!supabaseServer) return undefined;
+    const auth = req.headers.get('authorization') || '';
+    const token = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
+    if (!token) return undefined;
+    const { data, error } = await supabaseServer.auth.getUser(token);
+    if (error) return undefined;
+    return data?.user?.id || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function isTrialLimitedDaily(params: {
+  clientId?: string;
+  ip?: string;
+  routeTag: string;
+  api: string;
+  limitPerDay: number;
+}): Promise<{ limited: boolean; reason?: string; count?: number }> {
+  if (!supabaseServer) return { limited: false };
+
+  const now = new Date();
+  const start = new Date(now);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  let q = supabaseServer
+    .from('api_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('api', params.api)
+    .filter('request->>route', 'eq', params.routeTag)
+    .gte('created_at', start.toISOString())
+    .lt('created_at', end.toISOString())
+    .neq('status', 'TRIAL_LIMITED')
+    .neq('status', 'RATE_LIMITED');
+
+  if (params.clientId) {
+    q = q.filter('request->>client_id', 'eq', params.clientId);
+  } else if (params.ip) {
+    q = q.filter('request->>ip', 'eq', params.ip);
+  } else {
+    return { limited: false };
+  }
+
+  const { count, error } = await q;
+  if (error) return { limited: false };
+  if ((count ?? 0) >= params.limitPerDay) {
+    return { limited: true, reason: `trial-limit ${params.limitPerDay}/day`, count: count ?? 0 };
+  }
+  return { limited: false, count: count ?? 0 };
+}
+
+async function isRateLimited(params: {
+  api: string;
+  routeTag: string;
+  clientId?: string;
+  ip?: string;
+  limitPerMinute: number;
+}): Promise<{ limited: boolean; reason?: string }> {
+  if (!supabaseServer) return { limited: false };
+
+  const sinceIso = new Date(Date.now() - 60_000).toISOString();
+
+  const identifierField = params.clientId ? 'request->>client_id' : params.ip ? 'request->>ip' : null;
+  const identifierValue = params.clientId || params.ip;
+  if (!identifierField || !identifierValue) return { limited: false };
+
+  const { count, error } = await supabaseServer
+    .from('api_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('api', params.api)
+    .gte('created_at', sinceIso)
+    .filter('request->>route', 'eq', params.routeTag)
+    .filter(identifierField, 'eq', identifierValue);
+
+  if (error) return { limited: false };
+  if ((count ?? 0) >= params.limitPerMinute) {
+    return { limited: true, reason: `rate-limit ${params.limitPerMinute}/min` };
+  }
+  return { limited: false };
+}
 
 function readResultsCountFromPayload(payload: unknown): number | undefined {
   if (!payload || typeof payload !== 'object') return undefined;
@@ -617,11 +714,73 @@ export async function POST(req: Request) {
     const tripName = body.tripName;
     const requestedRadius = typeof body.radius === 'number' && Number.isFinite(body.radius) ? body.radius : 20000;
 
+    const client_id = getClientId(req);
+    const ip = getClientIp(req);
+    const ua = req.headers.get('user-agent') || undefined;
+
+    const authUserId = await getAuthUserIdFromBearer(req);
+    const isLoggedIn = Boolean(authUserId);
+
     if (!supercat || (supercat !== 1 && supercat !== 2 && supercat !== 3 && supercat !== 4)) {
       return NextResponse.json({ ok: false, reason: 'invalid-supercat' }, { status: 400 });
     }
     if (!center || typeof center.lat !== 'number' || typeof center.lng !== 'number') {
       return NextResponse.json({ ok: false, reason: 'invalid-center' }, { status: 400 });
+    }
+
+    // 0) Freno automático por ritmo (anti abuso). Preferimos client_id; fallback a IP.
+    const rl = await isRateLimited({
+      api: 'google-places',
+      routeTag: 'places-supercat',
+      clientId: client_id,
+      ip,
+      limitPerMinute: 60,
+    });
+
+    if (rl.limited) {
+      await logApiToSupabase({
+        trip_id: tripId,
+        api: 'google-places',
+        method: 'POST',
+        url: 'caracola:/api/places-supercat',
+        status: 'RATE_LIMITED',
+        duration_ms: 0,
+        cost: 0,
+        cached: false,
+        request: { tripName, supercat, center, radius: requestedRadius, client_id, ip, ua, route: 'places-supercat' },
+        response: { error: 'rate-limited', reason: rl.reason },
+      });
+      return NextResponse.json({ ok: false, error: 'rate-limited', reason: rl.reason }, { status: 429 });
+    }
+
+    // 0a) Modo prueba: máximo 2 supercat/día por clientId (server-enforced)
+    if (!isLoggedIn) {
+      const tl = await isTrialLimitedDaily({
+        api: 'google-places',
+        routeTag: 'places-supercat',
+        clientId: client_id,
+        ip,
+        limitPerDay: 2,
+      });
+
+      if (tl.limited) {
+        await logApiToSupabase({
+          trip_id: tripId,
+          api: 'google-places',
+          method: 'POST',
+          url: 'caracola:/api/places-supercat',
+          status: 'TRIAL_LIMITED',
+          duration_ms: 0,
+          cost: 0,
+          cached: false,
+          request: { tripName, supercat, center, radius: requestedRadius, client_id, ip, ua, route: 'places-supercat', user_id: authUserId },
+          response: { error: 'trial-limited', reason: tl.reason, countToday: tl.count },
+        });
+        return NextResponse.json(
+          { ok: false, error: 'trial-limited', reason: 'Modo prueba: máximo 2 búsquedas de servicios por día. Inicia sesión para desbloquear.' },
+          { status: 429 }
+        );
+      }
     }
 
     const keyword =
@@ -736,6 +895,10 @@ export async function POST(req: Request) {
           radiusCapMeters: capMeters,
           keyword,
           query: queryInfo,
+          client_id,
+          ip,
+          ua,
+          route: 'places-supercat',
           porteroAuditMode: porteroAuditResolved.mode,
           porteroAuditSource: porteroAuditResolved.source,
           porteroAuditEnv: porteroAuditResolved.envValue,

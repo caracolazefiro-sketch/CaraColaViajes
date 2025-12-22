@@ -48,7 +48,7 @@ export default function LogsViewerSupabase() {
   const [compareTripB, setCompareTripB] = useState<string>('');
 
   const [viewerToken, setViewerToken] = useState('');
-  const [tableName, setTableName] = useState<'api_logs' | 'api_cache_geocoding' | 'api_cache_places_supercat' | 'api_cache_directions'>('api_cache_places_supercat');
+  const [tableName, setTableName] = useState<'api_logs' | 'api_cache_geocoding' | 'api_cache_places_supercat' | 'api_cache_directions' | 'api_cache_places_details' | 'api_cache_geocode_address'>('api_cache_places_supercat');
   const [tableKey, setTableKey] = useState('');
   const [tableTripId, setTableTripId] = useState('');
   const [tableApi, setTableApi] = useState('');
@@ -724,6 +724,8 @@ export default function LogsViewerSupabase() {
               <option value="api_logs">api_logs</option>
               <option value="api_cache_geocoding">api_cache_geocoding</option>
               <option value="api_cache_places_supercat">api_cache_places_supercat</option>
+              <option value="api_cache_places_details">api_cache_places_details</option>
+              <option value="api_cache_geocode_address">api_cache_geocode_address</option>
               <option value="api_cache_directions">api_cache_directions</option>
             </select>
           </div>

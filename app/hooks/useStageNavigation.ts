@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { Coordinates, DailyPlan, ServiceType } from '../types';
+import { getOrCreateClientId } from '../utils/client-id';
 
 type UseStageNavigationParams = {
   directionsResponse: google.maps.DirectionsResult | null;
@@ -20,11 +21,22 @@ type UseStageNavigationParams = {
 };
 
 async function geocodeCity(cityName: string): Promise<google.maps.LatLngLiteral | null> {
-  if (typeof google === 'undefined' || typeof google.maps.Geocoder === 'undefined') return null;
-  const geocoder = new google.maps.Geocoder();
   try {
-    const response = await geocoder.geocode({ address: cityName });
-    if (response.results.length > 0) return response.results[0].geometry.location.toJSON();
+    const clientId = getOrCreateClientId();
+    const res = await fetch('/api/google/geocode-address', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+      },
+      body: JSON.stringify({ query: cityName, language: 'es' }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const loc = json?.ok ? json?.result?.location : null;
+    if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+      return { lat: loc.lat, lng: loc.lng };
+    }
   } catch {
     // ignore
   }

@@ -1,20 +1,24 @@
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
-import { supabaseServer } from '../../supabase';
+import { supabaseServer } from '../../utils/supabase-server';
 
 const ALLOWED_TABLES = new Set([
   'api_logs',
   'api_cache_geocoding',
   'api_cache_places_supercat',
   'api_cache_directions',
+  'api_cache_places_details',
+  'api_cache_geocode_address',
 ]);
 
 type AllowedTable =
   | 'api_logs'
   | 'api_cache_geocoding'
   | 'api_cache_places_supercat'
-  | 'api_cache_directions';
+  | 'api_cache_directions'
+  | 'api_cache_places_details'
+  | 'api_cache_geocode_address';
 
 const clampInt = (value: unknown, min: number, max: number, fallback: number) => {
   const n = Number(value);
@@ -46,6 +50,12 @@ function getSelectColumns(table: AllowedTable, includePayload: boolean): string 
   }
   if (table === 'api_cache_directions') {
     return 'key, origin, destination, travel_mode, waypoints, summary, expires_at, updated_at, created_at';
+  }
+  if (table === 'api_cache_places_details') {
+    return 'key, place_id, fields, language, expires_at, updated_at, created_at';
+  }
+  if (table === 'api_cache_geocode_address') {
+    return 'key, query, language, expires_at, updated_at, created_at';
   }
   return '*';
 }

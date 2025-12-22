@@ -5,6 +5,51 @@ import { supabase } from '../supabase';
 
 const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
+## 🤖 IA local (Exploración) — 21 Diciembre 2025
+
+### Contexto (equipo de pruebas)
+- PC actual: Intel i5-2300 (4C/4T), 16 GB RAM, GPU NVIDIA GeForce 315 (~1 GB VRAM, WDDM 1.2, Feature Level hasta 10_1).
+- Con esta GPU NO es realista ejecutar modelos grandes en VRAM; la vía viable es CPU + modelos pequeños cuantizados.
+
+### Objetivos IA (2 líneas de trabajo)
+1) **Asesor de viajes** (cara al usuario)
+    - Recomendaciones, planificación conversacional, propuestas de ruta, cambios “si llueve” o “si quiero menos km”.
+2) **IA interna** (operación/negocio)
+    - Control de gastos (APIs), detección de abuso/fraude, control de calidad, alertas automáticas, resúmenes ejecutivos.
+
+### Tareas para revisar mañana
+- Evaluar “IA local” (CPU) con un modelo pequeño (1B–3B) en modo cuantizado.
+- Medir velocidad real en este PC (tokens/seg) y latencia para 1) y 2).
+- Decidir estrategia final:
+  - Local (para herramientas internas y pruebas) vs
+  - Servidor propio (GPU moderna) vs
+  - Proveedor externo (API) para el MVP.
+
+### Acción (mañana): implementar IA mínima
+- Implementar una IA mínima enfocada a operaciones internas:
+    - resumen diario de uso (costes/APIs)
+    - alertas simples de abuso/anomalías
+    - explicación “para humanos” de picos de gasto
+
+### Nota importante
+- La GPU actual ayuda sobre todo a fluidez visual del mapa; no reduce el coste de APIs.
+
+## 🧠 IA “ASESOR DE VIAJES” — revisar 08 Enero 2026
+
+### Objetivo
+Convertir el sistema en un asistente que ayude a planificar viajes (conversación + propuestas + ajustes).
+
+### Qué debe saber hacer (MVP)
+- Hacer preguntas para aclarar preferencias (tipo de viaje, ritmo, presupuesto, paradas).
+- Proponer una ruta/itinerario inicial.
+- Ajustar el plan ante cambios (más días, menos km/día, evitar peajes, clima).
+- Recomendar categorías cerca de cada etapa (spots, restaurantes, gas, servicios) sin saturar APIs.
+
+### Decisiones a tomar el 08/01/2026
+- Estrategia: proveedor externo vs servidor propio vs híbrido.
+- Límites de coste por usuario y protección anti-abuso.
+- Qué datos guardamos (privacidad) y qué mostramos.
+
 ## 🚀 PRÓXIMAS MEJORAS - Mapa y Servicios (Diciembre 2025)
 
 ### 🎨 Mejoras visuales e interacción con mapa
@@ -164,7 +209,7 @@ const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
 
 ---
 
-**Última actualización:** 2 Diciembre 2025
+**Última actualización:** 21 Diciembre 2025
 **Autor última sección:** Chema (v0.5 - Colaboración & Tooling)
 `;
 

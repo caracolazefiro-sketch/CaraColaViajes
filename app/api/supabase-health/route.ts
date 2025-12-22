@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-import { supabaseServer } from '../../supabase';
+import { supabaseServer } from '../../utils/supabase-server';
 
 export async function GET() {
   const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
@@ -48,6 +48,8 @@ export async function GET() {
       checkTable('api_cache_geocoding'),
       checkTable('api_cache_places_supercat'),
       checkTable('api_cache_directions'),
+      checkTable('api_cache_places_details'),
+      checkTable('api_cache_geocode_address'),
     ]);
 
     const ok = results.every(r => r.ok);

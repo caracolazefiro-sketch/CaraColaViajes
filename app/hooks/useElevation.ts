@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { Coordinates } from '../types';
+import { getOrCreateClientId } from '../utils/client-id';
 
 export type ElevationPoint = {
     // Cumulative distance along the sampled path (meters)
@@ -9,6 +10,12 @@ export type ElevationPoint = {
     // Optional raw metadata (useful for tooltips/metrics)
     lat?: number;
     lng?: number;
+    resolution?: number;
+};
+
+type ElevationApiResult = {
+    elevation?: number;
+    location?: { lat?: number; lng?: number };
     resolution?: number;
 };
 
@@ -24,7 +31,7 @@ export function useElevation() {
         destinationCoords: Coordinates | undefined,
         expectedDistanceKm?: number
     ) => {
-        if (typeof google === 'undefined' || !destinationCoords) {
+        if (!destinationCoords) {
             setElevationData(null);
             setLoadingElevation(false);
             return;
@@ -34,84 +41,125 @@ export function useElevation() {
         setLoadingElevation(true);
 
         const cleanFrom = originLabel.split('|')[0]; // Limpiar nombre origen
-        const ds = new google.maps.DirectionsService();
-        const dest = new google.maps.LatLng(destinationCoords.lat, destinationCoords.lng);
-        const origin = originCoords
-            ? new google.maps.LatLng(originCoords.lat, originCoords.lng)
-            : cleanFrom;
 
-        ds.route(
-            {
-                origin,
-                destination: dest,
-                travelMode: google.maps.TravelMode.DRIVING,
-            },
-            (result, status) => {
+        const haversineM = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+            const R = 6371e3;
+            const toRad = (x: number) => (x * Math.PI) / 180;
+            const dLat = toRad(b.lat - a.lat);
+            const dLng = toRad(b.lng - a.lng);
+            const lat1 = toRad(a.lat);
+            const lat2 = toRad(b.lat);
+            const s1 = Math.sin(dLat / 2);
+            const s2 = Math.sin(dLng / 2);
+            const aa = s1 * s1 + Math.cos(lat1) * Math.cos(lat2) * s2 * s2;
+            const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+            return R * c;
+        };
+
+        void (async () => {
+            try {
+                const clientId = getOrCreateClientId();
+
+                const directionsRes = await fetch('/api/google/directions', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                    },
+                    body: JSON.stringify({
+                        origin: originCoords ? originCoords : cleanFrom,
+                        destination: destinationCoords,
+                        travelMode: 'driving',
+                        language: 'es',
+                    }),
+                });
+
                 if (requestId !== requestSeq.current) return;
 
-                if (status === 'OK' && result) {
-                    const path = result.routes[0].overview_path;
-                    const es = new google.maps.ElevationService();
-
-                    es.getElevationAlongPath({ path: path, samples: 100 }, (elevations, statusElev) => {
-                        if (requestId !== requestSeq.current) return;
-
-                        setLoadingElevation(false);
-                        if (statusElev !== 'OK' || !elevations || elevations.length === 0) {
-                            setElevationData(null);
-                            return;
-                        }
-
-                        // Compute cumulative distance (meters) from sample locations.
-                        // Requires Maps JS API `geometry` library.
-                        let cumulativeM = 0;
-                        const data: ElevationPoint[] = elevations.map((e, i) => {
-                            const loc = e.location;
-                            const prevLoc = i > 0 ? elevations[i - 1]?.location : null;
-                            if (
-                                i > 0 &&
-                                loc &&
-                                prevLoc &&
-                                google.maps.geometry?.spherical?.computeDistanceBetween
-                            ) {
-                                cumulativeM += google.maps.geometry.spherical.computeDistanceBetween(
-                                    prevLoc,
-                                    loc
-                                );
-                            } else if (i > 0 && !google.maps.geometry?.spherical?.computeDistanceBetween) {
-                                // Fallback: keep a monotonic x-axis even if geometry isn't available.
-                                cumulativeM += 1;
-                            }
-
-                            return {
-                                distance: cumulativeM,
-                                elevation: e.elevation,
-                                lat: loc?.lat?.(),
-                                lng: loc?.lng?.(),
-                                resolution: e.resolution,
-                            };
-                        });
-
-                        // Align the x-axis to the itinerary distance to avoid small mismatches caused by
-                        // overview_path simplification and sampling.
-                        const expectedM =
-                            typeof expectedDistanceKm === 'number' && Number.isFinite(expectedDistanceKm) && expectedDistanceKm > 0
-                                ? expectedDistanceKm * 1000
-                                : null;
-                        const measuredM = data[data.length - 1]?.distance ?? 0;
-                        if (expectedM && measuredM > 0) {
-                            const scale = expectedM / measuredM;
-                            setElevationData(data.map((p) => ({ ...p, distance: p.distance * scale })));
-                        } else {
-                            setElevationData(data);
-                        }
-                    });
-                } else {
+                if (!directionsRes.ok) {
                     setLoadingElevation(false);
                     setElevationData(null);
+                    return;
                 }
+
+                const directionsJson = await directionsRes.json();
+                const polyline = typeof directionsJson?.overviewPolyline === 'string' ? directionsJson.overviewPolyline : null;
+                if (!polyline) {
+                    setLoadingElevation(false);
+                    setElevationData(null);
+                    return;
+                }
+
+                const elevationRes = await fetch('/api/google/elevation', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                    },
+                    body: JSON.stringify({ polyline, samples: 100 }),
+                });
+
+                if (requestId !== requestSeq.current) return;
+
+                setLoadingElevation(false);
+                if (!elevationRes.ok) {
+                    setElevationData(null);
+                    return;
+                }
+
+                const elevationJson = await elevationRes.json();
+                const results: ElevationApiResult[] | null = Array.isArray(elevationJson?.results) ? (elevationJson.results as ElevationApiResult[]) : null;
+                if (!results || results.length === 0) {
+                    setElevationData(null);
+                    return;
+                }
+
+                let cumulativeM = 0;
+                const data: ElevationPoint[] = results.map((e: ElevationApiResult, i: number) => {
+                    const loc = e.location;
+                    const lat = typeof loc?.lat === 'number' ? loc.lat : undefined;
+                    const lng = typeof loc?.lng === 'number' ? loc.lng : undefined;
+
+                    const prev = i > 0 ? results[i - 1]?.location : null;
+                    if (
+                        i > 0 &&
+                        prev &&
+                        typeof prev.lat === 'number' &&
+                        typeof prev.lng === 'number' &&
+                        typeof lat === 'number' &&
+                        typeof lng === 'number'
+                    ) {
+                        cumulativeM += haversineM({ lat: prev.lat, lng: prev.lng }, { lat, lng });
+                    } else if (i > 0) {
+                        cumulativeM += 1;
+                    }
+
+                    return {
+                        distance: cumulativeM,
+                        elevation: typeof e.elevation === 'number' ? e.elevation : 0,
+                        lat,
+                        lng,
+                        resolution: typeof e.resolution === 'number' ? e.resolution : undefined,
+                    };
+                });
+
+                const expectedM =
+                    typeof expectedDistanceKm === 'number' && Number.isFinite(expectedDistanceKm) && expectedDistanceKm > 0
+                        ? expectedDistanceKm * 1000
+                        : null;
+                const measuredM = data[data.length - 1]?.distance ?? 0;
+                if (expectedM && measuredM > 0) {
+                    const scale = expectedM / measuredM;
+                    setElevationData(data.map((p) => ({ ...p, distance: p.distance * scale })));
+                } else {
+                    setElevationData(data);
+                }
+            } catch {
+                if (requestId !== requestSeq.current) return;
+                setLoadingElevation(false);
+                setElevationData(null);
             }
-        );
+        })();
     }, []);
 
     const clearElevation = useCallback(() => {

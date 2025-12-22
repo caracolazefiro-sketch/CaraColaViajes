@@ -31,10 +31,11 @@ interface UserAreaProps {
 }
 
 export default function UserArea({ t, onLoadTrip, variant = 'header' }: UserAreaProps) {
-    interface AppUser { id: string; email?: string }
+    interface AppUser { id: string; email?: string; user_metadata?: { username?: string } }
     const [user, setUser] = useState<AppUser | null>(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('');
     const [loading, setLoading] = useState(false);
     const [showTrips, setShowTrips] = useState(false);
     const [myTrips, setMyTrips] = useState<Array<{ id: number; name: string; created_at: string; trip_data: TripData }>>([]);
@@ -86,7 +87,14 @@ export default function UserArea({ t, onLoadTrip, variant = 'header' }: UserArea
         if (!supabase) return;
         const client = supabase;
         setLoading(true);
-        const { error } = await client.auth.signUp({ email, password });
+        const { error } = await client.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { username: username.trim() || undefined },
+                emailRedirectTo: window.location.origin,
+            },
+        });
         setLoading(false);
         if (error) alert('Error: ' + error.message);
         else alert(t('ALERT_REGISTRATION_SUCCESS'));
@@ -160,6 +168,21 @@ export default function UserArea({ t, onLoadTrip, variant = 'header' }: UserArea
                         }
                         required
                     />
+                    {authMode === 'register' && (
+                        <input
+                            type="text"
+                            placeholder={t('AUTH_USERNAME_PLACEHOLDER')}
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className={
+                                isLanding
+                                    ? 'px-2 py-1 rounded border border-gray-300 text-xs w-32 focus:outline-none focus:border-red-500'
+                                    : 'px-2 py-1 rounded border border-gray-300 text-[11px] w-28 focus:outline-none focus:border-red-500 min-w-0'
+                            }
+                            minLength={2}
+                            maxLength={24}
+                        />
+                    )}
                     {authMode !== 'magic' && (
                         <input
                             type="password"
@@ -191,11 +214,13 @@ export default function UserArea({ t, onLoadTrip, variant = 'header' }: UserArea
         );
     }
 
+    const displayName = user.user_metadata?.username?.trim() || user.email || user.id;
+
     return (
         <div className="flex items-center gap-3 relative">
             <div className="text-right hidden md:block">
                 <p className="text-[10px] text-gray-500">{t('HEADER_GREETING')}</p>
-                <p className="text-xs font-bold text-gray-800">{user.email}</p>
+                <p className="text-xs font-bold text-gray-800">{displayName}</p>
             </div>
             <button onClick={() => showTrips ? setShowTrips(false) : loadMyTrips()} className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-200 flex items-center gap-1">
                 {t('HEADER_MY_TRIPS')}

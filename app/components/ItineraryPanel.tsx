@@ -40,13 +40,17 @@ interface ItineraryPanelProps {
     setSearchRadius?: (radius: number) => void;
     sortBy?: 'score' | 'distance' | 'rating';
     setSortBy?: (sort: 'score' | 'distance' | 'rating') => void;
+
+    // Modo prueba: botones visibles pero no-op
+    trialMode?: boolean;
 }
 
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
     toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
     onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert,
-    minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy
+    minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy,
+    trialMode = false
 }: ItineraryPanelProps) {
 
     if (!dailyItinerary) return null;
@@ -68,6 +72,8 @@ export default function ItineraryPanel({
     };
 
     const isImperial = convert(1, 'km') !== 1;
+
+    const trialTooltip = t('TRIAL_TOOLTIP_LOGIN');
 
     return (
         <div className="lg:col-span-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-full print:h-auto print:overflow-visible">
@@ -122,7 +128,14 @@ export default function ItineraryPanel({
                             </div>
 
                             {/* Botón imprimir minimalista */}
-                            <div className="flex justify-center items-center gap-1.5 text-gray-600 hover:text-gray-900 cursor-pointer transition no-print mb-2" onClick={() => window.print()}>
+                            <div
+                                className="flex justify-center items-center gap-1.5 text-gray-600 hover:text-gray-900 cursor-pointer transition no-print mb-2"
+                                onClick={() => {
+                                    if (trialMode) return;
+                                    window.print();
+                                }}
+                                title={trialMode ? trialTooltip : t('ITINERARY_PRINT')}
+                            >
                                 <IconPrint />
                                 <span className="text-xs font-semibold">PDF</span>
                             </div>
@@ -211,9 +224,13 @@ export default function ItineraryPanel({
                                                 {/* Botón buscar servicios cerca de esta etapa */}
                                                 {day.isDriving && day.coordinates && (
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); onSearchNearDay(index); }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (trialMode) return;
+                                                            onSearchNearDay(index);
+                                                        }}
                                                         className="text-blue-600 hover:bg-blue-100 p-1 rounded-full border border-blue-200 bg-white shadow-sm transition-all no-print"
-                                                        title="🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."
+                                                        title={trialMode ? trialTooltip : "🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."}
                                                     >
                                                         <IconSearch className="h-3.5 w-3.5" />
                                                     </button>
@@ -222,9 +239,13 @@ export default function ItineraryPanel({
                                                 {/* Botón ajustar destino de esta etapa */}
                                                 {day.isDriving && (
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); onAdjustDay(index); }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (trialMode) return;
+                                                            onAdjustDay(index);
+                                                        }}
                                                         className="text-orange-600 hover:bg-orange-100 p-1 rounded-full border border-orange-200 bg-white shadow-sm transition-all no-print"
-                                                        title="⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."
+                                                        title={trialMode ? trialTooltip : "⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."}
                                                     >
                                                         <IconSettings className="h-3.5 w-3.5" />
                                                     </button>

@@ -1,4 +1,4 @@
-import { supabaseServer } from '../supabase';
+import { supabaseServer } from './supabase-server';
 import { createHash } from 'crypto';
 
 export type CacheProvider = 'supabase';
@@ -87,6 +87,46 @@ export function makeDirectionsCacheKey(params: {
     destination: params.destination,
     waypoints: params.waypoints,
     travelMode: params.travelMode,
+  };
+}
+
+export function makePlacesDetailsCacheKey(params: {
+  placeId: string;
+  fields: string[];
+  language?: string;
+}) {
+  const sortedFields = [...params.fields].map(String).map((s) => s.trim()).filter(Boolean).sort();
+  const canonical = `${params.placeId}|${sortedFields.join(',')}|${params.language ?? ''}`;
+  const hash = createHash('sha256').update(canonical, 'utf8').digest('hex').slice(0, 16);
+  return {
+    key: `places-details:${hash}`,
+    hash,
+    placeId: params.placeId,
+    fields: sortedFields,
+    language: params.language,
+  };
+}
+
+export function makeGeocodeAddressCacheKey(params: { query: string; language?: string }) {
+  const canonical = `${params.query.trim()}|${params.language ?? ''}`;
+  const hash = createHash('sha256').update(canonical, 'utf8').digest('hex').slice(0, 16);
+  return {
+    key: `geocode-address:${hash}`,
+    hash,
+    query: params.query.trim(),
+    language: params.language,
+  };
+}
+
+export function makeElevationCacheKey(params: { polyline: string; samples: number }) {
+  const polyline = String(params.polyline || '').trim();
+  const samples = Math.max(1, Math.min(512, Math.round(params.samples || 0)));
+  const canonical = `${samples}|${polyline}`;
+  const hash = createHash('sha256').update(canonical, 'utf8').digest('hex').slice(0, 16);
+  return {
+    key: `elevation:${hash}`,
+    hash,
+    samples,
   };
 }
 
@@ -269,6 +309,178 @@ export async function upsertDirectionsCache(params: {
         travel_mode: params.travelMode,
         payload: params.payload as unknown,
         summary: (params.summary ?? null) as unknown,
+        expires_at,
+        updated_at: nowIso(),
+      },
+      { onConflict: 'key' }
+    );
+
+  if (error) return { ok: false as const, reason: error.message };
+  return { ok: true as const, expiresAt: expires_at, ttlDays };
+}
+
+export async function getPlacesDetailsCache(params: { key: string }) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const { data, error } = await supabaseServer
+    .from('api_cache_places_details')
+    .select('place_id, fields, language, payload, expires_at')
+    .eq('key', params.key)
+    .maybeSingle();
+
+  if (error) return { ok: false as const, reason: error.message };
+  if (!data) return { ok: true as const, hit: false as const };
+
+  const expiresAt = data.expires_at ? new Date(String(data.expires_at)).getTime() : null;
+  if (expiresAt != null && expiresAt <= Date.now()) {
+    return { ok: true as const, hit: false as const };
+  }
+
+  return {
+    ok: true as const,
+    hit: true as const,
+    placeId: String(data.place_id || ''),
+    fields: String(data.fields || ''),
+    language: data.language ? String(data.language) : undefined,
+    payload: data.payload as unknown,
+    expiresAt: data.expires_at ? String(data.expires_at) : undefined,
+  };
+}
+
+export async function upsertPlacesDetailsCache(params: {
+  key: string;
+  placeId: string;
+  fields: string;
+  language?: string;
+  payload: unknown;
+  ttlDays?: number;
+}) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const ttlDays = params.ttlDays ?? 30;
+  const expires_at = addDaysIso(ttlDays);
+
+  const { error } = await supabaseServer
+    .from('api_cache_places_details')
+    .upsert(
+      {
+        key: params.key,
+        place_id: params.placeId,
+        fields: params.fields,
+        language: params.language ?? null,
+        payload: params.payload as unknown,
+        expires_at,
+        updated_at: nowIso(),
+      },
+      { onConflict: 'key' }
+    );
+
+  if (error) return { ok: false as const, reason: error.message };
+  return { ok: true as const, expiresAt: expires_at, ttlDays };
+}
+
+export async function getGeocodeAddressCache(params: { key: string }) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const { data, error } = await supabaseServer
+    .from('api_cache_geocode_address')
+    .select('query, language, payload, expires_at')
+    .eq('key', params.key)
+    .maybeSingle();
+
+  if (error) return { ok: false as const, reason: error.message };
+  if (!data) return { ok: true as const, hit: false as const };
+
+  const expiresAt = data.expires_at ? new Date(String(data.expires_at)).getTime() : null;
+  if (expiresAt != null && expiresAt <= Date.now()) {
+    return { ok: true as const, hit: false as const };
+  }
+
+  return {
+    ok: true as const,
+    hit: true as const,
+    query: String(data.query || ''),
+    language: data.language ? String(data.language) : undefined,
+    payload: data.payload as unknown,
+    expiresAt: data.expires_at ? String(data.expires_at) : undefined,
+  };
+}
+
+export async function upsertGeocodeAddressCache(params: {
+  key: string;
+  query: string;
+  language?: string;
+  payload: unknown;
+  ttlDays?: number;
+}) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const ttlDays = params.ttlDays ?? 90;
+  const expires_at = addDaysIso(ttlDays);
+
+  const { error } = await supabaseServer
+    .from('api_cache_geocode_address')
+    .upsert(
+      {
+        key: params.key,
+        query: params.query,
+        language: params.language ?? null,
+        payload: params.payload as unknown,
+        expires_at,
+        updated_at: nowIso(),
+      },
+      { onConflict: 'key' }
+    );
+
+  if (error) return { ok: false as const, reason: error.message };
+  return { ok: true as const, expiresAt: expires_at, ttlDays };
+}
+
+export async function getElevationCache(params: { key: string }) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const { data, error } = await supabaseServer
+    .from('api_cache_elevation')
+    .select('payload, expires_at')
+    .eq('key', params.key)
+    .maybeSingle();
+
+  if (error) return { ok: false as const, reason: error.message };
+  if (!data) return { ok: true as const, hit: false as const };
+
+  const expiresAt = data.expires_at ? new Date(String(data.expires_at)).getTime() : null;
+  if (expiresAt != null && expiresAt <= Date.now()) {
+    return { ok: true as const, hit: false as const };
+  }
+
+  return {
+    ok: true as const,
+    hit: true as const,
+    payload: data.payload as unknown,
+    expiresAt: data.expires_at ? String(data.expires_at) : undefined,
+  };
+}
+
+export async function upsertElevationCache(params: {
+  key: string;
+  polyline: string;
+  samples: number;
+  payload: unknown;
+  ttlDays?: number;
+}) {
+  if (!supabaseServer) return { ok: false as const, reason: 'no-supabase-server' };
+
+  const ttlDays = params.ttlDays ?? 180;
+  const expires_at = addDaysIso(ttlDays);
+
+  const { error } = await supabaseServer
+    .from('api_cache_elevation')
+    .upsert(
+      {
+        key: params.key,
+        polyline: params.polyline,
+        samples: params.samples,
+        payload: params.payload as unknown,
         expires_at,
         updated_at: nowIso(),
       },

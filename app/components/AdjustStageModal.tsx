@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { IconX } from '../lib/svgIcons';
+import { getOrCreateClientId } from '../utils/client-id';
 
 interface AdjustStageModalProps {
     isOpen: boolean;
@@ -19,48 +20,49 @@ export default function AdjustStageModal({
     onConfirm
 }: AdjustStageModalProps) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedPlace, setSelectedPlace] = useState<google.maps.places.PlaceResult | null>(null);
+    const [isResolving, setIsResolving] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
     useEffect(() => {
-        if (isOpen && inputRef.current && typeof google !== 'undefined') {
-            // Inicializar Google Places Autocomplete
-            autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
-                types: ['(cities)'],
-                fields: ['name', 'geometry', 'formatted_address', 'place_id']
-            });
-
-            autocompleteRef.current.addListener('place_changed', () => {
-                const place = autocompleteRef.current?.getPlace();
-                if (place && place.geometry?.location) {
-                    setSelectedPlace(place);
-                    setSearchQuery(place.name || place.formatted_address || '');
-                }
-            });
+        if (isOpen && inputRef.current) {
+            inputRef.current.focus();
         }
-
-        return () => {
-            if (autocompleteRef.current) {
-                google.maps.event.clearInstanceListeners(autocompleteRef.current);
-            }
-        };
     }, [isOpen]);
 
     const handleConfirm = () => {
-        if (selectedPlace && selectedPlace.geometry?.location) {
-            const lat = selectedPlace.geometry.location.lat();
-            const lng = selectedPlace.geometry.location.lng();
-            // Prefer formatted_address to include region/country and reduce ambiguous routing (e.g., "Mérida" vs others)
-            const destinationText = selectedPlace.formatted_address || selectedPlace.name || searchQuery;
-            onConfirm(destinationText, { lat, lng });
-            handleClose();
-        }
+        const q = searchQuery.trim();
+        if (!q) return;
+
+        setIsResolving(true);
+        (async () => {
+            try {
+                const clientId = getOrCreateClientId();
+                const res = await fetch('/api/google/geocode-address', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                    },
+                    body: JSON.stringify({ query: q, language: 'es' }),
+                });
+
+                const json = await res.json().catch(() => null);
+                if (!res.ok || !json?.ok || !json?.result?.geometry?.location) {
+                    return;
+                }
+
+                const loc = json.result.geometry.location as { lat: number; lng: number };
+                const destinationText = String(json.result.formatted_address || q).trim();
+                onConfirm(destinationText, { lat: loc.lat, lng: loc.lng });
+                handleClose();
+            } finally {
+                setIsResolving(false);
+            }
+        })();
     };
 
     const handleClose = () => {
         setSearchQuery('');
-        setSelectedPlace(null);
         onClose();
     };
 
@@ -111,21 +113,9 @@ export default function AdjustStageModal({
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                         />
                         <p className="text-xs text-gray-500 mt-2">
-                            💡 Google te mostrará sugerencias mientras escribes
+                            💡 Escribe una ciudad/lugar y confirma (resuelve en servidor)
                         </p>
                     </div>
-
-                    {/* Preview si hay lugar seleccionado */}
-                    {selectedPlace && (
-                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                            <p className="text-sm font-semibold text-orange-900">
-                                ✓ Lugar seleccionado
-                            </p>
-                            <p className="text-xs text-orange-700 mt-1">
-                                {selectedPlace.formatted_address || selectedPlace.name}
-                            </p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Footer */}
@@ -138,10 +128,10 @@ export default function AdjustStageModal({
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={!selectedPlace}
+                        disabled={!searchQuery.trim() || isResolving}
                         className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                     >
-                        Confirmar
+                        {isResolving ? 'Buscando…' : 'Confirmar'}
                     </button>
                 </div>
             </div>

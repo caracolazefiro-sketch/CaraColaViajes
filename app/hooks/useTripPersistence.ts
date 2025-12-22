@@ -24,6 +24,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
 ) {
     const [isSaving, setIsSaving] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
+    const [accessToken, setAccessToken] = useState<string | null>(null);
     const [hasLoadedUserData, setHasLoadedUserData] = useState(false);
     const previousUserIdRef = useRef<string | null>(null);
 
@@ -87,6 +88,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
             if (session?.user?.id) {
                 // Usuario logueado: cargar su viaje guardado
                 const currentUserId = session.user.id;
+                setAccessToken(session.access_token || null);
                 
                 // Si cambió el usuario, limpiar el estado primero
                 if (previousUserIdRef.current && previousUserIdRef.current !== currentUserId) {
@@ -121,6 +123,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                 setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                 setCurrentTripId(null);
                 setUserId(null);
+                setAccessToken(null);
                 previousUserIdRef.current = null;
                 setApiTripIdSafe(null);
                 setHasLoadedUserData(true);
@@ -134,6 +137,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                 if (event === 'SIGNED_IN' && session?.user?.id) {
                     const newUserId = session.user.id;
+                    setAccessToken(session.access_token || null);
                     
                     // Si es un usuario diferente, limpiar primero
                     if (previousUserIdRef.current && previousUserIdRef.current !== newUserId) {
@@ -170,6 +174,7 @@ export function useTripPersistence<T extends Record<string, string | number | bo
                     setResults({ totalDays: null, distanceKm: null, totalCost: null, liters: null, dailyItinerary: null, error: null });
                     setCurrentTripId(null);
                     setUserId(null);
+                    setAccessToken(null);
                     setApiTripIdSafe(null);
                     if (resetUiState) resetUiState();
                 }
@@ -304,6 +309,11 @@ export function useTripPersistence<T extends Record<string, string | number | bo
 
     return {
         isSaving,
+        auth: {
+            userId,
+            accessToken,
+            isLoggedIn: Boolean(userId),
+        },
         handleResetTrip,
         handleLoadCloudTrip,
         handleShareTrip,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { PlaceWithDistance, ServiceType, Coordinates } from './types';
@@ -28,7 +28,7 @@ import { useTripCompute } from './hooks/useTripCompute';
 import { useStageNavigation } from './hooks/useStageNavigation';
 import { useSavedPlacesUi } from './hooks/useSavedPlacesUi';
 import { useStageAdjust } from './hooks/useStageAdjust';
-import { normalizeForGoogle } from './utils/googleNormalize';
+import { getOrCreateClientId } from './utils/client-id';
 
 const LIBRARIES: ("places" | "geometry")[] = ["places", "geometry"];
 
@@ -87,11 +87,26 @@ export default function Home() {
   const {
       results, setResults, directionsResponse,
       setDirectionsResponse,
-      loading, calculateRoute, addDayToItinerary, removeDayFromItinerary
+      loading, setLoading, addDayToItinerary, removeDayFromItinerary
   } = useTripCalculator(convert, settings.units);
 
   // Hook para filtros de búsqueda (rating, radio, sort)
   const { minRating, setMinRating, searchRadius, setSearchRadius, sortBy, setSortBy } = useSearchFilters();
+
+  const resetUiState = useCallback(() => {
+    setSelectedDayIndex(null);
+    setMapBounds(null);
+  }, []);
+
+    const { isSaving, auth, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
+      formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
+      resetUiState,
+      apiTripId,
+      setApiTripId
+  );
+
+  const authToken = auth.accessToken;
+  const trialMode = !auth.isLoggedIn;
 
   const {
       places, loadingPlaces, toggles,
@@ -104,19 +119,7 @@ export default function Home() {
         clearSearch,
         handleToggle,
         resetPlaces
-  } = useTripPlaces(map, apiTripId, formData.tripName, searchRadius);
-
-  const resetUiState = useCallback(() => {
-    setSelectedDayIndex(null);
-    setMapBounds(null);
-  }, []);
-
-  const { isSaving, handleResetTrip, handleLoadCloudTrip, handleShareTrip, handleSaveToCloud } = useTripPersistence(
-      formData, setFormData, results, setResults, currentTripId, setCurrentTripId,
-      resetUiState,
-      apiTripId,
-      setApiTripId
-  );
+  } = useTripPlaces(map, apiTripId, formData.tripName, searchRadius, authToken);
 
   const { adjustModalOpen, adjustingDayIndex, isRecalculating, handleAdjustDay, handleConfirmAdjust, closeAdjustModal } = useStageAdjust({
     results,
@@ -135,65 +138,16 @@ export default function Home() {
     setFormData,
     setResults,
     resetPlaces,
-    calculateRoute,
+    setLoading,
+    setDirectionsResponse,
     setApiTripId,
     resetUi: () => {
       setSelectedDayIndex(null);
       setCurrentTripId(null);
     },
     showToast,
+    authToken,
   });
-
-  // When loading a saved trip, UI results come from storage/cloud, but directionsResponse is not rebuilt.
-  // Rebuild directions for the map (markers + full route) WITHOUT touching results.
-  const directionsKeyRef = useRef<string>('');
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (directionsResponse) return;
-    if (!results?.dailyItinerary?.length) return;
-    if (!formData.origen || !formData.destino) return;
-    if (typeof google === 'undefined') return;
-
-    const key = JSON.stringify({
-      o: formData.origen,
-      d: formData.destino,
-      e: formData.etapas,
-      t: formData.evitarPeajes,
-      r: formData.vueltaACasa,
-    });
-    if (directionsKeyRef.current === key) return;
-    directionsKeyRef.current = key;
-
-    const run = async () => {
-      try {
-        const directionsService = new google.maps.DirectionsService();
-        let destination = normalizeForGoogle(String(formData.destino || ''));
-        const waypoints = String(formData.etapas || '')
-          .split('|')
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((location) => ({ location: normalizeForGoogle(location), stopover: true }));
-
-        if (formData.vueltaACasa) {
-          destination = normalizeForGoogle(String(formData.origen || ''));
-          waypoints.push({ location: normalizeForGoogle(String(formData.destino || '')), stopover: true });
-        }
-
-        const result = await directionsService.route({
-          origin: normalizeForGoogle(String(formData.origen || '')),
-          destination,
-          waypoints,
-          travelMode: google.maps.TravelMode.DRIVING,
-          avoidTolls: Boolean(formData.evitarPeajes),
-        });
-        setDirectionsResponse(result);
-      } catch {
-        // If this fails, TripMap will still render overviewPolyline fallback.
-      }
-    };
-
-    void run();
-  }, [directionsResponse, formData.destino, formData.etapas, formData.evitarPeajes, formData.origen, formData.vueltaACasa, isLoaded, results?.dailyItinerary, setDirectionsResponse]);
 
   const handleCalculateAllWithUi = useCallback(
     async (e: React.FormEvent) => {
@@ -235,16 +189,28 @@ export default function Home() {
     if (day?.coordinates) coordsSource = 'day.coordinates';
     else if (day?.startCoordinates) coordsSource = 'day.startCoordinates';
 
-    // Robustez: si el día no trae coordenadas (p.ej. geocoding falló o no se guardó), intentamos geocodificar.
-    if (!coords && day && typeof google !== 'undefined') {
+    // Robustez: si el día no trae coordenadas, geocode vía endpoint server (log+caché+rate-limit).
+    if (!coords && day) {
       const cleanTo = day.to.replace('📍 Parada Táctica: ', '').replace('📍 Parada de Pernocta: ', '').split('|')[0].trim();
       if (cleanTo) {
         try {
-          const geocoder = new google.maps.Geocoder();
-          const response = await geocoder.geocode({ address: cleanTo });
-          const first = response.results?.[0]?.geometry?.location?.toJSON();
-          if (first) coords = { lat: first.lat, lng: first.lng };
-          if (coords) coordsSource = 'geocode(day.to)';
+          const clientId = getOrCreateClientId();
+          const res = await fetch('/api/google/geocode-address', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+            },
+            body: JSON.stringify({ query: cleanTo, language: 'es', tripId: apiTripId }),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            const loc = json?.ok ? json?.result?.location : null;
+            if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+              coords = { lat: loc.lat, lng: loc.lng };
+              coordsSource = 'geocode(day.to)';
+            }
+          }
         } catch {
           // ignore
         }
@@ -429,6 +395,7 @@ export default function Home() {
                     onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
                     onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
                     minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
+                  trialMode={trialMode}
                 />
               </div>
 
@@ -441,6 +408,7 @@ export default function Home() {
                     onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
                     minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
                     t={t}
+                    trialMode={trialMode}
                 />
               </div>
             </div>

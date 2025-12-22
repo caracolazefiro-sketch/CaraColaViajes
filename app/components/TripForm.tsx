@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
-import { Autocomplete } from '@react-google-maps/api';
+import React, { useState, useEffect } from 'react';
 import { TripResult } from '../types';
 import { IconTruck } from '../lib/svgIcons';
 import TripActionButtons from './TripActionButtons';
+import { getOrCreateClientId } from '../utils/client-id';
 
 // Iconos
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
@@ -70,10 +70,6 @@ export default function TripForm({
     const setIsExpanded = setIsExpandedProp ?? setInternalExpanded;
     const [tempStop, setTempStop] = useState('');
 
-    const originRef = useRef<google.maps.places.Autocomplete | null>(null);
-    const destRef = useRef<google.maps.places.Autocomplete | null>(null);
-    const stopRef = useRef<google.maps.places.Autocomplete | null>(null);
-
     // Auto-colapsar cuando se completen los resultados (solo en modo NO controlado)
     useEffect(() => {
         if (isExpandedProp !== undefined) return;
@@ -103,35 +99,38 @@ export default function TripForm({
         if (!isChecked) setFormData({ ...formData, etapas: '' });
     };
 
-    const onPlaceChanged = (field: 'origen' | 'destino' | 'tempStop') => {
-        const ref = field === 'origen' ? originRef : field === 'destino' ? destRef : stopRef;
-        const place = ref.current?.getPlace();
-        console.log(`🔍 onPlaceChanged(${field}):`, place); // DEBUG
-        if (place && place.formatted_address) {
-            // NO normalizar al guardar - guardar dirección completa del API
-            // La normalización se hace solo cuando se envía a Google Directions
-            console.log(`📍 ${field} seleccionado:`, place.formatted_address);
-            if (field === 'tempStop') setTempStop(place.formatted_address);
-            else setFormData((prev) => ({ ...prev, [field]: place.formatted_address }) as FormData);
-        } else {
-            console.warn(`⚠️ ${field}: No se pudo obtener formatted_address`, place);
-        }
-    };
-
-    const handleManualGeocode = (field: 'origen' | 'destino') => {
+    const handleManualGeocode = async (field: 'origen' | 'destino') => {
         const value = formData[field];
         if (!value) return;
-        if (typeof google === 'undefined') return;
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address: value }, (results, status) => {
-            if (status === 'OK' && results && results[0]) {
-                const cleanAddress = results[0].formatted_address;
+
+        try {
+            const clientId = getOrCreateClientId();
+            const res = await fetch('/api/google/geocode-address', {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                },
+                body: JSON.stringify({ query: value, language: 'es' }),
+            });
+
+            if (!res.ok) {
+                alert(`❌ ${t('LOCATION_NOT_FOUND')}`);
+                return;
+            }
+
+            const json = await res.json();
+            const formatted = json?.ok ? json?.result?.formatted_address : null;
+            if (typeof formatted === 'string' && formatted.trim()) {
+                const cleanAddress = formatted.trim();
                 setFormData((prev: FormData) => ({ ...prev, [field]: cleanAddress }));
                 alert(`✅ ${t('LOCATION_VALIDATED')}:\n"${cleanAddress}"`);
             } else {
                 alert(`❌ ${t('LOCATION_NOT_FOUND')}`);
             }
-        });
+        } catch {
+            alert(`❌ ${t('LOCATION_NOT_FOUND')}`);
+        }
     };
 
     const addWaypoint = () => {
@@ -242,7 +241,7 @@ export default function TripForm({
                     <input
                         type="text"
                         id="tripName"
-                        value={formData.tripName}
+                        value={formData.tripName ?? ''}
                         onChange={handleChange}
                         placeholder={`${formData.origen?.split(',')[0] || 'Origen'} → ${formData.destino?.split(',')[0] || 'Destino'} ${formData.fechaInicio ? `(${new Date(formData.fechaInicio).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })})` : ''}`}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-2 focus:ring-red-500 outline-none text-base font-semibold text-gray-800 placeholder:text-gray-400 placeholder:font-normal"
@@ -255,20 +254,18 @@ export default function TripForm({
                     {/* FECHAS */}
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_START_DATE')}</label>
-                        <input type="date" id="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" required />
+                        <input type="date" id="fechaInicio" value={formData.fechaInicio ?? ''} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" required />
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_END_DATE')}</label>
-                        <input type="date" id="fechaRegreso" value={formData.fechaRegreso} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" />
+                        <input type="date" id="fechaRegreso" value={formData.fechaRegreso ?? ''} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none" />
                     </div>
 
                     {/* ORIGEN */}
                     <div className="space-y-1 relative">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_ORIGIN')}</label>
                         <div className="flex gap-1">
-                            <Autocomplete onLoad={ref => originRef.current = ref} onPlaceChanged={() => onPlaceChanged('origen')} className='w-full'>
-                                <input type="text" id="origen" value={formData.origen} onChange={handleChange} placeholder={t('FORM_CITY_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
-                            </Autocomplete>
+                            <input type="text" id="origen" value={formData.origen ?? ''} onChange={handleChange} placeholder={t('FORM_CITY_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
                             <button type="button" onClick={() => handleManualGeocode('origen')} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
@@ -277,9 +274,7 @@ export default function TripForm({
                     <div className="space-y-1 relative">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_DESTINATION')}</label>
                         <div className="flex gap-1">
-                            <Autocomplete onLoad={ref => destRef.current = ref} onPlaceChanged={() => onPlaceChanged('destino')} className='w-full'>
-                                <input type="text" id="destino" value={formData.destino} onChange={handleChange} placeholder={t('FORM_CABO_NORTE_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
-                            </Autocomplete>
+                            <input type="text" id="destino" value={formData.destino ?? ''} onChange={handleChange} placeholder={t('FORM_CABO_NORTE_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
                             <button type="button" onClick={() => handleManualGeocode('destino')} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
@@ -302,15 +297,13 @@ export default function TripForm({
                         <div className="md:col-span-2 lg:col-span-4 -mt-2 space-y-3 p-3 bg-gray-50 rounded border border-gray-200">
                             <div className="flex gap-2 items-center">
                                 <div className="flex-1 relative">
-                                    <Autocomplete onLoad={ref => stopRef.current = ref} onPlaceChanged={() => onPlaceChanged('tempStop')}>
-                                        <input
-                                            type="text"
-                                            value={tempStop}
-                                            onChange={(e) => setTempStop(e.target.value)}
-                                            placeholder={t('FORM_WAYPOINT_SEARCH_PLACEHOLDER')}
-                                            className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
-                                        />
-                                    </Autocomplete>
+                                    <input
+                                        type="text"
+                                        value={tempStop}
+                                        onChange={(e) => setTempStop(e.target.value)}
+                                        placeholder={t('FORM_WAYPOINT_SEARCH_PLACEHOLDER')}
+                                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
+                                    />
                                 </div>
                                 <button type="button" onClick={addWaypoint} className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1 shadow-sm">
                                     <IconPlusCircle /> {t('MAP_ADD')}

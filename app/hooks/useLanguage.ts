@@ -28,6 +28,7 @@ const translations: Record<Language, TranslationMap> = {
         'AUTH_REGISTER': 'Registrarse',
         'AUTH_EMAIL_PLACEHOLDER': 'Tu email...',
         'AUTH_PASSWORD_PLACEHOLDER': 'Contraseña...',
+        'AUTH_USERNAME_PLACEHOLDER': 'Tu username...',
         'AUTH_SEND_LINK': 'Enviar Link',
         'AUTH_CREATE_ACCOUNT': 'Crear Cuenta',
         'AUTH_LOGIN': 'Entrar',
@@ -100,6 +101,7 @@ const translations: Record<Language, TranslationMap> = {
         'ACTION_SHARE': 'Compartir',
         'ACTION_DELETE': 'Borrar',
         'ACTION_LOADING': 'Guardando...',
+        'TRIAL_TOOLTIP_LOGIN': 'Modo prueba: inicia sesión para desbloquear esta función.',
     },
     en: {
         'APP_TITLE': 'CaraCola Trips',
@@ -113,6 +115,7 @@ const translations: Record<Language, TranslationMap> = {
         'AUTH_REGISTER': 'Register',
         'AUTH_EMAIL_PLACEHOLDER': 'Your email...',
         'AUTH_PASSWORD_PLACEHOLDER': 'Password...',
+        'AUTH_USERNAME_PLACEHOLDER': 'Your username...',
         'AUTH_SEND_LINK': 'Send Link',
         'AUTH_CREATE_ACCOUNT': 'Create Account',
         'AUTH_LOGIN': 'Login',
@@ -185,6 +188,7 @@ const translations: Record<Language, TranslationMap> = {
         'ACTION_SHARE': 'Share',
         'ACTION_DELETE': 'Delete',
         'ACTION_LOADING': 'Saving...',
+        'TRIAL_TOOLTIP_LOGIN': 'Trial mode: log in to unlock this feature.',
     }
 };
 
