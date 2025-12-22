@@ -3,214 +3,53 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
-const INITIAL_CONTENT = `# CaraColaViajes - Roadmap & Ideas
+const INITIAL_CONTENT = `# CaraColaViajes — Roadmap Operativo
 
-## 🤖 IA local (Exploración) — 21 Diciembre 2025
+> **Última actualización:** 22 Diciembre 2025
 
-### Contexto (equipo de pruebas)
-- PC actual: Intel i5-2300 (4C/4T), 16 GB RAM, GPU NVIDIA GeForce 315 (~1 GB VRAM, WDDM 1.2, Feature Level hasta 10_1).
-- Con esta GPU NO es realista ejecutar modelos grandes en VRAM; la vía viable es CPU + modelos pequeños cuantizados.
+## Principio rector: “Mutación / Control absoluto de costes”
+- El navegador **NO** llama APIs pagadas de Google (Directions/Geocoding/Elevation/Places).
+- El navegador solo usa **Maps JS SDK** para render.
+- Todo lo pagado va por **servidor** (server actions + \`/api/google/*\`) con **logs + caché + rate-limit + trazabilidad** (\`clientId\` + \`user_id\`).
 
-### Objetivos IA (2 líneas de trabajo)
-1) **Asesor de viajes** (cara al usuario)
-    - Recomendaciones, planificación conversacional, propuestas de ruta, cambios “si llueve” o “si quiero menos km”.
-2) **IA interna** (operación/negocio)
-    - Control de gastos (APIs), detección de abuso/fraude, control de calidad, alertas automáticas, resúmenes ejecutivos.
+## Estado actual
+### ✅ Hecho
+- Trial vs Login:
+  - Trial: **máx 10 días**, **máx 2 waypoints**, **máx 2 supercat/día** por \`clientId\`.
+  - Login: desbloqueo de límites + \`username\` en \`user_metadata\`.
+- QA: \`scripts/test-mutation-map.js\` (Puppeteer) → asegura **0 llamadas directas** a Google paid APIs desde el browser.
+- Elevation/Directions UI: \`authToken\` propagado a endpoints server-side.
+- Predictivos (Autocomplete): restaurado vía endpoint interno **server-side** \`GET /api/google/places-autocomplete\` (solo logueados).
 
-### Tareas para revisar mañana
-- Evaluar “IA local” (CPU) con un modelo pequeño (1B–3B) en modo cuantizado.
-- Medir velocidad real en este PC (tokens/seg) y latencia para 1) y 2).
-- Decidir estrategia final:
-  - Local (para herramientas internas y pruebas) vs
-  - Servidor propio (GPU moderna) vs
-  - Proveedor externo (API) para el MVP.
+### 🟠 En curso
+- Cierre completo de “trial gasto cero” para cualquier UI que dispare \`/api/google/*\`.
 
-### Acción (mañana): implementar IA mínima
-- Implementar una IA mínima enfocada a operaciones internas:
-    - resumen diario de uso (costes/APIs)
-    - alertas simples de abuso/anomalías
-    - explicación “para humanos” de picos de gasto
+## Próximo bloque (P1 — esta semana)
+Objetivo: en trial, **ninguna acción** debe provocar llamadas server-side pagadas “extra” por UX.
 
-### Nota importante
-- La GPU actual ayuda sobre todo a fluidez visual del mapa; no reduce el coste de APIs.
+Checklist:
+- [ ] \`AdjustStageModal\`: pasar \`trialMode\` y bloquear \`/api/google/geocode-address\` en trial.
+- [ ] \`useStageNavigation\`: evitar geocoding táctico en trial (o no-op con aviso).
+- [ ] \`useElevation\`: confirmar bloqueo en trial (o gating equivalente) y que UI muestra aviso.
+- [ ] \`/share/[id]\`: revisar llamadas a \`/api/google/directions\` y decidir política (p.ej. requerir login si no existe polyline/overview).
 
-## 🧠 IA “ASESOR DE VIAJES” — revisar 08 Enero 2026
+## Siguiente (P2 — 1-2 semanas)
+- [ ] Sanitizar logs: redactar API keys (\`key=...\`) antes de persistir/mostrar.
+- [ ] Endurecer rate-limit por endpoint (especialmente autocomplete, directions, geocode).
+- [ ] Homogeneizar “Auth required” en endpoints sensibles y mensajes UX.
 
-### Objetivo
-Convertir el sistema en un asistente que ayude a planificar viajes (conversación + propuestas + ajustes).
+## Backlog (P3/P4)
+- [ ] Mejorar UX del autocomplete (teclado/enter/highlight) sin cambiar el principio de costes.
+- [ ] Auditoría/visor: agregados por \`clientId\`/\`user_id\`, top endpoints, coste por día.
 
-### Qué debe saber hacer (MVP)
-- Hacer preguntas para aclarar preferencias (tipo de viaje, ritmo, presupuesto, paradas).
-- Proponer una ruta/itinerario inicial.
-- Ajustar el plan ante cambios (más días, menos km/día, evitar peajes, clima).
-- Recomendar categorías cerca de cada etapa (spots, restaurantes, gas, servicios) sin saturar APIs.
+## Sincronización con Supabase
+Este repo tiene scripts:
+- \`node scripts/sync-roadmap.js\` → sube \`ROADMAP.md\` a la tabla \`roadmap\` (id=\`main\`).
+- \`node scripts/check-roadmap.js\` → verifica que Supabase lo tiene.
 
-### Decisiones a tomar el 08/01/2026
-- Estrategia: proveedor externo vs servidor propio vs híbrido.
-- Límites de coste por usuario y protección anti-abuso.
-- Qué datos guardamos (privacidad) y qué mostramos.
-
-## 🚀 PRÓXIMAS MEJORAS - Mapa y Servicios (Diciembre 2025)
-
-### 🎨 Mejoras visuales e interacción con mapa
-1. **✅ Filtros de servicios más visuales** (COMPLETADO)
-   - ✅ Reemplazar checkboxes por iconos grandes con toggle (estilo botones)
-   - ✅ Cada servicio con su icono característico y color
-   - ✅ Estado activo/inactivo visualmente claro
-   - ✅ Efecto hover y feedback táctil
-   - ✅ Contador de resultados por servicio
-   - ✅ Diseño responsivo y optimizado para escritorio
-
-2. **Búsqueda por etapa específica**
-   - Click en un día del itinerario → busca servicios cerca de ese punto
-   - Indicador visual de "buscando en día X"
-   - Centrar mapa automáticamente
-
-3. **Radio de búsqueda ajustable**
-   - Slider para cambiar cuántos km alrededor buscar (5km - 50km)
-   - Círculo visual en el mapa mostrando el radio
-   - Actualización en tiempo real
-
-4. **Info window mejorado**
-   - Foto del lugar prominente
-   - Rating con estrellas visuales (ya implementado ✅)
-    - Nº de reseñas (user_ratings_total)
-    - Abierto ahora / estado (opening_hours.open_now / business_status)
-    - Tags útiles (types) y price_level (si viene)
-   - Botón "Guardar" / "Añadir a favoritos"
-   - Distancia desde punto de ruta
-
-5. **Lista lateral de lugares encontrados**
-   - Panel con scroll mostrando todos los resultados
-   - Ordenable por distancia/rating
-   - Click en item → centra mapa y abre info
-
-6. **Filtro por rating mínimo**
-   - Solo mostrar lugares con X estrellas o más
-   - Slider o botones rápidos (3+, 4+, 4.5+)
-
-7. **Mejoras en marcadores**
-   - Diferenciar mejor saved vs search markers
-   - Clusters para muchos resultados
-   - Animación al añadir/quitar
-
-8. **Persistencia de servicios encontrados**
-   - Guardar qué servicios encontraste interesantes para cada viaje
-   - Recuperar al reabrir el viaje
-
----
-
-## 🎯 VERSIÓN PREMIUM (Futuras features de pago)
-
-### 📞 Información extendida de lugares
-- **Teléfonos**: \`formatted_phone_number\` via \`PlacesService.getDetails()\`
-- **Sitios web**: \`website\` via \`PlacesService.getDetails()\`
-- **Horarios completos**: \`opening_hours.weekday_text[]\` (horario detallado por día)
-- **Fotos adicionales**: \`photos[]\` (galería completa, no solo primera foto)
-- **Precio aproximado**: \`price_level\` (0-4, económico a caro)
-- **Botones de acción**: Llamar, Abrir web, Ver en Google Maps, Compartir
-
-### 💡 Otras ideas Premium
-- Exportar itinerario a PDF/Google Calendar
-- Modo offline (guardar lugares y mapas)
-- Compartir ruta con amigos (colaboración)
-- Historial de viajes guardados
-- Recomendaciones personalizadas (IA)
-- Alertas de clima adverso en ruta
-- Reservas directas (integración con booking/camping)
-
----
-
-## 🔧 MEJORAS TÉCNICAS (Backlog)
-
-### Performance
-- [ ] Cachear resultados de Places API en localStorage (reducir llamadas)
-- [ ] Lazy loading de fotos (solo cargar cuando visible)
-- [ ] Virtualización de listas largas (react-window)
-
-### UX/UI
-- [ ] Selector de ordenación (Score / Distancia / Rating)
-- [ ] Filtros adicionales (solo abiertos, rating mínimo, distancia máxima)
-- [ ] Vista de galería/grid alternativa a lista
-- [ ] Modo oscuro
-- [ ] Animaciones suaves al añadir/quitar lugares
-
-### Datos
-- [ ] Persistencia en Supabase (sincronizar entre dispositivos)
-- [ ] Analytics: qué servicios busca más la gente, rutas populares
-- [ ] Validación de lugares (detectar cerrados permanentemente)
-
----
-
-## 🐛 BUGS CONOCIDOS
-- [ ] Actualizar \`baseline-browser-mapping\` (warning en build)
-- [ ] Sanitizar logs: redacción de API keys (Google \`key=...\`) antes de guardar/mostrar en Supabase
-
----
-
-## ✅ COMPLETADO (Últimas implementaciones)
-
-### v0.5 - Sistema de Colaboración & Tooling (Dic 2025) 🆕
-- ✅ **Chat de desarrollo en tiempo real** (Supabase Realtime)
-  - Mensajes instantáneos entre desarrolladores
-  - Avatares con colores únicos por usuario
-  - Timestamps relativos
-  - Accesible en \`/dev-chat\` (solo dev/preview)
-- ✅ **Migraciones de base de datos**
-  - Tabla \`dev_messages\` con RLS
-  - Tabla \`roadmap_comments\` para colaboración futura
-  - Realtime habilitado
-- ✅ **Configuración completa de VS Code**
-  - Extensiones recomendadas (ESLint, Prettier, Tailwind, GitLens)
-  - Settings optimizados para Next.js/TypeScript
-  - Tareas predefinidas (dev, build, lint, clean)
-  - Configuraciones de debug (server, client, full-stack)
-  - Snippets personalizados (Next.js, Supabase, Tailwind)
-  - Documentación en \`.vscode/README.md\`
-- ✅ **Onboarding para nuevos desarrolladores**
-  - Guía interactiva HTML (\`SETUP_CARMEN.html\`)
-  - Quick reference Markdown (\`SETUP_CARMEN.md\`)
-  - Setup paso a paso con troubleshooting
-- ✅ **Mejoras de código**
-  - TypeScript: 0 errores
-  - ESLint: Errores críticos resueltos
-  - Hooks en orden correcto
-  - Types de Supabase en lugar de \`any\`
-  - Links de Next.js en lugar de \`<a>\`
-
-### v0.4 - Filtros Visuales de Servicios (Dic 2024)
-- ✅ Botones con iconos grandes reemplazando checkboxes
-- ✅ Gradientes azules para estado activo
-- ✅ Contador de resultados por servicio
-- ✅ Animaciones hover y active (scale)
-- ✅ Grid responsivo optimizado para escritorio
-- ✅ Diseño 50% más compacto tras feedback usuario
-- ✅ Botón "Añadir Sitio" con estilo consistente
-
-### v0.3 - Sistema de Puntuación Inteligente (Dic 2024)
-- ✅ Algoritmo scoring multi-factor (distancia, rating, reviews, disponibilidad)
-- ✅ Badges visuales (🏆 💎 🔥 📍)
-- ✅ Layout mejorado con info estructurada
-- ✅ Score visible en todos los spots
-- ✅ AuditMode para debugging
-
-### v0.2 - Optimización Places API (Dic 2024)
-- ✅ Cambio de keywords a Google Place types (language-independent)
-- ✅ Aumento de radios de búsqueda (10-30km)
-- ✅ Logging comprehensivo con emojis
-- ✅ Fix de imágenes en InfoWindow (native img tag)
-
-### v0.1 - Base (Nov 2024)
-- ✅ Next.js 16 + TypeScript + Tailwind
-- ✅ Google Maps integration
-- ✅ Búsqueda de servicios por tipo
-- ✅ Persistencia en localStorage
-- ✅ Deploy en Vercel
-
----
-
-**Última actualización:** 21 Diciembre 2025
-**Autor última sección:** Chema (v0.5 - Colaboración & Tooling)
+Requiere en \`.env.local\`:
+- \`NEXT_PUBLIC_SUPABASE_URL\`
+- \`NEXT_PUBLIC_SUPABASE_ANON_KEY\`
 `;
 
 export default function RoadmapPage() {

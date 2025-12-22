@@ -61,15 +61,17 @@ async function checkRoadmap() {
       console.log(preview);
       console.log('─'.repeat(60));
       
-      // Buscar keywords específicas
-      const hasStarFeature = record.content.includes('DESTACADO - Feature Estrella');
-      const hasV06 = record.content.includes('v0.6');
-      const hasAdjustStage = record.content.includes('Ajuste Manual de Etapas');
-      
+      // Buscar keywords específicas (roadmap operativo actual)
+      const hasMutacion = record.content.includes('Mutación') || record.content.includes('control absoluto de costes');
+      const hasTrialLogin = record.content.includes('Trial') && record.content.includes('Login');
+      const hasAutocomplete = record.content.includes('places-autocomplete') || record.content.includes('Autocomplete');
+      const hasP1Checklist = record.content.includes('Próximo bloque') && record.content.includes('Checklist');
+
       console.log('\n🔍 Verificación de contenido actualizado:');
-      console.log(`   ⭐ Sección "DESTACADO - Feature Estrella": ${hasStarFeature ? '✅ SÍ' : '❌ NO'}`);
-      console.log(`   📦 Versión "v0.6": ${hasV06 ? '✅ SÍ' : '❌ NO'}`);
-      console.log(`   🎯 "Ajuste Manual de Etapas": ${hasAdjustStage ? '✅ SÍ' : '❌ NO'}`);
+      console.log(`   💰 Mutación / control de costes: ${hasMutacion ? '✅ SÍ' : '❌ NO'}`);
+      console.log(`   🔐 Trial vs Login: ${hasTrialLogin ? '✅ SÍ' : '❌ NO'}`);
+      console.log(`   🔎 Autocomplete server-side: ${hasAutocomplete ? '✅ SÍ' : '❌ NO'}`);
+      console.log(`   ✅ Checklist P1: ${hasP1Checklist ? '✅ SÍ' : '❌ NO'}`);
     }
     
   } catch (error) {
