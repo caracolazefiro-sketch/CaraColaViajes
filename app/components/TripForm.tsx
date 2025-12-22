@@ -1,11 +1,127 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TripResult } from '../types';
 import { IconTruck } from '../lib/svgIcons';
 import TripActionButtons from './TripActionButtons';
 import { getOrCreateClientId } from '../utils/client-id';
 import { emitCenteredNotice } from '../utils/centered-notice';
+
+type AutocompletePrediction = { description: string; place_id?: string };
+
+function useServerAutocomplete(params: { enabled: boolean; authToken?: string }) {
+    const [suggestions, setSuggestions] = useState<AutocompletePrediction[]>([]);
+    const [open, setOpen] = useState(false);
+    const [loadingAutocomplete, setLoadingAutocomplete] = useState(false);
+    const seq = useRef(0);
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const close = useCallback(() => {
+        if (closeTimer.current) {
+            clearTimeout(closeTimer.current);
+            closeTimer.current = null;
+        }
+        closeTimer.current = setTimeout(() => setOpen(false), 120);
+    }, []);
+
+    const keepOpen = useCallback(() => {
+        if (closeTimer.current) {
+            clearTimeout(closeTimer.current);
+            closeTimer.current = null;
+        }
+        setOpen(true);
+    }, []);
+
+    const clear = useCallback(() => {
+        seq.current += 1;
+        setSuggestions([]);
+        setLoadingAutocomplete(false);
+        setOpen(false);
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+            debounceTimer.current = null;
+        }
+    }, []);
+
+    const onInputChange = useCallback((rawValue: string) => {
+        if (!params.enabled) {
+            clear();
+            return;
+        }
+
+        const q = String(rawValue || '').trim();
+        if (q.length < 3) {
+            clear();
+            return;
+        }
+
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+            debounceTimer.current = null;
+        }
+
+        const requestId = ++seq.current;
+        setLoadingAutocomplete(true);
+
+        debounceTimer.current = setTimeout(() => {
+            const clientId = getOrCreateClientId();
+
+            fetch(`/api/google/places-autocomplete?input=${encodeURIComponent(q)}&language=es`, {
+                method: 'GET',
+                headers: {
+                    ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                    ...(params.authToken ? { authorization: `Bearer ${params.authToken}` } : {}),
+                },
+            })
+                .then(async (res) => {
+                    const json = await res.json().catch(() => null);
+                    return { ok: res.ok, json };
+                })
+                .then(({ ok, json }) => {
+                    if (requestId !== seq.current) return;
+                    setLoadingAutocomplete(false);
+                    if (!ok) {
+                        setSuggestions([]);
+                        return;
+                    }
+                    const preds: unknown[] = Array.isArray(json?.predictions) ? (json.predictions as unknown[]) : [];
+                    const mapped: AutocompletePrediction[] = preds
+                        .map((p: unknown): AutocompletePrediction | null => {
+                            if (!p || typeof p !== 'object') return null;
+                            const r = p as Record<string, unknown>;
+                            const description = typeof r.description === 'string' ? r.description : '';
+                            const place_id = typeof r.place_id === 'string' ? r.place_id : undefined;
+                            if (!description.trim()) return null;
+                            return place_id ? { description, place_id } : { description };
+                        })
+                        .filter((p): p is AutocompletePrediction => Boolean(p));
+                    setSuggestions(mapped.slice(0, 8));
+                    setOpen(true);
+                })
+                .catch(() => {
+                    if (requestId !== seq.current) return;
+                    setLoadingAutocomplete(false);
+                    setSuggestions([]);
+                });
+        }, 240);
+    }, [clear, params.authToken, params.enabled]);
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+                debounceTimer.current = null;
+            }
+            if (closeTimer.current) {
+                clearTimeout(closeTimer.current);
+                closeTimer.current = null;
+            }
+        };
+    }, []);
+
+    return { suggestions, open, loadingAutocomplete, close, keepOpen, setOpen, clear, onInputChange };
+}
 
 // Iconos
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
@@ -56,6 +172,7 @@ interface TripFormProps {
     setIsExpanded?: (expanded: boolean) => void;
     renderCollapsedSummary?: boolean;
     trialMode?: boolean;
+    authToken?: string;
 }
 
 export default function TripForm({
@@ -65,7 +182,8 @@ export default function TripForm({
     isExpanded: isExpandedProp,
     setIsExpanded: setIsExpandedProp,
     renderCollapsedSummary = true,
-    trialMode
+    trialMode,
+    authToken,
 }: TripFormProps) {
 
     const trialTooltip = t('TRIAL_TOOLTIP_LOGIN');
@@ -74,6 +192,12 @@ export default function TripForm({
     const isExpanded = isExpandedProp ?? internalExpanded;
     const setIsExpanded = setIsExpandedProp ?? setInternalExpanded;
     const [tempStop, setTempStop] = useState('');
+
+    const canUseAutocomplete = Boolean(!trialMode && authToken);
+
+    const originAuto = useServerAutocomplete({ enabled: canUseAutocomplete, authToken });
+    const destinationAuto = useServerAutocomplete({ enabled: canUseAutocomplete, authToken });
+    const waypointAuto = useServerAutocomplete({ enabled: canUseAutocomplete, authToken });
 
     // Auto-colapsar cuando se completen los resultados (solo en modo NO controlado)
     useEffect(() => {
@@ -117,6 +241,7 @@ export default function TripForm({
                 headers: {
                     'content-type': 'application/json',
                     ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                    ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
                 },
                 body: JSON.stringify({ query: value, language: 'es' }),
             });
@@ -273,7 +398,47 @@ export default function TripForm({
                     <div className="space-y-1 relative">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_ORIGIN')}</label>
                         <div className="flex gap-1">
-                            <input type="text" id="origen" value={formData.origen ?? ''} onChange={handleChange} placeholder={t('FORM_CITY_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
+                            <div className="relative flex-1">
+                                <input
+                                    type="text"
+                                    id="origen"
+                                    value={formData.origen ?? ''}
+                                    onChange={(e) => {
+                                        handleChange(e);
+                                        originAuto.onInputChange(e.target.value);
+                                    }}
+                                    onFocus={() => {
+                                        if (!canUseAutocomplete) {
+                                            if (trialMode) emitCenteredNotice(trialTooltip);
+                                            return;
+                                        }
+                                        originAuto.keepOpen();
+                                    }}
+                                    onBlur={originAuto.close}
+                                    placeholder={t('FORM_CITY_PLACEHOLDER')}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400"
+                                    required
+                                />
+                                {originAuto.open && originAuto.suggestions.length > 0 && (
+                                    <div className="absolute z-40 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                        {originAuto.suggestions.map((p, idx) => (
+                                            <button
+                                                key={`${p.place_id || p.description}-${idx}`}
+                                                type="button"
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50"
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                onClick={() => {
+                                                    setFormData((prev: FormData) => ({ ...prev, origen: p.description }));
+                                                    originAuto.setOpen(false);
+                                                    originAuto.clear();
+                                                }}
+                                            >
+                                                {p.description}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <button type="button" onClick={() => { if (trialMode) { emitCenteredNotice(trialTooltip); return; } handleManualGeocode('origen'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? undefined : t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
@@ -282,7 +447,47 @@ export default function TripForm({
                     <div className="space-y-1 relative">
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_DESTINATION')}</label>
                         <div className="flex gap-1">
-                            <input type="text" id="destino" value={formData.destino ?? ''} onChange={handleChange} placeholder={t('FORM_CABO_NORTE_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
+                            <div className="relative flex-1">
+                                <input
+                                    type="text"
+                                    id="destino"
+                                    value={formData.destino ?? ''}
+                                    onChange={(e) => {
+                                        handleChange(e);
+                                        destinationAuto.onInputChange(e.target.value);
+                                    }}
+                                    onFocus={() => {
+                                        if (!canUseAutocomplete) {
+                                            if (trialMode) emitCenteredNotice(trialTooltip);
+                                            return;
+                                        }
+                                        destinationAuto.keepOpen();
+                                    }}
+                                    onBlur={destinationAuto.close}
+                                    placeholder={t('FORM_CABO_NORTE_PLACEHOLDER')}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400"
+                                    required
+                                />
+                                {destinationAuto.open && destinationAuto.suggestions.length > 0 && (
+                                    <div className="absolute z-40 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                        {destinationAuto.suggestions.map((p, idx) => (
+                                            <button
+                                                key={`${p.place_id || p.description}-${idx}`}
+                                                type="button"
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50"
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                onClick={() => {
+                                                    setFormData((prev: FormData) => ({ ...prev, destino: p.description }));
+                                                    destinationAuto.setOpen(false);
+                                                    destinationAuto.clear();
+                                                }}
+                                            >
+                                                {p.description}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <button type="button" onClick={() => { if (trialMode) { emitCenteredNotice(trialTooltip); return; } handleManualGeocode('destino'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? undefined : t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
@@ -308,10 +513,40 @@ export default function TripForm({
                                     <input
                                         type="text"
                                         value={tempStop}
-                                        onChange={(e) => setTempStop(e.target.value)}
+                                        onChange={(e) => {
+                                            setTempStop(e.target.value);
+                                            waypointAuto.onInputChange(e.target.value);
+                                        }}
+                                        onFocus={() => {
+                                            if (!canUseAutocomplete) {
+                                                if (trialMode) emitCenteredNotice(trialTooltip);
+                                                return;
+                                            }
+                                            waypointAuto.keepOpen();
+                                        }}
+                                        onBlur={waypointAuto.close}
                                         placeholder={t('FORM_WAYPOINT_SEARCH_PLACEHOLDER')}
                                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
                                     />
+                                    {waypointAuto.open && waypointAuto.suggestions.length > 0 && (
+                                        <div className="absolute z-40 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+                                            {waypointAuto.suggestions.map((p, idx) => (
+                                                <button
+                                                    key={`${p.place_id || p.description}-${idx}`}
+                                                    type="button"
+                                                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => {
+                                                        setTempStop(p.description);
+                                                        waypointAuto.setOpen(false);
+                                                        waypointAuto.clear();
+                                                    }}
+                                                >
+                                                    {p.description}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 <button type="button" onClick={() => { if (isAddWaypointBlocked) { emitCenteredNotice(trialTooltip); return; } addWaypoint(); }} className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1 shadow-sm" title={isAddWaypointBlocked ? undefined : t('MAP_ADD')}>
                                     <IconPlusCircle /> {t('MAP_ADD')}

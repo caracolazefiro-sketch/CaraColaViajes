@@ -380,6 +380,7 @@ export default function Home() {
             setIsExpanded={setUserWantsEditTrip}
             renderCollapsedSummary={false}
             trialMode={trialMode}
+            authToken={authToken ?? undefined}
         />
 
         {!!results?.dailyItinerary?.length && (
