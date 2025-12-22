@@ -346,6 +346,7 @@ export default function Home() {
                         onShare={handleShareTrip}
                         onReset={handleResetTrip}
                         t={t}
+                        trialMode={trialMode}
                       />
                     </div>
                   </div>
@@ -372,6 +373,7 @@ export default function Home() {
             isExpanded={isTripFormExpanded}
             setIsExpanded={setUserWantsEditTrip}
             renderCollapsedSummary={false}
+            trialMode={trialMode}
         />
 
         {!!results?.dailyItinerary?.length && (

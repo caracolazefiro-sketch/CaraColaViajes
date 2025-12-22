@@ -54,6 +54,7 @@ interface TripFormProps {
     isExpanded?: boolean;
     setIsExpanded?: (expanded: boolean) => void;
     renderCollapsedSummary?: boolean;
+    trialMode?: boolean;
 }
 
 export default function TripForm({
@@ -62,7 +63,8 @@ export default function TripForm({
     t, convert,
     isExpanded: isExpandedProp,
     setIsExpanded: setIsExpandedProp,
-    renderCollapsedSummary = true
+    renderCollapsedSummary = true,
+    trialMode
 }: TripFormProps) {
 
     const [internalExpanded, setInternalExpanded] = useState(true);
@@ -210,7 +212,7 @@ export default function TripForm({
 
                 {/* 3. ACCIONES + EDITAR (Derecha) */}
                 <div className="hidden md:flex items-center gap-2">
-                    <TripActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
+                    <TripActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} trialMode={trialMode} />
                     <div className="w-px h-6 bg-gray-200"></div>
                     <div className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">
                         <span>{t('DASHBOARD_EDIT')}</span>
@@ -229,7 +231,7 @@ export default function TripForm({
                     {t('FORM_TITLE')}
                 </h2>
                 <div className="flex items-center gap-4">
-                    <TripActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} />
+                    <TripActionButtons auditMode={auditMode} setAuditMode={setAuditMode} results={results} currentTripId={currentTripId} isSaving={isSaving} onSave={onSave} onShare={onShare} onReset={onReset} t={t} trialMode={trialMode} />
                     {results.totalDays && <IconChevronUp />}
                 </div>
             </div>
