@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import CenteredNoticeProvider from "./components/CenteredNoticeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,22 +37,24 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <footer style={{
-          position: 'fixed',
-          right: 8,
-          bottom: 8,
-          fontSize: '12px',
-          background: 'rgba(0,0,0,0.6)',
-          color: '#fff',
-          padding: '4px 8px',
-          borderRadius: '6px',
-          zIndex: 1000,
-        }}>
-          <span title="Entorno · commit · fecha">
-            {buildStamp}
-          </span>
-        </footer>
+        <CenteredNoticeProvider>
+          {children}
+          <footer style={{
+            position: 'fixed',
+            right: 8,
+            bottom: 8,
+            fontSize: '12px',
+            background: 'rgba(0,0,0,0.6)',
+            color: '#fff',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            zIndex: 1000,
+          }}>
+            <span title="Entorno · commit · fecha">
+              {buildStamp}
+            </span>
+          </footer>
+        </CenteredNoticeProvider>
       </body>
     </html>
   );

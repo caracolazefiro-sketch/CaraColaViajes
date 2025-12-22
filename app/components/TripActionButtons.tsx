@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { TripResult } from '../types';
+import { emitCenteredNotice } from '../utils/centered-notice';
 
 // Iconos Acciones
 const IconAudit = () => (
@@ -84,13 +85,19 @@ export default function TripActionButtons({
 
   const guardTrial = (e: React.MouseEvent, fn: () => void) => {
     e.stopPropagation();
-    if (trialMode) return;
+    if (trialMode) {
+      emitCenteredNotice(trialTooltip);
+      return;
+    }
     fn();
   };
 
   const handleClearCache = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (trialMode) return;
+    if (trialMode) {
+      emitCenteredNotice(trialTooltip);
+      return;
+    }
     if (typeof window === 'undefined') return;
 
     const keysToRemove = Object.keys(localStorage).filter((k) => k.startsWith('caracola_trip_v1'));
@@ -107,7 +114,7 @@ export default function TripActionButtons({
       <button
         onClick={(e) => guardTrial(e, () => setAuditMode(!auditMode))}
         className={`p-1.5 rounded transition ${auditMode ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-        title={trialMode ? trialTooltip : t('HEADER_AUDIT')}
+        title={trialMode ? undefined : t('HEADER_AUDIT')}
       >
         <IconAudit />
       </button>
@@ -117,7 +124,7 @@ export default function TripActionButtons({
             <button
               onClick={(e) => guardTrial(e, onShare)}
               className="p-1.5 rounded text-green-600 hover:bg-green-50 transition"
-              title={trialMode ? trialTooltip : t('ACTION_SHARE')}
+              title={trialMode ? undefined : t('ACTION_SHARE')}
             >
               <IconShare />
             </button>
@@ -126,7 +133,7 @@ export default function TripActionButtons({
             onClick={(e) => guardTrial(e, onSave)}
             disabled={isSaving}
             className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition disabled:opacity-50"
-            title={trialMode ? trialTooltip : t('ACTION_SAVE')}
+            title={trialMode ? undefined : t('ACTION_SAVE')}
           >
             <IconCloud />
           </button>
@@ -137,14 +144,14 @@ export default function TripActionButtons({
               guardTrial(e, onReset);
             }}
             className="p-1.5 rounded text-red-500 hover:bg-red-50 transition"
-            title={trialMode ? trialTooltip : t('ACTION_DELETE')}
+            title={trialMode ? undefined : t('ACTION_DELETE')}
           >
             <IconReset />
           </button>
           <button
             onClick={handleClearCache}
             className="p-1 rounded text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition text-xs"
-            title={trialMode ? trialTooltip : 'Limpiar caché local'}
+            title={trialMode ? undefined : 'Limpiar caché local'}
           >
             <IconClearCache />
           </button>

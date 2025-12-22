@@ -9,6 +9,7 @@ import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconStar, IconMapPin, IconTrendingUp } from '../lib/svgIcons';
 import { areasAcLabelForCode } from '../utils/areasacLegend';
 import { getOrCreateClientId } from '../utils/client-id';
+import { emitCenteredNotice } from '../utils/centered-notice';
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
@@ -420,7 +421,10 @@ export default function TripMap({
 
     const handleSearchSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (trialMode) return;
+        if (trialMode) {
+            emitCenteredNotice(trialTooltip);
+            return;
+        }
         if (!searchQuery.trim() || !mapInstance) return;
         const c = mapInstance.getCenter();
         if (c) onSearch(searchQuery, c.lat(), c.lng());
@@ -512,7 +516,7 @@ export default function TripMap({
 
             <div
                 className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-0.5 w-56 border border-gray-200 transition-opacity opacity-90 hover:opacity-100"
-                title={trialMode ? trialTooltip : undefined}
+                title={undefined}
             >
                 <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
                     <button
@@ -522,6 +526,7 @@ export default function TripMap({
                             if (trialMode) {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                emitCenteredNotice(trialTooltip);
                             }
                         }}
                     >
@@ -539,7 +544,10 @@ export default function TripMap({
                 {places.search && places.search.length > 0 && (
                     <button
                         onClick={() => {
-                            if (trialMode) return;
+                            if (trialMode) {
+                                emitCenteredNotice(trialTooltip);
+                                return;
+                            }
                             setSearchQuery('');
                             onClearSearch();
                         }}

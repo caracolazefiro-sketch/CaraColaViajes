@@ -6,6 +6,7 @@ import DaySpotsList from './DaySpotsList';
 import { ServiceIcons } from './ServiceIcons';
 import { IconAlertCircle, IconDroplet, IconPrinter, IconPlus, IconTrash2, IconTruck, IconSearch, IconSettings, IconWind, WeatherIcon } from '../lib/svgIcons';
 import { useWeather } from '../hooks/useWeather';
+import { emitCenteredNotice } from '../utils/centered-notice';
 
 // Iconos locales
 const IconPrint = () => <IconPrinter size={16} />;
@@ -131,10 +132,13 @@ export default function ItineraryPanel({
                             <div
                                 className="flex justify-center items-center gap-1.5 text-gray-600 hover:text-gray-900 cursor-pointer transition no-print mb-2"
                                 onClick={() => {
-                                    if (trialMode) return;
+                                    if (trialMode) {
+                                        emitCenteredNotice(trialTooltip);
+                                        return;
+                                    }
                                     window.print();
                                 }}
-                                title={trialMode ? trialTooltip : t('ITINERARY_PRINT')}
+                                title={trialMode ? undefined : t('ITINERARY_PRINT')}
                             >
                                 <IconPrint />
                                 <span className="text-xs font-semibold">PDF</span>
@@ -226,11 +230,14 @@ export default function ItineraryPanel({
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (trialMode) return;
+                                                            if (trialMode) {
+                                                                emitCenteredNotice(trialTooltip);
+                                                                return;
+                                                            }
                                                             onSearchNearDay(index);
                                                         }}
                                                         className="text-blue-600 hover:bg-blue-100 p-1 rounded-full border border-blue-200 bg-white shadow-sm transition-all no-print"
-                                                        title={trialMode ? trialTooltip : "🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."}
+                                                        title={trialMode ? undefined : "🔍 Buscar Servicios: Encuentra campings, gasolineras y restaurantes cerca de esta etapa. Ahorra tiempo localizando lo importante sin salir de tu ruta."}
                                                     >
                                                         <IconSearch className="h-3.5 w-3.5" />
                                                     </button>
@@ -241,11 +248,14 @@ export default function ItineraryPanel({
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (trialMode) return;
+                                                            if (trialMode) {
+                                                                emitCenteredNotice(trialTooltip);
+                                                                return;
+                                                            }
                                                             onAdjustDay(index);
                                                         }}
                                                         className="text-orange-600 hover:bg-orange-100 p-1 rounded-full border border-orange-200 bg-white shadow-sm transition-all no-print"
-                                                        title={trialMode ? trialTooltip : "⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."}
+                                                        title={trialMode ? undefined : "⚙️ Ajustar Parada: Cambia el destino de esta etapa y recalcula automáticamente el resto del viaje. Perfecto para desvíos o sitios mejores."}
                                                     >
                                                         <IconSettings className="h-3.5 w-3.5" />
                                                     </button>

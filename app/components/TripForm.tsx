@@ -5,6 +5,7 @@ import { TripResult } from '../types';
 import { IconTruck } from '../lib/svgIcons';
 import TripActionButtons from './TripActionButtons';
 import { getOrCreateClientId } from '../utils/client-id';
+import { emitCenteredNotice } from '../utils/centered-notice';
 
 // Iconos
 const IconSearchLoc = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>);
@@ -273,7 +274,7 @@ export default function TripForm({
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_ORIGIN')}</label>
                         <div className="flex gap-1">
                             <input type="text" id="origen" value={formData.origen ?? ''} onChange={handleChange} placeholder={t('FORM_CITY_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
-                            <button type="button" onClick={() => { if (!trialMode) handleManualGeocode('origen'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? trialTooltip : t('FORM_VALIDATE')}><IconSearchLoc /></button>
+                            <button type="button" onClick={() => { if (trialMode) { emitCenteredNotice(trialTooltip); return; } handleManualGeocode('origen'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? undefined : t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
 
@@ -282,7 +283,7 @@ export default function TripForm({
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_DESTINATION')}</label>
                         <div className="flex gap-1">
                             <input type="text" id="destino" value={formData.destino ?? ''} onChange={handleChange} placeholder={t('FORM_CABO_NORTE_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
-                            <button type="button" onClick={() => { if (!trialMode) handleManualGeocode('destino'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? trialTooltip : t('FORM_VALIDATE')}><IconSearchLoc /></button>
+                            <button type="button" onClick={() => { if (trialMode) { emitCenteredNotice(trialTooltip); return; } handleManualGeocode('destino'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? undefined : t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
 
@@ -312,7 +313,7 @@ export default function TripForm({
                                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
                                     />
                                 </div>
-                                <button type="button" onClick={() => { if (!isAddWaypointBlocked) addWaypoint(); }} className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1 shadow-sm" title={isAddWaypointBlocked ? trialTooltip : t('MAP_ADD')}>
+                                <button type="button" onClick={() => { if (isAddWaypointBlocked) { emitCenteredNotice(trialTooltip); return; } addWaypoint(); }} className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1 shadow-sm" title={isAddWaypointBlocked ? undefined : t('MAP_ADD')}>
                                     <IconPlusCircle /> {t('MAP_ADD')}
                                 </button>
                             </div>
