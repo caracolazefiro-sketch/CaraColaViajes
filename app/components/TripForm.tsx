@@ -67,6 +67,8 @@ export default function TripForm({
     trialMode
 }: TripFormProps) {
 
+    const trialTooltip = t('TRIAL_TOOLTIP_LOGIN');
+
     const [internalExpanded, setInternalExpanded] = useState(true);
     const isExpanded = isExpandedProp ?? internalExpanded;
     const setIsExpanded = setIsExpandedProp ?? setInternalExpanded;
@@ -82,6 +84,7 @@ export default function TripForm({
     }, [isExpandedProp, loading, results.totalDays, setIsExpanded]);
 
     const currentStops = formData.etapas ? formData.etapas.split('|').filter((s: string) => s.trim().length > 0) : [];
+    const isAddWaypointBlocked = Boolean(trialMode && currentStops.length >= 2);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value, type, checked } = e.target;
@@ -102,6 +105,7 @@ export default function TripForm({
     };
 
     const handleManualGeocode = async (field: 'origen' | 'destino') => {
+        if (trialMode) return;
         const value = formData[field];
         if (!value) return;
 
@@ -137,6 +141,7 @@ export default function TripForm({
 
     const addWaypoint = () => {
         if (!tempStop) return;
+        if (trialMode && currentStops.length >= 2) return;
         console.log(`➕ Agregando waypoint:`, tempStop);
         const newStops = [...currentStops, tempStop];
         setFormData({ ...formData, etapas: newStops.join('|') });
@@ -268,7 +273,7 @@ export default function TripForm({
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_ORIGIN')}</label>
                         <div className="flex gap-1">
                             <input type="text" id="origen" value={formData.origen ?? ''} onChange={handleChange} placeholder={t('FORM_CITY_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
-                            <button type="button" onClick={() => handleManualGeocode('origen')} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={t('FORM_VALIDATE')}><IconSearchLoc /></button>
+                            <button type="button" onClick={() => { if (!trialMode) handleManualGeocode('origen'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? trialTooltip : t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
 
@@ -277,7 +282,7 @@ export default function TripForm({
                         <label className="text-xs font-bold text-gray-500 uppercase">{t('FORM_DESTINATION')}</label>
                         <div className="flex gap-1">
                             <input type="text" id="destino" value={formData.destino ?? ''} onChange={handleChange} placeholder={t('FORM_CABO_NORTE_PLACEHOLDER')} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded focus:ring-1 focus:ring-red-500 outline-none placeholder-gray-400" required />
-                            <button type="button" onClick={() => handleManualGeocode('destino')} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={t('FORM_VALIDATE')}><IconSearchLoc /></button>
+                            <button type="button" onClick={() => { if (!trialMode) handleManualGeocode('destino'); }} className="bg-gray-100 border border-gray-300 text-gray-600 px-3 rounded hover:bg-gray-200" title={trialMode ? trialTooltip : t('FORM_VALIDATE')}><IconSearchLoc /></button>
                         </div>
                     </div>
 
@@ -307,7 +312,7 @@ export default function TripForm({
                                         className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500 shadow-sm"
                                     />
                                 </div>
-                                <button type="button" onClick={addWaypoint} className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1 shadow-sm">
+                                <button type="button" onClick={() => { if (!isAddWaypointBlocked) addWaypoint(); }} className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1 shadow-sm" title={isAddWaypointBlocked ? trialTooltip : t('MAP_ADD')}>
                                     <IconPlusCircle /> {t('MAP_ADD')}
                                 </button>
                             </div>
