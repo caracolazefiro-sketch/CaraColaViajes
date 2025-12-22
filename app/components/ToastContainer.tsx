@@ -39,16 +39,17 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) =>
     if (toasts.length === 0) return null;
 
     return (
-        <div className="fixed top-4 right-4 z-[10000] space-y-2 pointer-events-none">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center pointer-events-none">
+            <div className="w-full max-w-2xl space-y-3 px-4">
             {toasts.map((toast) => (
                 <div
                     key={toast.id}
-                    className={`${getBackgroundColor(toast.type)} border rounded-lg shadow-lg p-4 flex items-start gap-3 min-w-[300px] max-w-[400px] pointer-events-auto animate-slideIn`}
+                    className={`${getBackgroundColor(toast.type)} border rounded-xl shadow-lg p-5 flex items-start gap-3 w-full pointer-events-auto`}
                 >
                     <div className="flex-shrink-0 mt-0.5">
                         {getIcon(toast.type)}
                     </div>
-                    <p className="flex-1 text-sm text-gray-800 leading-snug">
+                    <p className="flex-1 text-base text-gray-900 leading-snug font-semibold">
                         {toast.message}
                     </p>
                     <button
@@ -60,6 +61,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) =>
                     </button>
                 </div>
             ))}
+            </div>
         </div>
     );
 };
