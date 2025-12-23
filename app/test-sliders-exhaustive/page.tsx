@@ -7,6 +7,7 @@ const containerStyle = { width: '100%', height: '600px', borderRadius: '1rem' };
 const center = { lat: 40.416775, lng: -3.703790 };
 
 export default function TestSlidersExhaustive() {
+    const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID;
     const [minRating, setMinRating] = useState(2.5);
     const [searchRadius, setSearchRadius] = useState(25);
     const [sortBy, setSortBy] = useState<'score' | 'distance' | 'rating'>('score');
@@ -26,6 +27,7 @@ export default function TestSlidersExhaustive() {
                         center={center}
                         zoom={6}
                         options={{
+                            ...(mapId ? { mapId } : {}),
                             zoomControl: true,
                             streetViewControl: false,
                             mapTypeControl: false,

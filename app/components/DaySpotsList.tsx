@@ -28,60 +28,6 @@ const CATEGORY_ORDER: Record<string, number> = {
     camping: 1, gas: 2, supermarket: 3, laundry: 4, restaurant: 5, tourism: 6, custom: 7
 };
 
-interface ServiceButtonProps {
-    type: ServiceType;
-    label: string;
-    toggles: Record<ServiceType, boolean>;
-    onToggle: (type: ServiceType) => void;
-    count?: number;
-    filteredCount?: number; // Nuevo: contador post-filtro
-    loading?: boolean;
-    showCount?: boolean;
-}
-
-const ServiceButton: React.FC<ServiceButtonProps> = ({ type, label, toggles, onToggle, count = 0, filteredCount, loading = false, showCount = false }) => {
-    const Icon = ServiceIcons[type as keyof typeof ServiceIcons];
-    const isActive = toggles[type];
-    const badgeCount = filteredCount ?? count;
-    
-    return (
-        <button 
-            onClick={() => onToggle(type)} 
-            className={`relative px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 ${
-                isActive 
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-blue-700 shadow-blue-200' 
-                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md'
-            }`}
-        >
-            {/* Icono */}
-            {Icon && (
-                <div className={`p-1 rounded-full ${isActive ? 'bg-white/20' : 'bg-gray-100'}`}>
-                    <Icon size={16} className={isActive ? 'text-white' : 'text-gray-600'} />
-                </div>
-            )}
-            
-            {/* Label */}
-            <span className="text-[10px] leading-tight text-center">{label}</span>
-            
-            {/* Loader */}
-            {loading && (
-                <span className={`absolute -top-1 -left-1 w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-gray-500'} animate-pulse`} title="Buscando..." />
-            )}
-
-            {/* Contador de resultados (solo cuando debe mostrarse) */}
-            {showCount && badgeCount > 0 && (
-                <span className={`absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm ${
-                    isActive 
-                        ? 'bg-red-500 text-white' 
-                        : 'bg-gray-600 text-white'
-                }`}>
-                    {badgeCount}
-                </span>
-            )}
-        </button>
-    );
-};
-
 interface ServiceListProps {
     type: ServiceType;
     title: string;
@@ -359,7 +305,6 @@ interface DaySpotsListProps {
     places: Record<ServiceType, PlaceWithDistance[]>;
     loading: Record<ServiceType, boolean>;
     toggles: Record<ServiceType, boolean>;
-    onToggle: (type: ServiceType) => void;
     onAddPlace: (place: PlaceWithDistance) => void;
     onRemovePlace: (placeId: string) => void;
     onHover: (place: PlaceWithDistance | null) => void;
@@ -378,7 +323,7 @@ interface DaySpotsListProps {
 }
 
 const DaySpotsList: React.FC<DaySpotsListProps> = ({ 
-    day, places, loading, toggles, onToggle, onAddPlace, onRemovePlace, onHover, t, convert, auditMode,
+    day, places, loading, toggles, onAddPlace, onRemovePlace, onHover, t, convert, auditMode,
     minRating = 0, setMinRating,
     searchRadius = 50, setSearchRadius,
     sortBy = 'score', setSortBy,
@@ -541,7 +486,7 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                                                 }
                                             }}
                                             onMouseLeave={closeElevationPopoverWithDelay}
-                                                disabled={trialMode || loadingElevation || !(day.coordinates ?? day.startCoordinates)}
+                                                disabled={loadingElevation || !(day.coordinates ?? day.startCoordinates)}
                                             className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
                                                 (day.coordinates ?? day.startCoordinates)
                                                     ? 'text-gray-500 hover:text-gray-700'
@@ -797,107 +742,14 @@ const DaySpotsList: React.FC<DaySpotsListProps> = ({
                         </div>
                     )}
 
-                    {/* Grid de botones de servicios compacto */}
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                        <ServiceButton 
-                            type="camping" 
-                            label="Spots" 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.camping?.length || 0}
-                            loading={loading.camping}
-                            showCount={toggles.camping || toggles.restaurant || toggles.supermarket}
-                            filteredCount={saved.filter(s => s.type === 'camping').length + filterAndSort(places.camping || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="restaurant" 
-                            label={t('SERVICE_EAT')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.restaurant?.length || 0}
-                            loading={loading.restaurant}
-                            showCount={toggles.camping || toggles.restaurant || toggles.supermarket}
-                            filteredCount={saved.filter(s => s.type === 'restaurant').length + filterAndSort(places.restaurant || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="supermarket" 
-                            label={t('SERVICE_SUPERMARKET')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.supermarket?.length || 0}
-                            loading={loading.supermarket}
-                            showCount={toggles.camping || toggles.restaurant || toggles.supermarket}
-                            filteredCount={saved.filter(s => s.type === 'supermarket').length + filterAndSort(places.supermarket || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="gas" 
-                            label={t('SERVICE_GAS')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.gas?.length || 0}
-                            loading={loading.gas}
-                            showCount={toggles.gas || toggles.laundry || toggles.tourism}
-                            filteredCount={saved.filter(s => s.type === 'gas').length + filterAndSort(places.gas || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="laundry" 
-                            label={t('SERVICE_LAUNDRY')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.laundry?.length || 0}
-                            loading={loading.laundry}
-                            showCount={toggles.gas || toggles.laundry || toggles.tourism}
-                            filteredCount={saved.filter(s => s.type === 'laundry').length + filterAndSort(places.laundry || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="tourism" 
-                            label={t('SERVICE_TOURISM')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={places.tourism?.length || 0}
-                            loading={loading.tourism}
-                            showCount={toggles.gas || toggles.laundry || toggles.tourism}
-                            filteredCount={saved.filter(s => s.type === 'tourism').length + filterAndSort(places.tourism || [], minRating, searchRadius, sortBy).length}
-                        />
-                        <ServiceButton 
-                            type="custom" 
-                            label={t('SERVICE_CUSTOM')} 
-                            toggles={toggles} 
-                            onToggle={onToggle} 
-                            count={saved.filter(s => s.type === 'custom').length}
-                            filteredCount={saved.filter(s => s.type === 'custom').length}
-                        />
-                        {saved.filter(s => s.type === 'search').length > 0 && (
-                            <ServiceButton 
-                                type="search" 
-                                label="Buscados" 
-                                toggles={toggles} 
-                                onToggle={onToggle} 
-                                count={saved.filter(s => s.type === 'search').length}
-                                filteredCount={saved.filter(s => s.type === 'search').length}
-                            />
-                        )}
-                        {saved.filter(s => s.type === 'found').length > 0 && (
-                            <ServiceButton 
-                                type="found" 
-                                label="Encontrados" 
-                                toggles={toggles} 
-                                onToggle={onToggle} 
-                                count={saved.filter(s => s.type === 'found').length}
-                                filteredCount={saved.filter(s => s.type === 'found').length}
-                            />
-                        )}
-                        {/* Botón Añadir Sitio como parte del grid */}
-                        <button 
-                            onClick={() => { setPlaceToEdit(null); setShowForm(true); }} 
-                            className="px-2 py-2 rounded-lg text-xs font-bold border-2 transition-all flex flex-col items-center gap-1 shadow-sm hover:scale-105 active:scale-95 bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md"
-                        >
-                            <div className="p-1 rounded-full bg-gray-100">
-                                <IconPlus className="text-gray-600" />
-                            </div>
-                            <span className="text-[10px] leading-tight text-center">{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
-                        </button>
-                    </div>
+                    {/* (Los botones de categorías se han movido dentro del mapa) */}
+                    <button
+                        onClick={() => { setPlaceToEdit(null); setShowForm(true); }}
+                        className="w-full mb-4 px-3 py-2 rounded-lg text-xs font-bold border-2 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md"
+                    >
+                        <IconPlus className="text-gray-600 h-4 w-4" />
+                        <span>{t('MAP_ADD')} {isImperial ? 'Place' : 'Sitio'}</span>
+                    </button>
 
                     <div className="space-y-2">
                         <ServiceList type="camping" title={t('SERVICE_CAMPING')} colorClass="text-red-800" markerColor="bg-red-600" places={places} loading={loading} toggles={toggles} saved={saved} t={t} isSaved={isSaved} onAddPlace={onAddPlace} onRemovePlace={onRemovePlace} onHover={onHover} handlePlaceClick={handlePlaceClick} handleEditStart={handleEditStart} auditMode={auditMode} minRating={minRating} searchRadius={searchRadius} sortBy={sortBy} />

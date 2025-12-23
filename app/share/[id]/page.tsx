@@ -51,13 +51,16 @@ const decodePolyline = (encoded: string): Array<{ lat: number; lng: number }> =>
 };
 
 export default function SharedTripPage() {
+    const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID;
     const params = useParams(); 
     const router = useRouter();
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
         libraries: LIBRARIES,
-        language: 'es'
+        language: 'es',
+        version: 'weekly',
+        mapIds: mapId ? [mapId] : undefined,
     });
 
     type SharedTrip = {
@@ -135,6 +138,7 @@ export default function SharedTripPage() {
                 headers: {
                     'content-type': 'application/json',
                     ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                    ...(session.access_token ? { authorization: `Bearer ${session.access_token}` } : {}),
                 },
                 body: JSON.stringify({
                     origin,
@@ -274,7 +278,36 @@ export default function SharedTripPage() {
                             zoom={6}
                             onLoad={(mapInstance) => {
                                 setMap(mapInstance);
+
+                                // Debug (dev): confirmar que el SDK se carga con map_ids y el Map ID se aplica.
+                                try {
+                                    const isDev = process.env.NODE_ENV !== 'production';
+                                    if (isDev) {
+                                        const scripts = Array.from(document.getElementsByTagName('script'));
+                                        const mapsScriptSrc =
+                                            scripts.find((s) => s.src && s.src.includes('maps.googleapis.com/maps/api/js'))?.src ?? null;
+
+                                        const anyMap = mapInstance as unknown as {
+                                            getMapId?: () => string | undefined;
+                                            get?: (key: string) => unknown;
+                                        };
+                                        const appliedMapId =
+                                            (typeof anyMap.getMapId === 'function' ? anyMap.getMapId() : undefined) ??
+                                            (typeof anyMap.get === 'function' ? (anyMap.get('mapId') as string | undefined) : undefined);
+
+                                        console.log('[SharedTrip][MapID]', {
+                                            envMapId: mapId ?? null,
+                                            appliedMapId: appliedMapId ?? null,
+                                            mapsScriptSrc,
+                                            googleMapsVersion:
+                                                (google as unknown as { maps?: { version?: string } })?.maps?.version ?? null,
+                                        });
+                                    }
+                                } catch {
+                                    // ignore
+                                }
                             }}
+                            options={mapId ? { mapId } : undefined}
                         >
                             {routePath && routePath.length > 1 && (
                                 <Polyline

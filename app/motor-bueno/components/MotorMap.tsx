@@ -18,6 +18,7 @@ const containerStyle = {
 const defaultCenter = { lat: 40.416775, lng: -3.703790 }; // Centro España
 
 export default function MotorMap({ origen, destino, itinerary }: MotorMapProps) {
+  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID;
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [directionsResult, setDirectionsResult] = useState<google.maps.DirectionsResult | null>(null);
   const [bounds, setBounds] = useState<google.maps.LatLngBounds | null>(null);
@@ -56,6 +57,7 @@ export default function MotorMap({ origen, destino, itinerary }: MotorMapProps) 
         center={defaultCenter}
         zoom={6}
         onLoad={setMap}
+        options={mapId ? { mapId } : undefined}
       >
         {directionsResult && (
           <DirectionsRenderer directions={directionsResult} />

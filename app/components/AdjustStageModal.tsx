@@ -13,6 +13,7 @@ interface AdjustStageModalProps {
     onConfirm: (newDestination: string, newCoordinates: { lat: number; lng: number }) => void;
     trialMode?: boolean;
     trialMessage?: string;
+    authToken?: string;
 }
 
 export default function AdjustStageModal({
@@ -23,6 +24,7 @@ export default function AdjustStageModal({
     onConfirm,
     trialMode = false,
     trialMessage = 'Modo prueba: inicia sesión para desbloquear esta función.',
+    authToken,
 }: AdjustStageModalProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [isResolving, setIsResolving] = useState(false);
@@ -51,17 +53,24 @@ export default function AdjustStageModal({
                     headers: {
                         'content-type': 'application/json',
                         ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+                        ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
                     },
                     body: JSON.stringify({ query: q, language: 'es' }),
                 });
 
                 const json = await res.json().catch(() => null);
-                if (!res.ok || !json?.ok || !json?.result?.geometry?.location) {
+                const result = json?.ok ? json?.result : null;
+                const loc = (result?.location ?? result?.geometry?.location) as
+                    | { lat?: number; lng?: number }
+                    | null
+                    | undefined;
+
+                if (!res.ok || !json?.ok || !loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') {
+                    emitCenteredNotice('No se pudo resolver esa ubicación. Prueba con “Ciudad, País”.');
                     return;
                 }
 
-                const loc = json.result.geometry.location as { lat: number; lng: number };
-                const destinationText = String(json.result.formatted_address || q).trim();
+                const destinationText = String(result?.formatted_address || q).trim();
                 onConfirm(destinationText, { lat: loc.lat, lng: loc.lng });
                 handleClose();
             } finally {

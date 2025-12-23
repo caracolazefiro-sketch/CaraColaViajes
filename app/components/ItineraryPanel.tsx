@@ -23,7 +23,6 @@ interface ItineraryPanelProps {
     loadingPlaces: Record<ServiceType, boolean>;
     toggles: Record<ServiceType, boolean>;
     auditMode: boolean;
-    onToggle: (type: ServiceType) => void;
     onAddPlace: (place: PlaceWithDistance) => void;
     onRemovePlace: (placeId: string) => void;
     onHover: (place: PlaceWithDistance | null) => void;
@@ -51,7 +50,7 @@ interface ItineraryPanelProps {
 
 export default function ItineraryPanel({
     dailyItinerary, selectedDayIndex, origin, destination, tripName, places, loadingPlaces,
-    toggles, auditMode, onToggle, onAddPlace, onRemovePlace, onHover,
+    toggles, auditMode, onAddPlace, onRemovePlace, onHover,
     onAddDay, onRemoveDay, onSelectDay, onSearchNearDay, onAdjustDay, t, convert,
     minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy,
     trialMode = false,
@@ -328,7 +327,6 @@ export default function ItineraryPanel({
                         loading={loadingPlaces} 
                         toggles={toggles}
                         auditMode={auditMode}
-                        onToggle={onToggle} 
                         onAddPlace={onAddPlace} 
                         onRemovePlace={onRemovePlace} 
                         onHover={onHover}

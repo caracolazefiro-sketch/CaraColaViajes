@@ -48,12 +48,22 @@ export default function Home() {
   const { settings, t, convert, setLang, language } = useLanguage();
   const { toasts, showToast, dismissToast } = useToast();
 
-  const { isLoaded } = useJsApiLoader({
+  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID;
+
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: LIBRARIES,
     language: 'es',
+    version: 'weekly',
+    mapIds: mapId ? [mapId] : undefined,
   });
+
+  useEffect(() => {
+    if (loadError) {
+      console.error('[MapsLoader] loadError', loadError);
+    }
+  }, [loadError]);
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
@@ -130,6 +140,7 @@ export default function Home() {
     setFormData,
     showToast,
     tripId: apiTripId,
+    authToken,
   });
 
   const isBlockingUi = loading || isRecalculating;
@@ -163,6 +174,7 @@ export default function Home() {
     dailyItinerary: results.dailyItinerary,
     toggles,
     trialMode,
+    authToken: authToken ?? undefined,
     setSelectedDayIndex,
     setHoveredPlace: () => setHoveredPlace(null),
     setMapBounds,
@@ -206,6 +218,7 @@ export default function Home() {
             headers: {
               'content-type': 'application/json',
               ...(clientId ? { 'x-caracola-client-id': clientId } : {}),
+              ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
             },
             body: JSON.stringify({ query: cleanTo, language: 'es', tripId: apiTripId }),
           });
@@ -274,8 +287,45 @@ export default function Home() {
   // 🔥 ELIMINADO: useEffect de fitBounds (Estaba duplicado y causando conflictos)
 
   const handlePlaceClick = (spot: PlaceWithDistance) => {
-      if (spot.link) window.open(spot.link, '_blank');
-      else if (spot.place_id && !spot.place_id.startsWith('custom-')) window.open(`https://www.google.com/maps/place/?q=place_id:${spot.place_id}`, '_blank');
+      const open = (rawUrl: string) => {
+        const url = rawUrl.startsWith('http://') || rawUrl.startsWith('https://') ? rawUrl : `https://${rawUrl}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      };
+
+      const placeId = String(spot.place_id || '');
+      const isGooglePlaceId =
+        !!placeId &&
+        !placeId.startsWith('custom-') &&
+        !placeId.startsWith('areasac:') &&
+        !placeId.startsWith('osm-');
+
+      // 1) Google Place ID: usar el esquema oficial de Google Maps URLs (preciso)
+      if (isGooglePlaceId) {
+        const query = encodeURIComponent(spot.name || 'Google');
+        const qpid = encodeURIComponent(placeId);
+        open(`https://www.google.com/maps/search/?api=1&query=${query}&query_place_id=${qpid}`);
+        return;
+      }
+
+      // 2) Link explícito (solo para no-Google IDs: custom/OSM/etc)
+      if (spot.link) {
+        open(String(spot.link));
+        return;
+      }
+
+      // 3) Fallback: coordenadas
+      // Preferir búsqueda por texto (nombre/dirección) para que Google muestre resultados.
+      const textQuery = [spot.name, spot.vicinity].filter(Boolean).join(' ').trim();
+      if (textQuery) {
+        open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(textQuery)}`);
+        return;
+      }
+
+      const loc = spot.geometry?.location;
+      if (loc) {
+        const q = encodeURIComponent(`${loc.lat},${loc.lng}`);
+        open(`https://www.google.com/maps/search/?api=1&query=${q}`);
+      }
   };
 
   if (!isLoaded) return <div className="flex justify-center items-center h-screen bg-red-50 text-red-600 font-bold text-xl animate-pulse">Cargando CaraCola...</div>;
@@ -400,7 +450,7 @@ export default function Home() {
                     dailyItinerary={results.dailyItinerary} selectedDayIndex={selectedDayIndex} origin={formData.origen} destination={formData.destino}
                     tripName={formData.tripName}
                     places={places} loadingPlaces={loadingPlaces} toggles={toggles} auditMode={auditMode}
-                    onToggle={handleToggleWrapper} onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
+                    onAddPlace={handleAddPlace} onRemovePlace={handleRemovePlace} onHover={setHoveredPlace}
                     onAddDay={(i) => addDayToItinerary(i, formData.fechaInicio)} onRemoveDay={(i) => removeDayFromItinerary(i, formData.fechaInicio)}
                     onSelectDay={focusMapOnStage} onSearchNearDay={handleSearchNearDay} onAdjustDay={handleAdjustDay} t={t} convert={convert}
                     minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
@@ -416,6 +466,7 @@ export default function Home() {
                     places={places} toggles={toggles} selectedDayIndex={selectedDayIndex} hoveredPlace={hoveredPlace} setHoveredPlace={setHoveredPlace}
                     onPlaceClick={handlePlaceClick} onAddPlace={handleAddPlace}
                     onSearch={searchByQuery} onClearSearch={clearSearch} mapInstance={map}
+                    onToggle={handleToggleWrapper}
                     minRating={minRating} setMinRating={setMinRating} searchRadius={searchRadius} setSearchRadius={setSearchRadius} sortBy={sortBy} setSortBy={setSortBy}
                     t={t}
                     trialMode={trialMode}
@@ -437,6 +488,7 @@ export default function Home() {
             onConfirm={handleConfirmAdjust}
             trialMode={trialMode}
             trialMessage={t('TRIAL_TOOLTIP_LOGIN')}
+            authToken={authToken ?? undefined}
           />
         )}
       </div>

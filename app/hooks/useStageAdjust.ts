@@ -15,6 +15,7 @@ type UseStageAdjustParams<TForm extends TripFormData & { tripName?: string; etap
   setFormData: React.Dispatch<React.SetStateAction<TForm>>;
   showToast: ShowToast;
   tripId?: string | null;
+  authToken?: string | null;
 };
 
 type ItineraryDay = NonNullable<TripResult['dailyItinerary']>[number];
@@ -33,6 +34,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
   setFormData,
   showToast,
   tripId,
+  authToken,
 }: UseStageAdjustParams<TForm>) {
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [adjustingDayIndex, setAdjustingDayIndex] = useState<number | null>(null);
@@ -374,6 +376,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
           kmMaximoDia: formData.kmMaximoDia,
           fechaInicio: suffixStartDay?.isoDate || formData.fechaInicio,
           fechaRegreso: formData.fechaRegreso || '',
+          authToken: authToken || undefined,
         });
 
         if (recalcResult.error || !recalcResult.dailyItinerary) {
@@ -615,7 +618,7 @@ export function useStageAdjust<TForm extends TripFormData & { tripName?: string;
         if (didStartRecalc) setIsRecalculating(false);
       }
     },
-    [adjustingDayIndex, closeAdjustModal, formData, results, setDirectionsResponse, setFormData, setResults, showToast, tripId]
+    [adjustingDayIndex, closeAdjustModal, formData, results, setDirectionsResponse, setFormData, setResults, showToast, tripId, authToken]
   );
 
   return {

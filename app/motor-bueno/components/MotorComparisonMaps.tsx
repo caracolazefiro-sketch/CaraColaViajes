@@ -59,6 +59,7 @@ const defaultCenter = { lat: 40.416775, lng: -3.703790 };
 
 export default function MotorComparisonMaps({ origen, destino, kmMaximo = 300, manualWaypoints = [], dailyItinerary, showOnlyOurRequest, showOnlyGoogleMap, showOnlyMotorMap, onSegmentationPointsCalculated }: MotorComparisonMapsProps) {
   const [ourRequestMap, setOurRequestMap] = useState<google.maps.Map | null>(null);
+  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID;
   const [googleMap, setGoogleMap] = useState<google.maps.Map | null>(null);
   const [motorMap, setMotorMap] = useState<google.maps.Map | null>(null);
   const [ourDirections, setOurDirections] = useState<google.maps.DirectionsResult | null>(null);
@@ -822,6 +823,7 @@ export default function MotorComparisonMaps({ origen, destino, kmMaximo = 300, m
             center={defaultCenter}
             zoom={6}
             onLoad={setOurRequestMap}
+              options={mapId ? { mapId } : undefined}
           >
             {ourDirections && <DirectionsRenderer directions={ourDirections} />}
           </GoogleMap>
@@ -849,6 +851,7 @@ export default function MotorComparisonMaps({ origen, destino, kmMaximo = 300, m
             center={defaultCenter}
             zoom={6}
             onLoad={setGoogleMap}
+              options={mapId ? { mapId } : undefined}
           >
             {googleDirections && <DirectionsRenderer directions={googleDirections} />}
           </GoogleMap>
@@ -875,6 +878,7 @@ export default function MotorComparisonMaps({ origen, destino, kmMaximo = 300, m
             center={defaultCenter}
             zoom={6}
             onLoad={setMotorMap}
+              options={mapId ? { mapId } : undefined}
           >
             {/* Ruta azul */}
             {motorDirections && (

@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap, DirectionsRenderer, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
 import { PlaceWithDistance, DailyPlan, ServiceType } from '../types';
-import { createMarkerIcon } from './ServiceIcons';
+import { createMarkerIcon, ServiceIcons } from './ServiceIcons';
 import StarRating from './StarRating';
 import { filterAndSort } from '../hooks/useSearchFilters';
 import { IconStar, IconMapPin, IconTrendingUp } from '../lib/svgIcons';
@@ -93,6 +93,7 @@ interface TripMapProps {
     onSearch: (query: string, lat: number, lng: number) => void;
     onClearSearch: () => void;
     mapInstance: google.maps.Map | null;
+    onToggle?: (type: ServiceType) => void;
     minRating?: number;
     setMinRating?: (rating: number) => void;
     searchRadius?: number;
@@ -109,8 +110,11 @@ export default function TripMap({
     setMap, mapBounds, directionsResponse, overviewPolyline, dailyItinerary, places, toggles,
     selectedDayIndex, hoveredPlace, setHoveredPlace, onPlaceClick, onAddPlace,
     onSearch, onClearSearch, mapInstance, t, minRating = 0, setMinRating, searchRadius = 50, setSearchRadius, sortBy = 'score', setSortBy,
-    trialMode = false
+    trialMode = false,
+    onToggle: handleCategoryToggle
 }: TripMapProps) {
+
+    const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID;
 
     const [searchQuery, setSearchQuery] = useState('');
     const [clickedGooglePlace, setClickedGooglePlace] = useState<PlaceWithDistance | null>(null);
@@ -152,7 +156,7 @@ export default function TripMap({
         setHoveredPlace(spot);
 
         // No intentar enrich para no-Google IDs
-        if (!placeId || placeId.startsWith('custom-') || placeId.startsWith('areasac:')) {
+        if (!placeId || placeId.startsWith('custom-') || placeId.startsWith('areasac:') || placeId.startsWith('osm-')) {
             setHoveredPlace(spot);
             return;
         }
@@ -330,6 +334,35 @@ export default function TripMap({
     const handleMapLoad = (map: google.maps.Map) => {
         setMap(map);
 
+        // Debug (dev): confirmar que el Map ID llega al mapa.
+        // Nota: en algunos casos el estilo cloud no se aplica si el Map ID no pertenece al mismo proyecto que la API key.
+        try {
+            const isDev = process.env.NODE_ENV !== 'production';
+            if (isDev) {
+                const scripts = Array.from(document.getElementsByTagName('script'));
+                const mapsScriptSrc =
+                    scripts.find((s) => s.src && s.src.includes('maps.googleapis.com/maps/api/js'))?.src ?? null;
+
+                const anyMap = map as unknown as {
+                    getMapId?: () => string | undefined;
+                    get?: (key: string) => unknown;
+                };
+                const appliedMapId =
+                    (typeof anyMap.getMapId === 'function' ? anyMap.getMapId() : undefined) ??
+                    (typeof anyMap.get === 'function' ? (anyMap.get('mapId') as string | undefined) : undefined);
+
+                console.log('[TripMap][MapID]', {
+                    envMapId: mapId ?? null,
+                    appliedMapId: appliedMapId ?? null,
+                    mapTypeId: String(map.getMapTypeId?.() ?? 'unknown'),
+                    mapsScriptSrc,
+                    googleMapsVersion: (google as unknown as { maps?: { version?: string } })?.maps?.version ?? null,
+                });
+            }
+        } catch {
+            // ignore
+        }
+
         // Sync map type for custom small controls
         try {
             setMapTypeId(String(map.getMapTypeId() ?? 'roadmap'));
@@ -438,6 +471,20 @@ export default function TripMap({
     const searchPlaceholder = t ? t('MAP_SEARCH_PLACEHOLDER') : 'Buscar en esta zona...';
     const trialTooltip = t ? t('TRIAL_TOOLTIP_LOGIN') : 'Modo prueba: inicia sesión para desbloquear esta función.';
 
+    const categoryButtons = useMemo(() => {
+        const label = (key: string, fallback: string) => (t ? t(key) : fallback);
+        return [
+            { type: 'camping' as const, label: 'Spots' },
+            { type: 'restaurant' as const, label: label('SERVICE_EAT', 'Comer') },
+            { type: 'supermarket' as const, label: label('SERVICE_SUPERMARKET', 'Super') },
+            { type: 'gas' as const, label: label('SERVICE_GAS', 'Gas') },
+            { type: 'laundry' as const, label: label('SERVICE_LAUNDRY', 'Lavar') },
+            { type: 'tourism' as const, label: label('SERVICE_TOURISM', 'Turismo') },
+            { type: 'custom' as const, label: label('SERVICE_CUSTOM', 'Propios') },
+            { type: 'search' as const, label: 'Buscados' },
+        ];
+    }, [t]);
+
     const mapOptions = useMemo((): google.maps.MapOptions => {
         const g = typeof google !== 'undefined' ? google : undefined;
         return {
@@ -459,6 +506,10 @@ export default function TripMap({
         };
     }, []);
 
+    const mapOptionsWithId = useMemo((): google.maps.MapOptions => {
+        return mapId ? { ...mapOptions, mapId } : mapOptions;
+    }, [mapId, mapOptions]);
+
     // Generamos una clave única para forzar el repintado de la ruta si cambia
     // Usamos el polyline codificado como ID único de la ruta
     const routeKey = (directionsResponse?.routes?.[0]?.overview_polyline as unknown as string) || overviewPolyline || 'no-route';
@@ -467,95 +518,133 @@ export default function TripMap({
         <div className="h-full bg-gray-200 rounded-xl shadow-lg overflow-hidden border-4 border-white relative no-print group">
             {/* Controles compactos (reemplazan los controles grandes de Google) */}
             <div className="absolute top-4 left-4 z-10 flex flex-col items-start gap-2">
-                {/* Map type: Mapa / Satélite */}
-                <div className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden flex">
-                    <button
-                        type="button"
-                        onClick={() => mapInstance?.setMapTypeId('roadmap')}
-                        className={`px-2 py-1 text-[11px] font-semibold transition ${mapTypeId === 'roadmap' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
-                    >
-                        Mapa
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => mapInstance?.setMapTypeId('satellite')}
-                        className={`px-2 py-1 text-[11px] font-semibold transition border-l border-gray-200 ${mapTypeId === 'satellite' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
-                    >
-                        Satélite
-                    </button>
+                {/* Fila superior: Mapa/Satélite + Categorías */}
+                <div className="flex items-start gap-2">
+                    {/* Map type: Mapa / Satélite */}
+                    <div className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden flex">
+                        <button
+                            type="button"
+                            onClick={() => mapInstance?.setMapTypeId('roadmap')}
+                            className={`h-7 px-2 py-1 text-[11px] font-semibold transition ${mapTypeId === 'roadmap' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                        >
+                            Mapa
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => mapInstance?.setMapTypeId('satellite')}
+                            className={`h-7 px-2 py-1 text-[11px] font-semibold transition border-l border-gray-200 ${mapTypeId === 'satellite' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}
+                        >
+                            Satélite
+                        </button>
+                    </div>
+
+                    {/* Categorías: una sola fila horizontal con el mismo fondo blanco que +/- */}
+                    <div className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden flex">
+                        {categoryButtons.map((b, idx) => {
+                            const Icon = ServiceIcons[b.type];
+                            const isActive = !!toggles[b.type];
+                            return (
+                                <button
+                                    key={b.type}
+                                    type="button"
+                                    onClick={() => {
+                                        if (trialMode) {
+                                            emitCenteredNotice(trialTooltip);
+                                            return;
+                                        }
+                                        handleCategoryToggle?.(b.type);
+                                    }}
+                                    className={
+                                        `h-7 px-2 inline-flex items-center gap-1.5 text-[11px] font-semibold transition ` +
+                                        (idx > 0 ? 'border-l border-gray-200 ' : '') +
+                                        (isActive ? 'text-red-700 bg-red-50' : 'text-gray-700 hover:bg-gray-50')
+                                    }
+                                    aria-pressed={isActive}
+                                    title={b.label}
+                                >
+                                    <Icon size={16} className={isActive ? 'text-red-600' : 'text-gray-600'} />
+                                    <span className="whitespace-nowrap">{b.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
-                {/* Zoom + / - (compacto, en una sola línea) */}
-                <div className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden inline-flex w-fit">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (!mapInstance) return;
-                            const z = mapInstance.getZoom() ?? 6;
-                            mapInstance.setZoom(z + 1);
-                        }}
-                        className="h-7 w-7 flex-none flex items-center justify-center text-gray-700 hover:bg-gray-50 transition"
-                        aria-label="Zoom in"
-                    >
-                        <span className="text-[18px] leading-none">+</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (!mapInstance) return;
-                            const z = mapInstance.getZoom() ?? 6;
-                            mapInstance.setZoom(z - 1);
-                        }}
-                        className="h-7 w-7 flex-none flex items-center justify-center text-gray-700 hover:bg-gray-50 transition border-l border-gray-200"
-                        aria-label="Zoom out"
-                    >
-                        <span className="text-[18px] leading-none">−</span>
-                    </button>
-                </div>
-            </div>
+                {/* Fila inferior: Zoom +/− + Buscar (a la derecha, 75% de ancho) */}
+                <div className="flex items-stretch gap-2">
+                    {/* Zoom + / - (compacto, en una sola línea) */}
+                    <div className="bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden inline-flex w-fit">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!mapInstance) return;
+                                const z = mapInstance.getZoom() ?? 6;
+                                mapInstance.setZoom(z + 1);
+                            }}
+                            className="h-7 w-7 flex-none flex items-center justify-center text-gray-700 hover:bg-gray-50 transition"
+                            aria-label="Zoom in"
+                        >
+                            <span className="text-[18px] leading-none">+</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!mapInstance) return;
+                                const z = mapInstance.getZoom() ?? 6;
+                                mapInstance.setZoom(z - 1);
+                            }}
+                            className="h-7 w-7 flex-none flex items-center justify-center text-gray-700 hover:bg-gray-50 transition border-l border-gray-200"
+                            aria-label="Zoom out"
+                        >
+                            <span className="text-[18px] leading-none">−</span>
+                        </button>
+                    </div>
 
-            <div
-                className="absolute top-4 right-12 z-10 bg-white rounded-lg shadow-xl flex items-center p-0.5 w-56 border border-gray-200 transition-opacity opacity-90 hover:opacity-100"
-                title={undefined}
-            >
-                <form onSubmit={handleSearchSubmit} className="flex items-center flex-1">
-                    <button
-                        type="submit"
-                        className="p-1.5 text-gray-400 hover:text-blue-500"
-                        onClick={(e) => {
-                            if (trialMode) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                emitCenteredNotice(trialTooltip);
-                            }
-                        }}
+                    {/* Buscar en esta zona (75% del ancho original: 224px -> 168px) */}
+                    <div
+                        className="h-7 bg-white rounded-lg shadow-xl flex items-center px-1 w-[168px] border border-gray-200 transition-opacity opacity-90 hover:opacity-100"
+                        title={undefined}
                     >
-                        <IconSearch />
-                    </button>
-                    <input
-                        type="text"
-                        placeholder={searchPlaceholder}
-                        className="w-full text-xs outline-none text-gray-700"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        disabled={trialMode}
-                    />
-                </form>
-                {places.search && places.search.length > 0 && (
-                    <button
-                        onClick={() => {
-                            if (trialMode) {
-                                emitCenteredNotice(trialTooltip);
-                                return;
-                            }
-                            setSearchQuery('');
-                            onClearSearch();
-                        }}
-                        className="p-1.5 text-gray-300 hover:text-red-500"
-                    >
-                        <IconX />
-                    </button>
-                )}
+                        <form onSubmit={handleSearchSubmit} className="flex items-center flex-1 min-w-0">
+                            <button
+                                type="submit"
+                                className="p-1 text-gray-400 hover:text-blue-500"
+                                onClick={(e) => {
+                                    if (trialMode) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        emitCenteredNotice(trialTooltip);
+                                    }
+                                }}
+                            >
+                                <IconSearch />
+                            </button>
+                            <input
+                                type="text"
+                                placeholder={searchPlaceholder}
+                                className="w-full text-xs outline-none text-gray-700 min-w-0"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                disabled={trialMode}
+                            />
+                        </form>
+                        {places.search && places.search.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    if (trialMode) {
+                                        emitCenteredNotice(trialTooltip);
+                                        return;
+                                    }
+                                    setSearchQuery('');
+                                    onClearSearch();
+                                }}
+                                className="p-1 text-gray-300 hover:text-red-500"
+                            >
+                                <IconX />
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Filter Sliders - En línea única en parte BAJA del mapa (usando SOLO SVG) */}
@@ -571,7 +660,7 @@ export default function TripMap({
                         setClickedGooglePlace(null);
                     }
                 }}
-                options={mapOptions}
+                options={mapOptionsWithId}
             >
                 {directionsResponse && (
                     <DirectionsRenderer
@@ -731,7 +820,28 @@ export default function TripMap({
                                     })()
                                 )}
                                 <div className="flex gap-2">
-                                    {selectedDayIndex !== null && !isSaved(hoveredPlace.place_id) && (<button onClick={() => { onAddPlace(hoveredPlace); setHoveredPlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}
+                                    {!isSaved(hoveredPlace.place_id) && (
+                                        <button
+                                            onClick={() => {
+                                                if (selectedDayIndex === null) {
+                                                    emitCenteredNotice('Selecciona un día para añadir.');
+                                                    return;
+                                                }
+                                                onAddPlace(hoveredPlace);
+                                                setHoveredPlace(null);
+                                            }}
+                                            disabled={selectedDayIndex === null}
+                                            aria-disabled={selectedDayIndex === null}
+                                            className={
+                                                'flex-1 text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors ' +
+                                                (selectedDayIndex === null
+                                                    ? 'bg-green-200 text-white cursor-not-allowed'
+                                                    : 'bg-green-600 hover:bg-green-700 text-white')
+                                            }
+                                        >
+                                            <IconPlusCircle /> Añadir
+                                        </button>
+                                    )}
                                     <button onClick={() => onPlaceClick(hoveredPlace)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold py-1.5 rounded border border-blue-200 transition-colors">Ver en Google</button>
                                 </div>
                                 {selectedDayIndex === null && <p className="text-[9px] text-red-500 mt-2 text-center italic">Selecciona un día para añadir.</p>}
@@ -753,7 +863,28 @@ export default function TripMap({
                                 )}
                                 <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{clickedGooglePlace.vicinity}</p>
                                 <div className="flex gap-2">
-                                    {selectedDayIndex !== null && !isSaved(clickedGooglePlace.place_id) && (<button onClick={() => { onAddPlace(clickedGooglePlace); setClickedGooglePlace(null); }} className="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"><IconPlusCircle /> Añadir</button>)}
+                                    {!isSaved(clickedGooglePlace.place_id) && (
+                                        <button
+                                            onClick={() => {
+                                                if (selectedDayIndex === null) {
+                                                    emitCenteredNotice('Selecciona un día para añadir.');
+                                                    return;
+                                                }
+                                                onAddPlace(clickedGooglePlace);
+                                                setClickedGooglePlace(null);
+                                            }}
+                                            disabled={selectedDayIndex === null}
+                                            aria-disabled={selectedDayIndex === null}
+                                            className={
+                                                'flex-1 text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors ' +
+                                                (selectedDayIndex === null
+                                                    ? 'bg-green-200 text-white cursor-not-allowed'
+                                                    : 'bg-green-600 hover:bg-green-700 text-white')
+                                            }
+                                        >
+                                            <IconPlusCircle /> Añadir
+                                        </button>
+                                    )}
                                     <button onClick={() => onPlaceClick(clickedGooglePlace)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold py-1.5 rounded border border-blue-200 transition-colors">Ver en Google</button>
                                 </div>
                                 {selectedDayIndex === null && <p className="text-[9px] text-red-500 mt-2 text-center italic">Selecciona un día para añadir.</p>}
